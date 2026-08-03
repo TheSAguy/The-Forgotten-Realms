@@ -1,5 +1,6 @@
 package forge.adventure.util;
 
+import forge.adventure.data.ConfigData;
 import forge.adventure.data.DialogData;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.scene.TileMapScene;
@@ -19,6 +20,13 @@ public class TownRestoration {
     private static final int REBUILD_SHOP_COST = 100;
 
     public static boolean isWastelandTown() {
+        // Opt-in per-plane via config.json ("townReconstructionEnabled": true), same pattern as
+        // fog of war and the day/night cycle, so this never affects Shandalar or any other plane
+        // that hasn't explicitly turned it on.
+        ConfigData configData = Config.instance().getConfigData();
+        if (configData == null || !configData.townReconstructionEnabled)
+            return false;
+
         PointOfInterest point = TileMapScene.instance().rootPoint;
         if (point == null || point.getData() == null || point.getData().questTags == null)
             return false;

@@ -12,6 +12,17 @@ Make the Shandalar-style overworld a lot more dynamic and interactive — the fi
 struggle against each other, the player has a reputation with each of them, and the world
 visibly changes over time instead of sitting static.
 
+## Mod Plane: "The Forgotten Realms"
+
+All of this is being built as its own selectable plane, `forge-gui/res/adventure/The Forgotten
+Realms/` (currently a copy of Shandalar's `world/` data as a starting point). The plane has its
+own `config.json` (a full copy of `common/config.json`, since per-plane configs replace the
+common one entirely rather than merging with it) with our feature flags turned on:
+`fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled` — all `false` by default
+in the Java code, so every mod feature is opt-in per plane and **does not affect Shandalar or
+any other stock plane** unless that plane's own config.json also sets them. Select "The
+Forgotten Realms" in-game (New Game screen) to play/test the mod.
+
 ## Color Alliances / Enemies
 
 Core rule that several systems below depend on (reputation, territory attacks): standard

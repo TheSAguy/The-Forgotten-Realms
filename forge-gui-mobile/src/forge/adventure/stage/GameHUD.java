@@ -709,7 +709,11 @@ public class GameHUD extends Stage {
         boolean onOverworld = !MapStage.getInstance().isInMap();
         boolean showWaitToggle = onOverworld && WorldSave.getCurrentSave().getWorld().isDayNightCycleEnabled();
         waitCheckBox.setVisible(showWaitToggle);
-        fogOfWarDebugCheckBox.setVisible(onOverworld);
+        // Scoped to our mod plane specifically so this debug control doesn't show up on
+        // Shandalar or any other stock plane - remove this toggle entirely once fog of war
+        // doesn't need frequent manual testing.
+        boolean onModPlane = "The Forgotten Realms".equals(Config.instance().getSettingData().plane);
+        fogOfWarDebugCheckBox.setVisible(onOverworld && onModPlane);
         // Keep the box in sync when WorldStage clears the wait itself (player moved) -
         // setProgrammaticChangeEvents avoids re-triggering our own ChangeListener.
         boolean waiting = WorldStage.getInstance().isWaitingForTime();
