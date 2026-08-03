@@ -28,6 +28,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 
 /**
  * Class that will create the world from the configuration
@@ -49,6 +50,15 @@ public class World implements Disposable, SaveFileContent {
     private final Random random = new Random();
     private boolean worldDataLoaded = false;
     private Texture globalTexture = null;
+
+    // Fog of war: explored[x][y] is stored in the same raw/image-space orientation as biomeMap's
+    // internal array (matches the unflipped x,y loop used to build biomeImage), so it lines up
+    // directly with minimap pixel blocks. Gameplay lookups go through isExploredWorld(x,y), which
+    // applies the same y-flip World already uses for getBiome()/isColliding().
+    private boolean[][] explored;
+    private Pixmap fogOfWarPixmap;
+    private Pixmap fogTilePixmap;
+    private int visionRadius = 6;
 
     public Random getRandom() {
         return random;
@@ -116,6 +126,17 @@ public class World implements Disposable, SaveFileContent {
         mapPoiIds = new PointOfInterestMap(getChunkSize(), this.data.tileSize, this.data.width / getChunkSize(), this.data.height / getChunkSize());
         mapPoiIds.load(saveFileData.readSubData("mapPoiIds"));
         seed = saveFileData.readLong("seed");
+
+        Object exploredObj = saveFileData.readObject("explored");
+        if (exploredObj instanceof boolean[][] && ((boolean[][]) exploredObj).length == width) {
+            explored = (boolean[][]) exploredObj;
+        } else {
+            // Save predates fog of war (or dimensions don't match) - default to fully revealed
+            // rather than retroactively fogging a save that was made without this feature.
+            explored = new boolean[width][height];
+            for (boolean[] row : explored) Arrays.fill(row, true);
+        }
+        rebuildFogOfWarPixmap();
     }
 
     @Override
@@ -131,6 +152,7 @@ public class World implements Disposable, SaveFileContent {
         data.store("mapObjectIds", mapObjectIds.save());
         data.store("mapPoiIds", mapPoiIds.save());
         data.store("seed", seed);
+        data.storeObject("explored", explored);
         return data;
     }
 
@@ -160,6 +182,8 @@ public class World implements Disposable, SaveFileContent {
     public Pixmap getBiomeSprite(int x, int y) {
         if (x < 0 || y <= 0 || x >= width || y > height)
             return new Pixmap(data.tileSize, data.tileSize, Pixmap.Format.RGBA8888);
+        if (!isExploredWorld(x, y))
+            return getFogTile();
 
         long biomeIndex = getBiome(x, y);
         int biomeTerrain = getTerrainIndex(x, y);
@@ -313,6 +337,7 @@ public class World implements Disposable, SaveFileContent {
             //save at all data
             biomeMap = new long[width][height];
             terrainMap = new int[width][height];
+            explored = new boolean[width][height]; // brand new world: nothing explored yet
 
             for (int x = 0; x < width; x++) {
                 for (int y = 0; y < height; y++) {
@@ -802,6 +827,7 @@ public class World implements Disposable, SaveFileContent {
             }
             mapMarkerPixmap.dispose();
             biomeImage = pix;
+            rebuildFogOfWarPixmap();
             measureGenerationTime("sprites", currentTime[0]);
             System.out.println("Generating world took :\t\t" + ((System.currentTimeMillis() - startTime) / 1000f) + " s");
             WorldStage.getInstance().clearCache();
@@ -913,7 +939,99 @@ public class World implements Disposable, SaveFileContent {
     }
 
     public Pixmap getBiomeImage() {
-        return biomeImage;
+        if (!isFogOfWarEnabled())
+            return biomeImage;
+        return fogOfWarPixmap != null ? fogOfWarPixmap : biomeImage;
+    }
+
+    // Fog of war is opt-in per world/plane via config.json ("fogOfWarEnabled": true), defaulting to
+    // off so this engine-level change doesn't affect Shandalar or any other existing plane.
+    private boolean isFogOfWarEnabled() {
+        ConfigData configData = Config.instance().getConfigData();
+        return configData != null && configData.fogOfWarEnabled;
+    }
+
+    /**
+     * Marks tiles within radius of (centerWorldX, centerWorldY) as explored (circular area, tile
+     * coordinates in the same world-space as getBiome()/getBiomeSprite()). For each tile that was
+     * not already explored, updates the minimap fog pixmap and invokes onTileRevealed(x, y) so
+     * callers (e.g. WorldBackground) can patch any already-built ground textures in place.
+     */
+    public void revealArea(int centerWorldX, int centerWorldY, int radius, BiConsumer<Integer, Integer> onTileRevealed) {
+        if (!isFogOfWarEnabled() || explored == null) return;
+        int minX = Math.max(0, centerWorldX - radius);
+        int maxX = Math.min(width - 1, centerWorldX + radius);
+        int minY = Math.max(0, centerWorldY - radius);
+        int maxY = Math.min(height - 1, centerWorldY + radius);
+        int radiusSq = radius * radius;
+        for (int wx = minX; wx <= maxX; wx++) {
+            int dx = wx - centerWorldX;
+            for (int wy = minY; wy <= maxY; wy++) {
+                int dy = wy - centerWorldY;
+                if (dx * dx + dy * dy > radiusSq)
+                    continue;
+                int rawY = height - wy - 1;
+                if (rawY < 0 || rawY >= height || explored[wx][rawY])
+                    continue;
+                explored[wx][rawY] = true;
+                updateFogOfWarPixmap(wx, rawY);
+                if (onTileRevealed != null)
+                    onTileRevealed.accept(wx, wy);
+            }
+        }
+    }
+
+    public boolean isExploredWorld(int x, int y) {
+        if (!isFogOfWarEnabled() || explored == null)
+            return true;
+        try {
+            return explored[x][height - y - 1];
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return false;
+        }
+    }
+
+    public int getVisionRadius() {
+        return visionRadius;
+    }
+
+    public void setVisionRadius(int visionRadius) {
+        this.visionRadius = visionRadius;
+    }
+
+    private Pixmap getFogTile() {
+        if (fogTilePixmap == null) {
+            fogTilePixmap = new Pixmap(data.tileSize, data.tileSize, Pixmap.Format.RGBA8888);
+            fogTilePixmap.setColor(0, 0, 0, 1);
+            fogTilePixmap.fill();
+        }
+        return fogTilePixmap;
+    }
+
+    // rawX/rawY are in biomeMap's raw/image-space (unflipped), matching the x,y loop that built biomeImage.
+    private void updateFogOfWarPixmap(int rawX, int rawY) {
+        if (fogOfWarPixmap == null || biomeImage == null || data == null)
+            return;
+        int mm = data.miniMapTileSize;
+        fogOfWarPixmap.drawPixmap(biomeImage, rawX * mm, rawY * mm, mm, mm, rawX * mm, rawY * mm, mm, mm);
+    }
+
+    private void rebuildFogOfWarPixmap() {
+        if (!isFogOfWarEnabled() || biomeImage == null || explored == null)
+            return;
+        if (fogOfWarPixmap != null)
+            fogOfWarPixmap.dispose();
+        fogOfWarPixmap = new Pixmap(biomeImage.getWidth(), biomeImage.getHeight(), Pixmap.Format.RGBA8888);
+        fogOfWarPixmap.setColor(0, 0, 0, 1);
+        fogOfWarPixmap.fill();
+        int mm = data.miniMapTileSize;
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (explored[x][y]) {
+                    fogOfWarPixmap.drawPixmap(biomeImage, x * mm, y * mm, mm, mm, x * mm, y * mm, mm, mm);
+                }
+            }
+        }
     }
 
     public List<Pair<Vector2, Integer>> GetMapObjects(int chunkX, int chunkY) {
@@ -943,6 +1061,8 @@ public class World implements Disposable, SaveFileContent {
     public void dispose() {
 
         if (biomeImage != null) biomeImage.dispose();
+        if (fogOfWarPixmap != null) fogOfWarPixmap.dispose();
+        if (fogTilePixmap != null) fogTilePixmap.dispose();
     }
 
     public void setSeed(long seedOffset) {

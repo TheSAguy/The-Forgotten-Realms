@@ -6,6 +6,8 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.utils.Array;
+import forge.adventure.pointofintrest.PointOfInterest;
+import forge.adventure.world.World;
 import forge.adventure.world.WorldSave;
 
 import java.util.ArrayList;
@@ -30,6 +32,11 @@ public class WorldBackground extends Actor {
 
     GameStage stage;
 
+    // Bonus reveal radius applied around a point of interest the first time the player gets
+    // within normal vision range of it - discovering a town uncovers the area around it, not just
+    // the tile the player happens to be standing on.
+    private static final int DISCOVERY_REVEAL_RADIUS = 15;
+
     public WorldBackground(GameStage gameStage) {
         stage = gameStage;
     }
@@ -38,7 +45,22 @@ public class WorldBackground extends Actor {
         if (chunks == null) {
             initialize();
         }
+        World world = WorldSave.getCurrentSave().getWorld();
+        int playerTileX = playerX / tileSize;
+        int playerTileY = playerY / tileSize;
+        int visionRadius = world.getVisionRadius();
+        world.revealArea(playerTileX, playerTileY, visionRadius, this::onTileRevealed);
+
         GridPoint2 pos = translateFromWorldToChunk(playerX, playerY);
+        for (PointOfInterest poi : world.getPointsOfInterest(pos.x, pos.y)) {
+            int poiTileX = (int) (poi.getPosition().x / tileSize);
+            int poiTileY = (int) (poi.getPosition().y / tileSize);
+            int dx = poiTileX - playerTileX;
+            int dy = poiTileY - playerTileY;
+            if (dx * dx + dy * dy <= visionRadius * visionRadius) {
+                world.revealArea(poiTileX, poiTileY, DISCOVERY_REVEAL_RADIUS, this::onTileRevealed);
+            }
+        }
         if (currentChunkX != pos.x || currentChunkY != pos.y) {
             int xDiff = currentChunkX - pos.x;
             int yDiff = currentChunkY - pos.y;
@@ -179,5 +201,24 @@ public class WorldBackground extends Actor {
 
         playerX = (int) x;
         playerY = (int) y;
+    }
+
+    // Called when a tile newly becomes explored. If its chunk texture is already built, patch just
+    // that tile in place (mirroring the coordinate math in getChunkTexture) instead of rebuilding
+    // the whole chunk, so previously-loaded ground reveals live as the player walks.
+    private void onTileRevealed(int worldTileX, int worldTileY) {
+        if (chunks == null)
+            return;
+        int chunkX = Math.floorDiv(worldTileX, chunkSize);
+        int chunkY = Math.floorDiv(worldTileY, chunkSize);
+        if (chunkX < 0 || chunkY < 0 || chunkX >= chunks.length || chunkY >= chunks[0].length)
+            return;
+        Texture tex = chunks[chunkX][chunkY];
+        if (tex == null)
+            return; // chunk not built yet; it will draw correctly once it is, since getBiomeSprite() checks explored state
+        int localX = Math.floorMod(worldTileX, chunkSize);
+        int localY = Math.floorMod(worldTileY, chunkSize);
+        Pixmap tile = WorldSave.getCurrentSave().getWorld().getBiomeSprite(worldTileX, worldTileY);
+        tex.draw(tile, localX * tileSize, (chunkSize * tileSize) - (localY + 1) * tileSize);
     }
 }

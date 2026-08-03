@@ -11,6 +11,7 @@ import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.MapViewScene;
 import forge.adventure.util.Config;
+import forge.adventure.world.World;
 import forge.adventure.world.WorldSave;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -84,6 +85,10 @@ public class MapSprite extends Actor {
     @Override
     public void draw(Batch batch, float parentAlpha) {
         if (texture == null)
+            return;
+        World world = WorldSave.getCurrentSave().getWorld();
+        int tileSize = world.getTileSize();
+        if (!world.isExploredWorld((int) (getX() / tileSize), (int) (getY() / tileSize)))
             return;
         batch.draw(texture, getX(), getY());
         if (isCaveDungeon && !isOldorVisited && magnifier != null) {

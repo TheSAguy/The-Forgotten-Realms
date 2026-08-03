@@ -36,5 +36,6 @@ public class ConfigData {
     public boolean enableGeneticAI = true;
     public String chaosDeckFormat;
     public boolean usePriceListPrices = true;
+    public boolean fogOfWarEnabled = false;
 
 }
