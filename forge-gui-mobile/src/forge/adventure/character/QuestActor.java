@@ -1,11 +1,14 @@
 package forge.adventure.character;
 
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.stage.MapStage;
 import forge.adventure.util.AdventureQuestController;
 import forge.adventure.util.MapDialog;
+import forge.adventure.util.RubbleOverlay;
+import forge.adventure.util.TownRestoration;
 
 public class QuestActor extends DialogActor {
     String POI_ID;
@@ -20,8 +23,25 @@ public class QuestActor extends DialogActor {
 
     }
 
+    private boolean isDestroyed() {
+        return TownRestoration.isWastelandTown() && !TownRestoration.isTownRestored(stage);
+    }
+
+    @Override
+    public void draw(Batch batch, float alpha) {
+        super.draw(batch, alpha);
+        if (isDestroyed())
+            RubbleOverlay.draw(batch, getX(), getY(), getWidth(), getHeight(), alpha);
+    }
+
     @Override
     public void onPlayerCollide() {
+        if (isDestroyed()) {
+            MapDialog restoreDialog = TownRestoration.buildRestoreTownDialog(stage, objectId);
+            if (restoreDialog.activate())
+                stage.showDialog();
+            return;
+        }
         questData = AdventureQuestController.instance().getQuestNPCResponse(POI_ID, changes, questOrigin);
 
         dialog = new MapDialog(questData.offerDialog, stage, objectId, questData);

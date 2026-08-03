@@ -37,16 +37,26 @@ Helping a color angers its two enemies, not its allies.
 - Rep ≤ -100 with a color: locked out of entering that color's towns.
 - Rewards/penalties scale gradually with rep, not just at the ±100 thresholds.
 
-### 2. Central Wasteland & Town Reconstruction — `Not Started`
-- Map center starts destroyed / colorless / neutral ("no color, artifact area").
-- Player rebuilds it up over time.
-- Towns level up gradually as rebuilt; higher level unlocks more shops.
-- Roads get built between towns as things progress.
-- Town at max reconstruction level → player gets +1 life (permanent bonus).
+### 2. Central Wasteland & Town Reconstruction — `In Progress`
+- First slice built: towns in the colorless "Wastes" biome (existing stand-in for "the middle
+  of the map" until full territory control exists, #7) now start destroyed. The Job Board
+  (quest giver) must be restored for 100 gold before any of that town's shops can be
+  individually rebuilt, also 100 gold each. State is per-town/per-shop, persisted via the
+  existing map-flag save system (`TownRestoration.java`). Destroyed buildings render with a
+  procedural placeholder "rubble" overlay (`RubbleOverlay.java`, same code-generated-texture
+  technique as the time dial) since no ruined-building art exists yet - swap for real art
+  later per #11.
+- Still to do: gradual leveling as a town is rebuilt (more shops unlocked per level), roads
+  built between towns, +1 life at max reconstruction level.
 
 ### 3. Fog of War — `In Progress`
 - Already underway (`forge-gui-mobile/src/forge/adventure/...`, opt-in via
   `config.json` → `fogOfWarEnabled`). Makes exploring the world feel scarier/less known.
+- Tuned down for testing: vision radius halved (6 → 3 tiles), discovery-reveal radius reduced
+  to 75% (15 → 11 tiles) - both meant to be raised later via items/upgrades.
+- Added a temporary HUD checkbox to toggle fog of war on/off without editing `config.json`,
+  for easier testing. Intended to be removed once the feature doesn't need frequent manual
+  toggling.
 
 ### 4. Progressive Set Unlocks — `Not Started`
 - ~100+ MTG expansions exist; player starts with access to a small subset (e.g. ~10).

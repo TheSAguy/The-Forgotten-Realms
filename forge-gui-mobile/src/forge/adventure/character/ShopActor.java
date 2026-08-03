@@ -1,12 +1,16 @@
 package forge.adventure.character;
 
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.data.ShopData;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.RewardScene;
 import forge.adventure.stage.MapStage;
+import forge.adventure.util.MapDialog;
 import forge.adventure.util.Reward;
+import forge.adventure.util.RubbleOverlay;
+import forge.adventure.util.TownRestoration;
 
 
 /**
@@ -37,9 +41,29 @@ public class ShopActor extends MapActor {
 
     @Override
     public void onPlayerCollide() {
+        if (isDestroyed()) {
+            stage.getPlayerSprite().stop();
+            MapDialog dialog = TownRestoration.isTownRestored(stage)
+                    ? TownRestoration.buildRebuildShopDialog(stage, objectId)
+                    : TownRestoration.buildShopLockedDialog(stage, objectId);
+            if (dialog.activate())
+                stage.showDialog();
+            return;
+        }
         stage.getPlayerSprite().stop();
         RewardScene.instance().loadRewards(rewardData, RewardScene.Type.Shop, this);
         Forge.switchScene(RewardScene.instance());
+    }
+
+    private boolean isDestroyed() {
+        return TownRestoration.isWastelandTown() && !TownRestoration.isShopRebuilt(stage, objectId);
+    }
+
+    @Override
+    public void draw(Batch batch, float parentAlpha) {
+        super.draw(batch, parentAlpha);
+        if (isDestroyed())
+            RubbleOverlay.draw(batch, getX(), getY(), getWidth(), getHeight(), parentAlpha);
     }
 
 

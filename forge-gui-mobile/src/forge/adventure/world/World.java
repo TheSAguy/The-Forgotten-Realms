@@ -58,7 +58,7 @@ public class World implements Disposable, SaveFileContent {
     private boolean[][] explored;
     private Pixmap fogOfWarPixmap;
     private Pixmap fogTilePixmap;
-    private int visionRadius = 6;
+    private int visionRadius = 3; // half of the original 6 - items will raise this later
 
     // Day/night cycle: dayProgress is the fraction of the current day elapsed, in [0,1), where
     // 0 = midnight. It only advances via advanceTime(), which WorldStage calls once per frame
@@ -1070,7 +1070,10 @@ public class World implements Disposable, SaveFileContent {
         fogOfWarPixmap.drawPixmap(biomeImage, rawX * mm, rawY * mm, mm, mm, rawX * mm, rawY * mm, mm, mm);
     }
 
-    private void rebuildFogOfWarPixmap() {
+    /** Rebuilds the minimap's fog overlay from the current explored[][] state. Only needed after
+     *  toggling fog of war on mid-session (e.g. the debug HUD toggle) - normal reveals patch the
+     *  pixmap incrementally via updateFogOfWarPixmap() instead of a full rebuild. */
+    public void rebuildFogOfWarPixmap() {
         if (!isFogOfWarEnabled() || biomeImage == null || explored == null)
             return;
         if (fogOfWarPixmap != null)

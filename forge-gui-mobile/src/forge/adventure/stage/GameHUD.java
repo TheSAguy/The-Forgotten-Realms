@@ -81,6 +81,9 @@ public class GameHUD extends Stage {
     private final Image miniMap, gamehud, mapborder, avatarborder, blank;
     private final TimeOfDayActor timeOfDayActor;
     private final CheckBox waitCheckBox;
+    // TEMPORARY debug toggle for testing fog of war on/off without editing config.json - remove
+    // once the feature doesn't need frequent manual toggling during testing.
+    private final CheckBox fogOfWarDebugCheckBox;
     private final InputEvent eventTouchDown, eventTouchUp;
     private final TextraButton deckActor, openMapActor, menuActor, logbookActor, inventoryActor, exitToWorldMapActor, bookmarkActor;
     public final UIActor ui;
@@ -140,6 +143,18 @@ public class GameHUD extends Stage {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 WorldStage.getInstance().setWaitingForTime(((CheckBox) actor).isChecked());
+            }
+        });
+        fogOfWarDebugCheckBox = Controls.newCheckBox(Forge.getLocalizer().getMessage("lblFogOfWarDebugToggle"));
+        fogOfWarDebugCheckBox.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 26);
+        fogOfWarDebugCheckBox.setChecked(Config.instance().getConfigData() != null && Config.instance().getConfigData().fogOfWarEnabled);
+        fogOfWarDebugCheckBox.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                boolean enabled = ((CheckBox) actor).isChecked();
+                Config.instance().getConfigData().fogOfWarEnabled = enabled;
+                if (enabled)
+                    WorldSave.getCurrentSave().getWorld().rebuildFogOfWarPixmap();
             }
         });
         //create touchpad
@@ -246,6 +261,7 @@ public class GameHUD extends Stage {
         mapGroup.addActor(miniMapPlayer);
         mapGroup.addActor(timeOfDayActor);
         mapGroup.addActor(waitCheckBox);
+        mapGroup.addActor(fogOfWarDebugCheckBox);
         ui.addActor(mapGroup);
         //HUD
         hudGroup.addActor(gamehud);
@@ -690,9 +706,10 @@ public class GameHUD extends Stage {
 
         updateAudioFades(delta);
 
-        boolean showWaitToggle = !MapStage.getInstance().isInMap()
-                && WorldSave.getCurrentSave().getWorld().isDayNightCycleEnabled();
+        boolean onOverworld = !MapStage.getInstance().isInMap();
+        boolean showWaitToggle = onOverworld && WorldSave.getCurrentSave().getWorld().isDayNightCycleEnabled();
         waitCheckBox.setVisible(showWaitToggle);
+        fogOfWarDebugCheckBox.setVisible(onOverworld);
         // Keep the box in sync when WorldStage clears the wait itself (player moved) -
         // setProgrammaticChangeEvents avoids re-triggering our own ChangeListener.
         boolean waiting = WorldStage.getInstance().isWaitingForTime();

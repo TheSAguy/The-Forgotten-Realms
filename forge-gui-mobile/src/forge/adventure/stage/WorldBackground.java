@@ -35,7 +35,7 @@ public class WorldBackground extends Actor {
     // Bonus reveal radius applied around a point of interest the first time the player gets
     // within normal vision range of it - discovering a town uncovers the area around it, not just
     // the tile the player happens to be standing on.
-    private static final int DISCOVERY_REVEAL_RADIUS = 15;
+    private static final int DISCOVERY_REVEAL_RADIUS = 11; // 75% of the original 15
 
     public WorldBackground(GameStage gameStage) {
         stage = gameStage;
