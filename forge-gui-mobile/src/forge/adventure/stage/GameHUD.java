@@ -16,6 +16,7 @@ import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
+import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
@@ -79,6 +80,7 @@ public class GameHUD extends Stage {
     private final TextraLabel notificationText = Controls.newTextraLabel("");
     private final Image miniMap, gamehud, mapborder, avatarborder, blank;
     private final TimeOfDayActor timeOfDayActor;
+    private final CheckBox waitCheckBox;
     private final InputEvent eventTouchDown, eventTouchUp;
     private final TextraButton deckActor, openMapActor, menuActor, logbookActor, inventoryActor, exitToWorldMapActor, bookmarkActor;
     public final UIActor ui;
@@ -132,6 +134,14 @@ public class GameHUD extends Stage {
         miniMapPlayer = new Image(Forge.getAssets().getTexture(Config.instance().getFile("ui/minimap_player.png")));
         timeOfDayActor = new TimeOfDayActor();
         timeOfDayActor.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY());
+        waitCheckBox = Controls.newCheckBox(Forge.getLocalizer().getMessage("lblWait"));
+        waitCheckBox.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 4);
+        waitCheckBox.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                WorldStage.getInstance().setWaitingForTime(((CheckBox) actor).isChecked());
+            }
+        });
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());
         touchpad.setBounds(15, 15, TOUCHPAD_SCALE, TOUCHPAD_SCALE);
@@ -235,6 +245,7 @@ public class GameHUD extends Stage {
         mapGroup.addActor(openMapActor);
         mapGroup.addActor(miniMapPlayer);
         mapGroup.addActor(timeOfDayActor);
+        mapGroup.addActor(waitCheckBox);
         ui.addActor(mapGroup);
         //HUD
         hudGroup.addActor(gamehud);
@@ -678,6 +689,18 @@ public class GameHUD extends Stage {
         updateBGM();
 
         updateAudioFades(delta);
+
+        boolean showWaitToggle = !MapStage.getInstance().isInMap()
+                && WorldSave.getCurrentSave().getWorld().isDayNightCycleEnabled();
+        waitCheckBox.setVisible(showWaitToggle);
+        // Keep the box in sync when WorldStage clears the wait itself (player moved) -
+        // setProgrammaticChangeEvents avoids re-triggering our own ChangeListener.
+        boolean waiting = WorldStage.getInstance().isWaitingForTime();
+        if (waitCheckBox.isChecked() != waiting) {
+            waitCheckBox.setProgrammaticChangeEvents(false);
+            waitCheckBox.setChecked(waiting);
+            waitCheckBox.setProgrammaticChangeEvents(true);
+        }
     }
 
     private void updateAudioFades(float delta) {

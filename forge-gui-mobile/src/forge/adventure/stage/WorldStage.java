@@ -50,6 +50,9 @@ public class WorldStage extends GameStage implements SaveFileContent {
     final Rectangle tempBoundingRect = new Rectangle();
     final Vector2 enemyMoveVector = new Vector2();
     boolean collided = false;
+    // "Wait" toggle (see GameHUD's wait checkbox): lets time advance while the player stands
+    // still, same idea as resting. Cleared automatically the moment the player moves again.
+    private boolean waitingForTime = false;
 
     public WorldStage() {
         super();
@@ -65,13 +68,22 @@ public class WorldStage extends GameStage implements SaveFileContent {
         return instance == null ? instance = new WorldStage() : instance;
     }
 
+    public boolean isWaitingForTime() {
+        return waitingForTime;
+    }
+
+    public void setWaitingForTime(boolean waitingForTime) {
+        this.waitingForTime = waitingForTime;
+    }
+
     @Override
     protected void onActing(float delta) {
         if (isPaused() || MapStage.getInstance().isDialogOnlyInput() || Forge.advFreezePlayerControls)
             return;
-        WorldSave.getCurrentSave().getWorld().advanceTime(delta);
         drawNavigationArrow();
         if (player.isMoving()) {
+            waitingForTime = false; // moving cancels an active wait
+            WorldSave.getCurrentSave().getWorld().advanceTime(delta);
             handleMonsterSpawn(delta);
             collided = collided || handlePointsOfInterestCollision();
             globalTimer += delta;
@@ -140,6 +152,8 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 }
             }
         } else {
+            if (waitingForTime)
+                WorldSave.getCurrentSave().getWorld().advanceTime(delta);
             for (Pair<Float, EnemySprite> pair : enemies) {
                 pair.getValue().setAnimation(CharacterSprite.AnimationTypes.Idle);
             }
