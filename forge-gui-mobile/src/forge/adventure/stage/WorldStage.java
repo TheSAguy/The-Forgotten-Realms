@@ -69,6 +69,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
     protected void onActing(float delta) {
         if (isPaused() || MapStage.getInstance().isDialogOnlyInput() || Forge.advFreezePlayerControls)
             return;
+        WorldSave.getCurrentSave().getWorld().advanceTime(delta);
         drawNavigationArrow();
         if (player.isMoving()) {
             handleMonsterSpawn(delta);

@@ -54,6 +54,7 @@ import forge.adventure.util.Controls;
 import forge.adventure.util.Current;
 import forge.adventure.util.KeyBinding;
 import forge.adventure.util.NavArrowActor;
+import forge.adventure.util.TimeOfDayActor;
 import forge.adventure.util.UIActor;
 import forge.adventure.world.WorldSave;
 import forge.deck.Deck;
@@ -77,6 +78,7 @@ public class GameHUD extends Stage {
     private final Image enemyCounterBackground;
     private final TextraLabel notificationText = Controls.newTextraLabel("");
     private final Image miniMap, gamehud, mapborder, avatarborder, blank;
+    private final TimeOfDayActor timeOfDayActor;
     private final InputEvent eventTouchDown, eventTouchUp;
     private final TextraButton deckActor, openMapActor, menuActor, logbookActor, inventoryActor, exitToWorldMapActor, bookmarkActor;
     public final UIActor ui;
@@ -128,6 +130,8 @@ public class GameHUD extends Stage {
         dialog = Controls.newDialog("");
 
         miniMapPlayer = new Image(Forge.getAssets().getTexture(Config.instance().getFile("ui/minimap_player.png")));
+        timeOfDayActor = new TimeOfDayActor();
+        timeOfDayActor.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY());
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());
         touchpad.setBounds(15, 15, TOUCHPAD_SCALE, TOUCHPAD_SCALE);
@@ -230,6 +234,7 @@ public class GameHUD extends Stage {
         mapGroup.addActor(mapborder);
         mapGroup.addActor(openMapActor);
         mapGroup.addActor(miniMapPlayer);
+        mapGroup.addActor(timeOfDayActor);
         ui.addActor(mapGroup);
         //HUD
         hudGroup.addActor(gamehud);

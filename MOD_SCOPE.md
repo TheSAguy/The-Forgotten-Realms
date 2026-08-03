@@ -59,11 +59,16 @@ Helping a color angers its two enemies, not its allies.
 - Deck composition follows the same gradient: fewer sets available to AI decks near the
   center, more sets available near the Castle.
 
-### 6. Time System (Day/Night Cycle) — `Not Started`
-- Day/night cycle.
-- Certain monsters get buffed in day or night, penalized in the opposite.
-- Enables quest timers.
-- Enables periodic events (trigger every N days, etc).
+### 6. Time System (Day/Night Cycle) — `In Progress`
+- Foundational clock built: opt-in via `config.json` → `dayNightCycleEnabled`, ~12 real
+  minutes per in-game day, advances continuously while on the overworld (any pace/standing
+  still), freezes automatically in towns/dungeons or while paused/in a dialog. Persisted in
+  the save file. HUD dial widget added next to the minimap (procedurally-drawn placeholder
+  art — day/night crossfade circle, needle reusing the compass arrow, castle icon reused
+  from the buildings tileset; swap for real art later per #11).
+- Still to do: certain monsters get buffed in day or night, penalized in the opposite; quest
+  timers; periodic events (trigger every N days, etc) — deferred to follow-up passes once
+  the clock itself is proven out.
 
 ### 7. Dynamic Territory Control — `Not Started`
 - Map starts fully neutral/grey/artifact-controlled.
@@ -97,6 +102,10 @@ Helping a color angers its two enemies, not its allies.
 ### 11. Map Polish — `Not Started`
 - More visually diverse map, prettier overall.
 - Possibly larger map size.
+- Source free 16×16 pixel-art tile/sprite packs to expand variety (Forge's adventure art is
+  16×16 RGBA8888 PNG, Nearest-neighbor filtering, packed via libGDX TexturePacker `.atlas`,
+  maps built in Tiled). itch.io is the best hunting ground (Kenney.nl, LimeZu, Sanctumpixel,
+  etc.) — check each pack's license (CC0 vs CC-BY vs no-commercial-redistribution) before use.
 
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).

@@ -60,6 +60,16 @@ public class World implements Disposable, SaveFileContent {
     private Pixmap fogTilePixmap;
     private int visionRadius = 6;
 
+    // Day/night cycle: dayProgress is the fraction of the current day elapsed, in [0,1), where
+    // 0 = midnight. It only advances via advanceTime(), which WorldStage calls once per frame
+    // while the player is on the overworld and not paused/in a dialog - so the clock freezes
+    // whenever the player enters a town or dungeon (MapStage) or the game itself is paused.
+    private static final float DAY_LENGTH_SECONDS = 12 * 60f; // ~12 real minutes per in-game day
+    private static final float NIGHT_START_HOUR = 20f;
+    private static final float NIGHT_END_HOUR = 6f;
+    private float dayProgress = 0.375f; // fresh world starts at 09:00
+    private int dayCount = 1;
+
     public Random getRandom() {
         return random;
     }
@@ -137,6 +147,11 @@ public class World implements Disposable, SaveFileContent {
             for (boolean[] row : explored) Arrays.fill(row, true);
         }
         rebuildFogOfWarPixmap();
+
+        // Saves predating the day/night cycle simply don't have these keys - readFloat/readInt
+        // default to 0, so fall back to the same fresh-world start used by the field initializers.
+        dayProgress = saveFileData.containsKey("dayProgress") ? saveFileData.readFloat("dayProgress") : 0.375f;
+        dayCount = saveFileData.containsKey("dayCount") ? saveFileData.readInt("dayCount") : 1;
     }
 
     @Override
@@ -153,6 +168,8 @@ public class World implements Disposable, SaveFileContent {
         data.store("mapPoiIds", mapPoiIds.save());
         data.store("seed", seed);
         data.storeObject("explored", explored);
+        data.store("dayProgress", dayProgress);
+        data.store("dayCount", dayCount);
         return data;
     }
 
@@ -989,6 +1006,43 @@ public class World implements Disposable, SaveFileContent {
         } catch (ArrayIndexOutOfBoundsException e) {
             return false;
         }
+    }
+
+    // Day/night cycle: opt-in per-plane via config.json ("dayNightCycleEnabled": true), defaulting
+    // to off so this doesn't affect Shandalar or any other existing plane. advanceTime() is only
+    // ever called by WorldStage.onActing(), so the clock naturally freezes in towns/dungeons
+    // (MapStage) and while the game is paused or showing a dialog.
+    public void advanceTime(float delta) {
+        if (!isDayNightCycleEnabled())
+            return;
+        dayProgress += delta / DAY_LENGTH_SECONDS;
+        while (dayProgress >= 1f) {
+            dayProgress -= 1f;
+            dayCount++;
+        }
+    }
+
+    public boolean isDayNightCycleEnabled() {
+        ConfigData configData = Config.instance().getConfigData();
+        return configData != null && configData.dayNightCycleEnabled;
+    }
+
+    /** Fraction of the current day elapsed, in [0,1), where 0 is midnight. */
+    public float getDayProgress() {
+        return dayProgress;
+    }
+
+    public float getHourOfDay() {
+        return dayProgress * 24f;
+    }
+
+    public int getCurrentDay() {
+        return dayCount;
+    }
+
+    public boolean isNight() {
+        float hour = getHourOfDay();
+        return hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR;
     }
 
     public int getVisionRadius() {

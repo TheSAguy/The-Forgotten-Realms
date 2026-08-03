@@ -37,5 +37,6 @@ public class ConfigData {
     public String chaosDeckFormat;
     public boolean usePriceListPrices = true;
     public boolean fogOfWarEnabled = false;
+    public boolean dayNightCycleEnabled = false;
 
 }
