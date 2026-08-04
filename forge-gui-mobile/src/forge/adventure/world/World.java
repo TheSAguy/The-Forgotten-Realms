@@ -983,6 +983,63 @@ public class World implements Disposable, SaveFileContent {
     }
 
     /**
+     * PROTOTYPE for MOD_SCOPE.md #7's territory-recolor mechanic - repaints a circular area of
+     * terrain around a point to a named biome (e.g. "green"), for testing whether the underlying
+     * repaint-live mechanism works at all before building the real multi-castle system on top of
+     * it. Known, deliberate simplifications for this test-only version (see MOD_CHANGELOG.md):
+     * - Hard replace, no autotile blending - generateBiomeSprite() blends multiple biome bits
+     *   together for smooth edges, but this just overwrites biomeMap's bits outright, so the
+     *   boundary of the recolored patch will look like a hard-edged block, not a natural
+     *   transition. The real version needs the pre-split-zone approach described in #7.
+     * - Clears any road bit the tile had (terrainMap reset to a plain, unstructured, non-collide
+     *   terrain-variant 0), and doesn't avoid the town's own footprint - the whole radius,
+     *   including under the town itself, gets recolored uniformly.
+     */
+    public void repaintBiomeAroundTown(PointOfInterest point, String biomeName, int radius, BiConsumer<Integer, Integer> onTileRepainted) {
+        if (point == null || data == null || biomeMap == null || terrainMap == null)
+            return;
+        List<BiomeData> biomes = data.GetBiomes();
+        int biomeIndex = -1;
+        for (int i = 0; i < biomes.size(); i++) {
+            if (biomeName.equalsIgnoreCase(biomes.get(i).name)) {
+                biomeIndex = i;
+                break;
+            }
+        }
+        if (biomeIndex < 0)
+            return;
+        BiomeData biome = biomes.get(biomeIndex);
+
+        int centerWorldX = (int) (point.getPosition().x / data.tileSize);
+        int centerWorldY = (int) (point.getPosition().y / data.tileSize);
+        int radiusSq = radius * radius;
+        int mm = data.miniMapTileSize;
+        for (int wx = centerWorldX - radius; wx <= centerWorldX + radius; wx++) {
+            if (wx < 0 || wx >= width)
+                continue;
+            int dx = wx - centerWorldX;
+            for (int wy = centerWorldY - radius; wy <= centerWorldY + radius; wy++) {
+                if (wy < 0 || wy >= height)
+                    continue;
+                int dy = wy - centerWorldY;
+                if (dx * dx + dy * dy > radiusSq)
+                    continue;
+
+                int rawY = height - wy - 1;
+                biomeMap[wx][rawY] = 1L << biomeIndex;
+                terrainMap[wx][rawY] = 0;
+
+                if (biomeImage != null)
+                    biomeImage.drawPixmap(createSmallPixmap(biome.tilesetAtlas, biome.tilesetName, 0), wx * mm, rawY * mm);
+                updateFogOfWarPixmap(wx, rawY);
+
+                if (onTileRepainted != null)
+                    onTileRepainted.accept(wx, wy);
+            }
+        }
+    }
+
+    /**
      * Marks tiles within radius of (centerWorldX, centerWorldY) as explored (circular area, tile
      * coordinates in the same world-space as getBiome()/getBiomeSprite()). For each tile that was
      * not already explored, updates the minimap fog pixmap and invokes onTileRevealed(x, y) so

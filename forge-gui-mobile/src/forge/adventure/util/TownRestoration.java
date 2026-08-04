@@ -10,6 +10,7 @@ import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.TileMapScene;
 import forge.adventure.stage.MapStage;
+import forge.adventure.stage.WorldStage;
 import forge.adventure.world.WorldSave;
 
 /**
@@ -63,6 +64,21 @@ public class TownRestoration {
 
     public static boolean isTownRestored(PointOfInterestChanges changes) {
         return changes != null && changes.getMapFlags().get(TOWN_RESTORED_FLAG) != null;
+    }
+
+    // PROTOTYPE for MOD_SCOPE.md #7: hardcoded to always recolor "green" - real territory control
+    // will decide the color dynamically (whichever castle's attack succeeds), this is purely to
+    // validate that live terrain repainting works before that system gets built. Called once,
+    // right after a town's Job Board is actually restored.
+    private static final String TEST_RECOLOR_BIOME = "green";
+    private static final int RECOLOR_RADIUS = 10;
+
+    public static void recolorTerrainForTesting() {
+        PointOfInterest point = TileMapScene.instance().rootPoint;
+        if (point == null)
+            return;
+        WorldSave.getCurrentSave().getWorld().repaintBiomeAroundTown(point, TEST_RECOLOR_BIOME, RECOLOR_RADIUS,
+                WorldStage.getInstance()::refreshBackgroundTile);
     }
 
     /**

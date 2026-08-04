@@ -272,6 +272,61 @@ piece: the overworld icon of a not-yet-restored wasteland town.
   setup will need to key off the town's actual color (not just "is wasteland"), so don't assume
   `wastetown_broken.atlas` is the only such file going forward.
 
+## Terrain-repaint prototype for Dynamic Territory Control (#7)
+
+First step toward #7's biggest technical risk: proving the overworld's baked terrain can be
+repainted live at all, before building the real multi-castle attack/capture system on top of it.
+Deliberately scoped down to "does the mechanism work," triggered by the *existing* player-driven
+restoration flow rather than the not-yet-built castle-attack system.
+
+- **How `biomeMap` actually works** (worth recording, this took real reverse-engineering):
+  `World.biomeMap[x][y]` is a `long` **bitmask**, not a single biome index - multiple bits can be
+  set per tile, and `World.generateBiomeSprite()` uses *every* set bit to composite blended
+  autotile edges between biomes (a tile near a green/colorless border partially renders both).
+  `highestBiome()` (`log2(highestOneBit(...))`) picks the dominant one for non-rendering
+  purposes (minimap, sprite-spawn logic). `terrainMap[x][y]` packs a terrain-variant index
+  together with structure/collision flags (`& ~terrainMask` strips them). Both arrays are
+  indexed `[x][height - y - 1]` (Y flipped, X not) - the same raw/world-space split already
+  documented for `explored[][]` in the fog-of-war section above.
+- **Confirmed the 5-color+neutral layout is already anchor+noise-based:** each
+  `world/biomes/{green,white,blue,black,red,colorless}.json` has `startPointX/Y` (normalized map
+  anchor) and `noiseWeight`/`distWeight`, combined with Perlin noise at generation to decide each
+  tile's biome bits. This is real prior art for #7's planned pre-split-zone system - it's not a
+  new algorithm, it's making an existing one able to change after generation instead of only
+  once, at world-gen time.
+- **`World.repaintBiomeAroundTown(PointOfInterest, biomeName, radius, onTileRepainted)`** (new
+  method): looks up the target biome by name in `data.GetBiomes()`, then for each tile in a
+  circular radius: hard-overwrites `biomeMap`/`terrainMap` (no blending - hard edge, deliberate
+  simplification), patches the corresponding block of `biomeImage` (the minimap source) using
+  the same `createSmallPixmap()` helper world-gen itself uses, patches the fog-of-war overlay via
+  the existing `updateFogOfWarPixmap()` (safe no-op when fog is off), then invokes the
+  `onTileRepainted` callback per tile - same `BiConsumer<Integer,Integer>` pattern as
+  `revealArea()`, for the same reason: `World` (package `forge.adventure.world`) shouldn't
+  depend on `WorldBackground` (package `forge.adventure.stage`) directly.
+- **Live ground-texture patching reuses existing plumbing, not new code:** `WorldBackground`'s
+  `onTileRevealed()` (built for fog-of-war reveals) already does exactly "re-fetch this tile's
+  current sprite and patch it into the already-built chunk texture in place" - since it re-reads
+  live from `biomeMap`/`terrainMap` on every call, it works unmodified as the repaint callback
+  too, no new patching logic needed. Only had to loosen its visibility from `private` to
+  package-private, and add `WorldStage.refreshBackgroundTile(x, y)` as a public bridge (`World`
+  can't reach it directly across packages; `WorldStage` and `WorldBackground` are the same
+  package so it can call through).
+- **Trigger point:** `QuestActor.onPlayerCollide()`'s destroyed-town branch now attaches a
+  `dialog.addDialogCompleteListener()` to the restore-town dialog. That listener fires whether
+  the player picked "Restore town" *or* "Not now" (`MapDialog.emitDialogFinished()` fires for any
+  leaf option), so it explicitly checks `TownRestoration.isTownRestored()` afterward rather than
+  assuming the dialog's completion means success - only recolors if the flag actually got set.
+- **`TownRestoration.recolorTerrainForTesting()`**: hardcoded to always recolor "green" at a
+  fixed 10-tile radius. This is intentionally not real color-selection logic - the real system
+  needs to know *which* color's castle is capturing a town, which doesn't exist yet.
+- **Known, deliberate simplifications** (all flagged in code comments, not oversights):
+  - No autotile blending - the patch has a hard, jagged edge against untouched neighboring
+    tiles. Solving this properly is the pre-split-zone work described in #7, not something to
+    patch here.
+  - Clears any road bit and resets structure/collision flags for every touched tile - roads or
+    structures inside the recolor radius get silently erased.
+  - Recolors uniformly including the tiles under the town's own buildings, no exclusion zone.
+
 ## Fog of war moved to Settings, HUD toggle replaced with 10x Speed
 
 - **`SettingData.fogOfWarEnabled`** (new field, `forge-gui-mobile/src/forge/adventure/data/SettingData.java`)

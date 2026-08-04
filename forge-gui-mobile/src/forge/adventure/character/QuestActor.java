@@ -38,6 +38,15 @@ public class QuestActor extends DialogActor {
     public void onPlayerCollide() {
         if (isDestroyed()) {
             MapDialog restoreDialog = TownRestoration.buildRestoreTownDialog(stage, objectId);
+            restoreDialog.addDialogCompleteListener(new ChangeListener() {
+                @Override
+                public void changed(ChangeEvent changeEvent, Actor actor) {
+                    // Fires whether the player picked "Restore town" or "Not now" - check
+                    // whether the flag actually got set rather than assuming success.
+                    if (TownRestoration.isTownRestored(stage))
+                        TownRestoration.recolorTerrainForTesting();
+                }
+            });
             if (restoreDialog.activate())
                 stage.showDialog();
             return;

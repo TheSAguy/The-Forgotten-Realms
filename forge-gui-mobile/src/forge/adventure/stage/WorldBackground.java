@@ -224,10 +224,12 @@ public class WorldBackground extends Actor {
         playerY = (int) y;
     }
 
-    // Called when a tile newly becomes explored. If its chunk texture is already built, patch just
-    // that tile in place (mirroring the coordinate math in getChunkTexture) instead of rebuilding
-    // the whole chunk, so previously-loaded ground reveals live as the player walks.
-    private void onTileRevealed(int worldTileX, int worldTileY) {
+    // Called when a tile newly becomes explored, or (package-private, see WorldStage's
+    // refreshBackgroundTile bridge) when a tile's terrain was repainted at runtime, e.g. by
+    // World.repaintBiomeAroundTown(). If its chunk texture is already built, patch just that
+    // tile in place (mirroring the coordinate math in getChunkTexture) instead of rebuilding the
+    // whole chunk.
+    void onTileRevealed(int worldTileX, int worldTileY) {
         if (chunks == null)
             return;
         int chunkX = Math.floorDiv(worldTileX, chunkSize);

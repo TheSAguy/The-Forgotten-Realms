@@ -85,6 +85,15 @@ public class WorldStage extends GameStage implements SaveFileContent {
         return fastTimeEnabled;
     }
 
+    // Bridge for World.repaintBiomeAroundTown()'s onTileRepainted callback - World lives in a
+    // different package and shouldn't depend on WorldBackground directly (same reasoning as
+    // revealArea's callback), but WorldStage and WorldBackground are the same package so this
+    // can reach the package-private patch method directly.
+    public void refreshBackgroundTile(int worldTileX, int worldTileY) {
+        if (background != null)
+            background.onTileRevealed(worldTileX, worldTileY);
+    }
+
     public void setFastTimeEnabled(boolean fastTimeEnabled) {
         this.fastTimeEnabled = fastTimeEnabled;
     }

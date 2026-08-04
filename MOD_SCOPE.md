@@ -146,6 +146,19 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   neutral-appearance *and* each relevant owned-by-color-X appearance up front, so a capture just
   switches which precomputed variant renders - no live regeneration. This is a world-gen
   redesign and should be scoped/built before the attack/capture logic depends on it.
+  - **Good news found while researching this:** the engine already generates the base 5-color +
+    neutral layout this exact way. Each `world/biomes/*.json` file has `startPointX/Y` (a
+    normalized anchor point in the map) plus `noiseWeight`/`distWeight`, and world-gen assigns
+    each tile's biome by combining noise with distance-to-anchor - i.e. it's already a
+    Voronoi-ish, anchor-point system, just not one that can be *changed* after generation. The
+    pre-split-zone idea above isn't a new algorithm, it's making the existing one dynamic.
+- **Terrain-repaint prototype built** (2026-08-03): `World.repaintBiomeAroundTown()` proves the
+  live-repaint mechanism works, wired to fire when the player restores a wasteland town's Job
+  Board (hardcoded to always recolor "green" for testing, not real color-selection logic yet).
+  Deliberately crude - hard-edged, no autotile blending, ignores roads/structures under the
+  patch - see `MOD_CHANGELOG.md` for exactly what's simplified. This validates the mechanism,
+  it is *not* the pre-split-zone system above - that's still the right approach before the real
+  attack/capture logic gets built.
 - **Dungeons:** deliberately *not* re-themed per the biome's current color for now - re-skinning
   dungeon interiors per color would need parallel map sets (5x the content) or theme-swapping
   logic neither of which seems worth it yet. Only overworld terrain + town icon change color.
