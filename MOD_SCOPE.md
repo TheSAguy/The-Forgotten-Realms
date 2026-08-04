@@ -169,6 +169,36 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   repaint. The hard-edge "looks like water in spots" rendering artifact is still there -
   confirmed as the already-documented "no autotile blending" limitation above, not a new issue,
   and still deliberately not patched (needs the pre-split-zone approach, not a quick fix).
+- **Second playtest pass, same day:** the Spawn point (starting encampment/teleporter) was
+  incorrectly getting the wasteland-ruin treatment too - it's legitimately `type="town"` +
+  `BiomeColorless` in the game's own data, so the town/capital check above didn't exclude it.
+  Worse, its normal icon is 16x16 vs. the broken art's 48x48, and the icon-swap code doesn't
+  re-anchor anything, so it rendered 3x oversized and visibly offset from its real (unchanged)
+  collision zone. Fixed by excluding anything tagged `"Spawn"` from `isWastelandTown()` - it's
+  the player's always-safe home base, never meant to be destructible. Confirmed fixed in-game.
+- **Open item, next up - decorative terrain features (rocks/trees/"doo-dads") get wiped by a
+  repaint, not just roads:** `repaintBiomeAroundTown()` resets `terrainMap[x][y] = 0` for every
+  touched tile (needed to clear stale neighbor data), which also erases whatever
+  decoration/structure was there. Investigated whether the old index could just be preserved
+  instead of zeroed (like the round-2 road fix did) - **it can't, safely**: `colorless.json` (2
+  terrain entries + 2 structure sets of 7 objects each) and `green.json` (2 terrain entries + 1
+  structure set of 11 objects) have differently-sized variant tables, so an index valid under
+  the old biome isn't guaranteed valid under the new one - real risk of an out-of-bounds lookup
+  or garbage sprite, not just cosmetic. Current behavior (reset to plain ground) is the *safe*
+  version of "leave it alone," not an oversight.
+  - **The real fix** would be regenerating decorations appropriate to the *new* biome for the
+    repainted tiles, not preserving the old ones - i.e. re-running a scoped-down version of
+    `World.generateNew()`'s own per-tile terrain/structure noise selection (see the big loop
+    starting around the `"calculation each biome position based on noise and radius"` comment
+    in `World.java`), but evaluated only within the repaint radius, against the *target*
+    biome's own `terrain`/`structures` arrays, instead of at full world-gen time.
+  - Same size/category of work as the deferred autotile-blending fix above - worth doing as one
+    combined pass on the repaint mechanism rather than two separate ones, since both stem from
+    the same root cause (the prototype does a flat overwrite instead of a biome-aware repaint).
+  - Not started. `WorldBackground.onTileRevealed()` already has the "patch one tile's rendered
+    sprite into the live chunk texture" plumbing this would reuse (same as the road/haze fixes
+    did) - the missing piece is purely the *selection* logic (what terrain/structure index to
+    assign per tile for the new biome), not the rendering/patching path.
 
 ### 8. Town Fortifications — `Not Started`
 - Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete
