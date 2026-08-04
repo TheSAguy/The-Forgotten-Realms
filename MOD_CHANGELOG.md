@@ -415,6 +415,35 @@ of the prototype (see the section above) rather than new bugs - only one was a r
   #7, not a patch on top of the current hard-overwrite - deliberately left alone rather than
   papering over it with something that'll need to be redone anyway.
 
+## Terrain-repaint prototype playtest fixes, round 2
+
+- **The Spawn point (starting encampment/teleporter) was still showing ruined-town art, and its
+  icon rendered noticeably offset ("too high," a gap of unexplained road below it) - both from
+  the same root cause.** `points_of_interest.json`'s "Spawn" entry is legitimately `"type":
+  "town"` and carries `BiomeColorless`, so round 1's town/capital type check didn't exclude it.
+  `PointOfInterestMapSprite` swaps its `texture` field to the broken variant with zero
+  dimension-awareness (`texture = brokenTexture != null ? brokenTexture : normalTexture`, no
+  re-anchoring) - and Spawn's real sprite is **16x16** vs. the broken variants' **48x48**, so the
+  swap rendered a 3x-larger icon from the same bottom-left anchor, visually ballooning up and
+  right past the real (unchanged) collision zone. Fixed at the source: `isWastelandTown()` now
+  also excludes any POI whose `questTags` contains `"Spawn"` - the always-safe home base was
+  never meant to be a contestable/destructible settlement in the first place, so excluding it
+  fixes both the wrong art and the offset in one change, no dimension-matching logic needed.
+- **Terrain repaint erasing rocks/trees/structures within the radius - investigated, not fixed
+  yet, real technical risk found either way.** `repaintBiomeAroundTown()`'s
+  `terrainMap[x][y] = 0` (needed to clear the road bit's neighbor data) also wipes whatever
+  structure/terrain-variant was there before - rocks, craters, sparse trees, etc. Checked
+  whether the old index could just be preserved instead: `colorless.json` (2 terrain entries +
+  2 structure sets, 7 objects each) and `green.json` (2 terrain entries + 1 structure set, 11
+  objects) have different-sized variant tables, so a raw preserved index valid under the old
+  biome isn't guaranteed valid under the new one - real risk of an out-of-bounds lookup or
+  garbage sprite, not just a cosmetic concern. Current behavior (reset to plain ground) is the
+  *safe* version of "leave it alone," not a bug - true "regenerate biome-appropriate
+  decorations" would mean re-running (a scoped-down version of) world-gen's own noise-based
+  terrain/structure selection against the *new* biome's tables for just the repainted tiles, a
+  real chunk of new work in the same category as the deferred autotile-blending fix, not a quick
+  patch. Left as-is pending a decision on whether that's worth building now.
+
 ## Gold for testing
 
 No code was added for this - Forge's adventure mode already ships an in-game cheat console
