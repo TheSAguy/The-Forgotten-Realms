@@ -1024,6 +1024,11 @@ public class World implements Disposable, SaveFileContent {
         int centerWorldY = (int) (point.getPosition().y / data.tileSize);
         int radiusSq = radius * radius;
         int mm = data.miniMapTileSize;
+        // Roads are represented as one extra bit past the last real biome (see the road-drawing
+        // pass in generateNew()) - preserve any tile that has it instead of silently erasing it,
+        // both so existing roads survive a repaint and so a future roads/upgrade-roads feature
+        // (MOD_SCOPE.md #2) has something left to build on.
+        long roadBit = 1L << data.GetBiomes().size();
         for (int wx = centerWorldX - radius; wx <= centerWorldX + radius; wx++) {
             if (wx < 0 || wx >= width)
                 continue;
@@ -1036,6 +1041,8 @@ public class World implements Disposable, SaveFileContent {
                     continue;
 
                 int rawY = height - wy - 1;
+                if ((biomeMap[wx][rawY] & roadBit) != 0)
+                    continue;
                 biomeMap[wx][rawY] = 1L << biomeIndex;
                 terrainMap[wx][rawY] = 0;
 

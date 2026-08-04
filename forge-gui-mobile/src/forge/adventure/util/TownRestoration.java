@@ -51,11 +51,22 @@ public class TownRestoration {
 
         if (data == null || data.questTags == null)
             return false;
+        // The colorless-biome tag alone isn't specific to towns - dungeons/caves placed in the
+        // same biome share it too, which was incorrectly sweeping them into "destroyed" (rubble
+        // overlay + broken overworld icon). Restrict to actual town-type POIs, same "town"/
+        // "capital" check World.java's own generation code already uses to distinguish towns.
+        if (data.type == null || !(data.type.equals("town") || data.type.equals("capital")))
+            return false;
+        boolean colorless = false;
         for (String tag : data.questTags) {
+            if ("Spawn".equals(tag))
+                return false; // the starting encampment/teleporter is type="town" and BiomeColorless
+                              // in the data, but it's the player's always-safe home base, not a
+                              // contestable settlement - never treat it as destroyed.
             if ("BiomeColorless".equals(tag))
-                return true;
+                colorless = true;
         }
-        return false;
+        return colorless;
     }
 
     public static boolean isTownRestored(MapStage stage) {
