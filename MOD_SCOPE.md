@@ -139,6 +139,47 @@ Helping a color angers its two enemies, not its allies.
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
 
+## Backlog: Ideas Borrowed From Other Planes
+
+Not commitments, just candidates worth remembering — surfaced by comparing the other bundled
+Forge planes (`Realm of Legends`, `Shandalar Old Border`, `Innistrad`, `Crystal_Kingdoms`,
+`Amonkhet`) against the `Shandalar`+`common` baseline our mod inherits. Each already exists as
+working, shippable content elsewhere in this same repo — "borrowing" means adapting the
+pattern/assets, not literal copy-paste, unless noted otherwise.
+
+- **Duel background skins** (from `Shandalar Old Border`, `skin/adv_bg_*.jpg`) — 12 themed
+  duel-screen backdrops (castle, cave, forest, island, mountain, plains, swamp, waste, etc).
+  Cheapest possible visual upgrade: just image files, no mechanical changes, could literally be
+  copied in as-is regardless of theme direction.
+- **Terrain reskin technique** (from `Amonkhet`) — smallest/cleanest example of overriding just
+  `world/tilesets/autotiles.png` + `terrain.atlas` to give the whole overworld a different
+  palette without touching decks/maps/mechanics. Worth reading as a how-to if we ever want The
+  Forgotten Realms to have its own terrain look distinct from Shandalar's, without a big content
+  investment.
+- **Commander-style boss-deck library** (from `Realm of Legends`) — 887 decks under
+  `decks/legends/`, one per MTG legendary creature, used as unique named encounters instead of
+  generic enemy decks (`"chaosDeckFormat": "Commander"`, `"minDeckSize": 98` in their config).
+  Ties naturally into #5 Distance-Scaled AI - unique legendary bosses could replace/supplement
+  generic stronger-near-the-Castle enemies.
+- **Biome-organized dungeon library** (from `Realm of Legends`) — 184 maps across 8 categories
+  (cave, fort, grove, magetower, merfolkpool, towns, barbariancamp, evilgrove), flavor-named
+  after real MTG locations. A clean organizational template even if we build our own maps.
+- **Elder-dragon-cave / end-palace map template** (from `Shandalar Old Border`) — named
+  late-game dungeon pattern (`cave_nicol_bolas`, color-coded `end_palace` finales). Good
+  reference for what a "capstone" dungeon per color could look like.
+- **Region-per-biome narrative playbook** (from `Innistrad`, the deepest/most complete example
+  in the repo) — 6 custom biomes matching real sub-regions, fully re-themed UI screens (market/
+  tavern/spellsmith/reward, not just terrain), custom structure sprites, and a genuine hand-built
+  planeswalker-driven questline through named locations (`main_story/approaches/
+  davriels_mansion*.tmx`). This is the playbook to study if we want The Forgotten Realms to feel
+  like its own place with real geography/lore (Faerûn regions, e.g. Waterdeep/Baldur's Gate/
+  Neverwinter-flavored biomes) rather than a reskinned Shandalar. Also has custom booster
+  contents (`printsheets.txt`/`boosters-special.txt`) as a smaller sub-idea.
+- **Flavor-themed starter deck naming** (from `Crystal_Kingdoms`) — purely cosmetic idea, no
+  content to borrow directly (their reference is Final Fantasy, not relevant to us), but the
+  pattern - starter decks named after setting-appropriate characters/classes instead of generic
+  colors - is a cheap flavor touch worth doing whenever starter decks get revisited.
+
 ## Done
 
 - Fog-of-war groundwork (see #3 — in progress, not fully done yet)
