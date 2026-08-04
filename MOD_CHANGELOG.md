@@ -492,6 +492,37 @@ of the prototype (see the section above) rather than new bugs - only one was a r
   real chunk of new work in the same category as the deferred autotile-blending fix, not a quick
   patch. Left as-is pending a decision on whether that's worth building now.
 
+## Merge note: decoration-regeneration built in parallel, reconciled
+
+This session and the one that wrote the two sections above (this repo's "other machine") worked
+the decoration/doodad problem at the same time without seeing each other's changes until push
+time - `git merge` combined both cleanly (no conflicts, both touched adjacent-but-different
+lines in `repaintBiomeAroundTown()`), but worth recording what actually happened since the
+diagnosis above and "Terrain-repaint round 2: decoration regeneration" further up this file
+describe the same symptom from two different angles:
+
+- The other session's notes treat "rocks/trees/structures" as one category, tied to
+  `terrainMap`, and correctly identify that *preserving* the old terrain/structure index isn't
+  safe across biomes with differently-sized variant tables.
+- This session's investigation (reading `BiomeTexture.java` directly) found the visible symptom
+  in the actual playtest screenshots - dark, cracked, dead-tree shapes on fresh grass - matched
+  `colorless_structures.png` pixel-for-pixel, but that `terrainMap`-embedded structures were
+  *already being cleared correctly* by the original prototype's `terrainMap[x][y] = 0` (true
+  since the very first version, before either session's fixes) - so structures were never
+  actually the bug. The real gap was the separate `mapObjectIds` doodad system (rocks/flowers
+  placed via `spriteNames`), which neither session's `terrainMap` reasoning touches at all,
+  since those are independent cached `Actor` objects, not part of `terrainMap`.
+- Net: no contradiction, just two valid angles on the same area. `regenerateDoodadsInRadius()`
+  (implemented this session, see above) is the fix the other session's notes were pointing at -
+  it regenerates doodads using the target biome's own `spriteNames`, sidestepping the
+  index-validity risk entirely by never preserving or reusing an old index at all. Structures
+  are still just cleared, not regenerated, matching both sessions' agreement that mask-based
+  structure regeneration is real, separate, deferred work.
+- One gap the merge needed closing by hand: the other session's road-preservation fix (skip
+  repainting any tile with the road bit set) predates `regenerateDoodadsInRadius()`'s existence,
+  so it had no way to know about it. Added the same road-bit check to the doodad-placement loop
+  after merging, so a repaint doesn't place a fresh rock in the middle of a preserved road.
+
 ## Gold for testing
 
 No code was added for this - Forge's adventure mode already ships an in-game cheat console

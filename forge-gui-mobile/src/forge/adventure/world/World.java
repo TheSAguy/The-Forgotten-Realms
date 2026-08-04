@@ -1100,6 +1100,10 @@ public class World implements Disposable, SaveFileContent {
 
         if (biome.spriteNames == null)
             return;
+        // Same road-preservation logic as repaintBiomeAroundTown()'s ground loop - a tile that
+        // was skipped there (still the old biome/terrain because it's a road) shouldn't get a
+        // fresh doodad placed on top of it either.
+        long roadBit = 1L << data.GetBiomes().size();
         for (int wx = centerWorldX - radius; wx <= centerWorldX + radius; wx++) {
             if (wx < 0 || wx >= width)
                 continue;
@@ -1109,6 +1113,8 @@ public class World implements Disposable, SaveFileContent {
                     continue;
                 int dy = wy - centerWorldY;
                 if (dx * dx + dy * dy > radiusSq || isStructure(wx, wy))
+                    continue;
+                if ((biomeMap[wx][height - wy - 1] & roadBit) != 0)
                     continue;
                 for (String name : biome.spriteNames) {
                     BiomeSpriteData sprite = data.GetBiomeSprites().getSpriteData(name);
