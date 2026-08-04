@@ -213,6 +213,25 @@ Second playtest round, three more requests:
   concrete bug here beyond round 1's fix; this needs a fresh test against this build specifically
   before assuming it's still broken.
 
+## Post-testing fixes (round 3)
+
+Known/Visible confirmed working well in playtest. Two more items:
+
+- **Clock simplified further:** dropped the crossfading circular dial entirely per feedback -
+  `TimeOfDayActor` is back to just the two digital "Day N" / "H:MM am|pm" panels, no icon. The
+  `DialFace` inner class from round 2 is gone.
+- **A specific town's icon never revealed despite the player standing right at its entrance
+  (and being able to enter it) - found and fixed a real bug, not a timing issue:**
+  `MapSprite.draw()`'s fog check (added round 1) tested `isExploredWorld(getX()/tileSize,
+  getY()/tileSize)` - the sprite's **bottom-left corner** tile. For multi-tile sprites like town/
+  castle buildings, that corner can land on a tile the player's approach path never actually
+  passes through, even while they're standing at the visible entrance near the sprite's center.
+  Whether this bites depends on where a given building's corner happens to fall relative to
+  typical approach routes - explains why some towns revealed fine and this one specifically
+  didn't. Fixed by checking the sprite's **center** tile instead
+  (`getX() + getWidth()/2`, same for Y) - much more likely to overlap wherever the player actually
+  walks. Applies to every `MapSprite`/`PointOfInterestMapSprite`, not just this one town.
+
 ## Gold for testing
 
 No code was added for this - Forge's adventure mode already ships an in-game cheat console

@@ -88,7 +88,12 @@ public class MapSprite extends Actor {
             return;
         World world = WorldSave.getCurrentSave().getWorld();
         int tileSize = world.getTileSize();
-        if (!world.isExploredWorld((int) (getX() / tileSize), (int) (getY() / tileSize)))
+        // Check the sprite's center, not its bottom-left corner: for multi-tile buildings (towns,
+        // castles), the corner tile can sit outside the player's actual approach path even while
+        // they're standing right at the entrance, leaving the icon permanently hidden.
+        int centerTileX = (int) ((getX() + getWidth() / 2f) / tileSize);
+        int centerTileY = (int) ((getY() + getHeight() / 2f) / tileSize);
+        if (!world.isExploredWorld(centerTileX, centerTileY))
             return;
         batch.draw(texture, getX(), getY());
         if (isCaveDungeon && !isOldorVisited && magnifier != null) {
