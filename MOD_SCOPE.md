@@ -185,3 +185,7 @@ pattern/assets, not literal copy-paste, unless noted otherwise.
 - Fog-of-war groundwork (see #3 — in progress, not fully done yet)
 - Earlier tweak: sacrifice condition adjustment on Misty Mountains card (unrelated one-off,
   predates this scope list)
+- Borrowed `Realm of Legends`' expanded item pool (526 items total vs. common's 220 - ~306 new)
+  into `The Forgotten Realms`. Pure data/asset copy, no new art or code - see `MOD_CHANGELOG.md`.
+  Items are loadable/obtainable via the `give item <name>` cheat console command now; wiring
+  them into actual shop inventories or reward tables is a separate follow-up, not done yet.

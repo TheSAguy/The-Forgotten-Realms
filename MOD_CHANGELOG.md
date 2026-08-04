@@ -272,6 +272,39 @@ piece: the overworld icon of a not-yet-restored wasteland town.
   setup will need to key off the town's actual color (not just "is wasteland"), so don't assume
   `wastetown_broken.atlas` is the only such file going forward.
 
+## Borrowed item pool from Realm of Legends
+
+Pure data/asset copy, zero code changes, zero new art. Realm of Legends (a stock bundled plane)
+extends common's 220-item `world/items.json` to 526 items - 306 new equipment/item entries, all
+referencing real MTG cards via `effect.startBattleWithCard` (e.g. "Seal of Fire|NEM").
+
+- Confirmed before copying: `Realm of Legends/sprites/items.png` is **byte-identical** to
+  `common/sprites/items.png` (same sha256) - the new items don't introduce any new icon art,
+  just new named regions (`items.atlas` grows from 190 regions to 566) cropping the *existing*
+  sheet differently. So "add the items" genuinely only required copying data + an atlas that
+  re-slices art we already have, not sourcing anything new.
+- Copied verbatim into `The Forgotten Realms/`: `world/items.json`, `sprites/items.atlas`,
+  `sprites/items.png` (the png is redundant with common's, but copied anyway per plane-local
+  self-containment and because it must sit next to `items.atlas` for libGDX to resolve it -
+  `TextureAtlas` loading resolves its image relative to the `.atlas` file's own folder, not
+  through Forge's `Config.getFile()` plane-then-common fallback).
+- `ItemListData` (`Paths.ITEMS = "world/items.json"`) loads this the same whole-file-replace way
+  as `config.json` - no merge logic anywhere in the item-loading path - so Realm of Legends'
+  file being common's 220 plus their 306 new ones (a proper superset) is exactly why copying
+  their file wholesale was safe and lossless.
+- **Caveat, low risk:** 3 of the 306 new items reference a card printed only in Commander
+  Masters (`|CMM`), which Realm of Legends' own `config.json` doesn't restrict but ours does
+  (`restrictedEditions`). Unverified whether `startBattleWithCard`'s direct DB lookup by
+  name+edition actually respects that restriction or bypasses it - if one of those 3 specific
+  items behaves oddly in testing, this is why.
+- **Scope boundary - not done:** items are now loadable and obtainable via the `give item
+  <name>` console cheat, and are valid entries any future shop/reward table could reference by
+  name. Nothing currently *does* reference them though - no shop in `The Forgotten Realms`'
+  `world/shops.json` sells any of the 306 new items, and no reward table drops them. Wiring
+  them into actual in-game acquisition (shops, quest rewards, loot) is separate, deliberately
+  not done here since it wasn't asked for and involves real design choices (which items go in
+  which shops, at what rarity/cost).
+
 ## Gold for testing
 
 No code was added for this - Forge's adventure mode already ships an in-game cheat console
