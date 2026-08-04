@@ -29,4 +29,5 @@ public class SettingData {
     public boolean bindEquipmentLoadoutsToDecks;
     public boolean drawChevronsToHiddenEnemiesInClearQuest;
     public boolean preferEraMatchedTokenArt;
+    public boolean fogOfWarEnabled;
 }

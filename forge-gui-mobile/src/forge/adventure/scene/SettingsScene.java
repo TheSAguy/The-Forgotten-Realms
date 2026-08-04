@@ -211,6 +211,13 @@ public class SettingsScene extends UIScene {
                 }
             }
         });
+        addSettingField(Forge.getLocalizer().getMessage("lblFogOfWar"), Config.instance().getSettingData().fogOfWarEnabled, new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Config.instance().getSettingData().fogOfWarEnabled = ((CheckBox) actor).isChecked();
+                Config.instance().saveSettings();
+            }
+        });
         addSettingField(Forge.getLocalizer().getMessage("lblDisableWinLose"), Config.instance().getSettingData().disableWinLose, new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {

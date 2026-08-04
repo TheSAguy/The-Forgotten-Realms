@@ -970,11 +970,16 @@ public class World implements Disposable, SaveFileContent {
         return fogOfWarPixmap != null ? fogOfWarPixmap : biomeImage;
     }
 
-    // Fog of war is opt-in per world/plane via config.json ("fogOfWarEnabled": true), defaulting to
-    // off so this engine-level change doesn't affect Shandalar or any other existing plane.
+    // Fog of war needs both: the plane opts in via config.json ("fogOfWarEnabled": true, so this
+    // never affects Shandalar or any other existing plane), AND the player has turned it on in
+    // Settings (SettingData.fogOfWarEnabled, defaulting off). It's a Settings toggle rather than
+    // an in-game HUD toggle because flipping it live mid-session didn't cleanly reset the
+    // Known/Visible rendering state - Settings changes take effect from the next world load.
     private boolean isFogOfWarEnabled() {
         ConfigData configData = Config.instance().getConfigData();
-        return configData != null && configData.fogOfWarEnabled;
+        SettingData settingData = Config.instance().getSettingData();
+        return configData != null && configData.fogOfWarEnabled
+                && settingData != null && settingData.fogOfWarEnabled;
     }
 
     /**

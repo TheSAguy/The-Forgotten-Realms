@@ -81,9 +81,10 @@ public class GameHUD extends Stage {
     private final Image miniMap, gamehud, mapborder, avatarborder, blank;
     private final TimeOfDayActor timeOfDayActor;
     private final CheckBox waitCheckBox;
-    // TEMPORARY debug toggle for testing fog of war on/off without editing config.json - remove
-    // once the feature doesn't need frequent manual toggling during testing.
-    private final CheckBox fogOfWarDebugCheckBox;
+    // TEMPORARY debug toggle to fast-forward the day/night clock (and, later, territory-control's
+    // multi-day attack cadence) for testing - remove once those features don't need frequent
+    // manual speed-up during testing.
+    private final CheckBox speedCheckBox;
     private final InputEvent eventTouchDown, eventTouchUp;
     private final TextraButton deckActor, openMapActor, menuActor, logbookActor, inventoryActor, exitToWorldMapActor, bookmarkActor;
     public final UIActor ui;
@@ -145,20 +146,12 @@ public class GameHUD extends Stage {
                 WorldStage.getInstance().setWaitingForTime(((CheckBox) actor).isChecked());
             }
         });
-        fogOfWarDebugCheckBox = Controls.newCheckBox(Forge.getLocalizer().getMessage("lblFogOfWarDebugToggle"));
-        fogOfWarDebugCheckBox.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 26);
-        fogOfWarDebugCheckBox.setChecked(Config.instance().getConfigData() != null && Config.instance().getConfigData().fogOfWarEnabled);
-        fogOfWarDebugCheckBox.addListener(new ChangeListener() {
+        speedCheckBox = Controls.newCheckBox(Forge.getLocalizer().getMessage("lblFastTimeToggle"));
+        speedCheckBox.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 26);
+        speedCheckBox.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                boolean enabled = ((CheckBox) actor).isChecked();
-                Config.instance().getConfigData().fogOfWarEnabled = enabled;
-                if (enabled)
-                    WorldSave.getCurrentSave().getWorld().rebuildFogOfWarPixmap();
-                // Both minimaps only normally refresh on their scene's enter() - force it now so
-                // the toggle takes effect immediately instead of on the next scene switch.
-                refreshMiniMap();
-                MapViewScene.instance().refreshMap();
+                WorldStage.getInstance().setFastTimeEnabled(((CheckBox) actor).isChecked());
             }
         });
         //create touchpad
@@ -265,7 +258,7 @@ public class GameHUD extends Stage {
         mapGroup.addActor(miniMapPlayer);
         mapGroup.addActor(timeOfDayActor);
         mapGroup.addActor(waitCheckBox);
-        mapGroup.addActor(fogOfWarDebugCheckBox);
+        mapGroup.addActor(speedCheckBox);
         ui.addActor(mapGroup);
         //HUD
         hudGroup.addActor(gamehud);
@@ -410,8 +403,6 @@ public class GameHUD extends Stage {
     Pixmap miniMapToolTipPixmap;
     public boolean fromWorldMap = false;
 
-    // Extracted so the fog-of-war debug toggle can force an immediate refresh instead of waiting
-    // for the next scene enter() (see fogOfWarDebugCheckBox's listener).
     private void refreshMiniMap() {
         if (miniMapTexture != null)
             miniMapTexture.dispose();
@@ -719,11 +710,7 @@ public class GameHUD extends Stage {
         boolean onOverworld = !MapStage.getInstance().isInMap();
         boolean showWaitToggle = onOverworld && WorldSave.getCurrentSave().getWorld().isDayNightCycleEnabled();
         waitCheckBox.setVisible(showWaitToggle);
-        // Scoped to our mod plane specifically so this debug control doesn't show up on
-        // Shandalar or any other stock plane - remove this toggle entirely once fog of war
-        // doesn't need frequent manual testing.
-        boolean onModPlane = "The Forgotten Realms".equals(Config.instance().getSettingData().plane);
-        fogOfWarDebugCheckBox.setVisible(onOverworld && onModPlane);
+        speedCheckBox.setVisible(showWaitToggle);
         // Keep the box in sync when WorldStage clears the wait itself (player moved) -
         // setProgrammaticChangeEvents avoids re-triggering our own ChangeListener.
         boolean waiting = WorldStage.getInstance().isWaitingForTime();

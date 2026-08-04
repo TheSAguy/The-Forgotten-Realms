@@ -68,9 +68,11 @@ Helping a color angers its two enemies, not its allies.
   `config.json` → `fogOfWarEnabled`). Makes exploring the world feel scarier/less known.
 - Tuned down for testing: vision radius halved (6 → 3 tiles), discovery-reveal radius reduced
   to 75% (15 → 11 tiles) - both meant to be raised later via items/upgrades.
-- Added a temporary HUD checkbox to toggle fog of war on/off without editing `config.json`,
-  for easier testing. Intended to be removed once the feature doesn't need frequent manual
-  toggling.
+- Moved from a live in-game HUD toggle to a real Settings-screen checkbox
+  (`SettingData.fogOfWarEnabled`, persisted, defaults **off**). The in-game toggle was removed -
+  flipping it live mid-session didn't cleanly reset the Known/Visible rendering state, so it's
+  now a setting you pick before/between sessions instead. Still requires the plane's own
+  `config.json` opt-in on top of this (both need to be on).
 - **Two-tier now, not just on/off:** "known" (terrain you've been near once - persisted, shown
   hazed/dimmed when you're not currently there) vs "currently visible" (live vision radius
   around the player right now - full brightness, and the only state monsters render in). You
@@ -98,6 +100,10 @@ Helping a color angers its two enemies, not its allies.
 - Still to do: certain monsters get buffed in day or night, penalized in the opposite; quest
   timers; periodic events (trigger every N days, etc) — deferred to follow-up passes once
   the clock itself is proven out.
+- Added a temporary "10x Speed" HUD checkbox (same slot the fog-of-war debug toggle used to
+  occupy) to fast-forward the clock for testing - useful now for the day/night cycle, and will
+  help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
+  nothing else. Remove once these features don't need frequent manual speed-up.
 
 ### 7. Dynamic Territory Control — `Not Started` (design settled, not built)
 Full design worked out 2026-08-03 - detailed enough to build from, just not started yet.

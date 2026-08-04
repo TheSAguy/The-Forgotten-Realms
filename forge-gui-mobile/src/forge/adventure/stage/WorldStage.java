@@ -53,6 +53,11 @@ public class WorldStage extends GameStage implements SaveFileContent {
     // "Wait" toggle (see GameHUD's wait checkbox): lets time advance while the player stands
     // still, same idea as resting. Cleared automatically the moment the player moves again.
     private boolean waitingForTime = false;
+    // Debug "10x Speed" toggle (see GameHUD's speed checkbox) - fast-forwards the day/night
+    // clock for testing. Multiplies only the delta passed to advanceTime(), nothing else runs
+    // faster (spawns, movement, etc. are unaffected).
+    private boolean fastTimeEnabled = false;
+    private static final float FAST_TIME_MULTIPLIER = 10f;
 
     public WorldStage() {
         super();
@@ -76,6 +81,14 @@ public class WorldStage extends GameStage implements SaveFileContent {
         this.waitingForTime = waitingForTime;
     }
 
+    public boolean isFastTimeEnabled() {
+        return fastTimeEnabled;
+    }
+
+    public void setFastTimeEnabled(boolean fastTimeEnabled) {
+        this.fastTimeEnabled = fastTimeEnabled;
+    }
+
     @Override
     protected void onActing(float delta) {
         if (isPaused() || MapStage.getInstance().isDialogOnlyInput() || Forge.advFreezePlayerControls)
@@ -84,7 +97,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
         if (player.isMoving())
             waitingForTime = false; // moving cancels an active wait
         if (player.isMoving() || waitingForTime) {
-            WorldSave.getCurrentSave().getWorld().advanceTime(delta);
+            WorldSave.getCurrentSave().getWorld().advanceTime(fastTimeEnabled ? delta * FAST_TIME_MULTIPLIER : delta);
             handleMonsterSpawn(delta);
             collided = collided || handlePointsOfInterestCollision();
             globalTimer += delta;

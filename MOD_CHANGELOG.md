@@ -272,6 +272,30 @@ piece: the overworld icon of a not-yet-restored wasteland town.
   setup will need to key off the town's actual color (not just "is wasteland"), so don't assume
   `wastetown_broken.atlas` is the only such file going forward.
 
+## Fog of war moved to Settings, HUD toggle replaced with 10x Speed
+
+- **`SettingData.fogOfWarEnabled`** (new field, `forge-gui-mobile/src/forge/adventure/data/SettingData.java`)
+  - a real persisted user setting, defaults `false`, checkbox added to `SettingsScene.java`
+  (`Config.instance().saveSettings()` on change, same pattern as the existing `dayNightBG`
+  toggle). `World.isFogOfWarEnabled()` now requires **both** this AND the plane's
+  `config.json` → `fogOfWarEnabled` to be true - the plane opts the feature into existing at
+  all, the player's setting decides whether they want it on right now.
+  - **Why not keep it live-toggleable in the HUD:** flipping `ConfigData.fogOfWarEnabled` live
+    mid-session (the old `fogOfWarDebugCheckBox` in `GameHUD`) didn't cleanly reset the
+    Known/Visible two-tier rendering state built in the round-2 playtest fixes. Rather than
+    debug that, moved it to Settings, which only takes effect from the next world load - same
+    category as other settings like `fullScreen`/`videomode` that aren't meant to be toggled
+    mid-session. The old HUD checkbox, its listener, and the plane-scoping check that gated its
+    visibility are all removed.
+- **10x Speed HUD toggle** (`WorldStage.fastTimeEnabled` + `GameHUD.speedCheckBox`) took over
+  the same HUD slot the fog-of-war debug checkbox used to occupy. Multiplies only the `delta`
+  passed to `World.advanceTime()` by 10 when checked (`WorldStage.onActing()`) - nothing else
+  (spawns, movement, animations) runs faster, just the clock. Same visibility rule as the
+  existing Wait checkbox (`onOverworld && isDayNightCycleEnabled()`), no plane-scoping needed
+  since it doesn't touch anything plane-specific.
+- Localization: removed `lblFogOfWarDebugToggle` (no longer used), added `lblFogOfWar` (Settings
+  screen label) and `lblFastTimeToggle` (HUD checkbox label) to `en-US.properties`.
+
 ## Borrowed item pool from Realm of Legends
 
 Pure data/asset copy, zero code changes, zero new art. Realm of Legends (a stock bundled plane)
