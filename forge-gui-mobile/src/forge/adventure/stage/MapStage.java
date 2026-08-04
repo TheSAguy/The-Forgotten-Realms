@@ -577,13 +577,13 @@ public class MapStage extends GameStage {
                         break;
                     case "inn":
                         localInnID = id;
-                        addMapActor(obj, new OnCollide(() -> Forge.switchScene(InnScene.instance(TileMapScene.instance(), TileMapScene.instance().rootPoint.getID(), changes, id))));
+                        addMapActor(obj, new OnCollide(() -> Forge.switchScene(InnScene.instance(TileMapScene.instance(), TileMapScene.instance().rootPoint.getID(), changes, id)), id, this));
                         break;
                     case "spellsmith":
                         addMapActor(obj, new OnCollide(() -> Forge.switchScene(SpellSmithScene.instance()), id, this));
                         break;
                     case "shardtrader":
-                        MapActor shardTraderActor = new OnCollide(() -> Forge.switchScene(ShardTraderScene.instance()));
+                        MapActor shardTraderActor = new OnCollide(() -> Forge.switchScene(ShardTraderScene.instance()), id, this);
                         addMapActor(obj, shardTraderActor);
                         if (prop.containsKey("hasSign") && Boolean.parseBoolean(prop.get("hasSign").toString()) && prop.containsKey("signYOffset") && prop.containsKey("signXOffset")) {
                             try {

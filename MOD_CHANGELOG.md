@@ -146,10 +146,10 @@ Four bugs found in the first real playtest of the above three systems together:
   `objectId = 0` for every instance (a latent bug regardless - would collide flags across
   multiple such buildings in one town if any of them were ever gated). Gave `OnCollide` a second
   constructor `(Runnable, int id, MapStage stage)` that opts into the same
-  isDestroyed()/RubbleOverlay/rebuild-dialog pattern `ShopActor` uses, and wired the `spellsmith`
-  case to it. **Not yet done:** `shardtrader` and `inn` have the identical gap (still using the
-  ungated single-arg constructor) - only `spellsmith` was fixed since that's what was reported;
-  revisit if those should be gated too.
+  isDestroyed()/RubbleOverlay/rebuild-dialog pattern `ShopActor` uses, and wired the `spellsmith`,
+  `shardtrader`, and `inn` cases to it (same fix extended to all three - `arena`/`exit` left as
+  plain unglared `OnCollide` deliberately: `exit` must never be lockable, and `arena` isn't really
+  "town infrastructure" in the same sense as a shop/inn/trader).
 
 ## Gold for testing
 
