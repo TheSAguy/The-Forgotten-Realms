@@ -492,6 +492,71 @@ of the prototype (see the section above) rather than new bugs - only one was a r
   real chunk of new work in the same category as the deferred autotile-blending fix, not a quick
   patch. Left as-is pending a decision on whether that's worth building now.
 
+## Player biome: gold-tint placeholder + real-art spec
+
+Real, registered 7th biome for Player territory (`MOD_SCOPE.md` #7). No new code - purely data,
+following the exact same pattern the 5 AI colors already use.
+
+- **Placeholder art:** `The Forgotten Realms/world/tilesets/player_terrain.png`/`.atlas` -
+  cropped the Wasteland ("Colorless") band straight out of `common/world/tilesets/autotiles.png`
+  and applied a gold/amber multiply tint (R×1.30, G×1.05, B×0.55, alpha untouched) via a
+  one-off PowerShell + `System.Drawing` script, not hand-painted. Reuses Wasteland's own
+  `spriteNames: ["Stone"]` for decorations; no structures.
+- **`world/biomes/player.json`:** same schema as `colorless.json`/`green.json`/etc, `name:
+  "player"`, `tilesetAtlas`/`tilesetName` pointing at the new tinted asset, `color: "d4af37"`
+  (gold hex). Registered in `The Forgotten Realms/world/world.json`'s `biomesNames` (8th entry,
+  bit index 7 in `biomeMap`).
+- **`width: 0, height: 0` is deliberate, not a placeholder oversight:** `World.java`'s initial
+  generation loop computes `biomeWidth = round(width * mapWidth)`, and when that's 0 the
+  begin/end bounds collapse to the same value, so the per-biome placement loop for `player`
+  runs zero iterations - it never claims any map territory at world-gen, unlike the 5 AI colors
+  and Wasteland which all divide up the map via `startPointX/Y` + noise/distance. `player` is
+  purely a repaint *target* (via `TownRestoration`/`World.repaintBiomeAroundTown()`, same
+  mechanism already proven with the "green" test recolor), reachable by name once a town becomes
+  the player's - never something the map generator hands out on its own. Confirmed safe: this
+  path is a plain zero-iteration `for` loop, not a divide-by-zero or special-cased branch.
+- **Not wired into `TownRestoration.TEST_RECOLOR_BIOME` yet** - that's still hardcoded to
+  `"green"` from the original prototype. To test the Player biome in-game right now, change that
+  one constant to `"player"` (or ask for it to be added as a second, separate test path).
+
+### Spec for real Player-territory art, when ready to replace the tint
+
+Technical layout only - the aesthetic direction (gold/heraldic, distinct from all 5 mono colors
+and gray Wasteland) is a starting recommendation from the earlier plane survey, not a firm
+requirement.
+
+- **File:** PNG, RGBA8888 (real alpha channel, not a solid background), Nearest-neighbor
+  filtering assumed (crisp pixel art, no anti-aliasing) - matches every other tileset in the
+  game.
+- **Canvas:** a 192×64 px band, containing **4 variant sub-images side by side, each 48×64 px**:
+  variant 0 at x=0-48 (the always-eligible base look), variant 1 at x=48-96, variant 2 at
+  x=96-144, variant 3 at x=144-192 (available but currently unused - `player.json` only
+  references 2 of the 4). This exactly mirrors how `common/world/tilesets/autotiles.png` packs
+  each of its 7 existing color bands (Base/Colorless/White/Red/Green/Blue/Black), confirmed by
+  reading `BiomeTexture.java`'s loader directly.
+- **Each 48×64 variant is itself a 3×4 grid of 16×16 autotile pieces** (12 total) - this is what
+  lets terrain tiles blend smoothly at biome boundaries instead of showing hard seams. Exact
+  grid position → role (row-major from top-left, confirmed via `BiomeTexture.BigPictures` enum):
+
+  | | col 0 | col 1 | col 2 |
+  |---|---|---|---|
+  | **row 0** | Empty1 | Empty2 | InnerEdges |
+  | **row 1** | LeftTopEdge | TopEdge | RightTopEdge |
+  | **row 2** | LeftEdge | **Center** | RightEdge |
+  | **row 3** | LeftBottomEdge | BottomEdge | RightBottomEdge |
+
+  `Center` (row 2, col 1) renders wherever a tile is fully surrounded by same-biome neighbors -
+  it's what the player sees most of the time deep inside a Player-owned area, worth the most
+  polish. The edge/corner pieces need to visually connect against whatever they're transitioning
+  into (any other biome, since Player territory can border any of the 5 colors or Wasteland).
+  `Empty1`/`Empty2` are reserved slots in the format, not necessarily meaningful for a from-
+  scratch design - can be near-duplicates of `Center` if no distinct use is found for them.
+- **Biome JSON side (`player.json`) already handles:** which 2 (or up to 4) of the variant slots
+  get used and under what `noiseWeight`/`resolution` conditions, decoration `spriteNames`, and
+  the `color` hex used elsewhere (mini-map-adjacent contexts). None of that needs to change when
+  swapping in real art - only the PNG (and matching `.atlas` region coordinates, if the new art
+  isn't laid out identically) needs to be replaced.
+
 ## Merge note: decoration-regeneration built in parallel, reconciled
 
 This session and the one that wrote the two sections above (this repo's "other machine") worked

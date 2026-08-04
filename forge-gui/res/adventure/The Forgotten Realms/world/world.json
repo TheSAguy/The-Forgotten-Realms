@@ -20,6 +20,7 @@
 	"world/biomes/blue.json",
 	"world/biomes/black.json",
 	"world/biomes/red.json",
-	"world/biomes/green.json"
+	"world/biomes/green.json",
+	"world/biomes/player.json"
 ]
 }

@@ -179,6 +179,13 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   territory its own decorations (banners/watchtowers/fences instead of reusing another color's).
   Leaning gold/heraldic as a palette direction (reads as "player/multicolor" in MTG shorthand,
   distinct from all 5 mono colors and gray Wasteland) but not committed yet.
+- **Placeholder built (2026-08-04):** a real, registered `player` biome now exists - not real
+  art, a programmatic gold/amber tint of Wasteland's own terrain tiles (color-multiply, not a
+  hand-painted reskin). Good enough to playtest the mechanic with a visually distinct 7th color
+  while real art gets sourced. Full spec for that real art is in `MOD_CHANGELOG.md`. The new
+  biome deliberately claims zero territory at world generation (`width`/`height`: 0 - a biome
+  registered but never placed) since Player territory should only ever come from towns the
+  player actually claims, not a pre-existing map region like the 5 AI colors get.
 - **Dungeons:** deliberately *not* re-themed per the biome's current color for now - re-skinning
   dungeon interiors per color would need parallel map sets (5x the content) or theme-swapping
   logic neither of which seems worth it yet. Only overworld terrain + town icon change color.
