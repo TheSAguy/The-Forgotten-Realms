@@ -492,6 +492,36 @@ of the prototype (see the section above) rather than new bugs - only one was a r
   real chunk of new work in the same category as the deferred autotile-blending fix, not a quick
   patch. Left as-is pending a decision on whether that's worth building now.
 
+## Real art for destroyed shops (replaces the RubbleOverlay tint)
+
+64 hand-made ruined-shop variants, replacing the procedural rubble tint for `ShopActor`
+specifically (the Job Board / `QuestActor` still uses `RubbleOverlay` - no dedicated art for it
+yet, this delivery was shop-only).
+
+- **Asset:** `The Forgotten Realms/maps/tileset/shop_broken.png` (256x256, 8x8 grid of 64
+  variants, each 32x32) + `shop_broken.atlas` (all 64 regions share the name `ShopBroken`,
+  generated via a PowerShell loop rather than hand-typed - same libGDX TextureAtlas format as
+  every other atlas in the game).
+- **Size mismatch, handled by scaling, not re-authoring:** shops render at a native **16x16**
+  footprint (confirmed via `common/maps/obj/shop.tx`'s `width="16" height="16"`), but this art
+  is 32x32 - 2x native resolution. Drawn via `batch.draw(region, x, y, getWidth(), getHeight())`,
+  which scales down automatically; no attempt to re-slice or resample the source art. Flagged to
+  the user as a real (if likely minor, given Nearest-neighbor filtering and a clean 2x ratio)
+  fidelity tradeoff - future art at native 16x16 would avoid it entirely.
+- **`TownRestoration.getBrokenShopSprite(int objectId)`**: same stable-pick-per-object pattern as
+  `getBrokenTownSprite()`, but keyed directly off the shop's own Tiled `objectId` (an `int`)
+  rather than a `PointOfInterest`'s String id - shops don't have their own ID type, and
+  `objectId` is already stable/unique per shop instance within a town, so no new lookup or
+  persisted field was needed.
+- **`ShopActor.draw()` changed from an additive overlay to a full replacement:** the old
+  `RubbleOverlay.draw()` call drew a translucent tint *on top of* the normal shop tile (which is
+  actually rendered by the Tiled map itself, not this Actor - `MapActor.draw()`'s base
+  implementation only draws debug outlines/particle effects, no primary sprite). The new broken
+  sprite is opaque and sized to fully cover that same 16x16 footprint, so it reads as a genuine
+  replacement rather than a tint, even though mechanically it's still "draw something on top of
+  the map's own tile" - same underlying technique, just opaque art instead of a translucent color
+  wash now that real art exists to use it for.
+
 ## Player biome: gold-tint placeholder + real-art spec
 
 Real, registered 7th biome for Player territory (`MOD_SCOPE.md` #7). No new code - purely data,

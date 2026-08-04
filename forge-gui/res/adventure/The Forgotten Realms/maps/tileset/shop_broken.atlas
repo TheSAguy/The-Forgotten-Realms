@@ -1,0 +1,197 @@
+shop_broken.png
+size: 256,256
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+ShopBroken
+  xy: 0, 0
+  size: 32, 32
+ShopBroken
+  xy: 32, 0
+  size: 32, 32
+ShopBroken
+  xy: 64, 0
+  size: 32, 32
+ShopBroken
+  xy: 96, 0
+  size: 32, 32
+ShopBroken
+  xy: 128, 0
+  size: 32, 32
+ShopBroken
+  xy: 160, 0
+  size: 32, 32
+ShopBroken
+  xy: 192, 0
+  size: 32, 32
+ShopBroken
+  xy: 224, 0
+  size: 32, 32
+ShopBroken
+  xy: 0, 32
+  size: 32, 32
+ShopBroken
+  xy: 32, 32
+  size: 32, 32
+ShopBroken
+  xy: 64, 32
+  size: 32, 32
+ShopBroken
+  xy: 96, 32
+  size: 32, 32
+ShopBroken
+  xy: 128, 32
+  size: 32, 32
+ShopBroken
+  xy: 160, 32
+  size: 32, 32
+ShopBroken
+  xy: 192, 32
+  size: 32, 32
+ShopBroken
+  xy: 224, 32
+  size: 32, 32
+ShopBroken
+  xy: 0, 64
+  size: 32, 32
+ShopBroken
+  xy: 32, 64
+  size: 32, 32
+ShopBroken
+  xy: 64, 64
+  size: 32, 32
+ShopBroken
+  xy: 96, 64
+  size: 32, 32
+ShopBroken
+  xy: 128, 64
+  size: 32, 32
+ShopBroken
+  xy: 160, 64
+  size: 32, 32
+ShopBroken
+  xy: 192, 64
+  size: 32, 32
+ShopBroken
+  xy: 224, 64
+  size: 32, 32
+ShopBroken
+  xy: 0, 96
+  size: 32, 32
+ShopBroken
+  xy: 32, 96
+  size: 32, 32
+ShopBroken
+  xy: 64, 96
+  size: 32, 32
+ShopBroken
+  xy: 96, 96
+  size: 32, 32
+ShopBroken
+  xy: 128, 96
+  size: 32, 32
+ShopBroken
+  xy: 160, 96
+  size: 32, 32
+ShopBroken
+  xy: 192, 96
+  size: 32, 32
+ShopBroken
+  xy: 224, 96
+  size: 32, 32
+ShopBroken
+  xy: 0, 128
+  size: 32, 32
+ShopBroken
+  xy: 32, 128
+  size: 32, 32
+ShopBroken
+  xy: 64, 128
+  size: 32, 32
+ShopBroken
+  xy: 96, 128
+  size: 32, 32
+ShopBroken
+  xy: 128, 128
+  size: 32, 32
+ShopBroken
+  xy: 160, 128
+  size: 32, 32
+ShopBroken
+  xy: 192, 128
+  size: 32, 32
+ShopBroken
+  xy: 224, 128
+  size: 32, 32
+ShopBroken
+  xy: 0, 160
+  size: 32, 32
+ShopBroken
+  xy: 32, 160
+  size: 32, 32
+ShopBroken
+  xy: 64, 160
+  size: 32, 32
+ShopBroken
+  xy: 96, 160
+  size: 32, 32
+ShopBroken
+  xy: 128, 160
+  size: 32, 32
+ShopBroken
+  xy: 160, 160
+  size: 32, 32
+ShopBroken
+  xy: 192, 160
+  size: 32, 32
+ShopBroken
+  xy: 224, 160
+  size: 32, 32
+ShopBroken
+  xy: 0, 192
+  size: 32, 32
+ShopBroken
+  xy: 32, 192
+  size: 32, 32
+ShopBroken
+  xy: 64, 192
+  size: 32, 32
+ShopBroken
+  xy: 96, 192
+  size: 32, 32
+ShopBroken
+  xy: 128, 192
+  size: 32, 32
+ShopBroken
+  xy: 160, 192
+  size: 32, 32
+ShopBroken
+  xy: 192, 192
+  size: 32, 32
+ShopBroken
+  xy: 224, 192
+  size: 32, 32
+ShopBroken
+  xy: 0, 224
+  size: 32, 32
+ShopBroken
+  xy: 32, 224
+  size: 32, 32
+ShopBroken
+  xy: 64, 224
+  size: 32, 32
+ShopBroken
+  xy: 96, 224
+  size: 32, 32
+ShopBroken
+  xy: 128, 224
+  size: 32, 32
+ShopBroken
+  xy: 160, 224
+  size: 32, 32
+ShopBroken
+  xy: 192, 224
+  size: 32, 32
+ShopBroken
+  xy: 224, 224
+  size: 32, 32

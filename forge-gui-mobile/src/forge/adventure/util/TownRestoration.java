@@ -120,6 +120,28 @@ public class TownRestoration {
         return brokenWasteTownSprites;
     }
 
+    // Same pattern as the broken-town overworld icon above, but for individual shops within a
+    // town: 64 variants, one shared atlas region name, picked deterministically from the shop's
+    // own Tiled object id (stable per shop instance, no new persisted field needed). Source art
+    // is 32x32 (2x a shop's native 16x16 footprint) - drawn scaled down to fit, see ShopActor.
+    private static final String BROKEN_SHOP_ATLAS = "maps/tileset/shop_broken.atlas";
+    private static final String BROKEN_SHOP_SPRITE = "ShopBroken";
+    private static Array<Sprite> brokenShopSprites;
+
+    public static TextureRegion getBrokenShopSprite(int objectId) {
+        Array<Sprite> variants = getBrokenShopSprites();
+        if (variants == null || variants.size == 0)
+            return null;
+        int index = Math.floorMod(objectId, variants.size);
+        return variants.get(index);
+    }
+
+    private static Array<Sprite> getBrokenShopSprites() {
+        if (brokenShopSprites == null)
+            brokenShopSprites = Config.instance().getAtlas(BROKEN_SHOP_ATLAS).createSprites(BROKEN_SHOP_SPRITE);
+        return brokenShopSprites;
+    }
+
     public static boolean isShopRebuilt(MapStage stage, int objectId) {
         return stage.checkQuestFlag(shopRebuiltFlag(objectId));
     }

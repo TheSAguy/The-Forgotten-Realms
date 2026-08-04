@@ -57,9 +57,12 @@ Helping a color angers its two enemies, not its allies.
 - **Real art added for the neutral/artifact broken town's overworld icon** (previously a
   procedural placeholder tint): 16 hand-made ruined-castle variants, one randomly (but stably)
   assigned per town. Swaps back to the normal town icon once that town's Job Board is
-  restored. In-town buildings (shops, Job Board itself) still use the procedural rubble
-  overlay for now - only the overworld marker has real art so far. Per-color variants (5 more
-  sets, one per WUBRG) are planned next.
+  restored. Per-color variants (5 more sets, one per WUBRG) are planned next.
+- **Real art added for destroyed shops** (2026-08-04, previously the procedural `RubbleOverlay`
+  tint): 64 hand-made ruined-shop variants, one picked stably per shop. Source art is 32x32,
+  drawn scaled down to a shop's native 16x16 footprint. Swaps back to normal once that specific
+  shop is rebuilt. **The Job Board itself still uses the procedural rubble overlay** - only
+  shops have real art so far, no Job Board-specific art exists yet.
 - Still to do: gradual leveling as a town is rebuilt (more shops unlocked per level), roads
   built between towns, +1 life at max reconstruction level.
 

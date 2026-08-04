@@ -1,6 +1,7 @@
 package forge.adventure.character;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.data.ShopData;
@@ -9,7 +10,6 @@ import forge.adventure.scene.RewardScene;
 import forge.adventure.stage.MapStage;
 import forge.adventure.util.MapDialog;
 import forge.adventure.util.Reward;
-import forge.adventure.util.RubbleOverlay;
 import forge.adventure.util.TownRestoration;
 
 
@@ -62,8 +62,15 @@ public class ShopActor extends MapActor {
     @Override
     public void draw(Batch batch, float parentAlpha) {
         super.draw(batch, parentAlpha);
-        if (isDestroyed())
-            RubbleOverlay.draw(batch, getX(), getY(), getWidth(), getHeight(), parentAlpha);
+        if (isDestroyed()) {
+            // Real art (64 variants, one picked stably per shop via objectId), drawn opaque and
+            // scaled to this shop's 16x16 footprint - it fully covers the normal shop tile
+            // underneath (rendered separately by the Tiled map itself, not this Actor), rather
+            // than the earlier translucent RubbleOverlay tint.
+            TextureRegion brokenSprite = TownRestoration.getBrokenShopSprite(objectId);
+            if (brokenSprite != null)
+                batch.draw(brokenSprite, getX(), getY(), getWidth(), getHeight());
+        }
     }
 
 
