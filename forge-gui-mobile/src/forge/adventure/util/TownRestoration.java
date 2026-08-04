@@ -78,7 +78,8 @@ public class TownRestoration {
         if (point == null)
             return;
         WorldSave.getCurrentSave().getWorld().repaintBiomeAroundTown(point, TEST_RECOLOR_BIOME, RECOLOR_RADIUS,
-                WorldStage.getInstance()::refreshBackgroundTile);
+                WorldStage.getInstance()::refreshBackgroundTile,
+                WorldStage.getInstance()::reloadBackgroundChunkObjects);
     }
 
     /**

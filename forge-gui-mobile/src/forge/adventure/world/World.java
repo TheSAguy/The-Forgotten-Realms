@@ -991,11 +991,21 @@ public class World implements Disposable, SaveFileContent {
      *   together for smooth edges, but this just overwrites biomeMap's bits outright, so the
      *   boundary of the recolored patch will look like a hard-edged block, not a natural
      *   transition. The real version needs the pre-split-zone approach described in #7.
-     * - Clears any road bit the tile had (terrainMap reset to a plain, unstructured, non-collide
-     *   terrain-variant 0), and doesn't avoid the town's own footprint - the whole radius,
-     *   including under the town itself, gets recolored uniformly.
+     * - Clears any road bit the tile had, and doesn't avoid the town's own footprint - the whole
+     *   radius, including under the town itself, gets recolored uniformly.
+     * - Regenerates scattered decoration doodads (mapObjectIds) using the target biome's own
+     *   spriteNames/density - see regenerateDoodadsInRadius(). Does NOT regenerate structures
+     *   (dead trees/craters/etc, cleared but not replaced) - their mask-based placement is tied
+     *   to the biome's own anchor position on the map, not something this patch faithfully
+     *   re-derives for an arbitrary location elsewhere.
+     *
+     * onChunkNeedsReload is called once per chunk overlapping the radius, separately from
+     * onTileRepainted (which fires per-tile, for the ground texture patch) - doodad Actors are
+     * cached per-chunk and only refresh on a full chunk reload, not a per-tile patch.
      */
-    public void repaintBiomeAroundTown(PointOfInterest point, String biomeName, int radius, BiConsumer<Integer, Integer> onTileRepainted) {
+    public void repaintBiomeAroundTown(PointOfInterest point, String biomeName, int radius,
+                                        BiConsumer<Integer, Integer> onTileRepainted,
+                                        BiConsumer<Integer, Integer> onChunkNeedsReload) {
         if (point == null || data == null || biomeMap == null || terrainMap == null)
             return;
         List<BiomeData> biomes = data.GetBiomes();
@@ -1035,6 +1045,77 @@ public class World implements Disposable, SaveFileContent {
 
                 if (onTileRepainted != null)
                     onTileRepainted.accept(wx, wy);
+            }
+        }
+
+        regenerateDoodadsInRadius(centerWorldX, centerWorldY, radius, biome);
+
+        if (onChunkNeedsReload != null) {
+            int chunkSize = getChunkSize();
+            int minChunkX = Math.floorDiv(centerWorldX - radius, chunkSize);
+            int maxChunkX = Math.floorDiv(centerWorldX + radius, chunkSize);
+            int minChunkY = Math.floorDiv(centerWorldY - radius, chunkSize);
+            int maxChunkY = Math.floorDiv(centerWorldY + radius, chunkSize);
+            for (int cx = minChunkX; cx <= maxChunkX; cx++)
+                for (int cy = minChunkY; cy <= maxChunkY; cy++)
+                    onChunkNeedsReload.accept(cx, cy);
+        }
+    }
+
+    /**
+     * Removes mapObjectIds doodad entries (rocks/flowers/etc, placed via BiomeData.spriteNames)
+     * within the radius, then re-places new ones using the target biome's own spriteNames list.
+     * Simplified vs. the original world-gen placement loop: density-only, no noise-region
+     * (startArea/endArea) gating - reasonable for a small localized patch, not worth threading
+     * through the world-gen noise field for.
+     */
+    private void regenerateDoodadsInRadius(int centerWorldX, int centerWorldY, int radius, BiomeData biome) {
+        int radiusSq = radius * radius;
+        int tileSize = data.tileSize;
+        int chunkSize = getChunkSize();
+        int minChunkX = Math.floorDiv(centerWorldX - radius, chunkSize);
+        int maxChunkX = Math.floorDiv(centerWorldX + radius, chunkSize);
+        int minChunkY = Math.floorDiv(centerWorldY - radius, chunkSize);
+        int maxChunkY = Math.floorDiv(centerWorldY + radius, chunkSize);
+
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cy = minChunkY; cy <= maxChunkY; cy++) {
+                List<Pair<Vector2, Integer>> objects = mapObjectIds.positions(cx, cy);
+                objects.removeIf(entry -> {
+                    int tx = (int) (entry.getLeft().x / tileSize);
+                    int ty = (int) (entry.getLeft().y / tileSize);
+                    int dx = tx - centerWorldX;
+                    int dy = ty - centerWorldY;
+                    return dx * dx + dy * dy <= radiusSq;
+                });
+            }
+        }
+
+        if (biome.spriteNames == null)
+            return;
+        for (int wx = centerWorldX - radius; wx <= centerWorldX + radius; wx++) {
+            if (wx < 0 || wx >= width)
+                continue;
+            int dx = wx - centerWorldX;
+            for (int wy = centerWorldY - radius; wy <= centerWorldY + radius; wy++) {
+                if (wy < 0 || wy >= height)
+                    continue;
+                int dy = wy - centerWorldY;
+                if (dx * dx + dy * dy > radiusSq || isStructure(wx, wy))
+                    continue;
+                for (String name : biome.spriteNames) {
+                    BiomeSpriteData sprite = data.GetBiomeSprites().getSpriteData(name);
+                    if (sprite == null || random.nextFloat() > sprite.density)
+                        continue;
+                    String spriteKey = sprite.key();
+                    int key = mapObjectIds.containsKey(spriteKey)
+                            ? mapObjectIds.intKey(spriteKey)
+                            : mapObjectIds.put(spriteKey, sprite, data.GetBiomeSprites());
+                    mapObjectIds.putPosition(key, new Vector2(
+                            (wx + .25f + random.nextFloat() / 2) * tileSize,
+                            (wy + .25f - random.nextFloat() / 2) * tileSize));
+                    break; // one doodad per tile, same as original world-gen placement
+                }
             }
         }
     }

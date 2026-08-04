@@ -94,6 +94,13 @@ public class WorldStage extends GameStage implements SaveFileContent {
             background.onTileRevealed(worldTileX, worldTileY);
     }
 
+    // Bridge for World.repaintBiomeAroundTown()'s onChunkNeedsReload callback - same reasoning
+    // as refreshBackgroundTile above.
+    public void reloadBackgroundChunkObjects(int chunkX, int chunkY) {
+        if (background != null)
+            background.reloadChunkObjects(chunkX, chunkY);
+    }
+
     public void setFastTimeEnabled(boolean fastTimeEnabled) {
         this.fastTimeEnabled = fastTimeEnabled;
     }

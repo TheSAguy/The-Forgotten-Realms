@@ -272,6 +272,54 @@ piece: the overworld icon of a not-yet-restored wasteland town.
   setup will need to key off the town's actual color (not just "is wasteland"), so don't assume
   `wastetown_broken.atlas` is the only such file going forward.
 
+## Terrain-repaint round 2: decoration regeneration (playtest fix)
+
+First playtest of the terrain-repaint prototype above showed the ground recoloring correctly,
+but the recolored patch was littered with mismatched decorations - dark, cracked, dead-tree/
+crater shapes (`colorless_structures.png`, the wasteland's designed "dead terrain" aesthetic)
+sitting on top of fresh green grass. Root cause: two *separate* systems place things on the
+ground, and the original prototype only touched one of them.
+
+- **`terrainMap`-embedded structures** (the dead trees/craters/rocks): these live in the same
+  `terrainMap` array the prototype already zeroes out per tile, so they were already being
+  cleared correctly - confirmed by reading `BiomeTexture.java`, which composites structure
+  sprites into the ground pixmap using the exact same index space as terrain variants
+  (`images`/`smallImages` lists: base tileset region, then each `terrain[]` entry, then each
+  `structures[].mappingInfo` entry, all contiguous - `generateBiomeSprite()` and the minimap
+  generator both read this same combined index off `terrainMap`).
+- **`mapObjectIds` scattered doodads** (rocks/flowers/moss etc, placed via `BiomeData.spriteNames`
+  + per-sprite noise/density at world-gen) - this was the actual gap. These are independent
+  `Actor` objects added to the stage once when a chunk first loads
+  (`WorldBackground.loadChunk()` → `MapSprite.getMapSprites()` → `World.GetMapObjects()`), then
+  cached in `chunksSprites`/`chunksSpritesBackground` and never re-evaluated - changing the
+  ground biome underneath them does nothing, they just sit there showing whatever they were
+  generated as.
+- **Fix, `World.regenerateDoodadsInRadius()`** (called from `repaintBiomeAroundTown()` after the
+  ground-tile loop): removes `mapObjectIds` entries within the radius
+  (`SpritesDataMap.positions(chunkX, chunkY)` returns the live, mutable list - `removeIf` on it
+  directly), then re-places new ones using the *target* biome's own `spriteNames`. This is
+  deliberately **not** a cross-biome mapping table - regenerating with the new biome's own
+  placement rules for that patch needs no translation between "old" and "new" decorations at
+  all, which is simpler than what was originally proposed. Simplified vs. the original
+  world-gen placement loop: density-only per sprite, no noise-region (`startArea`/`endArea`)
+  gating - reasonable for a small localized patch, not worth threading the world-gen noise
+  field through for.
+- **Still not regenerated: structures.** Their placement is mask-image-based, sampled relative
+  to the *target* biome's own anchor position on the map (`BiomeData.startPointX/Y` etc, per
+  `BiomeStructure.objectID()`), which isn't something this patch faithfully re-derives for an
+  arbitrary location elsewhere on the map. Recolored patches get doodads but no structures for
+  now - clearing (not regenerating) structures was already correct, just left as-is.
+- **New wrinkle found while fixing this: doodad `Actor`s don't refresh from a plain chunk
+  unload+reload.** `WorldBackground.unLoadChunk()`/`loadChunk()` only toggle whether a chunk's
+  *already-cached* `chunksSprites`/`chunksSpritesBackground` lists are attached to the stage -
+  `loadChunk()` skips regenerating them if the cache entry is non-null. Added
+  `WorldBackground.reloadChunkObjects(chunkX, chunkY)` (package-private, bridged via
+  `WorldStage.reloadBackgroundChunkObjects()` same as the ground-tile bridge) which explicitly
+  nulls both cache arrays before reloading, forcing a real re-read from the now-updated
+  `mapObjectIds`. `repaintBiomeAroundTown()` gained a second callback parameter,
+  `onChunkNeedsReload`, fired once per chunk overlapping the radius (separate from
+  `onTileRepainted`, which is per-tile and only patches the ground texture).
+
 ## Terrain-repaint prototype for Dynamic Territory Control (#7)
 
 First step toward #7's biggest technical risk: proving the overworld's baked terrain can be

@@ -155,10 +155,30 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
 - **Terrain-repaint prototype built** (2026-08-03): `World.repaintBiomeAroundTown()` proves the
   live-repaint mechanism works, wired to fire when the player restores a wasteland town's Job
   Board (hardcoded to always recolor "green" for testing, not real color-selection logic yet).
-  Deliberately crude - hard-edged, no autotile blending, ignores roads/structures under the
-  patch - see `MOD_CHANGELOG.md` for exactly what's simplified. This validates the mechanism,
-  it is *not* the pre-split-zone system above - that's still the right approach before the real
+  Deliberately crude - hard-edged, no autotile blending, ignores roads under the patch - see
+  `MOD_CHANGELOG.md` for exactly what's simplified. This validates the mechanism, it is *not*
+  the pre-split-zone system above - that's still the right approach before the real
   attack/capture logic gets built.
+- **First playtest fix:** the recolored ground looked right, but old-biome decorations
+  (wasteland's dead-tree/crater doodads) stayed scattered on top of it - two separate systems
+  place things on the ground, and the prototype only touched one (ground terrain, not the
+  independently-cached decoration objects). Fixed by regenerating decorations with the target
+  biome's own placement rules instead of trying to translate old ones - see
+  `MOD_CHANGELOG.md`. Structures (dead trees/craters specifically) are cleared but not yet
+  regenerated - recolored patches currently get doodads (rocks/flowers/etc) but no structures.
+- **Player gets a 7th color** (new, 2026-08-03): alongside the 5 AI colors + neutral Wasteland,
+  the player will have their own distinct territory color/terrain. Surveyed the other bundled
+  planes for reusable art - **none had anything usable**: Realm of Legends and Crystal_Kingdoms
+  have no custom terrain art at all (Crystal_Kingdoms is a pure name-reskin of the existing 6
+  slots); Innistrad only reskins structures/decorations, not ground; Amonkhet fully reskins
+  ground art but only recolors the existing 6 slots, doesn't add a 7th. Real new pixel art is
+  needed either way - Amonkhet's `autotiles.png`/`terrain.atlas` pair is the right *technical*
+  template for adding a new tileset slot (same schema, no code changes needed to register it,
+  same as how the other colors work), and Innistrad's structure-masking system
+  (`structureAtlasPath`/`maskPath`/`mappingInfo`) is the right template for giving Player
+  territory its own decorations (banners/watchtowers/fences instead of reusing another color's).
+  Leaning gold/heraldic as a palette direction (reads as "player/multicolor" in MTG shorthand,
+  distinct from all 5 mono colors and gray Wasteland) but not committed yet.
 - **Dungeons:** deliberately *not* re-themed per the biome's current color for now - re-skinning
   dungeon interiors per color would need parallel map sets (5x the content) or theme-swapping
   logic neither of which seems worth it yet. Only overworld terrain + town icon change color.

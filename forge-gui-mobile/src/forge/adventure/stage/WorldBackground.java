@@ -224,6 +224,22 @@ public class WorldBackground extends Actor {
         playerY = (int) y;
     }
 
+    // Forces a chunk's decoration Actors (rocks/flowers/etc, from World.mapObjectIds) to refresh
+    // from current data - unlike ground textures, loadChunk()/unLoadChunk() alone don't do this:
+    // chunksSprites/chunksSpritesBackground are only populated once and cached, so a plain
+    // unload+reload would just re-add the same stale Actor list. Used by World.repaintBiomeAroundTown()
+    // after it regenerates mapObjectIds for a repainted area, via WorldStage's bridge.
+    void reloadChunkObjects(int chunkX, int chunkY) {
+        if (chunksSprites == null || chunkX < 0 || chunkY < 0 || chunkX >= chunksSprites.length || chunkY >= chunksSprites[0].length)
+            return;
+        if (chunksSprites[chunkX][chunkY] == null && chunksSpritesBackground[chunkX][chunkY] == null)
+            return; // never loaded - will pick up fresh data whenever it does load, nothing to do now
+        unLoadChunk(chunkX, chunkY);
+        chunksSprites[chunkX][chunkY] = null;
+        chunksSpritesBackground[chunkX][chunkY] = null;
+        loadChunk(chunkX, chunkY);
+    }
+
     // Called when a tile newly becomes explored, or (package-private, see WorldStage's
     // refreshBackgroundTile bridge) when a tile's terrain was repainted at runtime, e.g. by
     // World.repaintBiomeAroundTown(). If its chunk texture is already built, patch just that
