@@ -77,11 +77,12 @@ public class TownRestoration {
         return changes != null && changes.getMapFlags().get(TOWN_RESTORED_FLAG) != null;
     }
 
-    // PROTOTYPE for MOD_SCOPE.md #7: hardcoded to always recolor "green" - real territory control
-    // will decide the color dynamically (whichever castle's attack succeeds), this is purely to
-    // validate that live terrain repainting works before that system gets built. Called once,
-    // right after a town's Job Board is actually restored.
-    private static final String TEST_RECOLOR_BIOME = "green";
+    // PROTOTYPE for MOD_SCOPE.md #7: hardcoded to always recolor "player" (was "green" - flipped
+    // 2026-08-04 to test the new gold-tint Player biome) - real territory control will decide
+    // the color dynamically (whichever castle's attack succeeds, or "player" once a town is
+    // actually claimed), this is purely to validate that live terrain repainting works before
+    // that system gets built. Called once, right after a town's Job Board is actually restored.
+    private static final String TEST_RECOLOR_BIOME = "player";
     private static final int RECOLOR_RADIUS = 10;
 
     public static void recolorTerrainForTesting() {
