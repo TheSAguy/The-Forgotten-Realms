@@ -99,21 +99,57 @@ Helping a color angers its two enemies, not its allies.
   timers; periodic events (trigger every N days, etc) — deferred to follow-up passes once
   the clock itself is proven out.
 
-### 7. Dynamic Territory Control — `Not Started`
-- Map starts fully neutral/grey/artifact-controlled.
-- Each color has a Castle; periodically (e.g. weekly chance) a color can capture the
-  nearest free town to its Castle — town flips to that color visually and map regen
-  reflects it. Requires map generation to support incremental recoloring, not just
-  one-time generation.
-- Once all free/neutral towns are claimed, colors start attacking each other's towns
-  following the ally/enemy table (e.g. Green never attacks White/Red, does attack
-  Blue/Black).
-- **Open question:** how this affects the player directly — does the player end up with
-  own towns that can be attacked? Working theory: attack likelihood tied to reputation
-  (better rep = less likely to be targeted, worse rep = more likely).
+### 7. Dynamic Territory Control — `Not Started` (design settled, not built)
+Full design worked out 2026-08-03 - detailed enough to build from, just not started yet.
+
+- **Start state:** map generates 100% neutral/colorless. Every town starts broken (ties into
+  #2 - this is the same "destroyed" state `TownRestoration` already models, just now something
+  colors actively fight over instead of only the player rebuilding).
+- **Attack cadence:** every 3-4 in-game days (ties into #6's clock), each of the 5 colored
+  Castles sends a unit at one of its 3 closest towns it doesn't already own, chosen randomly
+  among those 3. Recommend independent per-color timers (each color rolls its own 3-4 day
+  cooldown) rather than all 5 firing in lockstep - reads as more organic.
+- **Ally/enemy targeting:** a color's targets are limited by the existing color-wheel table
+  (top of this doc) - e.g. Green never attacks a White or Red town, only Black or Blue ones.
+  This applies to attacking *other colors'* towns; attacking neutral/unowned towns isn't
+  restricted by the wheel.
+- **Race condition:** if two colors target the same town in the same window, whichever unit
+  arrives first gets it.
+- **Units are visible on the overworld** - an actual sprite travels from castle to target over
+  the following days, not resolved invisibly in the background. The player can intercept and
+  fight it; doing so successfully grants a reward (exact reward TBD).
+- **Capture resolution:**
+  - Attacking a *neutral* town: succeeds, town flips to the attacker's color, map art updates
+    to match (see technical note below).
+  - Attacking an *enemy-color* town: 50/50 either the town flips to the attacker's color, or it
+    reverts to neutral/broken instead of changing hands directly color-to-color. The revert
+    case is deliberate - it's what gives the player a window to step in and claim/restore a
+    contested town themselves rather than territory just ping-ponging between the 5 colors.
+  - **Player-restored towns and fortifications (ties into #8):** if the player has restored a
+    town (#2) but left it unfortified, a successful capture wipes that progress - the town
+    becomes the attacking color's version, restoration/shops reset. Fortifications (#8) exist
+    specifically to prevent this: a fortified town has a high chance to repel the attack
+    outright, protecting the player's investment. This is the whole reason #8 needs to exist,
+    not just a flavor upgrade.
+- **Technical risk, flagged before implementation starts:** the overworld's terrain is baked
+  once at world-gen (`World.java`'s `biomeMap`/`biomeImage`), not tagged per-town - recoloring a
+  captured town means repainting a *region* of that baked terrain, not just swapping an icon
+  (icon swaps are what we've done so far, e.g. `wastetown_broken`, and are cheap; region
+  repainting is not). Recommended approach: pre-split the map into per-castle zones at
+  generation time (Voronoi-style, castles as seed points) and precompute each tile's
+  neutral-appearance *and* each relevant owned-by-color-X appearance up front, so a capture just
+  switches which precomputed variant renders - no live regeneration. This is a world-gen
+  redesign and should be scoped/built before the attack/capture logic depends on it.
+- **Dungeons:** deliberately *not* re-themed per the biome's current color for now - re-skinning
+  dungeon interiors per color would need parallel map sets (5x the content) or theme-swapping
+  logic neither of which seems worth it yet. Only overworld terrain + town icon change color.
+  Revisit only if this feels wrong in actual playtesting.
 
 ### 8. Town Fortifications — `Not Started`
-- Upgradeable defenses that let a town repel attacks (ties into #7 and #2).
+- Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete
+  purpose beyond flavor: protects a player-restored town's progress from being wiped by a
+  successful capture (see #7). Needs: fortification levels/costs, and how much each level
+  reduces capture chance (currently just "high chance to repel" - not yet numeric).
 
 ### 9. Expanded Resources — `Not Started`
 - Currently: Gold, Shards.
