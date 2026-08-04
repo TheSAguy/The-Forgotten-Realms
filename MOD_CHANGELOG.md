@@ -151,6 +151,68 @@ Four bugs found in the first real playtest of the above three systems together:
   plain unglared `OnCollide` deliberately: `exit` must never be lockable, and `arena` isn't really
   "town infrastructure" in the same sense as a shop/inn/trader).
 
+## Post-testing fixes (round 2)
+
+Second playtest round, three more requests:
+
+- **Clock redesigned again as a digital readout.** The crossfading circular dial from round 1
+  still looked cluttered on its own; per a reference mock, `TimeOfDayActor` is now a `Group`
+  with two small text panels ("Day N" / "H:MM am|pm", built from `World.getCurrentDay()` /
+  `getHourOfDay()`) plus a smaller (32px, was 40px) version of the same crossfading circular sky
+  icon next to them for the "animation" ask. The icon logic itself is unchanged, just extracted
+  into a private `DialFace` inner Actor and added as a child alongside the two `TextraLabel`s.
+  Labels only call `.setText()` when the displayed string actually changes (not every frame).
+- **Fog of war redesigned as two tiers: Known vs Visible**, per a reference mock showing a
+  "Known" outer halo (dim) and a "Visible" inner circle (bright, only radius where you see
+  what's actually happening). This is a genuinely different model from round 1's binary
+  explored/unexplored, not just a bugfix:
+  - `World.explored[][]` now means **known**: once true, stays true forever (persisted), same as
+    before.
+  - New, NOT persisted: `World.visiblePlayerTileX/Y` + `isCurrentlyVisible(x, y)` - true only
+    within `visionRadius` of the player's *current* position this frame. Set every frame by
+    `WorldBackground.draw()` via `world.setPlayerTilePosition(...)`, right where it already
+    tracks the player's tile for `revealArea()`.
+  - `World.getBiomeSprite()`: unknown → black fog tile (unchanged) → known-but-not-currently-
+    visible → **hazed** (darkened) copy of the true tile via the new `hazeTile()` → currently
+    visible → true tile, full brightness.
+  - **Important correctness gotcha found while building this:** the biome-generation code's
+    edge-of-map case (`generateBiomeSprite()`, formerly the body of `getBiomeSprite()`) returns a
+    *shared/cached* `Pixmap` from `BiomeTexture.getPixmap()`, reused across every future lookup
+    of that biome/terrain combo - not a fresh one per call like the normal path. `hazeTile()`
+    always returns a new copy and never mutates its input in place, specifically so darkening a
+    hazed tile can't corrupt that shared cache for every other tile using it.
+  - Minimap (`World.updateFogOfWarPixmap`/`rebuildFogOfWarPixmap`): only two tiers, not three -
+    black (unknown) or dimmed (known). No live "currently visible, extra bright" tier on the
+    minimap - it was never showing live monster positions in the first place, so the distinction
+    doesn't carry meaning there the way it does on the ground.
+  - `WorldBackground.draw()`: since already-known tiles can flip between hazed and bright purely
+    from the player moving near/away (not just newly-discovered ones), added a second per-frame
+    step - re-patch every tile within `visionRadius + 1` of the player (the +1 catches tiles that
+    just left the radius) whenever the player's tile position changes. Throttled to only run on
+    an actual tile change, not every rendered frame.
+  - **Monsters were never gated by fog at all until now** - `EnemySprite extends CharacterSprite`,
+    not `MapSprite`, so the round-1 fix (which only touched `MapSprite.draw()`) never applied to
+    them. Added a check directly in `EnemySprite.draw()`: on the overworld only (skipped via
+    `!MapStage.getInstance().isInMap()`, since town/dungeon enemies use unrelated coordinates),
+    a monster only renders if `world.isCurrentlyVisible(tileX, tileY)` - known terrain isn't
+    enough, matching "you know the area, not what's happening there."  Decorative sprites and
+    POI/town markers (`MapSprite.draw()`, round 1) intentionally stay at the "known" tier, not
+    "currently visible" - a town is a landmark, not something that needs to be hidden again the
+    moment you walk away from it.
+  - **Known Pixmap cost:** `hazeTile()` allocates a small new Pixmap per call and nothing disposes
+    it (matching this codebase's pre-existing convention of never disposing `getBiomeSprite()`
+    return values at the call site - some paths return the shared cached Pixmap above, so a
+    blanket dispose would be unsafe). The per-frame visibility repatch calls this far more often
+    than round 1's "only on first discovery" reveals did. Not fixed now - flagging as a real but
+    likely-tolerable-for-a-play-session cost; revisit if it becomes a problem.
+- **Map-view-not-updating bug from round 1 report:** re-verified the logic (`getBiomeImage()`'s
+  `isFogOfWarEnabled()` bypass, `GameHUD`/`MapViewScene`'s explicit refresh-on-toggle from round
+  1) and found no other masking mechanism in `MapViewScene` beyond what round 1 already
+  addressed - POI markers there were never gated by fog in the first place (they always show all
+  towns), which is likely what "only cities appear" was describing. Did not find a further
+  concrete bug here beyond round 1's fix; this needs a fresh test against this build specifically
+  before assuming it's still broken.
+
 ## Gold for testing
 
 No code was added for this - Forge's adventure mode already ships an in-game cheat console

@@ -37,6 +37,11 @@ public class WorldBackground extends Actor {
     // the tile the player happens to be standing on.
     private static final int DISCOVERY_REVEAL_RADIUS = 11; // 75% of the original 15
 
+    // Throttles the per-frame "keep the visible-vs-hazed boundary accurate" repatch below to only
+    // run when the player has actually moved to a new tile, not every single rendered frame.
+    private int lastVisibilityPatchX = Integer.MIN_VALUE;
+    private int lastVisibilityPatchY = Integer.MIN_VALUE;
+
     public WorldBackground(GameStage gameStage) {
         stage = gameStage;
     }
@@ -50,6 +55,22 @@ public class WorldBackground extends Actor {
         int playerTileY = playerY / tileSize;
         int visionRadius = world.getVisionRadius();
         world.revealArea(playerTileX, playerTileY, visionRadius, this::onTileRevealed);
+        world.setPlayerTilePosition(playerTileX, playerTileY);
+
+        // Known tiles near the player toggle between hazed and fully visible as they walk, even
+        // when nothing newly becomes known - re-patch the local neighborhood (one tile wider than
+        // the vision radius, to also catch tiles that just left it) whenever the player's tile
+        // position changes.
+        if (playerTileX != lastVisibilityPatchX || playerTileY != lastVisibilityPatchY) {
+            lastVisibilityPatchX = playerTileX;
+            lastVisibilityPatchY = playerTileY;
+            int patchRadius = visionRadius + 1;
+            for (int tx = playerTileX - patchRadius; tx <= playerTileX + patchRadius; tx++) {
+                for (int ty = playerTileY - patchRadius; ty <= playerTileY + patchRadius; ty++) {
+                    onTileRevealed(tx, ty);
+                }
+            }
+        }
 
         GridPoint2 pos = translateFromWorldToChunk(playerX, playerY);
         for (PointOfInterest poi : world.getPointsOfInterest(pos.x, pos.y)) {

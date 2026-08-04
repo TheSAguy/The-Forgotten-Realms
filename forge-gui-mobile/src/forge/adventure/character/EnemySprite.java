@@ -21,7 +21,9 @@ import forge.adventure.data.EnemyData;
 import forge.adventure.data.RewardData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.util.Config;
+import forge.adventure.stage.MapStage;
 import forge.adventure.util.Current;
+import forge.adventure.world.World;
 import forge.adventure.util.MapDialog;
 import forge.adventure.util.Reward;
 import forge.adventure.util.pathfinding.MovementBehavior;
@@ -575,6 +577,17 @@ public class EnemySprite extends CharacterSprite implements Steerable<Vector2> {
     public void draw(Batch batch, float parentAlpha) {
         if (inactive || hidden)
             return;
+        // Fog of war (MOD_SCOPE.md #3): on the overworld, a "known" tile only means you remember
+        // the terrain - it doesn't mean you can see what's moving around on it right now. Monsters
+        // only render within the live vision radius. Town/dungeon (MapStage) enemies are unaffected
+        // - fog only applies to the overworld, and their coordinates aren't overworld tile
+        // coordinates in the first place.
+        if (!MapStage.getInstance().isInMap()) {
+            World world = Current.world();
+            int tileSize = world.getTileSize();
+            if (!world.isCurrentlyVisible((int) (getX() / tileSize), (int) (getY() / tileSize)))
+                return;
+        }
         super.draw(batch, parentAlpha);
         if(Current.player().hasColorView() && !data.colors.isEmpty()) {
             drawColorHints(batch);

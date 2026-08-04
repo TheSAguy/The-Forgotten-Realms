@@ -201,7 +201,16 @@ public class World implements Disposable, SaveFileContent {
             return new Pixmap(data.tileSize, data.tileSize, Pixmap.Format.RGBA8888);
         if (!isExploredWorld(x, y))
             return getFogTile();
+        Pixmap real = generateBiomeSprite(x, y);
+        if (isFogOfWarEnabled() && !isCurrentlyVisible(x, y))
+            return hazeTile(real);
+        return real;
+    }
 
+    // The tile's true appearance, ignoring fog entirely - callers go through getBiomeSprite(),
+    // which decides whether to show this, a hazed copy of it (known but not currently visible),
+    // or the black fog tile (never explored).
+    private Pixmap generateBiomeSprite(int x, int y) {
         long biomeIndex = getBiome(x, y);
         int biomeTerrain = getTerrainIndex(x, y);
         Pixmap drawingPixmap = new Pixmap(data.tileSize, data.tileSize, Pixmap.Format.RGBA8888);
@@ -1053,6 +1062,29 @@ public class World implements Disposable, SaveFileContent {
         this.visionRadius = visionRadius;
     }
 
+    // Two-tier fog: "known" (explored[][], persisted forever once seen - see isExploredWorld())
+    // vs "currently visible" (real-time, live vision radius around the player's current position,
+    // NOT persisted - recomputed every frame from these two fields). Known-but-not-currently-visible
+    // tiles render hazed (see hazeTile()) rather than fully hidden or fully bright: you remember the
+    // terrain shape, but not what's happening there right now (a monster that's since wandered
+    // through, etc). Set once per frame by WorldBackground.draw(), which already knows the player's
+    // current tile position for the reveal-on-move logic.
+    private int visiblePlayerTileX = Integer.MIN_VALUE;
+    private int visiblePlayerTileY = Integer.MIN_VALUE;
+
+    public void setPlayerTilePosition(int tileX, int tileY) {
+        visiblePlayerTileX = tileX;
+        visiblePlayerTileY = tileY;
+    }
+
+    public boolean isCurrentlyVisible(int x, int y) {
+        if (!isFogOfWarEnabled())
+            return true;
+        int dx = x - visiblePlayerTileX;
+        int dy = y - visiblePlayerTileY;
+        return dx * dx + dy * dy <= visionRadius * visionRadius;
+    }
+
     private Pixmap getFogTile() {
         if (fogTilePixmap == null) {
             fogTilePixmap = new Pixmap(data.tileSize, data.tileSize, Pixmap.Format.RGBA8888);
@@ -1062,12 +1094,33 @@ public class World implements Disposable, SaveFileContent {
         return fogTilePixmap;
     }
 
+    // Returns a darkened COPY of the given tile - never mutates it in place, since some callers of
+    // getBiomeSprite() (the edge-of-map case in generateBiomeSprite()) return a shared/cached Pixmap
+    // reused across many tile lookups, not a fresh one, and tinting it in place would corrupt every
+    // other tile that shares it.
+    private Pixmap hazeTile(Pixmap real) {
+        Pixmap haze = new Pixmap(real.getWidth(), real.getHeight(), Pixmap.Format.RGBA8888);
+        haze.setBlending(Pixmap.Blending.None);
+        haze.drawPixmap(real, 0, 0);
+        haze.setBlending(Pixmap.Blending.SourceOver);
+        haze.setColor(0f, 0f, 0.05f, 0.55f);
+        haze.fillRectangle(0, 0, haze.getWidth(), haze.getHeight());
+        return haze;
+    }
+
     // rawX/rawY are in biomeMap's raw/image-space (unflipped), matching the x,y loop that built biomeImage.
+    // The minimap only distinguishes unknown (black, untouched) vs known (dimmed) - it doesn't need a
+    // third "currently visible" tier the way the ground view does, since it isn't showing live monster
+    // positions in the first place.
     private void updateFogOfWarPixmap(int rawX, int rawY) {
         if (fogOfWarPixmap == null || biomeImage == null || data == null)
             return;
         int mm = data.miniMapTileSize;
+        fogOfWarPixmap.setBlending(Pixmap.Blending.None);
         fogOfWarPixmap.drawPixmap(biomeImage, rawX * mm, rawY * mm, mm, mm, rawX * mm, rawY * mm, mm, mm);
+        fogOfWarPixmap.setBlending(Pixmap.Blending.SourceOver);
+        fogOfWarPixmap.setColor(0f, 0f, 0.05f, 0.5f);
+        fogOfWarPixmap.fillRectangle(rawX * mm, rawY * mm, mm, mm);
     }
 
     /** Rebuilds the minimap's fog overlay from the current explored[][] state. Only needed after
@@ -1085,7 +1138,7 @@ public class World implements Disposable, SaveFileContent {
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 if (explored[x][y]) {
-                    fogOfWarPixmap.drawPixmap(biomeImage, x * mm, y * mm, mm, mm, x * mm, y * mm, mm, mm);
+                    updateFogOfWarPixmap(x, y);
                 }
             }
         }

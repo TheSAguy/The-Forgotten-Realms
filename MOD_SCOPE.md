@@ -68,6 +68,11 @@ Helping a color angers its two enemies, not its allies.
 - Added a temporary HUD checkbox to toggle fog of war on/off without editing `config.json`,
   for easier testing. Intended to be removed once the feature doesn't need frequent manual
   toggling.
+- **Two-tier now, not just on/off:** "known" (terrain you've been near once - persisted, shown
+  hazed/dimmed when you're not currently there) vs "currently visible" (live vision radius
+  around the player right now - full brightness, and the only state monsters render in). You
+  remember the shape of the land once known, but not what's moving around on it. See
+  `MOD_CHANGELOG.md` for the implementation.
 
 ### 4. Progressive Set Unlocks — `Not Started`
 - ~100+ MTG expansions exist; player starts with access to a small subset (e.g. ~10).
