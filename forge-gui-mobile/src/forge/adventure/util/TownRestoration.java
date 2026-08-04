@@ -51,6 +51,12 @@ public class TownRestoration {
 
         if (data == null || data.questTags == null)
             return false;
+        // The colorless-biome tag alone isn't specific to towns - dungeons/caves placed in the
+        // same biome share it too, which was incorrectly sweeping them into "destroyed" (rubble
+        // overlay + broken overworld icon). Restrict to actual town-type POIs, same "town"/
+        // "capital" check World.java's own generation code already uses to distinguish towns.
+        if (data.type == null || !(data.type.equals("town") || data.type.equals("capital")))
+            return false;
         for (String tag : data.questTags) {
             if ("BiomeColorless".equals(tag))
                 return true;

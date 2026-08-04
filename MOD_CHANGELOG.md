@@ -384,6 +384,37 @@ referencing real MTG cards via `effect.startBattleWithCard` (e.g. "Seal of Fire|
   not done here since it wasn't asked for and involves real design choices (which items go in
   which shops, at what rarity/cost).
 
+## Terrain-repaint prototype playtest fixes
+
+First live test of the repaint prototype (green test-recolor + the wastetown ruin art together).
+Two of the three things reported turned out to already be documented, deliberate simplifications
+of the prototype (see the section above) rather than new bugs - only one was a real fix.
+
+- **Real bug, fixed: ruined-town art/rubble was applying to dungeons too, not just towns.**
+  `TownRestoration.isWastelandTown(PointOfInterestData)` only checked the `BiomeColorless` quest
+  tag - which marks *any* POI placed in that biome, dungeons and caves included, not just towns.
+  Added the same `data.type.equals("town") || data.type.equals("capital")` check
+  `World.java`'s own generation code already uses elsewhere to distinguish towns from other POI
+  types. Affects every consumer of `isWastelandTown()` at once (`getBrokenTownSprite()`,
+  `ShopActor`/`QuestActor`/`OnCollide`'s destroyed-check) since they all funnel through it.
+- **Real gap, fixed: repaint was silently erasing roads.** Roads live as one extra bit past the
+  last real biome in `biomeMap` (see the road-drawing pass in `generateNew()`), and
+  `repaintBiomeAroundTown()` was doing a hard `biomeMap[x][y] = 1L << biomeIndex` assignment,
+  wiping that bit along with everything else. Now skips repainting any tile that already carries
+  the road bit, so existing roads survive a capture instead of vanishing - also means there's
+  something for a future roads/upgrade-roads feature (`MOD_SCOPE.md` #2) to build on rather than
+  roads getting erased every time a town changes hands.
+- **Not fixed, and not a quick fix: the hard-edged boundary "looks like water" in places.** This
+  is exactly the "no autotile blending" limitation already flagged when the prototype was built -
+  `generateBiomeSprite()`'s neighbor-blend logic was designed around smooth, noise-based biome
+  boundaries from world-gen, not a sudden circular cut. An unusual neighbor-bit pattern from a
+  hard edge can coincidentally match a tile variant the artist authored for a *different* kind of
+  transition (e.g. a coastline piece), which is likely why this specific case reads as "water."
+  Confirmed real terrain underneath (walkable, not actually water) - purely a rendering artifact
+  of the missing blending. The documented fix is the pre-split-zone approach in `MOD_SCOPE.md`
+  #7, not a patch on top of the current hard-overwrite - deliberately left alone rather than
+  papering over it with something that'll need to be redone anyway.
+
 ## Gold for testing
 
 No code was added for this - Forge's adventure mode already ships an in-game cheat console

@@ -163,6 +163,12 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   dungeon interiors per color would need parallel map sets (5x the content) or theme-swapping
   logic neither of which seems worth it yet. Only overworld terrain + town icon change color.
   Revisit only if this feels wrong in actual playtesting.
+- **First playtest of the prototype (2026-08-04):** confirmed live repaint works. Fixed a real
+  bug found in the same pass - the ruined-town art/rubble was incorrectly applying to dungeons
+  too (see `MOD_CHANGELOG.md`), not just towns. Also fixed roads getting silently erased by a
+  repaint. The hard-edge "looks like water in spots" rendering artifact is still there -
+  confirmed as the already-documented "no autotile blending" limitation above, not a new issue,
+  and still deliberately not patched (needs the pre-split-zone approach, not a quick fix).
 
 ### 8. Town Fortifications — `Not Started`
 - Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete
