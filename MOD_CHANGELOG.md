@@ -119,6 +119,38 @@ Files: `TownRestoration.java` (new, core logic), `RubbleOverlay.java` (new, plac
   +1 life at max reconstruction level - all still `Not Started`/deferred, tracked in
   `MOD_SCOPE.md` #2.
 
+## Post-testing fixes (round 1)
+
+Four bugs found in the first real playtest of the above three systems together:
+
+- **Time dial redesign:** the original two-texture day/night crossfade + rotating needle + fixed
+  castle icon read as visually muddled. Replaced with a single circular "porthole" face that
+  crossfades through 4 anchor states (Night → Morning → Midday → Evening → loops back to Night),
+  each with its own sky gradient and sun/moon position (moon rendered as an actual crescent via a
+  second sky-colored circle biting into the disc). Needle and castle icon dropped entirely.
+  `TimeOfDayActor.java` rewritten, no other files touched.
+- **Fog toggle not reflected in the full map view:** `GameHUD`'s minimap and `MapViewScene`'s full
+  map both only rebuilt their background texture on scene `enter()`, not live - toggling the debug
+  checkbox could leave the already-open (or not-yet-reopened) full map showing stale fog state.
+  Extracted `GameHUD.refreshMiniMap()` and `MapViewScene.refreshMap()` from their respective
+  `enter()` methods and call both directly from `fogOfWarDebugCheckBox`'s listener, so the toggle
+  takes effect immediately rather than waiting on the next scene transition.
+- **Wait froze NPCs entirely:** `WorldStage.onActing()`'s whole simulation block (monster spawn,
+  enemy movement, combat collision) was gated on `player.isMoving()` alone; `waitingForTime` only
+  advanced the clock in the `else` branch, so enemies visibly stood still while waiting. Folded
+  `waitingForTime` into the same top-level condition so the entire block runs while either moving
+  or waiting - world keeps living around a stationary, waiting player.
+- **Spellsmith never actually participated in town restoration:** `MapStage.java` wires several
+  single-per-town buildings (`spellsmith`, `shardtrader`, `inn`, `arena`) via the generic
+  `OnCollide` actor, which had zero integration with `TownRestoration` and even hardcoded
+  `objectId = 0` for every instance (a latent bug regardless - would collide flags across
+  multiple such buildings in one town if any of them were ever gated). Gave `OnCollide` a second
+  constructor `(Runnable, int id, MapStage stage)` that opts into the same
+  isDestroyed()/RubbleOverlay/rebuild-dialog pattern `ShopActor` uses, and wired the `spellsmith`
+  case to it. **Not yet done:** `shardtrader` and `inn` have the identical gap (still using the
+  ungated single-arg constructor) - only `spellsmith` was fixed since that's what was reported;
+  revisit if those should be gated too.
+
 ## Gold for testing
 
 No code was added for this - Forge's adventure mode already ships an in-game cheat console

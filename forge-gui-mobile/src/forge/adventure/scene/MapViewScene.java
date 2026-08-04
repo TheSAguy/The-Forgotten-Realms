@@ -286,14 +286,20 @@ public class MapViewScene extends UIScene {
         }
     }
 
-    @Override
-    public void enter() {
+    // Extracted so the fog-of-war debug toggle (GameHUD) can force an immediate refresh here too,
+    // instead of only updating on the next time this scene is entered.
+    public void refreshMap() {
         if (miniMapTexture != null)
             miniMapTexture.dispose();
         miniMapTexture = new Texture(WorldSave.getCurrentSave().getWorld().getBiomeImage());
         img.setSize(WorldSave.getCurrentSave().getWorld().getBiomeImage().getWidth(), WorldSave.getCurrentSave().getWorld().getBiomeImage().getHeight());
         img.getParent().setSize(WorldSave.getCurrentSave().getWorld().getBiomeImage().getWidth(), WorldSave.getCurrentSave().getWorld().getBiomeImage().getHeight());
         img.setDrawable(new TextureRegionDrawable(miniMapTexture));
+    }
+
+    @Override
+    public void enter() {
+        refreshMap();
         miniMapPlayer.setDrawable(new TextureRegionDrawable(Current.player().avatar()));
         miniMapPlayer.setSize(Current.player().avatar().getRegionWidth(), Current.player().avatar().getRegionHeight());
         avatarX = getMapX(WorldStage.getInstance().getPlayerSprite().getX()) - miniMapPlayer.getWidth() / 2;

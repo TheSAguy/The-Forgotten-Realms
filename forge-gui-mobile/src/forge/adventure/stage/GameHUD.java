@@ -155,6 +155,10 @@ public class GameHUD extends Stage {
                 Config.instance().getConfigData().fogOfWarEnabled = enabled;
                 if (enabled)
                     WorldSave.getCurrentSave().getWorld().rebuildFogOfWarPixmap();
+                // Both minimaps only normally refresh on their scene's enter() - force it now so
+                // the toggle takes effect immediately instead of on the next scene switch.
+                refreshMiniMap();
+                MapViewScene.instance().refreshMap();
             }
         });
         //create touchpad
@@ -406,8 +410,9 @@ public class GameHUD extends Stage {
     Pixmap miniMapToolTipPixmap;
     public boolean fromWorldMap = false;
 
-    public void enter() {
-        updateKeys();
+    // Extracted so the fog-of-war debug toggle can force an immediate refresh instead of waiting
+    // for the next scene enter() (see fogOfWarDebugCheckBox's listener).
+    private void refreshMiniMap() {
         if (miniMapTexture != null)
             miniMapTexture.dispose();
         miniMapTexture = new Texture(WorldSave.getCurrentSave().getWorld().getBiomeImage());
@@ -419,6 +424,11 @@ public class GameHUD extends Stage {
         miniMapToolTipPixmap.drawPixmap(WorldSave.getCurrentSave().getWorld().getBiomeImage(), 0, 0, WorldSave.getCurrentSave().getWorld().getBiomeImage().getWidth(), WorldSave.getCurrentSave().getWorld().getBiomeImage().getHeight(), 0, 0, miniMapToolTipPixmap.getWidth(), miniMapToolTipPixmap.getHeight());
         miniMapToolTipTexture = new Texture(miniMapToolTipPixmap);
         miniMap.setDrawable(new TextureRegionDrawable(miniMapTexture));
+    }
+
+    public void enter() {
+        updateKeys();
+        refreshMiniMap();
         avatar.setDrawable(new TextureRegionDrawable(Current.player().avatar()));
         Deck deck = AdventurePlayer.current().getSelectedDeck();
 

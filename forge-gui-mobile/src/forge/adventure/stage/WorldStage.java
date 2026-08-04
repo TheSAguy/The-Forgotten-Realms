@@ -81,8 +81,9 @@ public class WorldStage extends GameStage implements SaveFileContent {
         if (isPaused() || MapStage.getInstance().isDialogOnlyInput() || Forge.advFreezePlayerControls)
             return;
         drawNavigationArrow();
-        if (player.isMoving()) {
+        if (player.isMoving())
             waitingForTime = false; // moving cancels an active wait
+        if (player.isMoving() || waitingForTime) {
             WorldSave.getCurrentSave().getWorld().advanceTime(delta);
             handleMonsterSpawn(delta);
             collided = collided || handlePointsOfInterestCollision();
@@ -152,8 +153,6 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 }
             }
         } else {
-            if (waitingForTime)
-                WorldSave.getCurrentSave().getWorld().advanceTime(delta);
             for (Pair<Float, EnemySprite> pair : enemies) {
                 pair.getValue().setAnimation(CharacterSprite.AnimationTypes.Idle);
             }
