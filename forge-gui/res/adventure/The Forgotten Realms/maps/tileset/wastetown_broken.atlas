@@ -1,0 +1,53 @@
+wastetown_broken.png
+size: 192,192
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+WasteTownBroken
+  xy: 0, 0
+  size: 48, 48
+WasteTownBroken
+  xy: 48, 0
+  size: 48, 48
+WasteTownBroken
+  xy: 96, 0
+  size: 48, 48
+WasteTownBroken
+  xy: 144, 0
+  size: 48, 48
+WasteTownBroken
+  xy: 0, 48
+  size: 48, 48
+WasteTownBroken
+  xy: 48, 48
+  size: 48, 48
+WasteTownBroken
+  xy: 96, 48
+  size: 48, 48
+WasteTownBroken
+  xy: 144, 48
+  size: 48, 48
+WasteTownBroken
+  xy: 0, 96
+  size: 48, 48
+WasteTownBroken
+  xy: 48, 96
+  size: 48, 48
+WasteTownBroken
+  xy: 96, 96
+  size: 48, 48
+WasteTownBroken
+  xy: 144, 96
+  size: 48, 48
+WasteTownBroken
+  xy: 0, 144
+  size: 48, 48
+WasteTownBroken
+  xy: 48, 144
+  size: 48, 48
+WasteTownBroken
+  xy: 96, 144
+  size: 48, 48
+WasteTownBroken
+  xy: 144, 144
+  size: 48, 48

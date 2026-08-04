@@ -1,10 +1,16 @@
 package forge.adventure.util;
 
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.utils.Array;
 import forge.adventure.data.ConfigData;
 import forge.adventure.data.DialogData;
+import forge.adventure.data.PointOfInterestData;
 import forge.adventure.pointofintrest.PointOfInterest;
+import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.TileMapScene;
 import forge.adventure.stage.MapStage;
+import forge.adventure.world.WorldSave;
 
 /**
  * Central Wasteland town reconstruction (MOD_SCOPE.md #2), first pass: towns in the colorless
@@ -19,7 +25,22 @@ public class TownRestoration {
     private static final int RESTORE_TOWN_COST = 100;
     private static final int REBUILD_SHOP_COST = 100;
 
+    // Overworld icon for a destroyed wasteland town, custom art kept plane-local so it can never
+    // show up on Shandalar or any other stock plane. All 16 variants share one atlas region name
+    // so Forge's existing PointOfInterest.spriteIndex machinery could pick among them the normal
+    // way; we don't use that path here (see getBrokenTownSprite()) since spriteIndex was already
+    // collapsed to a constant for "WasteTown" (whose real atlas only has 1 frame) before this art
+    // existed, so a fresh, independently-seeded pick was needed instead.
+    private static final String BROKEN_WASTETOWN_ATLAS = "maps/tileset/wastetown_broken.atlas";
+    private static final String BROKEN_WASTETOWN_SPRITE = "WasteTownBroken";
+    private static Array<Sprite> brokenWasteTownSprites;
+
     public static boolean isWastelandTown() {
+        PointOfInterest point = TileMapScene.instance().rootPoint;
+        return point != null && isWastelandTown(point.getData());
+    }
+
+    public static boolean isWastelandTown(PointOfInterestData data) {
         // Opt-in per-plane via config.json ("townReconstructionEnabled": true), same pattern as
         // fog of war and the day/night cycle, so this never affects Shandalar or any other plane
         // that hasn't explicitly turned it on.
@@ -27,10 +48,9 @@ public class TownRestoration {
         if (configData == null || !configData.townReconstructionEnabled)
             return false;
 
-        PointOfInterest point = TileMapScene.instance().rootPoint;
-        if (point == null || point.getData() == null || point.getData().questTags == null)
+        if (data == null || data.questTags == null)
             return false;
-        for (String tag : point.getData().questTags) {
+        for (String tag : data.questTags) {
             if ("BiomeColorless".equals(tag))
                 return true;
         }
@@ -39,6 +59,36 @@ public class TownRestoration {
 
     public static boolean isTownRestored(MapStage stage) {
         return stage.checkQuestFlag(TOWN_RESTORED_FLAG);
+    }
+
+    public static boolean isTownRestored(PointOfInterestChanges changes) {
+        return changes != null && changes.getMapFlags().get(TOWN_RESTORED_FLAG) != null;
+    }
+
+    /**
+     * The overworld icon to show for this point of interest, or null if it should use its
+     * normal/default sprite (not a wasteland town, or already restored). Picks one of the 16
+     * broken-town variants deterministically from the POI's own id, so the same town always shows
+     * the same variant without needing a new persisted field.
+     */
+    public static TextureRegion getBrokenTownSprite(PointOfInterest point) {
+        if (point == null || !isWastelandTown(point.getData()))
+            return null;
+        PointOfInterestChanges changes = WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID());
+        if (isTownRestored(changes))
+            return null;
+
+        Array<Sprite> variants = getBrokenWasteTownSprites();
+        if (variants == null || variants.size == 0)
+            return null;
+        int index = Math.floorMod(point.getID().hashCode(), variants.size);
+        return variants.get(index);
+    }
+
+    private static Array<Sprite> getBrokenWasteTownSprites() {
+        if (brokenWasteTownSprites == null)
+            brokenWasteTownSprites = Config.instance().getAtlas(BROKEN_WASTETOWN_ATLAS).createSprites(BROKEN_WASTETOWN_SPRITE);
+        return brokenWasteTownSprites;
     }
 
     public static boolean isShopRebuilt(MapStage stage, int objectId) {

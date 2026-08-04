@@ -4,8 +4,10 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
 import forge.adventure.pointofintrest.PointOfInterest;
+import forge.adventure.util.TownRestoration;
 
 /**
  * MapSprite for points of interest to add a bounding rect for collision detection
@@ -16,10 +18,13 @@ public class PointOfInterestMapSprite extends MapSprite {
     Rectangle boundingRect;
     MapSprite mapSprite;
 
+    private final TextureRegion normalTexture;
+
     public PointOfInterestMapSprite(PointOfInterest point) {
         super(point.getPosition(), point.getSprite(), point);
         pointOfInterest = point;
         mapSprite = this;
+        normalTexture = point.getSprite();
         boundingRect = new Rectangle(getX(), getY(), texture.getRegionWidth(), texture.getRegionHeight());
     }
 
@@ -48,8 +53,11 @@ public class PointOfInterestMapSprite extends MapSprite {
 
     @Override
     public void draw(Batch batch, float parentAlpha) {
-        if (pointOfInterest.getActive())
+        if (pointOfInterest.getActive()) {
+            TextureRegion brokenTexture = TownRestoration.getBrokenTownSprite(pointOfInterest);
+            texture = brokenTexture != null ? brokenTexture : normalTexture;
             super.draw(batch, parentAlpha);
+        }
         //batch.draw(getDebugTexture(),getX(),getY());
     }
 }

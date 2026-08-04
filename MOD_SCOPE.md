@@ -53,10 +53,13 @@ Helping a color angers its two enemies, not its allies.
   of the map" until full territory control exists, #7) now start destroyed. The Job Board
   (quest giver) must be restored for 100 gold before any of that town's shops can be
   individually rebuilt, also 100 gold each. State is per-town/per-shop, persisted via the
-  existing map-flag save system (`TownRestoration.java`). Destroyed buildings render with a
-  procedural placeholder "rubble" overlay (`RubbleOverlay.java`, same code-generated-texture
-  technique as the time dial) since no ruined-building art exists yet - swap for real art
-  later per #11.
+  existing map-flag save system (`TownRestoration.java`).
+- **Real art added for the neutral/artifact broken town's overworld icon** (previously a
+  procedural placeholder tint): 16 hand-made ruined-castle variants, one randomly (but stably)
+  assigned per town. Swaps back to the normal town icon once that town's Job Board is
+  restored. In-town buildings (shops, Job Board itself) still use the procedural rubble
+  overlay for now - only the overworld marker has real art so far. Per-color variants (5 more
+  sets, one per WUBRG) are planned next.
 - Still to do: gradual leveling as a town is rebuilt (more shops unlocked per level), roads
   built between towns, +1 life at max reconstruction level.
 

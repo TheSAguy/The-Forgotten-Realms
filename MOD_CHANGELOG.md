@@ -232,6 +232,46 @@ Known/Visible confirmed working well in playtest. Two more items:
   (`getX() + getWidth()/2`, same for Y) - much more likely to overlap wherever the player actually
   walks. Applies to every `MapSprite`/`PointOfInterestMapSprite`, not just this one town.
 
+## Real art for the broken town overworld icon (neutral/artifact)
+
+First real (non-procedural) art in the mod, replacing `RubbleOverlay`'s tint for one specific
+piece: the overworld icon of a not-yet-restored wasteland town.
+
+- **Asset:** `The Forgotten Realms/maps/tileset/wastetown_broken.png` (192x192, a 4x4 grid of
+  16 hand-drawn ruined-castle variants, each 48x48 - matching the native size of the existing
+  `WasteTown` icon exactly) + `wastetown_broken.atlas` (all 16 regions share the name
+  `WasteTownBroken`, standard libGDX TextureAtlas format). Both plane-local, not in `common/`,
+  per the same never-affect-other-planes rule everything else follows.
+- **Picking a variant, why not `PointOfInterest.spriteIndex`:** the engine already has a
+  built-in mechanism for "randomly pick one of N same-named atlas frames, persist the choice
+  per POI" (`PointOfInterest`'s constructor: `spriteIndex = rand.nextInt(...) % textureAtlas.size`,
+  persisted in the save file, reused via `sprite = textureAtlas.get(spriteIndex%size)`). It
+  can't be reused here though - `spriteIndex` was already computed against `WasteTown`'s real
+  array size (1 frame), so it collapsed to a constant (always 0) before this art ever existed;
+  there's no way to recover per-town randomness from that after the fact. Instead,
+  `TownRestoration.getBrokenTownSprite()` derives a stable index directly from
+  `point.getID().hashCode() % 16` - different per town, but deterministic (same town always
+  shows the same variant across sessions) without needing a new persisted field or touching
+  `PointOfInterest`'s save format at all.
+- **Where it's wired:** `PointOfInterestMapSprite` (the overworld icon actor) now calls
+  `TownRestoration.getBrokenTownSprite(pointOfInterest)` every `draw()` and swaps its `texture`
+  field between the broken variant and the POI's normal sprite (cached as `normalTexture` at
+  construction) based on the result - live, so a town's icon updates the instant its Job Board
+  gets restored, no manual refresh needed. Returns `null` (meaning "use normal sprite") for any
+  non-wasteland-town POI, or once that specific town's `townRestored` flag is set.
+- **New `TownRestoration` overloads**, since the existing `isWastelandTown()`/`isTownRestored()`
+  only worked for "the currently-entered town" (via `TileMapScene.instance().rootPoint` /
+  `MapStage.checkQuestFlag`) - the overworld icon needs to check an *arbitrary* POI that may not
+  be the one the player is standing in:
+  - `isWastelandTown(PointOfInterestData)` - tag check against a given POI's data directly.
+  - `isTownRestored(PointOfInterestChanges)` - flag check against a given POI's own changes
+    object (`WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID())`), not the
+    currently-loaded map's.
+- **Not yet done:** this is the neutral/"Artifact" color only. The user is planning one more
+  16-variant set per WUBRG color next - when those exist, `getBrokenTownSprite()`/the atlas
+  setup will need to key off the town's actual color (not just "is wasteland"), so don't assume
+  `wastetown_broken.atlas` is the only such file going forward.
+
 ## Gold for testing
 
 No code was added for this - Forge's adventure mode already ships an in-game cheat console
