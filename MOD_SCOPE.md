@@ -144,7 +144,15 @@ reached on its own. Fixed via a new plane-specific `colorless.json` override (`w
 0.85 -> 1.6). Also added a `count towns` debug console command so actual on-map town density can
 be checked empirically (real numbers: ~430 placeable towns before this feature, 102 after - see
 `MOD_CHANGELOG.md`) rather than guessed - whether 102 needs bumping up is still open, pending the
-user trying this build.
+user trying this build. **Third playtest finding, same day**: all 5 castles were invisible on the
+real map (showed on minimap only) - root cause was Shandalar's own main-story `questFlagsToActivate`
+gate on every castle entry, irrelevant to Territory Control but blocking rendering entirely.
+Removed for the 5 castle entries in the plane's own `points_of_interest.json` only. Also: day
+length dropped 12->10 min/day per request, and `TerritoryControl` now posts on-screen
+notifications + `forge.log` lines for mage dispatch/capture (the user reported a week of play
+with zero mages sighted - can't diagnose further without running the game, so added visibility
+into the pipeline instead of guessing another fix; the invisible-castle bug is a strong candidate
+for why nothing was *seen* even if dispatch was working the whole time).
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

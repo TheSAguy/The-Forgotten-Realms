@@ -1605,6 +1605,52 @@ map, split into still-neutral vs. captured/other, with a per-name breakdown. Tun
 counts up (if `count towns` shows the map still feels sparse) is a natural next step, left for
 after the user's tried this build.
 
+## Territory Control: castles invisible on the map, day length, dispatch/capture notifications (2026-08-05)
+
+Third finding from the same playtest round: after generating a world successfully (hang fixed)
+and getting a proper-sized map (coverage gap fixed), the 5 castles showed up on the minimap but
+never rendered on the actual overworld - user screenshots of White's and Blue's territory
+circles showed their handful of dungeons but no castle building anywhere, despite plenty of open
+space in White's case (only 2 other dungeons nearby, ruling out "no room" as the explanation).
+
+**Root cause, found by reading the actual data rather than guessing further**: every castle's
+`points_of_interest.json` entry has `"questFlagsToActivate": [{"key": "mainQuest", "val": 2}]` -
+a main-story gate (Shandalar's own campaign design: castles are meant to be discovered
+progressively as the story advances, not visible from turn 1). `PointOfInterest.getActive()`
+checks exactly this, and `PointOfInterestMapSprite.draw()` (the actual overworld-sprite renderer)
+skips drawing entirely when `getActive()` is false - a completely separate code path from the
+minimap marker, which gets baked into the minimap's pixmap unconditionally at placement time
+regardless of `getActive()` (`World.java`'s `drawPixmapLater(...)` call, right after a POI
+successfully places) - explaining exactly why it showed on one and not the other. A fresh
+Forgotten Realms world starts with `mainQuest` below 2 (no main-story progress at all, especially
+since Territory Control has nothing to do with Shandalar's own campaign), so every castle was
+structurally invisible on the real map by design, for a design that doesn't apply here.
+
+**Fixed** in the plane's own `points_of_interest.json` override: removed `questFlagsToActivate`
+from all 5 `"<Color> Castle"` entries specifically (matched by `type=="castle"` and name, not
+touched for any other POI - `common/`'s copy is untouched, so Shandalar's own story-gated castle
+reveal is unaffected). Castles are now active/visible from world generation.
+
+**Also addressed, same round:**
+- **Day length 12 -> 10 real minutes per in-game day** (`World.DAY_LENGTH_SECONDS`), per direct
+  request.
+- **"Ran it for about a week, saw zero mages"** - can't be diagnosed further without being able to
+  run the game directly, so instead of guessing at another fix, added actual visibility into the
+  pipeline: `TerritoryControl.dispatch()`/`onMageArrived()` now call `GameHUD.addNotification()`
+  (the same lightweight on-screen toast used for reputation/location-name callouts) on a
+  successful dispatch ("`<Color>` sends a mage toward `<Town>`!") and a successful capture
+  ("`<Town>` has fallen to `<Color>`!"), plus a `System.out.println` (so it's in `forge.log` too,
+  not just missable on-screen) at every early-return point in `dispatch()` and every time a
+  color's attack timer gets (re)seeded - so the next test run will show exactly which stage of
+  the pipeline is or isn't firing, rather than just "nothing happened" again. The invisible-castle
+  bug above is a strong candidate for *why* a week produced nothing directly observable even if
+  mages were dispatching the whole time (an invisible mage sprite would look identical to no mage
+  at all) - worth retesting with these notifications on before assuming anything else is broken.
+
+Not yet re-verified against a fresh world - needs the user to generate a new one (existing saves
+won't retroactively gain visible castles - `questFlagsToActivate` is only read at placement, not
+per-frame) and watch for the new notifications.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

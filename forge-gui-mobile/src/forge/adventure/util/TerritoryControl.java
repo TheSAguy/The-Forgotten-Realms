@@ -7,6 +7,7 @@ import forge.adventure.data.EnemyData;
 import forge.adventure.data.PointOfInterestData;
 import forge.adventure.data.WorldData;
 import forge.adventure.pointofintrest.PointOfInterest;
+import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.world.World;
 import forge.adventure.world.WorldSave;
@@ -60,7 +61,9 @@ public class TerritoryControl {
             if (next == null) {
                 // First time this color's timer is touched (fresh world, or a save predating this
                 // feature) - seed it rather than attacking immediately.
-                world.setColorNextAttackDay(color, newDayCount + randomAttackDelay(world));
+                int seeded = newDayCount + randomAttackDelay(world);
+                world.setColorNextAttackDay(color, seeded);
+                System.out.println("[TerritoryControl] " + color + ": timer seeded, next attack on day " + seeded);
                 continue;
             }
             if (newDayCount >= next) {
@@ -74,10 +77,17 @@ public class TerritoryControl {
         return MIN_ATTACK_DAYS + world.getRandom().nextInt(MAX_ATTACK_DAYS - MIN_ATTACK_DAYS + 1);
     }
 
+    // Every early-return below prints why, not just the success path - the only way to tell
+    // "dispatch is quietly never firing" apart from "dispatch fires but something after it is
+    // broken" without being able to run the game directly. Same reasoning behind the on-screen
+    // notifications in dispatch()/onMageArrived() below - MOD_SCOPE.md #7 was reported as "ran a
+    // week, saw zero mages" with no way to tell which stage of the pipeline that pointed at.
     private static void dispatch(World world, String color) {
         PointOfInterest castle = findCastle(world, color);
-        if (castle == null)
+        if (castle == null) {
+            System.out.println("[TerritoryControl] " + color + ": no castle found, skipping dispatch");
             return;
+        }
         List<PointOfInterest> towns = findNeutralTowns(world);
         if (towns.isEmpty())
             return; // nothing left to capture - the natural "done" state, quietly no-op forever
@@ -86,13 +96,20 @@ public class TerritoryControl {
         int candidateCount = Math.min(NEAREST_CANDIDATES, towns.size());
         PointOfInterest target = towns.get(world.getRandom().nextInt(candidateCount));
 
-        EnemyData enemyData = WorldData.getEnemy("Adept " + capitalize(color) + " Wizard");
-        if (enemyData == null)
+        String enemyName = "Adept " + capitalize(color) + " Wizard";
+        EnemyData enemyData = WorldData.getEnemy(enemyName);
+        if (enemyData == null) {
+            System.out.println("[TerritoryControl] " + color + ": enemy \"" + enemyName + "\" not found, skipping dispatch");
             return;
+        }
         EnemySprite mage = new EnemySprite(enemyData);
         mage.territoryTarget = target;
         mage.territoryColor = color;
         WorldStage.getInstance().spawnAt(mage, new Vector2(castle.getPosition()));
+
+        String message = capitalize(color) + " sends a mage toward " + target.getDisplayName() + "!";
+        System.out.println("[TerritoryControl] " + message);
+        GameHUD.getInstance().addNotification(message);
     }
 
     private static PointOfInterest findCastle(World world, String color) {
@@ -133,10 +150,15 @@ public class TerritoryControl {
             return;
 
         World world = WorldSave.getCurrentSave().getWorld();
+        String displayName = target.getDisplayName();
         target.transformInto(newData, world.getRandom());
         world.repaintBiomeAroundTown(target, mage.territoryColor, RECOLOR_RADIUS,
                 WorldStage.getInstance()::refreshBackgroundTile,
                 WorldStage.getInstance()::reloadBackgroundChunkObjects);
+
+        String message = displayName + " has fallen to " + capitalize(mage.territoryColor) + "!";
+        System.out.println("[TerritoryControl] " + message);
+        GameHUD.getInstance().addNotification(message);
     }
 
     // "Waste Town Identity" + "green" -> "Forest Town Identity" - keeps the same Generic/Identity/

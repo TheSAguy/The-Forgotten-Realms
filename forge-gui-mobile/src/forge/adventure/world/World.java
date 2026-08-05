@@ -64,7 +64,7 @@ public class World implements Disposable, SaveFileContent {
     // 0 = midnight. It only advances via advanceTime(), which WorldStage calls once per frame
     // while the player is on the overworld and not paused/in a dialog - so the clock freezes
     // whenever the player enters a town or dungeon (MapStage) or the game itself is paused.
-    private static final float DAY_LENGTH_SECONDS = 12 * 60f; // ~12 real minutes per in-game day
+    private static final float DAY_LENGTH_SECONDS = 10 * 60f; // ~10 real minutes per in-game day
     private static final float NIGHT_START_HOUR = 20f;
     private static final float NIGHT_END_HOUR = 6f;
     private float dayProgress = 0.375f; // fresh world starts at 09:00

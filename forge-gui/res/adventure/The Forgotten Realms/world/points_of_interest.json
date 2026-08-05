@@ -147,12 +147,6 @@
 			"Castle",
 			"BiomeBlack",
 			"Chapter1Boss"
-		],
-		"questFlagsToActivate": [
-			{
-				"key": "mainQuest",
-				"val": 2
-			}
 		]
 	},
 	{
@@ -174,12 +168,6 @@
 			"Castle",
 			"BiomeBlue",
 			"Chapter1Boss"
-		],
-		"questFlagsToActivate": [
-			{
-				"key": "mainQuest",
-				"val": 2
-			}
 		]
 	},
 	{
@@ -2146,12 +2134,6 @@
 			"Castle",
 			"BiomeGreen",
 			"Chapter1Boss"
-		],
-		"questFlagsToActivate": [
-			{
-				"key": "mainQuest",
-				"val": 2
-			}
 		]
 	},
 	{
@@ -3552,12 +3534,6 @@
 			"Castle",
 			"BiomeRed",
 			"Chapter1Boss"
-		],
-		"questFlagsToActivate": [
-			{
-				"key": "mainQuest",
-				"val": 2
-			}
 		]
 	},
 	{
@@ -4133,12 +4109,6 @@
 			"Castle",
 			"BiomeWhite",
 			"Chapter1Boss"
-		],
-		"questFlagsToActivate": [
-			{
-				"key": "mainQuest",
-				"val": 2
-			}
 		]
 	},
 	{
