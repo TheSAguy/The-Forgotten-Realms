@@ -133,6 +133,46 @@ town for now - eventually meant to be gated by a reputation scale once #1 (Reput
 exists, not built yet either. Not yet confirmed working in an actual playtest - the territory-size
 and mage-arrival-distance constants are first guesses, expect to need tuning.
 
+**More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
+needs its own design pass before any of this gets built:**
+- **A way to handle newly-added items.** Not yet clarified whether this means player-facing items
+  (equipment/potions - #10's item shops), or new POI/content types being added to the world over
+  time (ties into the next point) - ask before scoping this one, the request as given covers both
+  readings.
+- **A way to handle color-specific "special" POIs** (Groves, Vampire Castles, Merfolk Pools, the
+  Planeswalker side-bosses, etc - the same POI types removed from world-gen this round, see the
+  removed-POI list above). Right now they simply don't exist anywhere on a Territory-Control map.
+  Open question beyond just "add them back": should they appear near a town once that color
+  captures it (dynamically, tied to ownership), or just be scattered back across the neutral map
+  generically (the "migrate into colorless.json" idea above)? The former reads better thematically
+  for a world where color presence actually expands over time, but is real additional design/build
+  work beyond a data migration.
+- **Quest expiration timer**: a configurable number of days a quest stays active before it fails
+  automatically. This is the concrete version of something #6 (Time System) already listed as
+  unbuilt ("quest timers") - worth building against #6's existing day-counter hook
+  (`WorldStage.onActing`'s `dayAfter != dayBefore` pattern `TerritoryControl`/`EconomyBuildings`
+  already use) rather than a new clock.
+- **Dungeons/caves spawning and despawning over time**, not just fixed at world-gen - part of
+  making the world feel alive/changing on its own, a distinct idea from territory *ownership*
+  (which only ever affects towns right now, never dungeons).
+- **Resource nodes (Stone/Gold/Lumber/Shards) spawning and despawning on the overworld map
+  itself.** Worth clarifying how this differs from #10's Economy Buildings before building -
+  #10 already produces all 4 of these resources passively once a building is constructed; this
+  sounds like a *separate* mechanic (physical pickups appearing/vanishing on the map you walk up
+  to), not a variation of #10 - but that distinction should be confirmed with the user, not assumed.
+- **Audit needed: special bosses/boss dungeons vs. the new dynamic world.** Checked while
+  recording this list - a real, concrete finding, not hypothetical: several of the POI types
+  zeroed out this round for world-gen (see removed-POI list above) aren't generic filler, they're
+  tagged real boss/story content - `Tibalts Fortress`/`Zedruu City`/`Nahiri Encampment`/
+  `Kiora Island`/`Jacehold`/`Teferi Hideout` (all `type: sideboss*`, tagged `Boss`+`Planeswalker`),
+  `Grolnoks Bog`/`Slimefoots Lair` (named `Boss` encounters), and `Temple of Chandra`/`Temple of
+  Liliana` (tagged `Boss` **and** `Story`). These are currently just gone from the map on a
+  Territory-Control world, same as the generic Cave/Fort filler - likely wants prioritizing ahead
+  of the generic content in whatever "re-add removed POIs" follow-up happens, rather than being
+  treated the same as ordinary filler dungeons. Each castle's own main-story boss (the
+  `Chapter1Boss`/`Boss` tags on the "`<Color>` Castle" POIs themselves, e.g. Black Castle) is
+  *not* affected - castle entries were never touched, only their non-castle POI lists were zeroed.
+
 - **Start state:** map generates 100% neutral/colorless. Every town starts broken (ties into
   #2 - this is the same "destroyed" state `TownRestoration` already models, just now something
   colors actively fight over instead of only the player rebuilding).
