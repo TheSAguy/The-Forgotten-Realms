@@ -137,6 +137,14 @@ generator, only ever exposed once a biome region got small enough (see `MOD_CHAN
 full diagnosis): a chunk-sizing crash in `BiomeStructure.java`, and a `World.java` busy-wait that
 hung forever instead of failing loudly when that crash happened async. Both fixed generically
 (not just worked around for this feature) - not yet re-confirmed against a fresh world since.
+**Second playtest finding (2026-08-05, same day)**: once a world did generate, the playable map
+shrank to roughly the neutral area's own radius - the 5 colors' old large territories had been
+quietly covering the outer ring of the map that `colorless.json`'s own formula never fully
+reached on its own. Fixed via a new plane-specific `colorless.json` override (`width`/`height`
+0.85 -> 1.6). Also added a `count towns` debug console command so actual on-map town density can
+be checked empirically (real numbers: ~430 placeable towns before this feature, 102 after - see
+`MOD_CHANGELOG.md`) rather than guessed - whether 102 needs bumping up is still open, pending the
+user trying this build.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

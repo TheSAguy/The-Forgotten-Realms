@@ -1557,6 +1557,54 @@ to avoid it). Should be strictly safer for every plane, not just this one.
 
 Not yet re-verified against a fresh world generation after this fix - needs the user to try again.
 
+## Territory Control: playable map shrank to roughly the neutral radius (2026-08-05)
+
+Second finding from the same playtest, after the hang above was fixed and a world actually
+generated: "the map seems very small... maybe the size of the neutral area only." Correct
+diagnosis, and a real bug, not a perception thing - worked out the exact mechanism rather than
+guessing:
+
+`colorless.json`'s own territory (`width`/`height: 0.85`, unmodified by this feature) was never
+actually large enough to cover the *whole* map on its own - working through its noise/distance
+formula (`noiseValue [0,0.3] + distanceValue [dist/(0.85*700/2)*1] < 1.0`), it only reliably
+covers roughly a 208-297 tile radius around map center, out of the map's actual 350-tile half-
+width. **The 5 colors' old, large (`width: 0.7`) territories were quietly doing double duty** -
+besides their own color identity, they also happened to physically cover the outer ring of the
+map that colorless's own formula doesn't reach. Shrinking them to `0.08` (this round's whole
+point) removed that coverage without anything replacing it - so the entire outer ring of the map,
+previously green/red/blue/black/white, is now `base.json` ("ocean", `collision: true` -
+impassable) by simple fallback, since nothing else claims those tiles anymore. The player's
+playable area shrank to roughly colorless's own always-had-been-smaller-than-advertised reach,
+exactly matching "the size of the neutral area only."
+
+**Fixed**: new plane-specific override `The Forgotten Realms/world/biomes/colorless.json`
+(previously inherited unmodified from `common/`), `width`/`height` raised `0.85` -> `1.6` - worked
+through the same formula to confirm this comfortably covers the map's full half-width even in the
+worst-case noise roll (`distanceValue` at the map edge drops to ~0.625, `+noiseValue` up to 0.3
+still `< 1.0`), so the only Territory Control change left to compensate was closing this coverage
+gap - the 5 colors' own `0.08` territory size around their castles is untouched.
+
+**Also answers "how many towns were there before?" - real numbers, not a guess**, computed by
+diffing this round's `points_of_interest.json` against the commit before Territory Control's count
+-zeroing. Excludes a red herring found along the way: `"Forest Town"`/`"Island Town"`/`"Mountain
+Town"`/`"Plains Town"`/`"Swamp Town"` (no Generic/Identity/Tribal suffix) each have `count: 50` in
+`points_of_interest.json` but aren't referenced by *any* biome's own `pointsOfInterest` list
+(checked every biome file, common and plane) - meaning they were always dead data, never actually
+placed by world-gen, before or after this feature. Excluding those:
+- **Before**: ~430 actual placeable town/capital instances (100 in Wasteland/neutral - the only
+  ones that still exist today - plus ~330 spread across the 5 colors' now-removed starter towns).
+- **After**: 102 (Naktamun + Spawn + the 100 Waste Town Generic/Identity/Tribal, unchanged).
+
+Whether 102 towns feels adequately dense across the now-larger-covered map is a real open
+question, not yet answered - deliberately *not* guessing a bigger replacement number this round,
+since a bad guess risks re-triggering the exact "not enough room, world-gen retries/hangs" failure
+mode from two rounds ago. Added a debug console command instead so this can be checked empirically
+against an actual generated map rather than estimated from the JSON: **`count towns`** (new,
+`ConsoleCommandInterpreter.java`) prints every town/capital POI actually present on the current
+map, split into still-neutral vs. captured/other, with a per-name breakdown. Tuning Waste Town
+counts up (if `count towns` shows the map still feels sparse) is a natural next step, left for
+after the user's tried this build.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

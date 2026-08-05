@@ -15,6 +15,7 @@ import forge.adventure.util.CardUtil;
 import forge.adventure.util.Config;
 import forge.adventure.util.Current;
 import forge.adventure.util.Paths;
+import forge.adventure.util.TownRestoration;
 import forge.adventure.world.WorldSave;
 import forge.card.CardEdition;
 import forge.card.ColorSet;
@@ -33,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -354,6 +357,32 @@ public class ConsoleCommandInterpreter {
             }
             System.out.println("POI Names - Types\n" + String.join("\n", poiNames));
             return "POI lists dumped to stdout.";
+        });
+        // Territory Control (MOD_SCOPE.md #7): the actual, generated-map count of town/capital
+        // POIs, not the theoretical max from points_of_interest.json's count fields (listPOI
+        // above only dumps the latter, and world-gen doesn't always place every requested
+        // instance). "Neutral" is TownRestoration.isWastelandTown() - still a Waste Town, not
+        // yet captured by a color.
+        registerCommand(new String[]{"count", "towns"}, s -> {
+            List<PointOfInterest> all = WorldSave.getCurrentSave().getWorld().getAllPointOfInterest();
+            int total = 0, neutral = 0;
+            Map<String, Integer> byName = new TreeMap<>();
+            for (PointOfInterest poi : all) {
+                String type = poi.getData().type;
+                if (!"town".equals(type) && !"capital".equals(type))
+                    continue;
+                total++;
+                if (TownRestoration.isWastelandTown(poi.getData()))
+                    neutral++;
+                byName.merge(poi.getData().name, 1, Integer::sum);
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append("Towns on map: ").append(total).append(" total, ").append(neutral)
+                    .append(" still neutral, ").append(total - neutral).append(" captured/other.\n");
+            for (Map.Entry<String, Integer> e : byName.entrySet())
+                sb.append("  ").append(e.getKey()).append(": ").append(e.getValue()).append("\n");
+            System.out.println(sb);
+            return "Towns: " + total + " total (" + neutral + " neutral). Full breakdown printed to stdout.";
         });
         registerCommand(new String[]{"setColorID"}, s -> {
             if (s.length < 1)
