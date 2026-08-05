@@ -23,7 +23,11 @@
 "height": 0,
 "color": "d4af37",
 "spriteNames": [
-	"Stone"
+	"Stone",
+	"Gravel",
+	"Stump",
+	"Bush",
+	"Flower"
 ],
 "pointsOfInterest": [],
 "enemies": []

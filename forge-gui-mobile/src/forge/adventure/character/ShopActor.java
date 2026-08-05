@@ -2,7 +2,6 @@ package forge.adventure.character;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.data.ShopData;
@@ -22,26 +21,12 @@ public class ShopActor extends MapActor {
     private final MapStage stage;
     private ShopData shopData;
     Array<Reward> rewardData;
-    // The shop's visible body isn't drawn by this Actor at all - it's a static tile Tiled renders
-    // directly from this MapObject's own gid (see obj/shop.tx). Destroyed-rubble art and economy-
-    // building icons (drawn in draw() below) are meant to fully REPLACE that tile, not overlay it,
-    // so act() keeps the underlying gid tile hidden whenever either applies - otherwise the
-    // original shop tile shows through behind/around the smaller overlay art.
-    private final MapObject mapObject;
 
-    public ShopActor(MapStage stage, int id, Array<Reward> rewardData, ShopData data, MapObject mapObject) {
+    public ShopActor(MapStage stage, int id, Array<Reward> rewardData, ShopData data) {
         super(id);
         this.stage = stage;
         this.shopData = data;
         this.rewardData = rewardData;
-        this.mapObject = mapObject;
-    }
-
-    @Override
-    public void act(float delta) {
-        super.act(delta);
-        if (mapObject != null)
-            mapObject.setVisible(!isDestroyed() && EconomyBuildings.getBuildingType(stage.getChanges(), objectId) == EconomyBuildings.NONE);
     }
 
     public float getPriceModifier() {
@@ -116,13 +101,28 @@ public class ShopActor extends MapActor {
     }
 
     // Source art for both broken-shop and economy-building overlays is 32x32 against this shop's
-    // 16x16 footprint - draw at the texture's own native size, centered on the footprint, instead
-    // of stretching/squishing it to getWidth()/getHeight().
+    // 16x16 footprint - draw at the texture's own native size instead of stretching/squishing it
+    // to getWidth()/getHeight().
+    //
+    // Vertical placement is NOT centered on the footprint - the footprint (this Actor's own
+    // x/y/width/height, from the "shop" object in the town's .tmx) is just the doorstep tile the
+    // player stands on to interact; the real building art is baked directly into the town's
+    // Walls/Overlay TILE LAYERS, one full tile above that doorstep (confirmed by decoding a real
+    // town .tmx's tile data directly: the Walls-layer tile sits exactly one row above the shop
+    // object's own row, Overlay one row above that - consistent with the shop's own sign offset,
+    // signYOffset=-16 in MapStage.java, placing a sign one tile *below/in front of* the door in
+    // the same coordinate space). There is no way to hide/replace those baked tiles at runtime
+    // (MapObject.isVisible() does nothing here - the map's tile layers render via
+    // OrthogonalTiledMapRendererBleeding.renderTileLayer(), a completely separate path from
+    // MapObject rendering, which this codebase's renderer never actually calls: renderObject() is
+    // an inherited no-op), so this overlay has to fully and precisely cover the real building
+    // instead - anchored one tile above the footprint (matching where Walls/Overlay actually are)
+    // rather than centered on the footprint itself.
     private void drawCenteredOverFootprint(Batch batch, TextureRegion region) {
         float w = region.getRegionWidth();
         float h = region.getRegionHeight();
         float x = getX() + (getWidth() - w) / 2f;
-        float y = getY() + (getHeight() - h) / 2f;
+        float y = getY() + getHeight();
         batch.draw(region, x, y, w, h);
     }
 

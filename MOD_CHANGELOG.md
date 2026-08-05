@@ -920,6 +920,88 @@ did **not** rename the underlying `AdventurePlayer` field/method/signal names (`
 text change, renaming the save key would need a migration path for saves that predate it, not
 worth it for a cosmetic rename.
 
+## Shop overlay fix, take two - the real mechanism (2026-08-05)
+
+The round-2 fix above ("Rebuilt/destroyed shops showed two overlapping images") didn't work -
+confirmed via fresh screenshots after deploy, the old image was still there, in the same place,
+both before and after a shop was rebuilt. Root cause diagnosis was wrong, and worth recording
+exactly how, since it's a real gotcha for this codebase specifically:
+
+**What I assumed:** the shop's normal-looking body was rendered automatically by
+`OrthogonalTiledMapRendererBleeding` from the "shop" object's own `gid` (`obj/shop.tx`,
+`gid="1251"` into `buildings.tsx`), the same way `TiledMapImageLayer`/`TiledMapTileLayer` content
+renders - and that `MapObject.setVisible(false)` would suppress it, same as the codebase's
+existing `hidden`/`obj.isVisible()` pattern in `MapStage.loadObjects()`.
+
+**What's actually true, confirmed by decompiling the real renderer classes** (`javap -c` against
+the project's actual `gdx-1.13.5.jar` and `OrthogonalTiledMapRendererBleeding.java`):
+`BatchTiledMapRenderer.renderObject(MapObject)` - the method that would draw a gid-having object -
+is an **inherited no-op** (`{ return; }`) in this rendering pipeline; `OrthogonalTiledMapRenderer`
+doesn't override it, and `OrthogonalTiledMapRendererBleeding` doesn't either. So gid-based
+*objects* are never drawn by this renderer at all, and toggling `isVisible()` on one changes
+nothing. The `hidden`/`obj.isVisible()` pattern found earlier as "precedent" was real, but it
+drives this codebase's own custom game-logic branches (e.g. an enemy's `.hidden` field) - not
+automatic Tiled rendering, which doesn't exist for objects here.
+
+**Where the visible building actually comes from, confirmed by decoding a real town's binary tile
+data directly** (`.tmx` layers are `base64` + `zlib`-compressed 32-bit GID arrays, not plain CSV -
+had to decode properly, `struct.unpack('<%dI' % n, ...)` after `zlib.decompress(base64.b64decode
+(...))`): picked a real shop object from `swamp_capital.tmx` (id 67, `x="424" y="322"`) and read
+the GID at its own row across all 5 tile layers (Background/Ground/Ground2/Walls/Overlay) plus
+the two rows above it:
+
+| row (rel. to shop's own row) | Walls | Overlay |
+|---|---|---|
+| shop's own row | 0 (empty) | 0 (empty) |
+| one row up | 10743 | 0 |
+| two rows up | 0 | 10715 |
+
+The shop object's own footprint sits on an *empty* doorstep tile - the actual building (a real
+painted tile, not procedural) is one row up on `Walls` and two rows up on `Overlay` (the roof,
+on a separate layer so it draws in front of the player for a pseudo-3D "walk behind the building"
+effect). This is baked directly into the map's tile-layer binary data at map-authoring time -
+there is no object, no `MapObject`, nothing with a `setVisible()` to toggle. It cannot be turned
+off at runtime through any API this codebase exposes.
+
+**Direction check:** confirmed "up" here means "toward larger Y" by cross-referencing the sign
+offset already in `MapStage.java` (`signYOffset: -16` places the shop's sign *below/in front of*
+the door, at ground level beside the entrance - not up on the roof, which only makes sense if
+subtracting Y moves *down* the screen, i.e. standard libGDX y-up, matching `GameStage`'s plain
+`new OrthographicCamera()` with no y-down flip configured).
+
+**Real fix:** `ShopActor.drawCenteredOverFootprint()` no longer vertically centers the 32-tall
+overlay on the 16-tall footprint (`y = getY() + (getHeight()-h)/2f`, which only ever reached 8px
+above the footprint - nowhere near the 32px-tall building one tile up). Now: `y = getY() +
+getHeight()` - anchors the overlay's bottom edge to the *top* of the footprint, so a 32-tall
+sprite exactly covers both the Walls and Overlay rows where the real building lives. Horizontal
+centering (`x = getX() + (getWidth()-w)/2f`) was left unchanged - the "possibly to the left"
+complaint was minor compared to the vertical miss, and there was no comparable evidence it's
+actually wrong.
+
+Reverted the round-2 `MapObject.setVisible()` mechanism entirely (the added `ShopActor`
+constructor param, the `act()` override, `MapStage.java`'s call site) - it was inert, not merely
+incomplete, so keeping it around would just be dead code with a misleading comment.
+
+Spot-checked the ruin art (`shop_broken.png`) fills its full 32x32 canvas edge-to-edge with an
+actual building silhouette (not a small rubble pile with transparent padding), so precise
+positioning alone should now fully cover the real building for the destroyed-shop case. Didn't
+do the same check for the 6 economy-building icons (`economy_buildings.png`) - those were
+hand-cropped as smaller centered icons rather than full building silhouettes, so some residual
+peek-through at the corners is possible there even with correct positioning; flagged to the user
+rather than assumed fixed.
+
+## Doodad variety on repainted territory (2026-08-05)
+
+Density fix above (round 2) got doodads showing again, but only ever "little rocks" - `player.json`
+'s `spriteNames` was just `["Stone"]`, inherited unchanged from copying `colorless.json`
+(Wasteland) as a starting point, which uses the same single-sprite baseline itself (intentionally
+sparse, fitting a desolate wasteland - not really appropriate once the tile has been reclaimed as
+player territory). Added `Gravel`, `Stump`, `Bush`, `Flower` to `player.json`'s `spriteNames` -
+all pre-existing entries already defined in the shared `map_sprites.json` (used by other stock
+biomes already), not new art or a new mechanism. Since these are existing sprite definitions
+referenced by name (not redefined), whatever collision each one already has is inherited
+unchanged - nothing about collision behavior was touched by this change.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

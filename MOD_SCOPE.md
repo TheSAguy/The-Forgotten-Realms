@@ -236,6 +236,12 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
     the shared density values world-gen itself uses untouched. Applies to any repainted biome
     generically, not just `player` - relevant once more than one of the 7 colors has its own
     biome file.
+  - **Playtest fix (2026-08-05):** still only rocks - `player.json`'s `spriteNames` only listed
+    `"Stone"` (matching stock `colorless.json`/Wasteland's own baseline exactly, since `player`
+    started as a copy of it). Added `Gravel`/`Stump`/`Bush`/`Flower` (all pre-existing sprite
+    types already defined in the shared `map_sprites.json`, not new art) for visual variety - a
+    content change, not a code change, so whatever collision each type already has (some doodads
+    block movement, most don't) carries over unchanged, nothing about that was touched.
 - **Deferred, not started - the bigger structural terrain features (dead trees/craters) still
   get wiped by a repaint, not regenerated:** `repaintBiomeAroundTown()` resets
   `terrainMap[x][y] = 0` for every touched tile (needed to clear stale neighbor data), which also
@@ -303,13 +309,20 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   original randomly-rolled type though (e.g. a Card Shop sign), so once it becomes a Bank/Mine/
   Exchange the sign would show wrong info - hidden entirely in that case for now. **Wishlist:**
   dedicated sign art per economy building type, so e.g. a Bank gets its own sign instead of none.
-- **Rebuilt/destroyed shops no longer show two overlapping images:** the shop's normal-looking
-  body isn't drawn by any of our own code - it's a static tile Tiled renders directly from the
-  shop object's own `gid` (see `obj/shop.tx`). The destroyed-rubble art and economy-building
-  icons are drawn as a *separate* overlay actor and were never hiding that underlying tile, so
-  both showed at once, misaligned. Fixed by toggling the `MapObject`'s own `setVisible()` live
-  (`ShopActor.act()`) - hidden whenever the overlay is meant to fully replace it (destroyed, or
-  became a special building), shown for a plain unmodified/rebuilt Card Shop.
+- **Rebuilt/destroyed shops still showed the old image behind the ruin/building art - the first
+  fix attempt (2026-08-05) didn't work, real fix same day.** First attempt assumed the shop's
+  normal-looking body was a Tiled-rendered tile-object (a `gid` on the "shop" object, see
+  `obj/shop.tx`) and tried toggling its `MapObject.setVisible()` live. That did nothing - checked
+  the actual renderer this codebase uses (`OrthogonalTiledMapRendererBleeding`) and confirmed
+  `renderObject()` is an inherited no-op in this rendering pipeline, so gid-having *objects* are
+  never auto-rendered here at all, regardless of `isVisible()`. Decoded a real town `.tmx`'s
+  binary tile-layer data directly to find the actual mechanism: the visible building is baked
+  into the `Walls`/`Overlay` *tile layers*, one full tile above the shop object's own doorstep
+  row - not touchable via any object-level API, no way to "turn it off" at runtime. Real fix:
+  stopped trying to hide it and instead made the overlay art fully cover it - repositioned
+  `ShopActor.drawCenteredOverFootprint()` to anchor one tile above the footprint (matching where
+  Walls/Overlay actually are) instead of vertically centering on the footprint, which is why it
+  only ever covered the empty doorstep tile and left the real building exposed above it.
 - **Build menu now always shows all options, cost included, greyed out if unaffordable** -
   matches the pattern the Bank/Exchange dialogs already used (`addButtonRow`'s `enabled` flag);
   previously an option was hidden entirely if the player was short on gold, via a `hasGold`

@@ -721,7 +721,7 @@ public class MapStage extends GameStage {
                         for (RewardData rdata : new Array.ArrayIterator<>(data.rewards)) {
                             ret.addAll(rdata.generate(false, false));
                         }
-                        ShopActor actor = new ShopActor(this, id, ret, data, obj);
+                        ShopActor actor = new ShopActor(this, id, ret, data);
                         addMapActor(obj, actor);
                         // While a wasteland shop is still rubble, the sign would give away what it
                         // sells before the player has rebuilt it. Signs used to only be created at

@@ -123,7 +123,8 @@ public class TownRestoration {
     // Same pattern as the broken-town overworld icon above, but for individual shops within a
     // town: 64 variants, one shared atlas region name, picked deterministically from the shop's
     // own Tiled object id (stable per shop instance, no new persisted field needed). Source art
-    // is 32x32 (2x a shop's native 16x16 footprint) - drawn scaled down to fit, see ShopActor.
+    // is 32x32 (2x a shop's native 16x16 footprint) - drawn at native size, positioned to cover
+    // the real building art baked into the town's tile layers, see ShopActor.drawCenteredOverFootprint().
     private static final String BROKEN_SHOP_ATLAS = "maps/tileset/shop_broken.atlas";
     private static final String BROKEN_SHOP_SPRITE = "ShopBroken";
     private static Array<Sprite> brokenShopSprites;
