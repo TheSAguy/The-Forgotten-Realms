@@ -81,13 +81,14 @@ public class ShopActor extends MapActor {
     public void draw(Batch batch, float parentAlpha) {
         super.draw(batch, parentAlpha);
         if (isDestroyed()) {
-            // Real art (64 variants, one picked stably per shop via objectId), drawn opaque and
-            // scaled to this shop's 16x16 footprint - it fully covers the normal shop tile
-            // underneath (rendered separately by the Tiled map itself, not this Actor), rather
-            // than the earlier translucent RubbleOverlay tint.
+            // Real art (64 variants, one picked stably per shop via objectId). Source art is
+            // 32x32 (2x this shop's 16x16 footprint, deliberately - it's meant to loom over the
+            // tile, not fill it) - draw at native size, centered over the footprint, rather than
+            // squishing it down to getWidth()/getHeight() (which was both shrinking it and
+            // muddying the detail via a forced downscale).
             TextureRegion brokenSprite = TownRestoration.getBrokenShopSprite(objectId);
             if (brokenSprite != null)
-                batch.draw(brokenSprite, getX(), getY(), getWidth(), getHeight());
+                drawCenteredOverFootprint(batch, brokenSprite);
         } else {
             // A rebuilt shop that was chosen as the town's one economy building draws its
             // building icon over the normal shop tile; a plain rebuilt Card Shop draws nothing
@@ -95,8 +96,19 @@ public class ShopActor extends MapActor {
             int economyType = EconomyBuildings.getBuildingType(stage.getChanges(), objectId);
             TextureRegion buildingSprite = EconomyBuildings.getBuildingSprite(economyType);
             if (buildingSprite != null)
-                batch.draw(buildingSprite, getX(), getY(), getWidth(), getHeight());
+                drawCenteredOverFootprint(batch, buildingSprite);
         }
+    }
+
+    // Source art for both broken-shop and economy-building overlays is 32x32 against this shop's
+    // 16x16 footprint - draw at the texture's own native size, centered on the footprint, instead
+    // of stretching/squishing it to getWidth()/getHeight().
+    private void drawCenteredOverFootprint(Batch batch, TextureRegion region) {
+        float w = region.getRegionWidth();
+        float h = region.getRegionHeight();
+        float x = getX() + (getWidth() - w) / 2f;
+        float y = getY() + (getHeight() - h) / 2f;
+        batch.draw(region, x, y, w, h);
     }
 
 

@@ -80,12 +80,12 @@ public class EconomyBuildings {
         return type == SHARD_MINE || type == GOLD_MINE || type == LUMBER_MILL || type == STONE_MINE;
     }
 
-    /** The economy building type registered for this shop's town, or NONE if this shop isn't it. */
+    /** The economy building type registered for this specific shop, or NONE if this shop isn't one. */
     public static int getBuildingType(PointOfInterestChanges changes, int objectId) {
-        if (changes == null || changes.getEconomyBuildingObjectId() != objectId)
+        if (changes == null)
             return NONE;
-        Byte type = changes.getMapFlags().get(ECONOMY_TYPE_FLAG);
-        return type == null ? NONE : type;
+        int type = changes.getEconomyBuildingType(objectId);
+        return type < 0 ? NONE : type;
     }
 
     private static String resourceProducedName(int type) {
@@ -143,11 +143,28 @@ public class EconomyBuildings {
         return condition;
     }
 
-    private static DialogData.ConditionData noEconomyBuildingYetCondition() {
+    // One town can have at most one of each of the 6 special types (a Bank AND a Gold Mine AND
+    // an Exchange, etc. are all fine together - just not two Banks), so gating is per-type, keyed
+    // "economyBuilt_<type>" - distinct from ECONOMY_TYPE_FLAG below, which is only a one-shot
+    // "which option did the player just pick" signal for the dialog-complete listener to read.
+    private static String builtFlag(int type) {
+        return "economyBuilt_" + type;
+    }
+
+    private static DialogData.ConditionData noBuildingOfTypeYetCondition(int type) {
         DialogData.ConditionData condition = new DialogData.ConditionData();
-        condition.checkMapFlag = ECONOMY_TYPE_FLAG;
+        condition.checkMapFlag = builtFlag(type);
         condition.not = true;
         return condition;
+    }
+
+    private static DialogData.ActionData setBuiltFlagAction(int type) {
+        DialogData.ActionData.QuestFlag flag = new DialogData.ActionData.QuestFlag();
+        flag.key = builtFlag(type);
+        flag.val = 1;
+        DialogData.ActionData action = new DialogData.ActionData();
+        action.setMapFlag = flag;
+        return action;
     }
 
     private static DialogData buildOption(int type, int objectId) {
@@ -157,16 +174,17 @@ public class EconomyBuildings {
             option.condition = new DialogData.ConditionData[]{hasGoldCondition()};
             option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId)};
         } else {
-            option.condition = new DialogData.ConditionData[]{hasGoldCondition(), noEconomyBuildingYetCondition()};
-            option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId), setEconomyTypeAction(type)};
+            option.condition = new DialogData.ConditionData[]{hasGoldCondition(), noBuildingOfTypeYetCondition(type)};
+            option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId), setEconomyTypeAction(type), setBuiltFlagAction(type)};
         }
         return option;
     }
 
     /**
-     * Build-choice dialog shown the first time a wasteland shop is rebuilt. Reads back
+     * Build-choice dialog shown the first time a wasteland shop is rebuilt: Card Shop / Bank /
+     * Exchange / Industry (a submenu of the four production types) / Not now. Reads back
      * ECONOMY_TYPE_FLAG once the dialog closes and, if the player just chose one of the six
-     * special buildings, imperatively records this shop as the town's one economy building
+     * special buildings, imperatively records this shop under that type
      * (economyBuildingObjectId can't fit through the byte-limited map-flag system - see
      * PointOfInterestChanges).
      */
@@ -174,30 +192,44 @@ public class EconomyBuildings {
         DialogData root = new DialogData();
         root.text = "This shop is buried in rubble. What would you like to rebuild it as?";
 
+        DialogData industryBack = new DialogData();
+        industryBack.name = "Back";
+
+        DialogData industry = new DialogData();
+        industry.name = "Industry";
+        industry.text = "Which industry building?";
+        industry.options = new DialogData[]{
+                buildOption(SHARD_MINE, objectId),
+                buildOption(GOLD_MINE, objectId),
+                buildOption(LUMBER_MILL, objectId),
+                buildOption(STONE_MINE, objectId),
+                industryBack
+        };
+
         DialogData notNow = new DialogData();
         notNow.name = "Not now";
 
         root.options = new DialogData[]{
                 buildOption(NONE, objectId),
-                buildOption(SHARD_MINE, objectId),
-                buildOption(GOLD_MINE, objectId),
-                buildOption(LUMBER_MILL, objectId),
-                buildOption(STONE_MINE, objectId),
                 buildOption(BANK, objectId),
                 buildOption(EXCHANGE, objectId),
+                industry,
                 notNow
         };
+        // "Back" just re-shows the top-level menu - same content, not a true navigation stack.
+        industryBack.text = root.text;
+        industryBack.options = root.options;
 
         MapDialog dialog = new MapDialog(root, stage, objectId, null);
         dialog.addDialogCompleteListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 PointOfInterestChanges changes = stage.getChanges();
-                if (changes == null || changes.hasEconomyBuilding())
+                if (changes == null)
                     return;
                 int chosenType = stage.getQuestFlag(ECONOMY_TYPE_FLAG);
-                if (chosenType != NONE)
-                    changes.setEconomyBuildingObjectId(objectId);
+                if (chosenType != NONE && !changes.hasEconomyBuildingOfType(chosenType))
+                    changes.setEconomyBuildingObjectId(chosenType, objectId);
             }
         });
         return dialog;
@@ -207,13 +239,15 @@ public class EconomyBuildings {
     // need repeatable custom Java logic - bank balance and Wood/Stone aren't expressible through
     // the declarative ActionData system used by ordinary map dialogs). ----
 
-    private static final int[] BANK_DENOMINATIONS = {10, 50, 100};
+    private static final int BANK_DENOMINATION = 100;
 
     public static void openBankDialog(MapStage stage, PointOfInterestChanges changes) {
         refreshBankDialog(stage, changes);
         stage.showDialog();
     }
 
+    // Separate labels per line (rather than one \n-joined string) so the balance/gold lines can't
+    // get lost to any single label's own width/wrap sizing - each row gets its own Table cell.
     private static void refreshBankDialog(MapStage stage, PointOfInterestChanges changes) {
         Dialog dialog = stage.getDialog();
         dialog.getContentTable().clear();
@@ -221,29 +255,42 @@ public class EconomyBuildings {
         dialog.clearListeners();
 
         AdventurePlayer player = AdventurePlayer.current();
-        TypingLabel label = Controls.newTypingLabel("[+Gold]Bank\nDeposited: " + changes.getBankBalance()
-                + " gold ([%80]" + Math.round(INTEREST_RATE * 100) + "% interest every " + INTEREST_PERIOD_DAYS + " days[%])\n"
-                + "Your gold: " + player.getGold());
+        addContentRow(dialog, "[+Gold]Bank");
+        addContentRow(dialog, "Deposited: " + changes.getBankBalance() + " gold");
+        addContentRow(dialog, "[%80]" + Math.round(INTEREST_RATE * 100) + "% interest every " + INTEREST_PERIOD_DAYS + " days[%]");
+        addContentRow(dialog, "Your gold: " + player.getGold());
+
+        addButtonRow(dialog, "Deposit " + BANK_DENOMINATION, player.getGold() >= BANK_DENOMINATION, () -> {
+            player.takeGold(BANK_DENOMINATION);
+            changes.addBankBalance(BANK_DENOMINATION);
+            refreshBankDialog(stage, changes);
+        });
+        addButtonRow(dialog, "Deposit All", player.getGold() > 0, () -> {
+            int all = player.getGold();
+            player.takeGold(all);
+            changes.addBankBalance(all);
+            refreshBankDialog(stage, changes);
+        });
+        addButtonRow(dialog, "Withdraw " + BANK_DENOMINATION, changes.getBankBalance() >= BANK_DENOMINATION, () -> {
+            changes.addBankBalance(-BANK_DENOMINATION);
+            player.giveGold(BANK_DENOMINATION);
+            refreshBankDialog(stage, changes);
+        });
+        addButtonRow(dialog, "Withdraw All", changes.getBankBalance() > 0, () -> {
+            int all = changes.getBankBalance();
+            changes.addBankBalance(-all);
+            player.giveGold(all);
+            refreshBankDialog(stage, changes);
+        });
+        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+    }
+
+    private static void addContentRow(Dialog dialog, String text) {
+        TypingLabel label = Controls.newTypingLabel(text);
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();
-
-        for (int amount : BANK_DENOMINATIONS) {
-            addButtonRow(dialog, "Deposit " + amount, player.getGold() >= amount, () -> {
-                player.takeGold(amount);
-                changes.addBankBalance(amount);
-                refreshBankDialog(stage, changes);
-            });
-        }
-        for (int amount : BANK_DENOMINATIONS) {
-            addButtonRow(dialog, "Withdraw " + amount, changes.getBankBalance() >= amount, () -> {
-                changes.addBankBalance(-amount);
-                player.giveGold(amount);
-                refreshBankDialog(stage, changes);
-            });
-        }
-        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
-        dialog.setKeepWithinStage(true);
     }
 
     // (Gold->Shard, Shard->Gold, Gold->Wood, Wood->Gold, Gold->Stone, Stone->Gold). Rates are a
@@ -325,24 +372,25 @@ public class EconomyBuildings {
         if (daysPassed <= 0)
             return;
         for (PointOfInterestChanges changes : WorldSave.getCurrentSave().getAllPointOfInterestChanges()) {
-            if (!changes.hasEconomyBuilding())
-                continue;
-            int type = changes.getMapFlags().getOrDefault(ECONOMY_TYPE_FLAG, (byte) 0);
-            if (isProducingType(type)) {
-                int amount = RESOURCE_PRODUCTION_PER_DAY * daysPassed;
-                switch (type) {
-                    case SHARD_MINE: AdventurePlayer.current().addShards(amount); break;
-                    case GOLD_MINE: AdventurePlayer.current().giveGold(amount); break;
-                    case LUMBER_MILL: AdventurePlayer.current().addWood(amount); break;
-                    case STONE_MINE: AdventurePlayer.current().addStone(amount); break;
-                }
-            } else if (type == BANK && changes.getBankBalance() > 0) {
-                int periodsBefore = (newDayCount - daysPassed - 1) / INTEREST_PERIOD_DAYS;
-                int periodsAfter = (newDayCount - 1) / INTEREST_PERIOD_DAYS;
-                for (int i = periodsBefore; i < periodsAfter; i++) {
-                    int interest = Math.round(changes.getBankBalance() * INTEREST_RATE);
-                    if (interest > 0)
-                        changes.addBankBalance(interest);
+            // A town can now have several economy buildings at once (one of each type) - process
+            // every type it actually has, not just a single registered building.
+            for (int type : changes.getEconomyBuildingObjectIds().keySet()) {
+                if (isProducingType(type)) {
+                    int amount = RESOURCE_PRODUCTION_PER_DAY * daysPassed;
+                    switch (type) {
+                        case SHARD_MINE: AdventurePlayer.current().addShards(amount); break;
+                        case GOLD_MINE: AdventurePlayer.current().giveGold(amount); break;
+                        case LUMBER_MILL: AdventurePlayer.current().addWood(amount); break;
+                        case STONE_MINE: AdventurePlayer.current().addStone(amount); break;
+                    }
+                } else if (type == BANK && changes.getBankBalance() > 0) {
+                    int periodsBefore = (newDayCount - daysPassed - 1) / INTEREST_PERIOD_DAYS;
+                    int periodsAfter = (newDayCount - 1) / INTEREST_PERIOD_DAYS;
+                    for (int i = periodsBefore; i < periodsAfter; i++) {
+                        int interest = Math.round(changes.getBankBalance() * INTEREST_RATE);
+                        if (interest > 0)
+                            changes.addBankBalance(interest);
+                    }
                 }
             }
         }

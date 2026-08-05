@@ -21,9 +21,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
     private final java.util.Map<Integer, Integer> reputation = new HashMap<>();
     private Boolean isBookmarked;
     private Boolean isVisited;
-    // -1 = no economy building chosen for this town yet. Kept as a real int (not a mapFlags
-    // byte) since Tiled object ids can exceed the byte range that mapFlags is limited to.
-    private int economyBuildingObjectId = -1;
+    // One entry per economy building TYPE actually built in this town (type -> Tiled object id
+    // of the shop that became it) - a town can have at most one of each of the 6 special types,
+    // but one of each simultaneously (a Bank AND a Gold Mine AND an Exchange, etc.), so this
+    // can't be a single int the way it was originally. Kept as a real int->int map (not mapFlags
+    // bytes) since Tiled object ids can exceed mapFlags' byte range.
+    private final java.util.Map<Integer, Integer> economyBuildingObjectIds = new HashMap<>();
     private int bankBalance = 0;
 
     public static class Map extends HashMap<String,PointOfInterestChanges> implements SaveFileContent {
@@ -73,7 +76,20 @@ public class PointOfInterestChanges implements SaveFileContent  {
         }
         isBookmarked = (Boolean) data.readObject("isBookmarked");
         isVisited = (Boolean) data.readObject("isVisited");
-        economyBuildingObjectId = data.containsKey("economyBuildingObjectId") ? data.readInt("economyBuildingObjectId") : -1;
+        economyBuildingObjectIds.clear();
+        if (data.containsKey("economyBuildingObjectIds")) {
+            Object obj = data.readObject("economyBuildingObjectIds");
+            if (obj instanceof java.util.Map)
+                economyBuildingObjectIds.putAll((java.util.Map<Integer, Integer>) obj);
+        } else if (data.containsKey("economyBuildingObjectId")) {
+            // Older save with the single-building field - migrate it forward. We don't know
+            // which type it was without re-reading mapFlags' old shared ECONOMY_TYPE_FLAG value,
+            // which EconomyBuildings.load-time migration below handles via getMapFlags() directly.
+            int legacyId = data.readInt("economyBuildingObjectId");
+            Byte legacyType = mapFlags.get("economyBuildingType");
+            if (legacyId != -1 && legacyType != null)
+                economyBuildingObjectIds.put((int) legacyType, legacyId);
+        }
         bankBalance = data.containsKey("bankBalance") ? data.readInt("bankBalance") : 0;
     }
 
@@ -87,7 +103,7 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("reputation", reputation);
         data.storeObject("isBookmarked", isBookmarked);
         data.storeObject("isVisited", isVisited);
-        data.store("economyBuildingObjectId", economyBuildingObjectId);
+        data.storeObject("economyBuildingObjectIds", economyBuildingObjectIds);
         data.store("bankBalance", bankBalance);
         return data;
     }
@@ -195,14 +211,22 @@ public class PointOfInterestChanges implements SaveFileContent  {
         isVisited = true;
     }
 
-    public boolean hasEconomyBuilding() {
-        return economyBuildingObjectId != -1;
+    public boolean hasEconomyBuildingOfType(int type) {
+        return economyBuildingObjectIds.containsKey(type);
     }
-    public int getEconomyBuildingObjectId() {
-        return economyBuildingObjectId;
+    /** The economy building type registered for this specific shop's objectId, or -1 if it isn't one. */
+    public int getEconomyBuildingType(int objectId) {
+        for (java.util.Map.Entry<Integer, Integer> entry : economyBuildingObjectIds.entrySet()) {
+            if (entry.getValue() == objectId)
+                return entry.getKey();
+        }
+        return -1;
     }
-    public void setEconomyBuildingObjectId(int objectId) {
-        economyBuildingObjectId = objectId;
+    public void setEconomyBuildingObjectId(int type, int objectId) {
+        economyBuildingObjectIds.put(type, objectId);
+    }
+    public java.util.Map<Integer, Integer> getEconomyBuildingObjectIds() {
+        return economyBuildingObjectIds;
     }
     public int getBankBalance() {
         return bankBalance;

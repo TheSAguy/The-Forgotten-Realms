@@ -206,6 +206,17 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   re-anchor anything, so it rendered 3x oversized and visibly offset from its real (unchanged)
   collision zone. Fixed by excluding anything tagged `"Spawn"` from `isWastelandTown()` - it's
   the player's always-safe home base, never meant to be destructible. Confirmed fixed in-game.
+- **Open item - `player` biome has no curated enemy list, and hit an engine bug because of it
+  (2026-08-04):** `player.json`'s `"enemies": []` doesn't mean "no enemies" - every biome always
+  gets a zero-spawn-rate copy of every enemy in the game added for quest-boost purposes (see
+  `BiomeData.getEnemyList()`), so an empty list means "only zero-weight ones exist," and a real
+  engine bug in the weighted-selection algorithm turned that into "always the same one enemy,
+  deterministically" (fixed generically in `BiomeData.getEnemy()`, see `MOD_CHANGELOG.md` - this
+  bug could have affected any biome with an empty `enemies` array, not just this one). The engine
+  bug is fixed, but the design question it exposed is still open: should recolored player
+  territory have its own curated `enemies` list (and if so, which enemies - something
+  themed/weaker, reflecting "friendly" territory?), or be intentionally enemy-free? Needs the
+  user's call before `player.json` gets a real `enemies` array.
 - **Open item, next up - decorative terrain features (rocks/trees/"doo-dads") get wiped by a
   repaint, not just roads:** `repaintBiomeAroundTown()` resets `terrainMap[x][y] = 0` for every
   touched tile (needed to clear stale neighbor data), which also erases whatever
@@ -245,28 +256,32 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
 - Earned via Economy Buildings (#10) below - no other source yet (not obtainable via shops,
   rewards, or the `give item` console command).
 
-### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04)
+### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day)
 - Wasteland shops (#2) can now be rebuilt as one of 6 special buildings instead of a plain Card
-  Shop: Shard Mine, Gold Mine, Lumber Mill, Stone Mine, Bank, Exchange - offered as extra
-  options on the existing rebuild-shop dialog. Only **one** of these six per town (Card Shop
-  rebuilds are unlimited, same as before). All cost 100 gold, same as a plain rebuild.
-- **Signs removed while a shop is rubble:** the little sign-post hinting what a shop sells no
-  longer renders until that specific shop is rebuilt (`MapStage.java`), since it doesn't make
-  sense to advertise contents through the rubble - the broken-shop art now speaks for itself.
+  Shop: Shard Mine, Gold Mine, Lumber Mill, Stone Mine, Bank, Exchange - offered via a submenu on
+  the existing rebuild-shop dialog (top level: Card Shop / Bank / Exchange / Industry / Not now;
+  Industry opens a second menu for the 4 producing types). **One of each of the 6 types per
+  town** (a Bank AND a Gold Mine AND an Exchange etc. can coexist - just not two Banks; Card Shop
+  rebuilds stay unlimited). All cost 100 gold, same as a plain rebuild.
+- **Building icons** draw at their real 32x32 native size centered on the shop's 16x16 footprint
+  (was incorrectly downscaled to footprint size, see `MOD_CHANGELOG.md`) - same fix applied to
+  the broken-shop rubble art.
+- **Signs re-appear live on rebuild:** the sign-post hinting what a shop sells is hidden while
+  that shop is still rubble and now reappears the instant it's rebuilt, no need to leave/re-enter
+  the town (`MapStage.java` - see `MOD_CHANGELOG.md` for the live-`act()` visibility fix).
 - **Mines/Lumber Mill:** produce +5 of their resource (Shards/Gold/Wood/Stone respectively)
   once per elapsed in-game day (`EconomyBuildings.processDaysPassed()`, hooked into
   `WorldStage.onActing()` off the same day counter #6's clock drives - so this also requires
   `dayNightCycleEnabled`). Visiting one shows a small info readout, no further interaction.
-- **Bank:** deposit/withdraw gold in fixed denominations (10/50/100). Balance earns 5% compound
-  interest every 7 in-game days. Balance is tracked per-town (`PointOfInterestChanges
-  .bankBalance`), separate from the player's carried gold.
+- **Bank:** shows both the player's carried gold and the town's deposited/banked total (was
+  showing only carried gold - fixed same day). Deposit/withdraw in a single 100-gold denomination
+  plus "Deposit All"/"Withdraw All" (simplified from 10/50/100). Balance earns 5% compound
+  interest every 7 in-game days, tracked per-town (`PointOfInterestChanges.bankBalance`),
+  separate from the player's carried gold.
 - **Exchange:** fixed-rate trades between Gold/Shards/Wood/Stone (rates chosen as a first pass,
   not balance-tested: 10 Gold↔1 Shard/1 Shard↔8 Gold, 5 Gold↔5 Wood/5 Wood↔3 Gold, 5 Gold↔5
   Stone/5 Stone↔3 Gold - buy/sell spread on the two raw resources, Shards priced as the scarce
   currency).
-- Rebuilt buildings draw their icon over the shop's normal footprint (cropped from the stock
-  `buildings.png` sheet into a new plane-local `economy_buildings.atlas`); Card Shop rebuilds
-  draw nothing extra (the normal shop tile already looks right).
 - **Deferred, needs #7 (Dynamic Territory Control) first:** if the player loses and retakes a
   town, buildings should be cheaper to rebuild, and each building type should show its own
   ruin art on recapture instead of the generic broken-shop art (no dedicated ruin art exists

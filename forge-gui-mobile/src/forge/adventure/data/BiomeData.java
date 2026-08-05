@@ -115,6 +115,13 @@ public class BiomeData implements Serializable {
         if (filteredEnemies.isEmpty()) {
             return Aggregates.random(enemyList);
         }
+        // If every matching enemy has 0 spawnRate (e.g. a biome whose own "enemies" list is
+        // empty, so getEnemyList() only added zero-spawn-rate quest-boost copies), the weighted
+        // pick below degenerates to always index 0 - f starts at 0 and "f <= 0.0f" is true
+        // immediately. Pick uniformly at random among them instead of always the same one.
+        if (totalDistribution <= 0.0f) {
+            return Aggregates.random(filteredEnemies);
+        }
 
         // Perform weighted random selection
         float f = totalDistribution * rand.nextFloat();

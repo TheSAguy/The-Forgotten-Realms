@@ -729,6 +729,91 @@ per-building-type ruin art on recapture (only the generic broken-shop art exists
 broken-shop art once recapture exists, per the user's explicit call). Neither is triggerable or
 testable without #7, so left as a documented gap rather than half-built.
 
+### Playtest fixes (2026-08-04, same day)
+
+First real playtest of the above surfaced 6 bugs/gaps, fixed same-day. Several of the
+descriptions above are now stale as a result - noted inline where it matters.
+
+- **Icon scaling.** `ShopActor.draw()` was stretching all overlay art (broken-shop AND economy-
+  building icons) to `getWidth()/getHeight()` - the shop's 16x16 tile *footprint* - via
+  `batch.draw(sprite, x, y, getWidth(), getHeight())`. The source art is 32x32 by deliberate
+  design (meant to loom over the tile, not fill it), so this was force-downscaling it and
+  muddying detail, which read as "these are 16x16 and too small." Fixed via a new
+  `drawCenteredOverFootprint()` helper that draws at the `TextureRegion`'s own native size,
+  centered on the footprint, for both the broken-shop sprite and the economy-building sprite.
+  No old tint/`RubbleOverlay` code was actually still running - that had already been fully
+  replaced by real art in an earlier round; the "still looks tinted" report was this same
+  downscale artifact, not a leftover tint path.
+- **One economy building per town → one of each *type* per town.** The build-choice dialog
+  paragraph above describes a single `ECONOMY_TYPE_FLAG` gate and single
+  `economyBuildingObjectId` int, allowing only one economy building of *any* kind per town. The
+  user's intent was one of each of the 6 types simultaneously (a Bank AND a Gold Mine AND an
+  Exchange, etc., just not two Banks). Restructured `PointOfInterestChanges`:
+  `economyBuildingObjectId` (int, sentinel -1) → `economyBuildingObjectIds` (`Map<Integer,
+  Integer>`, type → objectId), with old single-field saves migrated forward on load using the
+  legacy `mapFlags["economyBuildingType"]` value. Gating moved from the single shared
+  `ECONOMY_TYPE_FLAG` to one derived per-type flag each (`"economyBuilt_" + type`, computed by
+  `EconomyBuildings.builtFlag()`); `ECONOMY_TYPE_FLAG` itself is now used only as the one-shot
+  "which option did the player just pick" signal the dialog-complete listener reads, same as
+  before.
+- **Build-choice dialog restructured into a submenu.** Was a flat list of 8 options (too many at
+  once, per feedback). `DialogData.options[]` nests recursively (confirmed via
+  `MapDialog.loadDialog()`'s own recursive `loadDialog(option)` call on each button press), so no
+  new plumbing was needed - just data shape. Now: Card Shop / Bank / Exchange / Industry / Not
+  now at the top level, with Industry opening a second-level menu of Shard Mine / Gold Mine /
+  Lumber Mill / Stone Mine / Back. "Back" re-shows the top-level menu by pointing at the same
+  `text`/`options` reference, not a real navigation stack.
+- **Bank dialog: added the deposited/banked total, simplified denominations.** The dialog
+  previously showed only the player's on-hand gold, not what they'd already deposited - the
+  balance line existed in a combined `\n`-joined label whose display was unreliable. Rebuilt as
+  one `TypingLabel` row per line via a new `addContentRow()` helper (title / deposited total /
+  interest rate / your gold), each getting its own `Table` cell so nothing gets lost to a shared
+  label's wrap/sizing. Denominations simplified from `{10, 50, 100}` to a single 100 constant
+  plus new "Deposit All"/"Withdraw All" buttons, per feedback.
+- **Wood/Stone HUD display.** Two bugs: (1) `onWoodChange`/`onStoneChange` listeners only fire on
+  a *change*, so both labels stayed blank until the player's first gain (usually never, since
+  nothing grants either besides a mine/mill's first daily tick) - fixed by calling
+  `refreshWood()`/`refreshStone()` once at the end of the constructor. (2)
+  `GameHUD`/`ResourceDisplayActor` positioning ran *before* `money` was loaded via
+  `ui.findActor`, using stale/zero coordinates - fixed by moving the `.setPosition(...)` call to
+  after `money` loads, anchored to `money.getX()/getY()` (also moves the widget to sit under
+  Gold/Shards as requested, rather than its previous spot near the Wait/Speed checkboxes).
+- **Shop sign not reappearing after rebuild.** The "Sign removal on destroyed shops" section
+  above is now stale: the sign/overlay `TextureSprite` was skipped entirely at *map-load time* if
+  the shop was destroyed then, with no re-evaluation afterward - so rebuilding a shop mid-visit
+  never made its sign appear until the player left and re-entered the town (forcing a fresh map
+  load). `MapStage.java` now always creates the sign/overlay `TextureSprite`s when `hasSign` is
+  set, but as an anonymous subclass overriding `act()` to call `setVisible(...)` live every frame
+  against the same `isWastelandTown()`/`isShopRebuilt()` check `ShopActor.isDestroyed()` uses -
+  so it appears the instant the shop is rebuilt, no reload needed. `TextureSprite` was already a
+  non-final, overridable `MapActor` subclass with no existing `act()` override, so this needed no
+  changes to `TextureSprite.java` itself.
+
+## Enemy selection: zero-spawn-rate degenerate case (2026-08-04)
+
+`BiomeData.getEnemy()`'s weighted-random pick degenerates to *always* returning
+`filteredEnemies.get(0)` whenever every candidate has `spawnRate == 0` - `f = totalDistribution *
+rand.nextFloat()` is `0` in that case, and the loop's first iteration (`f -= 0; if (f <= 0.0f)
+return ...`) always fires immediately. This is reachable by any biome whose own `enemies` array is
+empty: `getEnemyList()` unconditionally adds a zero-spawn-rate copy of *every* enemy in the game to
+every biome (for quest-boost purposes, per its own comment) regardless of whether the biome names
+any real enemies, so an empty `enemies` list doesn't mean "no enemies get added" - it means "only
+zero-weight ones do," and the selection algorithm silently treats that as "always pick index 0."
+
+Found while investigating a playtest report of the same boss-tier enemy (a large Angel, 3 rounds
+long, spawning 3 times in a row) in recolored player territory - `world/biomes/player.json` (added
+by the other machine's session for the territory-recolor prototype, `MOD_SCOPE.md` #7) has
+`"enemies": []`. Whatever `WorldData.getAllEnemies()` happens to return at index 0 was getting
+deterministically selected every single time a fight triggered on that biome.
+
+Fixed generically in `BiomeData.getEnemy()` (not specific to `player.json`) - when
+`totalDistribution <= 0` after filtering by difficulty, pick uniformly at random among the
+filtered (zero-weight) candidates via `Aggregates.random(filteredEnemies)` instead of running the
+weighted-pick loop. This makes the *set* of possible enemies on an empty-`enemies` biome uniform
+random across the whole roster rather than always the same one - still not "no enemies," since
+that's a separate design question (should `player` territory be enemy-free by design, or have its
+own curated `enemies` list?) that wasn't resolved this session; see `MOD_SCOPE.md` #7.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

@@ -157,7 +157,6 @@ public class GameHUD extends Stage {
             }
         });
         resourceDisplayActor = new ResourceDisplayActor();
-        resourceDisplayActor.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 48);
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());
         touchpad.setBounds(15, 15, TOUCHPAD_SCALE, TOUCHPAD_SCALE);
@@ -197,6 +196,11 @@ public class GameHUD extends Stage {
         money.skipToTheEnd();
         shards.setText("[%95][+Shards]");
         money.setText("[%95][+Gold]");
+        // Grouped with Gold/Shards per feedback (was previously stacked under the Wait/Speed HUD
+        // checkboxes near the minimap) - positioned relative to money's own hud.json-driven
+        // position rather than adding to that shared layout file (see ResourceDisplayActor's own
+        // doc comment for why forking hud.json is avoided).
+        resourceDisplayActor.setPosition(money.getX(), money.getY() - resourceDisplayActor.getHeight() - 4);
         lifePoints.setText("[%95][+Life]");
         enemyCounterText = Controls.newTypingLabel(Forge.getLocalizer().getMessage("lblRemainingEnemies", String.valueOf(0)));
         enemyCounterText.setColor(Color.BLACK);

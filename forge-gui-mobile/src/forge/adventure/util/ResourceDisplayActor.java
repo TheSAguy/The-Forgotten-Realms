@@ -45,6 +45,12 @@ public class ResourceDisplayActor extends Group {
 
         AdventurePlayer.current().onWoodChange(this::refreshWood);
         AdventurePlayer.current().onStoneChange(this::refreshStone);
+        // The listeners above only fire on a *change* - without an initial call, the labels stay
+        // blank (not "Wood: 0") until the player's first Wood/Stone gain, which for most players
+        // is "never" since nothing grants either yet except a Lumber Mill/Stone Mine's first
+        // daily tick. Show the real (usually zero) starting value immediately instead.
+        refreshWood();
+        refreshStone();
     }
 
     private void refreshWood() {

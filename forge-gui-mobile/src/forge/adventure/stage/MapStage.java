@@ -724,19 +724,35 @@ public class MapStage extends GameStage {
                         ShopActor actor = new ShopActor(this, id, ret, data);
                         addMapActor(obj, actor);
                         // While a wasteland shop is still rubble, the sign would give away what it
-                        // sells before the player has rebuilt it - skip creating the sign/overlay
-                        // sprites entirely in that case (ShopActor's own broken-shop art already
-                        // covers the footprint, see ShopActor.draw()).
-                        boolean shopDestroyed = TownRestoration.isWastelandTown() && !TownRestoration.isShopRebuilt(this, id);
-                        if (!shopDestroyed && prop.containsKey("hasSign") && (boolean) prop.get("hasSign") && prop.containsKey("signYOffset") && prop.containsKey("signXOffset")) {
+                        // sells before the player has rebuilt it. Signs used to only be created at
+                        // all when the shop was already rebuilt at map-load time, which meant a
+                        // sign wouldn't appear until the player left and re-entered the town after
+                        // rebuilding - now always created, but with a live act()-driven visibility
+                        // check (same "still wasteland and not this shop's rebuilt flag" condition
+                        // ShopActor.isDestroyed() itself uses), so it appears the instant the shop
+                        // is rebuilt without needing a fresh map load.
+                        if (prop.containsKey("hasSign") && (boolean) prop.get("hasSign") && prop.containsKey("signYOffset") && prop.containsKey("signXOffset")) {
+                            final int shopId = id;
                             try {
-                                TextureSprite sprite = new TextureSprite(Config.instance().getAtlasSprite(data.spriteAtlas, data.sprite));
+                                TextureSprite sprite = new TextureSprite(Config.instance().getAtlasSprite(data.spriteAtlas, data.sprite)) {
+                                    @Override
+                                    public void act(float delta) {
+                                        super.act(delta);
+                                        setVisible(!TownRestoration.isWastelandTown() || TownRestoration.isShopRebuilt(MapStage.this, shopId));
+                                    }
+                                };
                                 sprite.setX(actor.getX() + Float.parseFloat(prop.get("signXOffset").toString()));
                                 sprite.setY(actor.getY() + Float.parseFloat(prop.get("signYOffset").toString()));
                                 addMapActor(sprite);
 
                                 if (!(data.overlaySprite == null || data.overlaySprite.isEmpty())) {
-                                    TextureSprite overlay = new TextureSprite(Config.instance().getAtlasSprite(data.spriteAtlas, data.overlaySprite));
+                                    TextureSprite overlay = new TextureSprite(Config.instance().getAtlasSprite(data.spriteAtlas, data.overlaySprite)) {
+                                        @Override
+                                        public void act(float delta) {
+                                            super.act(delta);
+                                            setVisible(!TownRestoration.isWastelandTown() || TownRestoration.isShopRebuilt(MapStage.this, shopId));
+                                        }
+                                    };
                                     overlay.setX(actor.getX() + Float.parseFloat(prop.get("signXOffset").toString()));
                                     overlay.setY(actor.getY() + Float.parseFloat(prop.get("signYOffset").toString()));
                                     addMapActor(overlay);
