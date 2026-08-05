@@ -19,6 +19,10 @@ public class TimeOfDayActor extends Group {
 
     private static final int PANEL_WIDTH = 64;
     private static final int PANEL_HEIGHT = 16;
+    // windowMain10Patch's own border art is ~6px thick (its stretch areas start at 6, see
+    // ui_skin.json) - inset the text by that much so it clears the carved-stone border instead
+    // of running right up against/under it.
+    private static final int PADDING = 6;
 
     private final TextraLabel dayLabel;
     private final TextraLabel timeLabel;
@@ -35,14 +39,14 @@ public class TimeOfDayActor extends Group {
         addActor(background);
 
         dayLabel = Controls.newTextraLabel("");
-        dayLabel.setSize(PANEL_WIDTH, PANEL_HEIGHT);
-        dayLabel.setPosition(0, PANEL_HEIGHT);
+        dayLabel.setSize(PANEL_WIDTH - PADDING * 2, PANEL_HEIGHT);
+        dayLabel.setPosition(PADDING, PANEL_HEIGHT);
         dayLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
         addActor(dayLabel);
 
         timeLabel = Controls.newTextraLabel("");
-        timeLabel.setSize(PANEL_WIDTH, PANEL_HEIGHT);
-        timeLabel.setPosition(0, 0);
+        timeLabel.setSize(PANEL_WIDTH - PADDING * 2, PANEL_HEIGHT);
+        timeLabel.setPosition(PADDING, 0);
         timeLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
         addActor(timeLabel);
 

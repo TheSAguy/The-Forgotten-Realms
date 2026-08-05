@@ -1002,6 +1002,59 @@ biomes already), not new art or a new mechanism. Since these are existing sprite
 referenced by name (not redefined), whatever collision each one already has is inherited
 unchanged - nothing about collision behavior was touched by this change.
 
+## HUD polish round 2: clock position, real Lumber/Stone icons (2026-08-05)
+
+**Clock moved, again.** User confirmed via an annotated before/after screenshot: wanted it
+between the "Wait" checkbox and the "Zoom" button, not below Zoom where it's been. The existing
+positioning code (`timeOfDayActor.setPosition(miniMap.getX() + miniMap.getWidth() + 8,
+miniMap.getY())`) reads as "to the right of the minimap," which doesn't match where either the
+old or new position actually render on screen (both are in the same left-hand column as the
+minimap) - there's a timing/sizing quirk in `miniMap.getWidth()` at this point in `GameHUD`'s
+constructor that isn't fully tracked down, but since `waitCheckBox`/`speedCheckBox` are governed
+by the same formula and consistently land in the right visual spot regardless, repositioning
+`timeOfDayActor` *relative to `waitCheckBox`* (`waitCheckBox.getX(), waitCheckBox.getY() -
+timeOfDayActor.getHeight() - 4`) sidesteps needing to fully understand that quirk - it inherits
+whatever correction already makes the checkboxes land right. Also added 6px horizontal padding
+to `TimeOfDayActor`'s day/time labels (previously spanned the panel edge-to-edge) - text was
+running right up against `windowMain10Patch`'s carved-stone border instead of clearing it.
+
+**Lumber/Stone icons weren't showing at all - root cause not fully pinned down, worked around
+instead of chased further.** The round-1 HUD polish added `Lumber`/`Stone` as new regions in the
+shared `items.atlas`/`items.png` so `[+Lumber]`/`[+Stone]` inline markup would work exactly like
+`[+Gold]`/`[+Shards]` already does. In-game, the tag was clearly being *parsed* (rendered as a
+bare "+" before the number, not literal "[+Lumber]" text), but never resolved to a picture -
+while Gold/Shards' own pre-existing icons in that exact same atlas kept working fine. Most likely
+explanation: `AssetManager`-level `Texture` caching for `items.png` at some point before my
+resource sync landed, so the `Font`'s icon atlas parsed correctly (declaring the new region
+coordinates) but sampled against stale/differently-sized cached pixel data - not confirmed
+though, and not worth chasing further given a proven-working alternative was right there. Reverted
+`items.atlas`/`items.png` to their pre-round-1 state entirely (`git checkout` from the commit
+before that change) rather than leave unused/possibly-broken regions sitting in a shared file.
+
+**Real fix, and real (non-placeholder) art**: the user found and pointed at two icons directly in
+the existing `common/maps/tileset/buildings.png` sheet - a resource-pile icon row with color-coded
+piles (orange/checkered = wood, yellow = gold, dark grey = ore, purple = gems). Located them
+precisely with a 16px grid overlay rendered over the region (`(320,272)` orange pile for Lumber,
+`(352,272)` dark grey pile for Stone, both 16x16) - the coordinates the user reported from their
+own image tool landed a little off from these (their tool likely reports cursor position within a
+crop/zoom, not the raw file's absolute origin), so the match was confirmed visually (row order,
+colors, relative spacing to each other) rather than by trusting the numbers literally. Cropped
+both into a new small dedicated atlas, `The Forgotten Realms/maps/tileset/resource_icons.png`/
+`.atlas` (same pattern as `economy_buildings.png`), and `ResourceDisplayActor` now renders them
+as real `Image`+`TextureRegionDrawable` actors (the same proven technique
+`EconomyBuildings`/`TownRestoration`'s own custom art already uses) instead of inline font markup
+- sidesteps whatever the markup issue was entirely, and confirmed this workflow (user gives pixel
+coordinates in `buildings.png`, or a description precise enough to visually locate them) works for
+sourcing the still-outstanding Shard Mine/Stone Mine/Gold Mine/Exchange/Bank icons too.
+
+**Tightened the gap** between `ResourceDisplayActor` and `money` from 4px to 0 (`resourceDisplay
+Actor.setPosition(money.getX(), money.getY() - resourceDisplayActor.getHeight())`) so its
+`windowMain10Patch` panel butts directly against Gold's row - reads much closer to "one
+continuing column" than before, though it's still technically two separate bordered images, not
+a literal single merged panel (would need touching hud.json's own avatar-panel background to do
+that fully, which stays out of scope per the config.json-style non-merge risk already documented
+in `ResourceDisplayActor`'s own comment).
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

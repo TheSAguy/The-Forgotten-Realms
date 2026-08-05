@@ -98,12 +98,13 @@ Helping a color angers its two enemies, not its allies.
   minutes per in-game day, advances continuously while on the overworld (any pace/standing
   still), freezes automatically in towns/dungeons or while paused/in a dialog. Persisted in
   the save file. HUD readout (`TimeOfDayActor.java`) shows a plain "Day N" / "H:MM am|pm" digital
-  readout below the minimap's Zoom button - the originally-planned crossfade dial/needle/castle-
-  icon widget was simplified away to this before it shipped, this doc just hadn't caught up.
+  readout near the minimap - the originally-planned crossfade dial/needle/castle-icon widget was
+  simplified away to this before it shipped, this doc just hadn't caught up.
   **Restyled (2026-08-05)** to use the same `windowMain10Patch` stone-block panel every dialog/
   window in the game already uses, instead of a hand-drawn flat box - same treatment given to
-  the Lumber/Stone readout, #9. Position unchanged (still below Zoom) - only the panel's look
-  changed.
+  the Lumber/Stone readout, #9, plus 6px padding so the text clears the panel's border instead of
+  running up against it. **Repositioned same day**, per an annotated screenshot: now sits between
+  the "Wait" checkbox and the "Zoom" button (was below Zoom).
 - Still to do: certain monsters get buffed in day or night, penalized in the opposite; quest
   timers; periodic events (trigger every N days, etc) — deferred to follow-up passes once
   the clock itself is proven out.
@@ -278,17 +279,22 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   - the internal field/method/save-key names (`getWood()`, `addWood()`, `onWoodChange()`, save
     key `"wood"`) deliberately weren't renamed, to avoid a save-compat migration for a display-
     only change.
-- Small always-on HUD readout (`ResourceDisplayActor.java`) shows current totals next to Gold,
-  now genuinely matching Gold/Shards' own look rather than a lookalike: "Lumber"/"Stone" are real
-  new regions added to the shared `items.atlas`/`items.png` (16x16 placeholder icons - logs for
-  Lumber, a faceted rock for Stone, styled to match Gold's coin-stack/Shards' gem-facet look -
-  **real art still wanted**, drop-in replaceable, see `MOD_CHANGELOG.md` for exact atlas
-  coordinates), so `[+Lumber]`/`[+Stone]` markup now works exactly like `[+Gold]`/`[+Shards]`
-  already did. Background panel switched from a hand-drawn flat box to the same
-  `windowMain10Patch` stone-block frame every dialog/window in the game already uses (also
-  applied to the Day/Clock widget, #6) - reads as part of the HUD's existing look rather than a
-  separate bolted-on box. Still positioned in code (not `hud.json`) - forking that shared,
-  common-to-every-plane file remains a full-copy-not-merge risk, same as `config.json`.
+- Small always-on HUD readout (`ResourceDisplayActor.java`) shows current totals right below
+  Gold (zero gap, reads as one continuing column). Icons are **real art, sourced by the user
+  directly from `common/maps/tileset/buildings.png`** - a resource-pile icon row already in the
+  game (orange pile for Lumber, dark grey pile for Stone), cropped into a small dedicated atlas
+  (`The Forgotten Realms/maps/tileset/resource_icons.png`/`.atlas`) and rendered as real
+  `Image`/`TextureRegionDrawable` actors, not inline font markup - the original `[+Lumber]`/
+  `[+Stone]` markup approach (mirroring how `[+Gold]`/`[+Shards]` work) turned out not to actually
+  render the icon in-game (root cause not fully pinned down - see `MOD_CHANGELOG.md`), so this
+  swapped to the same proven icon technique `EconomyBuildings`/`TownRestoration` already use
+  instead of continuing to chase it. This same "point at coordinates in `buildings.png`" workflow
+  is confirmed to work for the still-outstanding economy-building icons too (#10's Shard Mine/
+  Stone Mine/Gold Mine/Exchange/Bank). Background panel uses the same `windowMain10Patch`
+  stone-block frame every dialog/window in the game already uses (also applied to the Day/Clock
+  widget, #6) - reads as part of the HUD's existing look rather than a separate bolted-on box.
+  Still positioned in code (not `hud.json`) - forking that shared, common-to-every-plane file
+  remains a full-copy-not-merge risk, same as `config.json`.
 - Earned via Economy Buildings (#10) below - no other source yet (not obtainable via shops,
   rewards, or the `give item` console command).
 

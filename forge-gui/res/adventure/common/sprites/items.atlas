@@ -1,14 +1,8 @@
 items.png
-size: 480,1024
+size: 480,1008
 format: RGBA8888
 filter: Nearest,Nearest
-repeat: none
-Lumber
-  xy: 0, 1008
-  size: 16, 16
-Stone
-  xy: 16, 1008
-  size: 16, 16
+repeat: none      
 c
   xy: 368,80
   size: 16, 16

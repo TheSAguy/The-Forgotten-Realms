@@ -139,7 +139,6 @@ public class GameHUD extends Stage {
 
         miniMapPlayer = new Image(Forge.getAssets().getTexture(Config.instance().getFile("ui/minimap_player.png")));
         timeOfDayActor = new TimeOfDayActor();
-        timeOfDayActor.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY());
         waitCheckBox = Controls.newCheckBox(Forge.getLocalizer().getMessage("lblWait"));
         waitCheckBox.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 4);
         waitCheckBox.addListener(new ChangeListener() {
@@ -156,6 +155,11 @@ public class GameHUD extends Stage {
                 WorldStage.getInstance().setFastTimeEnabled(((CheckBox) actor).isChecked());
             }
         });
+        // Moved below the Wait checkbox, above Zoom (per feedback + annotated screenshot) - was
+        // directly below the minimap/Zoom column before. Positioned relative to waitCheckBox
+        // (not miniMap) so it stays pinned to it regardless of whatever gives miniMap.getWidth()
+        // its value at this point in construction.
+        timeOfDayActor.setPosition(waitCheckBox.getX(), waitCheckBox.getY() - timeOfDayActor.getHeight() - 4);
         resourceDisplayActor = new ResourceDisplayActor();
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());
@@ -199,8 +203,10 @@ public class GameHUD extends Stage {
         // Grouped with Gold/Shards per feedback (was previously stacked under the Wait/Speed HUD
         // checkboxes near the minimap) - positioned relative to money's own hud.json-driven
         // position rather than adding to that shared layout file (see ResourceDisplayActor's own
-        // doc comment for why forking hud.json is avoided).
-        resourceDisplayActor.setPosition(money.getX(), money.getY() - resourceDisplayActor.getHeight() - 4);
+        // doc comment for why forking hud.json is avoided). No gap to money - butts directly
+        // against it so its own bordered panel reads as a continuation of the same column
+        // instead of a separate floating box.
+        resourceDisplayActor.setPosition(money.getX(), money.getY() - resourceDisplayActor.getHeight());
         lifePoints.setText("[%95][+Life]");
         enemyCounterText = Controls.newTypingLabel(Forge.getLocalizer().getMessage("lblRemainingEnemies", String.valueOf(0)));
         enemyCounterText.setColor(Color.BLACK);

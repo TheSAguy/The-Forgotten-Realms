@@ -1,26 +1,38 @@
 package forge.adventure.util;
 
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.github.tommyettinger.textra.TypingLabel;
 import forge.adventure.player.AdventurePlayer;
 
 /**
- * HUD readout for Lumber/Stone (MOD_SCOPE.md #9 Expanded Resources). Displayed as "[+Lumber] N"/
- * "[+Stone] N" via the same "[+Name]" icon markup, "Lumber"/"Stone" now real regions in the shared
- * items.atlas (same one Gold/Shards' own [+Gold]/[+Shards] markup already reads from) - so this
- * renders with the exact same font/icon pipeline as Gold/Shards, not a lookalike. Background is
- * the same "windowMain10Patch" stone-block panel every dialog/window already uses (see
- * TimeOfDayActor), not hud.json's own layout - forking that shared file per plane is a full-copy-
- * not-merge risk, same gotcha as config.json (see MOD_CHANGELOG.md) - so this stays a small
- * self-contained widget positioned relative to hud.json's "money" actor instead.
+ * HUD readout for Lumber/Stone (MOD_SCOPE.md #9 Expanded Resources). Icons are real art now, not
+ * a placeholder: "[+Name]"-style inline markup (the technique Gold/Shards use, via
+ * Controls.getTextraFont()'s registered items.atlas) turned out not to work for a second, newly-
+ * added atlas - the icon tag was recognized but never resolved to a picture, root cause not fully
+ * pinned down (suspected AssetManager-level Texture caching for items.png, not a font/atlas
+ * config issue - Gold/Shards' own pre-existing icons in that same atlas kept working fine).
+ * Rather than keep fighting that, icons here are rendered the same proven way
+ * EconomyBuildings/TownRestoration's own custom art already is: a real Image backed by a
+ * TextureRegion from a small dedicated atlas (Config.instance().getAtlasSprite()), cropped
+ * directly from the same common/maps/tileset/buildings.png sheet the user identified (a resource-
+ * pile icon row - orange for Lumber, dark grey for Stone) - see resource_icons.png/.atlas.
+ * Background is the same "windowMain10Patch" stone-block panel every dialog/window already uses
+ * (see TimeOfDayActor) - positioned immediately below hud.json's "money" actor in GameHUD, not
+ * hud.json's own layout - forking that shared file per plane is a full-copy-not-merge risk, same
+ * gotcha as config.json (see MOD_CHANGELOG.md).
  */
 public class ResourceDisplayActor extends Group {
 
     private static final int PANEL_WIDTH = 64;
     private static final int PANEL_HEIGHT = 16;
+    private static final int ICON_SIZE = 16;
+    private static final int PADDING = 6;
+    private static final String ICON_ATLAS = "maps/tileset/resource_icons.atlas";
 
     private final TypingLabel lumberLabel;
     private final TypingLabel stoneLabel;
@@ -33,16 +45,22 @@ public class ResourceDisplayActor extends Group {
         background.setSize(PANEL_WIDTH, PANEL_HEIGHT * 2);
         addActor(background);
 
-        lumberLabel = Controls.newTypingLabel("[%95][+Lumber]");
-        lumberLabel.setSize(PANEL_WIDTH, PANEL_HEIGHT);
-        lumberLabel.setPosition(0, PANEL_HEIGHT);
-        lumberLabel.setAlignment(Align.center);
+        addIcon("Lumber", PANEL_HEIGHT);
+        addIcon("Stone", 0);
+
+        float labelX = PADDING + ICON_SIZE + 2;
+        float labelWidth = PANEL_WIDTH - labelX - PADDING;
+
+        lumberLabel = Controls.newTypingLabel("");
+        lumberLabel.setSize(labelWidth, PANEL_HEIGHT);
+        lumberLabel.setPosition(labelX, PANEL_HEIGHT);
+        lumberLabel.setAlignment(Align.left);
         addActor(lumberLabel);
 
-        stoneLabel = Controls.newTypingLabel("[%95][+Stone]");
-        stoneLabel.setSize(PANEL_WIDTH, PANEL_HEIGHT);
-        stoneLabel.setPosition(0, 0);
-        stoneLabel.setAlignment(Align.center);
+        stoneLabel = Controls.newTypingLabel("");
+        stoneLabel.setSize(labelWidth, PANEL_HEIGHT);
+        stoneLabel.setPosition(labelX, 0);
+        stoneLabel.setAlignment(Align.left);
         addActor(stoneLabel);
 
         setSize(PANEL_WIDTH, PANEL_HEIGHT * 2);
@@ -57,11 +75,21 @@ public class ResourceDisplayActor extends Group {
         refreshStone();
     }
 
+    private void addIcon(String regionName, float y) {
+        TextureRegion region = Config.instance().getAtlasSprite(ICON_ATLAS, regionName);
+        if (region == null)
+            return;
+        Image icon = new Image(new TextureRegionDrawable(region));
+        icon.setSize(ICON_SIZE, ICON_SIZE);
+        icon.setPosition(PADDING, y);
+        addActor(icon);
+    }
+
     private void refreshLumber() {
         int amount = AdventurePlayer.current().getWood();
         if (amount != lastLumber) {
             lastLumber = amount;
-            lumberLabel.restart("[%95][+Lumber]{EMERGE} " + amount + "{ENDEMERGE}");
+            lumberLabel.restart("[%95]{EMERGE} " + amount + "{ENDEMERGE}");
         }
     }
 
@@ -69,7 +97,7 @@ public class ResourceDisplayActor extends Group {
         int amount = AdventurePlayer.current().getStone();
         if (amount != lastStone) {
             lastStone = amount;
-            stoneLabel.restart("[%95][+Stone]{EMERGE} " + amount + "{ENDEMERGE}");
+            stoneLabel.restart("[%95]{EMERGE} " + amount + "{ENDEMERGE}");
         }
     }
 }
