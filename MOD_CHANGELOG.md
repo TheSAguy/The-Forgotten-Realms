@@ -1088,6 +1088,66 @@ layout exactly - **no code or atlas changes needed, this was a pure asset swap**
 | Bank | 256, 432 |
 | Exchange | 64, 304 |
 
+## Shop overlay fix, take three - hide the real tile instead of covering it (2026-08-05)
+
+Take two's fixed-offset overlay (`y = getY() + getHeight()`, one tile up) still didn't work -
+user screenshots showed the same double-image, plus the new icon now rendering noticeably too
+high, with the old red-roofed building visible below it. Re-checked the direction math multiple
+independent ways (cross-referencing the sign offset, re-deriving under both a "flipped" and
+"unflipped" object-coordinate hypothesis) and it kept checking out as correct in the abstract -
+so the fixed offset itself wasn't obviously wrong, but empirically wasn't working. Decoded a
+*second* town file to get more data: `towns/waste_town.tmx` (the actual dedicated wasteland-town
+map - `towns/` turns out to hold purpose-built `waste_town*.tmx`/`swamp_town*.tmx`/etc. variants,
+one from `swamp_capital.tmx` used for the take-two derivation, wasn't even the right file family
+to be checking). Confirmed the same "Walls one row up, Overlay one row up from that" pattern
+holds solidly there too (9 of 10 shops using the *identical* Walls gid), which raised the
+uncomfortable possibility that the pattern might still not generalize to every town template in
+the game even though it held in two separate files - not something worth re-litigating forever
+by hand-checking file after file.
+
+Took the user's own suggestion instead: stop trying to *cover* the real building and just *hide*
+it. New approach, entirely in `MapStage`/`ShopActor`:
+
+- `MapStage.findOverheadTiles(col, row)` - called once per shop at map-load time, right after the
+  shop's `MapActor` gets its final position - searches the "Walls" then "Overlay"
+  `TiledMapTileLayer`s for the nearest non-empty cell directly above the shop's own tile column
+  (checked first; falls back to searching below if nothing's found above, in case some template
+  really is authored the other way), up to 3 tiles in each direction. Caches each hit's layer +
+  col/row + original `Cell` per shop id in `MapStage.shopOverheadTiles`.
+- `MapStage.setShopOverheadTilesHidden(shopId, hidden)` - `layer.setCell(col, row, null)` to hide,
+  restores the cached original `Cell` to unhide. `ShopActor.act()` calls this live every frame
+  (same pattern as the sign-visibility fix) - hidden whenever destroyed-rubble or a special
+  building's icon is meant to be showing, restored for a plain unmodified Card Shop.
+- `MapStage.getShopOverheadBounds(shopId)` - world-space bounding box of whatever was actually
+  found (not a fixed guess), used by `ShopActor.drawCenteredOverFootprint()` to position the
+  overlay art exactly where the (now-hidden) real building was, instead of an assumed offset.
+  Falls back to the old one-tile-up guess only if no overhead tiles were found for a given shop at
+  all (defensive - better than nothing, though should be rare given the search window).
+
+This sidesteps needing the fixed-offset math to be right for every town template: since the tile
+itself is gone, the overlay no longer needs pixel-perfect alignment against it to look correct,
+and its position is now derived per-shop from what's actually there rather than assumed once
+globally. Also answers the user's own question ("are all the neutral city layouts the same?") -
+doesn't matter anymore, this works per-shop regardless of which town template is in use.
+
+## HUD polish round 3: clock, resource panel size, Exchange icons/pricing (2026-08-05)
+
+- **Clock moved again** - now below the "Zoom" button (was between "Wait" and "Zoom", per the
+  previous round's screenshot; turns out that wasn't actually what was wanted). Positioned
+  relative to `openMapActor` ("Zoom") the same way the round-2 fix pinned it to `waitCheckBox` -
+  a sibling actor, not `miniMap` directly.
+- **Lumber/Stone panel enlarged** - icons were touching the `windowMain10Patch` border. Panel
+  64x32 -> 72x36, padding 6 -> 8, icons now vertically centered in their row instead of flush to
+  the edge.
+- **Exchange dialog: Gold/Shards trades use real icons, not words.** `[+Gold]`/`[+Shards]` markup
+  (proven working, unlike the Lumber/Stone markup attempt) now renders inline in the Buy/Sell
+  Shard trade button labels, matching a reference screenshot the user provided. Lumber/Stone
+  trades stay text-labeled - their icon art only exists as a separate atlas rendered through real
+  `Image` actors (see `ResourceDisplayActor`), which a `TextraButton`'s own label can't embed.
+- **Exchange pricing standardized**: every resource now trades at a single denomination - buy 5
+  for 100 gold, sell 5 back for 80 gold (80% buyback, flat 20% spread) - replacing each resource's
+  previous bespoke rate/quantity (10:1 Shards, 1:1 Lumber/Stone at smaller amounts).
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

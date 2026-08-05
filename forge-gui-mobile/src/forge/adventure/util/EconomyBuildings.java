@@ -291,9 +291,10 @@ public class EconomyBuildings {
         dialog.getContentTable().add(label).width(250f).row();
     }
 
-    // (Gold->Shard, Shard->Gold, Gold->Wood, Wood->Gold, Gold->Stone, Stone->Gold). Rates are a
-    // first pass ("choose exchange rates for now" - explicitly left to me) - buy/sell spread on
-    // Wood/Stone mirrors typical raw-resource economies, Shards priced as the scarce currency.
+    // (Gold->Shard, Shard->Gold, Gold->Wood, Wood->Gold, Gold->Stone, Stone->Gold). Standardized
+    // (per feedback) to one denomination for every resource: buy 5 for 100 gold, sell 5 back for
+    // 80 gold (80% buyback, a flat 20% spread) - previously each resource had its own bespoke
+    // rate/quantity, no longer the case.
     private static final class Trade {
         final String label;
         final int giveGold, giveShards, giveWood, giveStone;
@@ -320,13 +321,22 @@ public class EconomyBuildings {
         }
     }
 
+    private static final int TRADE_UNITS = 5;
+    private static final int TRADE_BUY_PRICE = 100;
+    private static final int TRADE_SELL_PRICE = 80;
+
+    // Gold/Shards render as real icons via [+Gold]/[+Shards] markup (Controls.getTextraFont()'s
+    // registered items.atlas - proven working, unlike the Lumber/Stone markup attempt that didn't
+    // pan out, see ResourceDisplayActor). Lumber/Stone have real icon art now too, but only as a
+    // separate atlas rendered through actual Image actors (not font markup), which a TextraButton
+    // label can't embed - so those two trades stay text-labeled for now.
     private static final Trade[] TRADES = {
-            new Trade("10 Gold -> 1 Shard", 10, 0, 0, 0, 0, 1, 0, 0),
-            new Trade("1 Shard -> 8 Gold", 0, 1, 0, 0, 8, 0, 0, 0),
-            new Trade("5 Gold -> 5 Lumber", 5, 0, 0, 0, 0, 0, 5, 0),
-            new Trade("5 Lumber -> 3 Gold", 0, 0, 5, 0, 3, 0, 0, 0),
-            new Trade("5 Gold -> 5 Stone", 5, 0, 0, 0, 0, 0, 0, 5),
-            new Trade("5 Stone -> 3 Gold", 0, 0, 0, 5, 3, 0, 0, 0),
+            new Trade("Buy " + TRADE_UNITS + " [+Shards] for " + TRADE_BUY_PRICE + " [+Gold]", TRADE_BUY_PRICE, 0, 0, 0, 0, TRADE_UNITS, 0, 0),
+            new Trade("Sell " + TRADE_UNITS + " [+Shards] for " + TRADE_SELL_PRICE + " [+Gold]", 0, TRADE_UNITS, 0, 0, TRADE_SELL_PRICE, 0, 0, 0),
+            new Trade("Buy " + TRADE_UNITS + " Lumber for " + TRADE_BUY_PRICE + " [+Gold]", TRADE_BUY_PRICE, 0, 0, 0, 0, 0, TRADE_UNITS, 0),
+            new Trade("Sell " + TRADE_UNITS + " Lumber for " + TRADE_SELL_PRICE + " [+Gold]", 0, 0, TRADE_UNITS, 0, TRADE_SELL_PRICE, 0, 0, 0),
+            new Trade("Buy " + TRADE_UNITS + " Stone for " + TRADE_BUY_PRICE + " [+Gold]", TRADE_BUY_PRICE, 0, 0, 0, 0, 0, 0, TRADE_UNITS),
+            new Trade("Sell " + TRADE_UNITS + " Stone for " + TRADE_SELL_PRICE + " [+Gold]", 0, 0, 0, TRADE_UNITS, TRADE_SELL_PRICE, 0, 0, 0),
     };
 
     public static void openExchangeDialog(MapStage stage) {

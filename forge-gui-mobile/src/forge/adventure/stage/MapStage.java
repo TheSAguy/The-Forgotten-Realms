@@ -75,6 +75,97 @@ public class MapStage extends GameStage {
     protected ArrayList<EnemySprite> enemies = new ArrayList<>();
     public Map<Integer, Vector2> waypoints = new HashMap<>();
 
+    // A shop's own "shop" object is just its 16x16 doorstep footprint - the real building art is
+    // baked directly into the town's tile layers (typically "Walls" for the body, "Overlay" for
+    // the roof, drawn on a separate layer so it renders in front of the player) one or more tiles
+    // above that footprint. There's no object-level way to hide a baked tile, so instead of
+    // guessing a fixed pixel offset to draw an overlay over (which didn't hold across every town
+    // map tried), this locates the actual tile(s) per shop at map-load time and lets ShopActor
+    // hide/restore them directly - see findOverheadTiles()/setShopOverheadTilesHidden().
+    private final Map<Integer, List<OverheadTile>> shopOverheadTiles = new HashMap<>();
+
+    private static class OverheadTile {
+        final TiledMapTileLayer layer;
+        final int col, row;
+        final TiledMapTileLayer.Cell originalCell;
+
+        OverheadTile(TiledMapTileLayer layer, int col, int row, TiledMapTileLayer.Cell originalCell) {
+            this.layer = layer;
+            this.col = col;
+            this.row = row;
+            this.originalCell = originalCell;
+        }
+    }
+
+    // Searches "Walls" then "Overlay" for the nearest non-empty cell directly above the shop's
+    // own column (checked first, confirmed correct by decoding real town .tmx tile data - the
+    // Walls tile consistently sits one row above the shop's own row, Overlay one row above that),
+    // falling back to searching below in case a particular town's authoring differs. Only ever
+    // called once per shop, at map-load time, before any shop's tiles have been hidden - later
+    // shops searching past an earlier shop's now-hidden cell would get a false miss.
+    private List<OverheadTile> findOverheadTiles(int shopCol, int shopRow) {
+        List<OverheadTile> found = new ArrayList<>();
+        if (tiledMap == null)
+            return found;
+        for (String layerName : new String[]{"Walls", "Overlay"}) {
+            MapLayer mapLayer = tiledMap.getLayers().get(layerName);
+            if (!(mapLayer instanceof TiledMapTileLayer))
+                continue;
+            TiledMapTileLayer layer = (TiledMapTileLayer) mapLayer;
+            TiledMapTileLayer.Cell hit = null;
+            int hitRow = -1;
+            for (int dr = 1; dr <= 3 && hit == null; dr++) {
+                TiledMapTileLayer.Cell cell = layer.getCell(shopCol, shopRow + dr);
+                if (cell != null) {
+                    hit = cell;
+                    hitRow = shopRow + dr;
+                }
+            }
+            if (hit == null) {
+                for (int dr = 1; dr <= 3 && hit == null; dr++) {
+                    TiledMapTileLayer.Cell cell = layer.getCell(shopCol, shopRow - dr);
+                    if (cell != null) {
+                        hit = cell;
+                        hitRow = shopRow - dr;
+                    }
+                }
+            }
+            if (hit != null)
+                found.add(new OverheadTile(layer, shopCol, hitRow, hit));
+        }
+        return found;
+    }
+
+    /** Hides (or restores) the real building art found above this shop, live - safe to call every frame. */
+    public void setShopOverheadTilesHidden(int shopId, boolean hidden) {
+        List<OverheadTile> tiles = shopOverheadTiles.get(shopId);
+        if (tiles == null)
+            return;
+        for (OverheadTile t : tiles)
+            t.layer.setCell(t.col, t.row, hidden ? null : t.originalCell);
+    }
+
+    /**
+     * World-space bounding box of the real building art found above this shop, for positioning a
+     * replacement overlay exactly over it - or null if none was found (e.g. search radius missed
+     * it), in which case the caller should fall back to a fixed guess.
+     */
+    public Rectangle getShopOverheadBounds(int shopId) {
+        List<OverheadTile> tiles = shopOverheadTiles.get(shopId);
+        if (tiles == null || tiles.isEmpty())
+            return null;
+        float tileW = tiles.get(0).layer.getTileWidth();
+        float tileH = tiles.get(0).layer.getTileHeight();
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        for (OverheadTile t : tiles) {
+            minX = Math.min(minX, t.col * tileW);
+            minY = Math.min(minY, t.row * tileH);
+            maxX = Math.max(maxX, (t.col + 1) * tileW);
+            maxY = Math.max(maxY, (t.row + 1) * tileH);
+        }
+        return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+    }
+
     //todo: add additional graphs for other sprite sizes if desired. Current implementation
     // allows for mobs of any size to fit into 16x16 tiles for navigation purposes
     float collisionWidthMod = 0.4f;
@@ -212,6 +303,7 @@ public class MapStage extends GameStage {
         actors.clear();
         collisionRect.clear();
         waypoints.clear();
+        shopOverheadTiles.clear();
 
         if (collisionGroup != null)
             collisionGroup.remove();
@@ -723,6 +815,12 @@ public class MapStage extends GameStage {
                         }
                         ShopActor actor = new ShopActor(this, id, ret, data);
                         addMapActor(obj, actor);
+                        // Locate the real building art baked above this shop's own footprint (see
+                        // findOverheadTiles()'s own doc comment) once, right after the actor's
+                        // final position is set, before any shop's tiles get hidden this session.
+                        int shopCol = (int) (actor.getX() / actor.getWidth());
+                        int shopRow = (int) (actor.getY() / actor.getHeight());
+                        shopOverheadTiles.put(id, findOverheadTiles(shopCol, shopRow));
                         // While a wasteland shop is still rubble, the sign would give away what it
                         // sells before the player has rebuilt it. Signs used to only be created at
                         // all when the shop was already rebuilt at map-load time, which meant a

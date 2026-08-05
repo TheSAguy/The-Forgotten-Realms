@@ -103,8 +103,9 @@ Helping a color angers its two enemies, not its allies.
   **Restyled (2026-08-05)** to use the same `windowMain10Patch` stone-block panel every dialog/
   window in the game already uses, instead of a hand-drawn flat box - same treatment given to
   the Lumber/Stone readout, #9, plus 6px padding so the text clears the panel's border instead of
-  running up against it. **Repositioned same day**, per an annotated screenshot: now sits between
-  the "Wait" checkbox and the "Zoom" button (was below Zoom).
+  running up against it. **Repositioned twice same day** - first to between "Wait" and "Zoom"
+  per an annotated screenshot, then back to directly below "Zoom" per a follow-up correction
+  (that first move wasn't actually what was wanted, once seen in place).
 - Still to do: certain monsters get buffed in day or night, penalized in the opposite; quest
   timers; periodic events (trigger every N days, etc) — deferred to follow-up passes once
   the clock itself is proven out.
@@ -294,7 +295,9 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   stone-block frame every dialog/window in the game already uses (also applied to the Day/Clock
   widget, #6) - reads as part of the HUD's existing look rather than a separate bolted-on box.
   Still positioned in code (not `hud.json`) - forking that shared, common-to-every-plane file
-  remains a full-copy-not-merge risk, same as `config.json`.
+  remains a full-copy-not-merge risk, same as `config.json`. **Enlarged (2026-08-05)** - icons
+  were touching the panel's border; panel grew 64x32 -> 72x36 with more padding, icons now
+  vertically centered in their row.
 - Earned via Economy Buildings (#10) below - no other source yet (not obtainable via shops,
   rewards, or the `give item` console command).
 
@@ -321,20 +324,21 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   original randomly-rolled type though (e.g. a Card Shop sign), so once it becomes a Bank/Mine/
   Exchange the sign would show wrong info - hidden entirely in that case for now. **Wishlist:**
   dedicated sign art per economy building type, so e.g. a Bank gets its own sign instead of none.
-- **Rebuilt/destroyed shops still showed the old image behind the ruin/building art - the first
-  fix attempt (2026-08-05) didn't work, real fix same day.** First attempt assumed the shop's
-  normal-looking body was a Tiled-rendered tile-object (a `gid` on the "shop" object, see
-  `obj/shop.tx`) and tried toggling its `MapObject.setVisible()` live. That did nothing - checked
-  the actual renderer this codebase uses (`OrthogonalTiledMapRendererBleeding`) and confirmed
-  `renderObject()` is an inherited no-op in this rendering pipeline, so gid-having *objects* are
-  never auto-rendered here at all, regardless of `isVisible()`. Decoded a real town `.tmx`'s
-  binary tile-layer data directly to find the actual mechanism: the visible building is baked
-  into the `Walls`/`Overlay` *tile layers*, one full tile above the shop object's own doorstep
-  row - not touchable via any object-level API, no way to "turn it off" at runtime. Real fix:
-  stopped trying to hide it and instead made the overlay art fully cover it - repositioned
-  `ShopActor.drawCenteredOverFootprint()` to anchor one tile above the footprint (matching where
-  Walls/Overlay actually are) instead of vertically centering on the footprint, which is why it
-  only ever covered the empty doorstep tile and left the real building exposed above it.
+- **Rebuilt/destroyed shops showed the old image behind the ruin/building art - took three
+  attempts across 2026-08-05 to actually fix.** Attempt 1 assumed the shop's normal-looking body
+  was a Tiled-rendered tile-object and tried toggling `MapObject.setVisible()` live - a no-op,
+  since this codebase's renderer never actually draws gid-having objects at all (confirmed by
+  decompiling the renderer). Attempt 2 found the real mechanism (the building is baked into the
+  town's `Walls`/`Overlay` tile layers, not the shop object) and tried covering it with a
+  precisely-offset overlay - still didn't work in testing, and the offset math kept checking out
+  fine on paper even after re-deriving it multiple ways, which was the sign to stop trying to
+  perfectly predict a fixed offset. **Real fix (attempt 3):** stop covering it, hide it instead -
+  `MapStage.findOverheadTiles()` locates each shop's actual Walls/Overlay tile(s) at map-load
+  time (searching, not assuming, so it doesn't matter whether every town template is laid out the
+  same way), `setShopOverheadTilesHidden()` nulls/restores those cells live, and the overlay art
+  now positions itself over whatever was actually found instead of a guessed offset. See
+  `MOD_CHANGELOG.md` for the full blow-by-blow, including why attempt 2's math wasn't obviously
+  wrong yet still didn't hold up in practice.
 - **Build menu now always shows all options, cost included, greyed out if unaffordable** -
   matches the pattern the Bank/Exchange dialogs already used (`addButtonRow`'s `enabled` flag);
   previously an option was hidden entirely if the player was short on gold, via a `hasGold`
@@ -349,10 +353,12 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   plus "Deposit All"/"Withdraw All" (simplified from 10/50/100). Balance earns 5% compound
   interest every 7 in-game days, tracked per-town (`PointOfInterestChanges.bankBalance`),
   separate from the player's carried gold.
-- **Exchange:** fixed-rate trades between Gold/Shards/Wood/Stone (rates chosen as a first pass,
-  not balance-tested: 10 Gold↔1 Shard/1 Shard↔8 Gold, 5 Gold↔5 Wood/5 Wood↔3 Gold, 5 Gold↔5
-  Stone/5 Stone↔3 Gold - buy/sell spread on the two raw resources, Shards priced as the scarce
-  currency).
+- **Exchange:** trades between Gold/Shards/Lumber/Stone. **Standardized (2026-08-05)** to one
+  denomination for every resource - buy 5 for 100 gold, sell 5 back for 80 gold (80% buyback) -
+  replacing the original bespoke per-resource rates. Gold/Shard trade buttons now show real
+  `[+Gold]`/`[+Shards]` icons inline instead of words (per a reference screenshot); Lumber/Stone
+  stay text-labeled since their icon art only exists as separate `Image` actors (see #9), not
+  something a button label can embed.
 - **Deferred, needs #7 (Dynamic Territory Control) first:** if the player loses and retakes a
   town, buildings should be cheaper to rebuild, and each building type should show its own
   ruin art on recapture instead of the generic broken-shop art (no dedicated ruin art exists

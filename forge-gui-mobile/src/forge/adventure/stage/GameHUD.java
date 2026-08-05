@@ -155,11 +155,11 @@ public class GameHUD extends Stage {
                 WorldStage.getInstance().setFastTimeEnabled(((CheckBox) actor).isChecked());
             }
         });
-        // Moved below the Wait checkbox, above Zoom (per feedback + annotated screenshot) - was
-        // directly below the minimap/Zoom column before. Positioned relative to waitCheckBox
-        // (not miniMap) so it stays pinned to it regardless of whatever gives miniMap.getWidth()
-        // its value at this point in construction.
-        timeOfDayActor.setPosition(waitCheckBox.getX(), waitCheckBox.getY() - timeOfDayActor.getHeight() - 4);
+        // Below the Zoom button (per feedback) - positioned relative to openMapActor ("Zoom",
+        // from hud.json) rather than miniMap directly, same reasoning as waitCheckBox/
+        // speedCheckBox above: stays pinned to a sibling actor regardless of whatever gives
+        // miniMap.getWidth() its value at this point in construction.
+        timeOfDayActor.setPosition(openMapActor.getX(), openMapActor.getY() - timeOfDayActor.getHeight() - 4);
         resourceDisplayActor = new ResourceDisplayActor();
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());

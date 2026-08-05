@@ -28,10 +28,10 @@ import forge.adventure.player.AdventurePlayer;
  */
 public class ResourceDisplayActor extends Group {
 
-    private static final int PANEL_WIDTH = 64;
-    private static final int PANEL_HEIGHT = 16;
+    private static final int PANEL_WIDTH = 72;
+    private static final int PANEL_HEIGHT = 18;
     private static final int ICON_SIZE = 16;
-    private static final int PADDING = 6;
+    private static final int PADDING = 8;
     private static final String ICON_ATLAS = "maps/tileset/resource_icons.atlas";
 
     private final TypingLabel lumberLabel;
@@ -45,8 +45,9 @@ public class ResourceDisplayActor extends Group {
         background.setSize(PANEL_WIDTH, PANEL_HEIGHT * 2);
         addActor(background);
 
-        addIcon("Lumber", PANEL_HEIGHT);
-        addIcon("Stone", 0);
+        float iconYInset = (PANEL_HEIGHT - ICON_SIZE) / 2f;
+        addIcon("Lumber", PANEL_HEIGHT + iconYInset);
+        addIcon("Stone", iconYInset);
 
         float labelX = PADDING + ICON_SIZE + 2;
         float labelWidth = PANEL_WIDTH - labelX - PADDING;
