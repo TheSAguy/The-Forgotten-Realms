@@ -137,12 +137,6 @@ public class EconomyBuildings {
         return action;
     }
 
-    private static DialogData.ConditionData hasGoldCondition() {
-        DialogData.ConditionData condition = new DialogData.ConditionData();
-        condition.hasGold = BUILD_COST;
-        return condition;
-    }
-
     // One town can have at most one of each of the 6 special types (a Bank AND a Gold Mine AND
     // an Exchange, etc. are all fine together - just not two Banks), so gating is per-type, keyed
     // "economyBuilt_<type>" - distinct from ECONOMY_TYPE_FLAG below, which is only a one-shot
@@ -167,14 +161,18 @@ public class EconomyBuildings {
         return action;
     }
 
+    // Always shown (rather than hidden via a condition) so the player can see the cost even when
+    // short on gold - just greyed out via isDisabled, same pattern already used by the Bank/
+    // Exchange dialogs' addButtonRow(). "Already have one of this type" is still a hard hide via
+    // condition though, since that's a structural exclusion, not an affordability one.
     private static DialogData buildOption(int type, int objectId) {
         DialogData option = new DialogData();
         option.name = buildingName(type) + " (" + BUILD_COST + " gold)";
+        option.isDisabled = AdventurePlayer.current().getGold() < BUILD_COST;
         if (type == NONE) {
-            option.condition = new DialogData.ConditionData[]{hasGoldCondition()};
             option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId)};
         } else {
-            option.condition = new DialogData.ConditionData[]{hasGoldCondition(), noBuildingOfTypeYetCondition(type)};
+            option.condition = new DialogData.ConditionData[]{noBuildingOfTypeYetCondition(type)};
             option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId), setEconomyTypeAction(type), setBuiltFlagAction(type)};
         }
         return option;

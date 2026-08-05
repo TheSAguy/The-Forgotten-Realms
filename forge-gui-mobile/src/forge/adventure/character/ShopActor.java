@@ -2,6 +2,7 @@ package forge.adventure.character;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.data.ShopData;
@@ -21,12 +22,26 @@ public class ShopActor extends MapActor {
     private final MapStage stage;
     private ShopData shopData;
     Array<Reward> rewardData;
+    // The shop's visible body isn't drawn by this Actor at all - it's a static tile Tiled renders
+    // directly from this MapObject's own gid (see obj/shop.tx). Destroyed-rubble art and economy-
+    // building icons (drawn in draw() below) are meant to fully REPLACE that tile, not overlay it,
+    // so act() keeps the underlying gid tile hidden whenever either applies - otherwise the
+    // original shop tile shows through behind/around the smaller overlay art.
+    private final MapObject mapObject;
 
-    public ShopActor(MapStage stage, int id, Array<Reward> rewardData, ShopData data) {
+    public ShopActor(MapStage stage, int id, Array<Reward> rewardData, ShopData data, MapObject mapObject) {
         super(id);
         this.stage = stage;
         this.shopData = data;
         this.rewardData = rewardData;
+        this.mapObject = mapObject;
+    }
+
+    @Override
+    public void act(float delta) {
+        super.act(delta);
+        if (mapObject != null)
+            mapObject.setVisible(!isDestroyed() && EconomyBuildings.getBuildingType(stage.getChanges(), objectId) == EconomyBuildings.NONE);
     }
 
     public float getPriceModifier() {

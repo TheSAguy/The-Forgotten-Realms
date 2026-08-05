@@ -217,18 +217,33 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   territory have its own curated `enemies` list (and if so, which enemies - something
   themed/weaker, reflecting "friendly" territory?), or be intentionally enemy-free? Needs the
   user's call before `player.json` gets a real `enemies` array.
-- **Open item, next up - decorative terrain features (rocks/trees/"doo-dads") get wiped by a
-  repaint, not just roads:** `repaintBiomeAroundTown()` resets `terrainMap[x][y] = 0` for every
-  touched tile (needed to clear stale neighbor data), which also erases whatever
-  decoration/structure was there. Investigated whether the old index could just be preserved
+- **Decoration doodads (rocks/flowers/etc, `mapObjectIds`) now regenerate on repaint** -
+  `World.regenerateDoodadsInRadius()` clears old-biome doodads in the radius and re-places new
+  ones using the *target* biome's own `spriteNames`/density, called from
+  `repaintBiomeAroundTown()`; `WorldBackground.reloadChunkObjects()` forces the affected chunks'
+  cached decoration Actors to refresh so the change is visible without leaving/re-entering the
+  area. This does **not** cover the bigger structural terrain features (dead trees/craters, from
+  `BiomeStructureData`) - see the still-deferred item below for why those remain out of scope.
+  - **Playtest fix (2026-08-05):** regenerated, but effectively invisible - `BiomeSpriteData`
+    density values (e.g. `player.json`'s only sprite, "Stone", at 0.01) are tuned for full
+    world-gen scale (thousands of tiles); over a radius-10 repaint patch (~300 tiles) that same
+    density yields only ~3 doodads, easy to miss entirely and easily read as "still no doodads."
+    Fixed with a `DOODAD_DENSITY_MULTIPLIER` (5x) applied only inside the repaint path, leaving
+    the shared density values world-gen itself uses untouched. Applies to any repainted biome
+    generically, not just `player` - relevant once more than one of the 7 colors has its own
+    biome file.
+- **Deferred, not started - the bigger structural terrain features (dead trees/craters) still
+  get wiped by a repaint, not regenerated:** `repaintBiomeAroundTown()` resets
+  `terrainMap[x][y] = 0` for every touched tile (needed to clear stale neighbor data), which also
+  erases whatever structure was there. Investigated whether the old index could just be preserved
   instead of zeroed (like the round-2 road fix did) - **it can't, safely**: `colorless.json` (2
   terrain entries + 2 structure sets of 7 objects each) and `green.json` (2 terrain entries + 1
   structure set of 11 objects) have differently-sized variant tables, so an index valid under
   the old biome isn't guaranteed valid under the new one - real risk of an out-of-bounds lookup
-  or garbage sprite, not just cosmetic. Current behavior (reset to plain ground) is the *safe*
-  version of "leave it alone," not an oversight.
-  - **The real fix** would be regenerating decorations appropriate to the *new* biome for the
-    repainted tiles, not preserving the old ones - i.e. re-running a scoped-down version of
+  or garbage sprite, not just cosmetic. Current behavior (reset to plain ground, no structure) is
+  the *safe* version of "leave it alone," not an oversight.
+  - **The real fix** would be regenerating structures appropriate to the *new* biome for the
+    repainted tiles the same way doodads now do - i.e. re-running a scoped-down version of
     `World.generateNew()`'s own per-tile terrain/structure noise selection (see the big loop
     starting around the `"calculation each biome position based on noise and radius"` comment
     in `World.java`), but evaluated only within the repaint radius, against the *target*
@@ -236,10 +251,10 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   - Same size/category of work as the deferred autotile-blending fix above - worth doing as one
     combined pass on the repaint mechanism rather than two separate ones, since both stem from
     the same root cause (the prototype does a flat overwrite instead of a biome-aware repaint).
-  - Not started. `WorldBackground.onTileRevealed()` already has the "patch one tile's rendered
-    sprite into the live chunk texture" plumbing this would reuse (same as the road/haze fixes
-    did) - the missing piece is purely the *selection* logic (what terrain/structure index to
-    assign per tile for the new biome), not the rendering/patching path.
+  - `WorldBackground.onTileRevealed()` already has the "patch one tile's rendered sprite into the
+    live chunk texture" plumbing this would reuse (same as the road/haze fixes did) - the missing
+    piece is purely the *selection* logic (what terrain/structure index to assign per tile for
+    the new biome), not the rendering/patching path.
 
 ### 8. Town Fortifications — `Not Started`
 - Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete
@@ -266,9 +281,25 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
 - **Building icons** draw at their real 32x32 native size centered on the shop's 16x16 footprint
   (was incorrectly downscaled to footprint size, see `MOD_CHANGELOG.md`) - same fix applied to
   the broken-shop rubble art.
-- **Signs re-appear live on rebuild:** the sign-post hinting what a shop sells is hidden while
-  that shop is still rubble and now reappears the instant it's rebuilt, no need to leave/re-enter
-  the town (`MapStage.java` - see `MOD_CHANGELOG.md` for the live-`act()` visibility fix).
+- **Signs re-appear live on rebuild, and are hidden (not wrong) on economy buildings:** the
+  sign-post hinting what a shop sells is hidden while that shop is still rubble and now reappears
+  the instant it's rebuilt, no need to leave/re-enter the town (`MapStage.java` - see
+  `MOD_CHANGELOG.md` for the live-`act()` visibility fix). The sign is keyed to the shop's
+  original randomly-rolled type though (e.g. a Card Shop sign), so once it becomes a Bank/Mine/
+  Exchange the sign would show wrong info - hidden entirely in that case for now. **Wishlist:**
+  dedicated sign art per economy building type, so e.g. a Bank gets its own sign instead of none.
+- **Rebuilt/destroyed shops no longer show two overlapping images:** the shop's normal-looking
+  body isn't drawn by any of our own code - it's a static tile Tiled renders directly from the
+  shop object's own `gid` (see `obj/shop.tx`). The destroyed-rubble art and economy-building
+  icons are drawn as a *separate* overlay actor and were never hiding that underlying tile, so
+  both showed at once, misaligned. Fixed by toggling the `MapObject`'s own `setVisible()` live
+  (`ShopActor.act()`) - hidden whenever the overlay is meant to fully replace it (destroyed, or
+  became a special building), shown for a plain unmodified/rebuilt Card Shop.
+- **Build menu now always shows all options, cost included, greyed out if unaffordable** -
+  matches the pattern the Bank/Exchange dialogs already used (`addButtonRow`'s `enabled` flag);
+  previously an option was hidden entirely if the player was short on gold, via a `hasGold`
+  dialog condition. "Already have one of this type in town" is still a hard hide, not a grey-out
+  - that's a structural exclusion, not an affordability one.
 - **Mines/Lumber Mill:** produce +5 of their resource (Shards/Gold/Wood/Stone respectively)
   once per elapsed in-game day (`EconomyBuildings.processDaysPassed()`, hooked into
   `WorldStage.onActing()` off the same day counter #6's clock drives - so this also requires

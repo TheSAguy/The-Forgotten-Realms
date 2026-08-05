@@ -814,6 +814,68 @@ random across the whole roster rather than always the same one - still not "no e
 that's a separate design question (should `player` territory be enemy-free by design, or have its
 own curated `enemies` list?) that wasn't resolved this session; see `MOD_SCOPE.md` #7.
 
+## Post-testing fixes, round 2 (2026-08-05)
+
+Four more issues from the same playtest pass that covered the icon-scaling/bank/submenu/sign/
+enemy fixes above, found after those were deployed and re-tested.
+
+**Doodads still invisible after a repaint.** `World.regenerateDoodadsInRadius()` (added by the
+other machine's session; confirmed it was actually deployed - extracted the class straight from
+the installed jar and `cmp`'d it byte-for-byte against a fresh compile before assuming otherwise)
+was genuinely running, but `BiomeSpriteData.density` values are tuned for full world-gen scale: `player.json`'s
+only sprite, "Stone", is `0.01` (1%), which is plenty over a map with thousands of tiles but
+yields only ~3 expected doodads over a radius-10 repaint patch (~300 tiles) - easy to read as
+"none" in a quick look. Added `World.DOODAD_DENSITY_MULTIPLIER = 5f`, applied only inside
+`regenerateDoodadsInRadius()`'s density check (`Math.min(1f, sprite.density *
+DOODAD_DENSITY_MULTIPLIER)`), leaving the shared density value world-gen itself reads untouched.
+Generic fix, not player-biome-specific - applies to any future biome recolored via the same path.
+
+**Rebuilt/destroyed shops showed two overlapping images.** Root cause: a shop's normal-looking
+body was never drawn by any Actor at all - `MapActor.draw()` (the class `ShopActor` extends) only
+draws a debug box and particle effects, nothing else. The visible "shop" is a static tile Tiled
+renders automatically from the shop object's own `gid` (see `obj/shop.tx`, `gid="1251"` into
+`buildings.tsx`/`buildings.png`, the actual per-shop-type gid then overridden per instance in
+each town's `.tmx`) - a completely separate render pass (`OrthogonalTiledMapRendererBleeding`,
+inherited object-layer rendering) from `ShopActor.draw()`'s destroyed-rubble/building-icon
+overlay. The overlay was only ever drawn *on top of* this tile, never hiding it, so the original
+shop art showed through behind/around the smaller overlay whenever the two didn't pixel-perfectly
+align. Confirmed `MapObject.isVisible()`/`setVisible()` is the right lever two ways: (1)
+`BatchTiledMapRenderer`'s tile-object rendering skips invisible objects by design (standard
+LibGDX), and (2) this codebase already reads `obj.isVisible()` elsewhere in `MapStage.loadObjects
+()` (the `hidden` local) to drive other per-object-type behavior, so it's an established, working
+mechanism here, not a guess. Fixed by giving `ShopActor` a reference to its own `MapObject` (new
+constructor param, passed from `MapStage.java`'s `new ShopActor(this, id, ret, data, obj)`) and
+a new `act()` override that calls `mapObject.setVisible(...)` every frame: visible only for a
+plain, unmodified, not-destroyed shop (a normal Card Shop, where the Tiled tile is already
+correct); hidden whenever `ShopActor.draw()`'s overlay is meant to fully *replace* it (destroyed-
+rubble, or became one of the 6 economy building types) - same live-per-frame pattern as the
+sign-visibility fix, since building/destruction can happen mid-visit without a map reload.
+Didn't attempt to also nudge the overlay's own pixel position - once the double-image is gone
+there's nothing to compare it against, so any remaining position complaint needs a fresh, precise
+report (direction + approx pixels, or a zoomed screenshot) rather than a guess at Tiled's tile-
+object anchor conventions.
+
+**Wrong sign showing on economy buildings.** The sign `TextureSprite`'s `data.sprite`/
+`spriteAtlas` are keyed to the shop's original, randomly-rolled `ShopData` (e.g. a Card Shop
+sign) - unrelated to whatever economy building type it later became, so a Bank/Mine/Exchange
+showed a stale, wrong sign. Extended both sign/overlay `TextureSprite`s' `act()` visibility check
+in `MapStage.java` with `&& EconomyBuildings.getBuildingType(getChanges(), shopId) ==
+EconomyBuildings.NONE` - hidden (not wrong) once a shop becomes a special building. Dedicated
+per-building-type sign art is a `MOD_SCOPE.md` wishlist item, not built this round.
+
+**Build menu hid unaffordable options instead of greying them out.** `buildOption()` gated every
+option behind a `hasGold` `DialogData.ConditionData`, so `MapDialog.loadDialog()`'s
+`isConditionOk()` filter skipped adding the button entirely when short on gold - no way to even
+see what a building costs without already affording it. `DialogData.isDisabled` /
+`MapDialog.loadDialog()` already had full, working support for a visible-but-disabled button
+(same mechanism the Bank/Exchange dialogs' `addButtonRow()` already uses) - just wasn't wired up
+here. Removed the `hasGold` condition from `buildOption()`, replaced with `option.isDisabled =
+AdventurePlayer.current().getGold() < BUILD_COST` computed directly. The "already have one of
+this type in this town" gate (`noBuildingOfTypeYetCondition`) is intentionally left as a hard
+condition (still hidden, not greyed) - that's a structural exclusion (a second Bank makes no
+sense to offer at all), not an affordability one, so a different UI treatment didn't seem worth
+adding this round.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

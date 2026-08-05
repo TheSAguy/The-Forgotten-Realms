@@ -721,7 +721,7 @@ public class MapStage extends GameStage {
                         for (RewardData rdata : new Array.ArrayIterator<>(data.rewards)) {
                             ret.addAll(rdata.generate(false, false));
                         }
-                        ShopActor actor = new ShopActor(this, id, ret, data);
+                        ShopActor actor = new ShopActor(this, id, ret, data, obj);
                         addMapActor(obj, actor);
                         // While a wasteland shop is still rubble, the sign would give away what it
                         // sells before the player has rebuilt it. Signs used to only be created at
@@ -730,7 +730,11 @@ public class MapStage extends GameStage {
                         // rebuilding - now always created, but with a live act()-driven visibility
                         // check (same "still wasteland and not this shop's rebuilt flag" condition
                         // ShopActor.isDestroyed() itself uses), so it appears the instant the shop
-                        // is rebuilt without needing a fresh map load.
+                        // is rebuilt without needing a fresh map load. Also hidden once the shop
+                        // becomes an economy building (Bank/Mine/Exchange) - the sign art is keyed
+                        // to this shop's original random type (e.g. a Card Shop sign) which no
+                        // longer matches what got built, and there's no per-building-type sign art
+                        // yet (MOD_SCOPE.md wishlist item) - better to show no sign than a wrong one.
                         if (prop.containsKey("hasSign") && (boolean) prop.get("hasSign") && prop.containsKey("signYOffset") && prop.containsKey("signXOffset")) {
                             final int shopId = id;
                             try {
@@ -738,7 +742,8 @@ public class MapStage extends GameStage {
                                     @Override
                                     public void act(float delta) {
                                         super.act(delta);
-                                        setVisible(!TownRestoration.isWastelandTown() || TownRestoration.isShopRebuilt(MapStage.this, shopId));
+                                        setVisible((!TownRestoration.isWastelandTown() || TownRestoration.isShopRebuilt(MapStage.this, shopId))
+                                                && EconomyBuildings.getBuildingType(getChanges(), shopId) == EconomyBuildings.NONE);
                                     }
                                 };
                                 sprite.setX(actor.getX() + Float.parseFloat(prop.get("signXOffset").toString()));
@@ -750,7 +755,8 @@ public class MapStage extends GameStage {
                                         @Override
                                         public void act(float delta) {
                                             super.act(delta);
-                                            setVisible(!TownRestoration.isWastelandTown() || TownRestoration.isShopRebuilt(MapStage.this, shopId));
+                                            setVisible((!TownRestoration.isWastelandTown() || TownRestoration.isShopRebuilt(MapStage.this, shopId))
+                                                    && EconomyBuildings.getBuildingType(getChanges(), shopId) == EconomyBuildings.NONE);
                                         }
                                     };
                                     overlay.setX(actor.getX() + Float.parseFloat(prop.get("signXOffset").toString()));

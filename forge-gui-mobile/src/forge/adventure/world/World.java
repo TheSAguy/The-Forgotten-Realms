@@ -1075,7 +1075,15 @@ public class World implements Disposable, SaveFileContent {
      * Simplified vs. the original world-gen placement loop: density-only, no noise-region
      * (startArea/endArea) gating - reasonable for a small localized patch, not worth threading
      * through the world-gen noise field for.
+     *
+     * BiomeSpriteData.density values (e.g. "Stone" at 0.01) are tuned for full world-gen, where
+     * the map is thousands of tiles - over a radius-10 patch (~300 tiles) that same density only
+     * yields ~3 doodads, easy to miss entirely. DOODAD_DENSITY_MULTIPLIER boosts density for just
+     * this localized-repaint path so a recolored patch reads as visibly decorated, without
+     * touching the shared density value world-gen itself still uses.
      */
+    private static final float DOODAD_DENSITY_MULTIPLIER = 5f;
+
     private void regenerateDoodadsInRadius(int centerWorldX, int centerWorldY, int radius, BiomeData biome) {
         int radiusSq = radius * radius;
         int tileSize = data.tileSize;
@@ -1118,7 +1126,7 @@ public class World implements Disposable, SaveFileContent {
                     continue;
                 for (String name : biome.spriteNames) {
                     BiomeSpriteData sprite = data.GetBiomeSprites().getSpriteData(name);
-                    if (sprite == null || random.nextFloat() > sprite.density)
+                    if (sprite == null || random.nextFloat() > Math.min(1f, sprite.density * DOODAD_DENSITY_MULTIPLIER))
                         continue;
                     String spriteKey = sprite.key();
                     int key = mapObjectIds.containsKey(spriteKey)
