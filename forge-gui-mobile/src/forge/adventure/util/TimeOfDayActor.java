@@ -1,11 +1,8 @@
 package forge.adventure.util;
 
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Pixmap;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.Batch;
-import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Group;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.github.tommyettinger.textra.TextraLabel;
 import forge.adventure.stage.MapStage;
 import forge.adventure.world.World;
@@ -29,46 +26,27 @@ public class TimeOfDayActor extends Group {
     private String lastTimeText = "";
 
     public TimeOfDayActor() {
-        Texture panelTexture = buildPanelTexture();
+        // Same stone-block-bordered panel every dialog/window in the game already uses
+        // (WindowStyle "default"/ScrollPaneStyle "default" both point at this drawable), instead
+        // of a hand-drawn flat-color box, so this reads as part of the HUD's existing look.
+        Drawable panelBackground = Controls.getSkin().getDrawable("windowMain10Patch");
+        Image background = new Image(panelBackground);
+        background.setSize(PANEL_WIDTH, PANEL_HEIGHT * 2);
+        addActor(background);
 
         dayLabel = Controls.newTextraLabel("");
         dayLabel.setSize(PANEL_WIDTH, PANEL_HEIGHT);
         dayLabel.setPosition(0, PANEL_HEIGHT);
-        addPanelBackground(panelTexture, 0, PANEL_HEIGHT);
+        dayLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
         addActor(dayLabel);
 
         timeLabel = Controls.newTextraLabel("");
         timeLabel.setSize(PANEL_WIDTH, PANEL_HEIGHT);
         timeLabel.setPosition(0, 0);
-        addPanelBackground(panelTexture, 0, 0);
+        timeLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
         addActor(timeLabel);
 
         setSize(PANEL_WIDTH, PANEL_HEIGHT * 2);
-    }
-
-    private void addPanelBackground(Texture texture, float x, float y) {
-        Actor bg = new Actor() {
-            @Override
-            public void draw(Batch batch, float parentAlpha) {
-                Color old = batch.getColor();
-                batch.setColor(1f, 1f, 1f, parentAlpha);
-                batch.draw(texture, getX(), getY(), PANEL_WIDTH, PANEL_HEIGHT);
-                batch.setColor(old);
-            }
-        };
-        bg.setPosition(x, y);
-        addActor(bg);
-    }
-
-    private static Texture buildPanelTexture() {
-        Pixmap pixmap = new Pixmap(PANEL_WIDTH, PANEL_HEIGHT, Pixmap.Format.RGBA8888);
-        pixmap.setColor(0.08f, 0.06f, 0.05f, 0.75f);
-        pixmap.fillRectangle(0, 0, PANEL_WIDTH, PANEL_HEIGHT);
-        pixmap.setColor(0.35f, 0.25f, 0.12f, 0.9f);
-        pixmap.drawRectangle(0, 0, PANEL_WIDTH, PANEL_HEIGHT);
-        Texture texture = new Texture(pixmap);
-        pixmap.dispose();
-        return texture;
     }
 
     private static String formatTime(float hourOfDay) {

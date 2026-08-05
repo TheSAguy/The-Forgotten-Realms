@@ -97,9 +97,13 @@ Helping a color angers its two enemies, not its allies.
 - Foundational clock built: opt-in via `config.json` → `dayNightCycleEnabled`, ~12 real
   minutes per in-game day, advances continuously while on the overworld (any pace/standing
   still), freezes automatically in towns/dungeons or while paused/in a dialog. Persisted in
-  the save file. HUD dial widget added next to the minimap (procedurally-drawn placeholder
-  art — day/night crossfade circle, needle reusing the compass arrow, castle icon reused
-  from the buildings tileset; swap for real art later per #11).
+  the save file. HUD readout (`TimeOfDayActor.java`) shows a plain "Day N" / "H:MM am|pm" digital
+  readout below the minimap's Zoom button - the originally-planned crossfade dial/needle/castle-
+  icon widget was simplified away to this before it shipped, this doc just hadn't caught up.
+  **Restyled (2026-08-05)** to use the same `windowMain10Patch` stone-block panel every dialog/
+  window in the game already uses, instead of a hand-drawn flat box - same treatment given to
+  the Lumber/Stone readout, #9. Position unchanged (still below Zoom) - only the panel's look
+  changed.
 - Still to do: certain monsters get buffed in day or night, penalized in the opposite; quest
   timers; periodic events (trigger every N days, etc) — deferred to follow-up passes once
   the clock itself is proven out.
@@ -264,10 +268,21 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
 
 ### 9. Expanded Resources — `In Progress`
 - Wood and Stone added alongside Gold/Shards (`AdventurePlayer.java`, same field/signal/save
-  pattern as Gold/Shards). Small always-on HUD readout (`ResourceDisplayActor.java`) shows
-  current totals next to the minimap, since the shared `hud.json` layout (common to every
-  plane) has no icon markup registered for these two new resources and forking it would hit
-  the same "config.json doesn't merge" problem as the plane config itself.
+  pattern as Gold/Shards). Called **"Lumber"** in every player-facing string now (per feedback)
+  - the internal field/method/save-key names (`getWood()`, `addWood()`, `onWoodChange()`, save
+    key `"wood"`) deliberately weren't renamed, to avoid a save-compat migration for a display-
+    only change.
+- Small always-on HUD readout (`ResourceDisplayActor.java`) shows current totals next to Gold,
+  now genuinely matching Gold/Shards' own look rather than a lookalike: "Lumber"/"Stone" are real
+  new regions added to the shared `items.atlas`/`items.png` (16x16 placeholder icons - logs for
+  Lumber, a faceted rock for Stone, styled to match Gold's coin-stack/Shards' gem-facet look -
+  **real art still wanted**, drop-in replaceable, see `MOD_CHANGELOG.md` for exact atlas
+  coordinates), so `[+Lumber]`/`[+Stone]` markup now works exactly like `[+Gold]`/`[+Shards]`
+  already did. Background panel switched from a hand-drawn flat box to the same
+  `windowMain10Patch` stone-block frame every dialog/window in the game already uses (also
+  applied to the Day/Clock widget, #6) - reads as part of the HUD's existing look rather than a
+  separate bolted-on box. Still positioned in code (not `hud.json`) - forking that shared,
+  common-to-every-plane file remains a full-copy-not-merge risk, same as `config.json`.
 - Earned via Economy Buildings (#10) below - no other source yet (not obtainable via shops,
   rewards, or the `give item` console command).
 

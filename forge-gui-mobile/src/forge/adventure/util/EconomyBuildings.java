@@ -92,7 +92,7 @@ public class EconomyBuildings {
         switch (type) {
             case SHARD_MINE: return "Shards";
             case GOLD_MINE: return "Gold";
-            case LUMBER_MILL: return "Wood";
+            case LUMBER_MILL: return "Lumber";
             case STONE_MINE: return "Stone";
             default: return "";
         }
@@ -323,8 +323,8 @@ public class EconomyBuildings {
     private static final Trade[] TRADES = {
             new Trade("10 Gold -> 1 Shard", 10, 0, 0, 0, 0, 1, 0, 0),
             new Trade("1 Shard -> 8 Gold", 0, 1, 0, 0, 8, 0, 0, 0),
-            new Trade("5 Gold -> 5 Wood", 5, 0, 0, 0, 0, 0, 5, 0),
-            new Trade("5 Wood -> 3 Gold", 0, 0, 5, 0, 3, 0, 0, 0),
+            new Trade("5 Gold -> 5 Lumber", 5, 0, 0, 0, 0, 0, 5, 0),
+            new Trade("5 Lumber -> 3 Gold", 0, 0, 5, 0, 3, 0, 0, 0),
             new Trade("5 Gold -> 5 Stone", 5, 0, 0, 0, 0, 0, 0, 5),
             new Trade("5 Stone -> 3 Gold", 0, 0, 0, 5, 3, 0, 0, 0),
     };
@@ -342,7 +342,7 @@ public class EconomyBuildings {
 
         AdventurePlayer player = AdventurePlayer.current();
         TypingLabel label = Controls.newTypingLabel("Exchange\nGold: " + player.getGold() + "  Shards: " + player.getShards()
-                + "  Wood: " + player.getWood() + "  Stone: " + player.getStone());
+                + "  Lumber: " + player.getWood() + "  Stone: " + player.getStone());
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();

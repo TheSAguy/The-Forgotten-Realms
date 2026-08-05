@@ -876,6 +876,50 @@ condition (still hidden, not greyed) - that's a structural exclusion (a second B
 sense to offer at all), not an affordability one, so a different UI treatment didn't seem worth
 adding this round.
 
+## HUD polish: stone-block panels, real Lumber/Stone icons, Wood -> Lumber (2026-08-05)
+
+Both `TimeOfDayActor` (Day/Clock, below the minimap's Zoom button) and `ResourceDisplayActor`
+(Lumber/Stone, below Gold) used a hand-drawn `Pixmap` box - a flat dark rectangle with a thin
+tinted outline - that didn't match the rest of the HUD's actual look. Found the right asset by
+reading `ui_skin.json`: `WindowStyle.default`/`ScrollPaneStyle.default` both point at
+`windowMain10Patch`, a `com.ray3k.tenpatch.TenPatchDrawable` (region `windowMain`, `ui_skin.png`
+at `203,385` size `48x48`, stretch areas `[6,41]`/`[6,41]`) - confirmed by rendering the region
+directly that it's the grey stone-block carved frame every actual dialog/window already shows.
+Both widgets now use `new Image(Controls.getSkin().getDrawable("windowMain10Patch"))` sized to
+the panel instead of the old `buildPanelTexture()`/`addPanelBackground()` Pixmap helpers (removed
+from both files). Position unchanged for either widget - restyle only, not a relocation (the user
+confirmed the clock's current position, below Zoom, is where they want it to stay).
+
+**Lumber/Stone now use real icon markup, not lookalike text.** Previously `ResourceDisplayActor`
+just printed literal "Wood: N" / "Stone: N" strings - Gold/Shards use `[+Gold]`/`[+Shards]` icon
+markup instead, which only works because `Controls.getTextraFont()` registers every named region
+in `items.atlas` as inline icon markup (`Assets.getTextraFont()` → `font.addAtlas(item_atlas, ...)`,
+a textratypist `Font` feature - any atlas region becomes usable as `[+RegionName]` in any
+`TypingLabel`/`TextraLabel` built through `Controls`). Added two new regions directly to the
+existing shared `items.atlas`/`items.png` (not a separate atlas + extra `addAtlas()` call, to
+avoid the "does this file exist for every plane" risk a second, mod-only atlas registered inside
+the always-called `Controls.getTextraFont()` would have) - extended the canvas from 480x1008 to
+480x1024 (a clean 16px-tall strip of new space, nothing existing touched or renumbered) and placed
+two placeholder 16x16 icons: `Lumber` at `xy: 0, 1008` (stacked brown logs with end-grain rings,
+echoing Gold's coin-stack) and `Stone` at `xy: 16, 1008` (a faceted grey rock, echoing Shards' gem-
+facet look). Verified the source PNG's actual pixel size against the atlas header before touching
+anything (it's palette-mode/indexed - converted to RGBA before drawing, since pasting into an
+indexed image risks the new pixels snapping to the nearest existing palette color). Placeholder
+only - the user said they may supply real Lumber/Stone art later, drop-in replaceable at the same
+atlas coordinates.
+
+`ResourceDisplayActor`'s labels switched from `TextraLabel` to `TypingLabel` + `.restart(...)`
+with `{EMERGE}...{ENDEMERGE}`, matching Gold/Shards' own on-change "pop-in" animation exactly
+(`GameHUD.money`/`.shards` already do this) - previously a plain `.setText(...)` with no animation.
+
+**"Wood" renamed to "Lumber" in every player-facing string** (per feedback - "I'm going to call it
+lumber from now on"): `ResourceDisplayActor`'s label, `EconomyBuildings.resourceProducedName()`,
+the Exchange dialog's balance line, and both Wood-related `TRADES` button labels. Deliberately
+did **not** rename the underlying `AdventurePlayer` field/method/signal names (`getWood()`,
+`addWood()`, `onWoodChange()`, `takeWood()`) or the save-file key (`"wood"`) - purely a display-
+text change, renaming the save key would need a migration path for saves that predate it, not
+worth it for a cosmetic rename.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)
