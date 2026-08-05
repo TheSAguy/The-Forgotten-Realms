@@ -1203,6 +1203,27 @@ four resources now, not just two. The row is manually clickable (`ClickListener`
 itself) and swaps `unpressed10patch`/`unpressed-disable10Patch` backgrounds to match the
 skin's own affordable/greyed-out look, since it's no longer a stock `TextraButton`.
 
+## Exchange dialog: player got stuck, couldn't move after interacting (2026-08-05)
+
+The Exchange-icons rewrite above shipped a real crash - reported as "nothing happened and I got
+stuck, could not move." Found it in the actual Forge log (`%APPDATA%/Forge/forge.log`, dozens of
+repeats of the same trace), not by guessing: `MapStage.showDialog()` does
+`(TextraButton) dialog.getButtonTable().getCells().get(i).getActor()` unconditionally on *every*
+button-table cell, to build `dialogButtonMap` for gamepad/keyboard focus navigation. The previous
+commit's trade rows were plain `Table`s (to mix a label with real icon `Image`s), not
+`TextraButton`s - so that cast threw a `ClassCastException` every time `showDialog()` ran.
+`ShopActor.onPlayerCollide()` had already called `player.stop()` *before* `openExchangeDialog()`,
+and since the exception meant the dialog itself never actually opened, the player stayed stopped
+with no dialog to close - and since they were still standing in the shop's collision zone,
+`onPlayerCollide()` (and the crash) fired again every subsequent frame, matching "stuck."
+
+Root cause of *why* a plain `Table` seemed fine at the time: `Button` (the libGDX class
+`TextraButton` extends) is itself a `Table` subclass, so a `TextraButton` can still have extra
+cells (the icon `Image`s) added directly onto it after construction - no need for a *separate*
+wrapper `Table` at all. Fixed `buildTradeRow()` to build on `Controls.newTextButton(...)` (a real
+`TextraButton`, satisfying `showDialog()`'s cast) and append the icon/price cells onto that
+directly, instead of constructing a standalone `Table`. Same visual result, no protocol violation.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

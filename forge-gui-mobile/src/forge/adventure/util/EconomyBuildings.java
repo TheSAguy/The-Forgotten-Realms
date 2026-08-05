@@ -3,13 +3,11 @@ package forge.adventure.util;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.github.tommyettinger.textra.TextraButton;
 import com.github.tommyettinger.textra.TypingLabel;
 import forge.adventure.data.DialogData;
 import forge.adventure.player.AdventurePlayer;
@@ -383,38 +381,31 @@ public class EconomyBuildings {
         dialog.setKeepWithinStage(true);
     }
 
-    // One clickable trade row, e.g. "Buy 5 [shard icon] for 100 [gold icon]" - built directly out
-    // of a Table + real Image icons rather than a single TextraButton, since a button's own label
-    // can't embed an Image the way inline font markup can (and Lumber/Stone's icons aren't
-    // registered as font markup at all - see the Trade array's own comment above).
-    private static Table buildTradeRow(String verb, int qty, String resourceAtlas, String resourceIcon,
-                                        int price, boolean enabled, Runnable action) {
-        Table row = new Table();
-        row.setBackground(Controls.getSkin().getDrawable(enabled ? "unpressed10patch" : "unpressed-disable10Patch"));
-        row.pad(2f, 6f, 2f, 6f);
+    // One clickable trade row, e.g. "Buy 5 [shard icon] for 100 [gold icon]". MUST return an
+    // actual TextraButton, not a generic Table/Actor - MapStage.showDialog() unconditionally
+    // casts every dialog.getButtonTable() cell's actor to TextraButton (for gamepad/keyboard
+    // focus navigation), so a plain Table there throws a ClassCastException every frame the
+    // dialog is open (confirmed the hard way - see MOD_CHANGELOG.md). TextraButton extends
+    // libGDX's own Button, which extends Table, so extra cells (the icons) can still just be
+    // added directly onto the button itself after construction.
+    private static TextraButton buildTradeRow(String verb, int qty, String resourceAtlas, String resourceIcon,
+                                               int price, boolean enabled, Runnable action) {
+        TextraButton button = Controls.newTextButton(verb + " " + qty, enabled ? action : () -> {});
+        button.setDisabled(!enabled);
 
-        row.add(Controls.newTypingLabel(verb + " " + qty)).padRight(4f);
         Sprite resourceSprite = Config.instance().getAtlasSprite(resourceAtlas, resourceIcon);
         if (resourceSprite != null)
-            row.add(new Image(new TextureRegionDrawable(resourceSprite))).size(16f).padRight(10f);
-        row.add(Controls.newTypingLabel("for " + price)).padRight(4f);
+            button.add(new Image(new TextureRegionDrawable(resourceSprite))).size(16f).padLeft(6f);
+        button.add(Controls.newTypingLabel("for " + price)).padLeft(8f);
         Sprite goldSprite = Config.instance().getAtlasSprite(Paths.ITEMS_ATLAS, "Gold");
         if (goldSprite != null)
-            row.add(new Image(new TextureRegionDrawable(goldSprite))).size(16f);
+            button.add(new Image(new TextureRegionDrawable(goldSprite))).size(16f).padLeft(6f);
 
-        if (enabled) {
-            row.addListener(new ClickListener() {
-                @Override
-                public void clicked(InputEvent event, float x, float y) {
-                    action.run();
-                }
-            });
-        }
-        return row;
+        return button;
     }
 
     private static void addButtonRow(Dialog dialog, String name, boolean enabled, Runnable action) {
-        com.github.tommyettinger.textra.TextraButton button = Controls.newTextButton(name, enabled ? action : () -> {});
+        TextraButton button = Controls.newTextButton(name, enabled ? action : () -> {});
         button.setDisabled(!enabled);
         dialog.getButtonTable().add(button).width(240f).row();
     }

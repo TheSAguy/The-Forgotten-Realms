@@ -358,10 +358,14 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
 - **Exchange:** trades between Gold/Shards/Lumber/Stone. **Standardized (2026-08-05)** to one
   denomination for every resource - buy 5 for 100 gold, sell 5 back for 80 gold (80% buyback) -
   replacing the original bespoke per-resource rates. **All four resources show real icons now**
-  (2026-08-05, extended from an initial Gold/Shards-only pass) - each trade row is a small `Table`
-  mixing text with real `Image` icons rather than a single button label, since Lumber/Stone's
-  icons aren't registered as font markup the way Gold/Shards' are (see #9's HUD readout for why
-  that's deliberate).
+  (2026-08-05, extended from an initial Gold/Shards-only pass) - each trade row is a `TextraButton`
+  with extra `Image` icon cells added onto it, rather than a single button label, since Lumber/
+  Stone's icons aren't registered as font markup the way Gold/Shards' are (see #9's HUD readout
+  for why that's deliberate). **Shipped a real crash the first time** - the icon rows were plain
+  `Table`s rather than `TextraButton`s, which broke a hard requirement in `MapStage.showDialog()`
+  (every button-table cell must be an actual `TextraButton`) and threw an exception every frame
+  the dialog was open, leaving the player stuck unable to move. Found via the actual Forge log,
+  not guessed. Fixed - see `MOD_CHANGELOG.md`.
 - **Deferred, needs #7 (Dynamic Territory Control) first:** if the player loses and retakes a
   town, buildings should be cheaper to rebuild, and each building type should show its own
   ruin art on recapture instead of the generic broken-shop art (no dedicated ruin art exists
