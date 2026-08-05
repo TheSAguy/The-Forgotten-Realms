@@ -1727,6 +1727,54 @@ Not yet re-verified in a running game - every fix in this round (mage lifetime, 
 world-gen sweep, minimap markers) needs a fresh world and a full test pass before considering any
 of it closed.
 
+## Territory Control: capitals, cut minimap icons, town-count HUD, 50x speed (2026-08-05)
+
+Fifth playtest round - the "map looks much better" one. Three real fixes and two features from
+this pass.
+
+**Clipped minimap town icons, root-caused.** POI marker icons (the small house-shaped icons per
+town) are baked into `biomeImage` exactly once, during the ordinary world-gen placement loop
+(`drawPixmapLater()` queues them, `drawPixmapNow()` flushes the whole queue onto `pix` in one
+batch). `TerritoryControl.neutralizeAfterGeneration()`'s terrain sweep runs *after* that flush and
+repaints `biomeImage` directly for every neutralized tile - since a marker icon's own pixel
+footprint can extend into a neighboring tile that gets swept (especially right at the kept-radius
+boundary), the sweep was silently painting over part of nearby survivors' icons. Fixed with a new
+`World.redrawAllPoiMarkers()`, called right after the sweep (while `biomeImage` and a fresh copy
+of the marker atlas are still available) - re-draws every surviving POI's marker on top so none
+end up clipped by the sweep's own terrain repainting. Gated behind the same
+`territoryControlEnabled` check as the sweep itself (new `World.isTerritoryControlEnabled()`, same
+pattern as `isDayNightCycleEnabled()`/`isFogOfWarEnabled()`).
+
+**Every color now guaranteed a Capital.** A color's own "`<Noun>` Capital" POI is placed by
+ordinary world-gen the same as any other town, somewhere across its full original territory - not
+guaranteed to land inside the small area kept around its castle, and gets swept to neutral just
+like any other out-of-radius town if it doesn't. New `TerritoryControl.ensureCapital()`: after the
+sweep, if a color's Capital didn't survive (or a given world's placement RNG never put one nearby
+to begin with), promotes the nearest surviving in-radius town into the role via the same
+`transformInto()` every other conversion in this feature already uses.
+
+**Mage lifetime timer fix confirmed working** (per "I see the spawned mages on the minimap") -
+last round's fix holds.
+
+**Town-count HUD panel** (new `TownCountActor.java`, same construction pattern as
+`ResourceDisplayActor` - a `windowMain10Patch` panel with real icon+count rows, positioned
+directly below it in `GameHUD`, per "add them under the resource area"). Icons cropped from
+`common/sprites/items.png` at coordinates the user identified visually (confirmed by rendering
+each candidate at high zoom before committing - a grid of muted/vivid color-pie icon pairs,
+picked the vivid set) into a new `color_icons.png`/`.atlas` in the mod's own folder, same pattern
+`resource_icons.png`/`.atlas` already established. Six rows: Green/White/Blue/Black/Red (that
+color's live town count) plus a sixth "Colorless" row for towns still neutral - refreshed every 2
+real seconds (town captures are days apart, no need to poll every frame) rather than wired to a
+live change-event (Territory Control doesn't have one yet). Opt-in and does zero work when
+`territoryControlEnabled` is off, same as the sweep itself.
+
+**10x speed toggle raised to 50x** (`WorldStage.FAST_TIME_MULTIPLIER`), plus its HUD label
+text (`lblFastTimeToggle` in `en-US.properties`, the one already-documented shared-file
+exception) updated to match.
+
+Not yet re-verified in a running game - every fix/feature in this round needs a fresh world and a
+test pass, same as always.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

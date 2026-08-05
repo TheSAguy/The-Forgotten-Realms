@@ -151,6 +151,13 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
   being able to run the game directly.
 - Tunable first-guess constants, not yet validated by playtesting: `CASTLE_KEEP_RADIUS_TILES`
   (`40`), mage arrival distance, the 2-5 day dispatch interval.
+- **Fifth playtest round** ("map looks much better"): fixed minimap town icons getting partially
+  painted over by the neutralize sweep's own terrain repaint (`World.redrawAllPoiMarkers()`, runs
+  after the sweep); every color now guaranteed a Capital within its kept territory even if the
+  real one didn't survive the sweep (`TerritoryControl.ensureCapital()`); added a live town-count
+  HUD panel below the resource readout (`TownCountActor.java`, 6 rows - 5 colors + still-neutral -
+  new `color_icons.png`/`.atlas` cropped from `common/sprites/items.png`); 10x speed toggle raised
+  to 50x.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

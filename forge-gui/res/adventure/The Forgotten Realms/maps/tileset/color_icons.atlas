@@ -1,0 +1,23 @@
+color_icons.png
+size: 96,16
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+White
+  xy: 0, 0
+  size: 16, 16
+Blue
+  xy: 16, 0
+  size: 16, 16
+Black
+  xy: 32, 0
+  size: 16, 16
+Red
+  xy: 48, 0
+  size: 16, 16
+Green
+  xy: 64, 0
+  size: 16, 16
+Colorless
+  xy: 80, 0
+  size: 16, 16

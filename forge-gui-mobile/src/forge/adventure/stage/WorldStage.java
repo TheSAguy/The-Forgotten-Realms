@@ -58,7 +58,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
     // clock for testing. Multiplies only the delta passed to advanceTime(), nothing else runs
     // faster (spawns, movement, etc. are unaffected).
     private boolean fastTimeEnabled = false;
-    private static final float FAST_TIME_MULTIPLIER = 10f;
+    private static final float FAST_TIME_MULTIPLIER = 50f;
 
     public WorldStage() {
         super();

@@ -45,7 +45,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `dayCount`/`advanceTime()`, #6), per-color attack countdown (`colorNextAttackDay`, #7). **Also a
   bug fix, not a feature**: the async structure-generation task now always marks itself done even
   on failure, so a crash there can't hang world-gen forever (previously could, regardless of cause
-  - see the "world-gen hang" entry in `MOD_CHANGELOG.md`).
+  - see the "world-gen hang" entry in `MOD_CHANGELOG.md`). Territory Control's current approach
+  (#7, generate normally then sweep - see `MOD_CHANGELOG.md`'s "world-gen approach redesigned")
+  added `neutralizeTerritoryOutsideRadius()` (inverse of `repaintBiomeAroundTown()`),
+  `isTerritoryControlEnabled()`, and `redrawAllPoiMarkers()` (fixes the sweep clipping nearby POI
+  minimap icons), plus one call near the end of `generateNew()` into
+  `TerritoryControl.neutralizeAfterGeneration()`.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -91,7 +96,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 
 ### HUD & UI
 - **`forge-gui-mobile/src/forge/adventure/stage/GameHUD.java`** — clock readout (#6), resource
-  panel (Wood/Stone, #9), fog-of-war/10x-speed debug checkboxes (#3/#6).
+  panel (Wood/Stone, #9), fog-of-war/speed-toggle debug checkboxes (#3/#6). Territory Control (#7)
+  added a per-mage colored minimap dot (`updateMageMinimapMarkers()`, dynamic set mirroring the
+  existing `miniMapPlayer` marker) and wired in the new `TownCountActor` panel below the resource
+  readout.
 - **`forge-gui-mobile/src/forge/adventure/scene/SettingsScene.java`** — fog-of-war on/off setting
   (#3, a real Settings-screen checkbox, not just the in-game HUD debug toggle).
 - **`forge-gui-mobile/src/forge/adventure/scene/MapViewScene.java`** — extracted the minimap
@@ -102,8 +110,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui/res/languages/en-US.properties`** — **the one shared (non-mod-plane) asset file
   that had to be edited directly** - Forge's localization strings aren't overridable per-plane, so
   3 new label keys (`lblFogOfWar`, `lblFastTimeToggle`, `lblWait`) were added directly to the
-  shared file. Low conflict risk (pure additions at the end of a large file) but worth knowing
-  this is the one exception to "everything lives in the mod folder."
+  shared file. Low conflict risk (pure additions at the end of a large file, plus one later value
+  edit - `lblFastTimeToggle`'s text updated from "10x Speed" to "50x Speed" to match the actual
+  multiplier) but worth knowing this is the one exception to "everything lives in the mod folder."
 
 ### Player / config
 - **`forge-gui-mobile/src/forge/adventure/player/AdventurePlayer.java`** — added Wood/Stone
@@ -116,7 +125,8 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   mage).
 - **`forge-gui-mobile/src/forge/adventure/stage/WorldStage.java`** — day-counter-driven hooks for
   Economy Buildings (#10) and Territory Control (#7), the mage movement/arrival branch and
-  `spawnAt()` (#7).
+  `spawnAt()` (#7, also exempts a mage from the ordinary roaming-monster despawn timer - it has
+  its own lifecycle). `FAST_TIME_MULTIPLIER` raised 10 -> 50 per request (#6).
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
@@ -128,7 +138,7 @@ All under `forge-gui-mobile/src/forge/adventure/util/` - upstream doesn't have t
 there's nothing to reconcile, but they're stock-adjacent code (not mod-plane assets) so they're
 listed here rather than assumed-safe by omission:
 `EconomyBuildings.java`, `ResourceDisplayActor.java`, `RubbleOverlay.java`, `TerritoryControl.java`,
-`TimeOfDayActor.java`, `TownRestoration.java`.
+`TimeOfDayActor.java`, `TownCountActor.java`, `TownRestoration.java`.
 
 ## Everything else (not tracked here - genuinely safe)
 

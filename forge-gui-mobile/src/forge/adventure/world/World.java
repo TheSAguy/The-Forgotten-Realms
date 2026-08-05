@@ -896,7 +896,14 @@ public class World implements Disposable, SaveFileContent {
             // then sweeps each color down to a small area around its own castle. See
             // TerritoryControl.neutralizeAfterGeneration()'s own doc comment for why this replaced
             // shrinking each color's world-gen territory directly.
-            TerritoryControl.neutralizeAfterGeneration(this);
+            if (isTerritoryControlEnabled()) {
+                TerritoryControl.neutralizeAfterGeneration(this);
+                // The sweep above repaints biomeImage directly, which can partially paint over a
+                // nearby POI's marker icon - markers were only ever baked in once, by the ordinary
+                // placement loop above, before this sweep existed to run afterward. Redraw them all
+                // on top so none end up clipped (reported as "town icons look cut" on the minimap).
+                redrawAllPoiMarkers();
+            }
             System.out.println("Generating world took :\t\t" + ((System.currentTimeMillis() - startTime) / 1000f) + " s");
             WorldStage.getInstance().clearCache();
 
@@ -907,6 +914,32 @@ public class World implements Disposable, SaveFileContent {
             return false;
         }
         return true;
+    }
+
+    // Territory Control (MOD_SCOPE.md #7) only - see generateNew()'s call site. Mirrors the
+    // marker-drawing block inside the normal POI-placement loop above (same region lookup/offset
+    // math), but draws directly onto biomeImage instead of queuing through drawPixmapLater() -
+    // that queue was already flushed and cleared earlier in generateNew(), so it can't be reused
+    // here, and a second, immediate draw is simpler anyway for a one-time post-sweep touch-up.
+    private void redrawAllPoiMarkers() {
+        TextureAtlas mapMarker = Config.instance().getAtlas(Paths.MAP_MARKER);
+        TextureData markerTextureData = mapMarker.getTextures().first().getTextureData();
+        if (!markerTextureData.isPrepared())
+            markerTextureData.prepare();
+        Pixmap mapMarkerPixmap = markerTextureData.consumePixmap();
+        int mm = data.miniMapTileSize;
+        for (PointOfInterest poi : getAllPointOfInterest()) {
+            TextureAtlas.AtlasRegion marker = mapMarker.findRegion(poi.getData().type);
+            if (marker == null)
+                continue;
+            int xInPixels = (int) ((poi.getPosition().x / data.tileSize) * mm);
+            int yInPixels = (int) ((height - (poi.getPosition().y / data.tileSize)) * mm);
+            xInPixels -= marker.getRegionWidth() / 2;
+            yInPixels -= marker.getRegionHeight() / 2;
+            biomeImage.drawPixmap(mapMarkerPixmap, marker.getRegionX(), marker.getRegionY(),
+                    marker.getRegionWidth(), marker.getRegionHeight(), xInPixels, yInPixels, marker.getRegionWidth(), marker.getRegionHeight());
+        }
+        mapMarkerPixmap.dispose();
     }
 
     HashMap<String, Pair<Pixmap, HashMap<String, Pixmap>>> pixmapHash = new HashMap<>();
@@ -1319,6 +1352,11 @@ public class World implements Disposable, SaveFileContent {
     public boolean isDayNightCycleEnabled() {
         ConfigData configData = Config.instance().getConfigData();
         return configData != null && configData.dayNightCycleEnabled;
+    }
+
+    public boolean isTerritoryControlEnabled() {
+        ConfigData configData = Config.instance().getConfigData();
+        return configData != null && configData.territoryControlEnabled;
     }
 
     /** Fraction of the current day elapsed, in [0,1), where 0 is midnight. */

@@ -63,6 +63,7 @@ import forge.adventure.util.KeyBinding;
 import forge.adventure.util.NavArrowActor;
 import forge.adventure.util.ResourceDisplayActor;
 import forge.adventure.util.TimeOfDayActor;
+import forge.adventure.util.TownCountActor;
 import forge.adventure.util.UIActor;
 import forge.adventure.world.WorldSave;
 import forge.deck.Deck;
@@ -108,6 +109,7 @@ public class GameHUD extends Stage {
     // manual speed-up during testing.
     private final CheckBox speedCheckBox;
     private final ResourceDisplayActor resourceDisplayActor;
+    private final TownCountActor townCountActor;
     private final InputEvent eventTouchDown, eventTouchUp;
     private final TextraButton deckActor, openMapActor, menuActor, logbookActor, inventoryActor, exitToWorldMapActor, bookmarkActor;
     public final UIActor ui;
@@ -182,6 +184,7 @@ public class GameHUD extends Stage {
         // miniMap.getWidth() its value at this point in construction.
         timeOfDayActor.setPosition(openMapActor.getX(), openMapActor.getY() - timeOfDayActor.getHeight() - 4);
         resourceDisplayActor = new ResourceDisplayActor();
+        townCountActor = new TownCountActor();
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());
         touchpad.setBounds(15, 15, TOUCHPAD_SCALE, TOUCHPAD_SCALE);
@@ -228,6 +231,9 @@ public class GameHUD extends Stage {
         // against it so its own bordered panel reads as a continuation of the same column
         // instead of a separate floating box.
         resourceDisplayActor.setPosition(money.getX(), money.getY() - resourceDisplayActor.getHeight());
+        // Directly below the resource panel, same "butt against the sibling above it" positioning
+        // - per user request ("add them under the resource area").
+        townCountActor.setPosition(resourceDisplayActor.getX(), resourceDisplayActor.getY() - townCountActor.getHeight());
         lifePoints.setText("[%95][+Life]");
         enemyCounterText = Controls.newTypingLabel(Forge.getLocalizer().getMessage("lblRemainingEnemies", String.valueOf(0)));
         enemyCounterText.setColor(Color.BLACK);
@@ -307,6 +313,7 @@ public class GameHUD extends Stage {
         // with the minimap. hudGroup only has its alpha adjusted, never hidden outright, matching
         // Gold/Shards/HP staying visible everywhere - Lumber/Stone should behave the same way.
         hudGroup.addActor(resourceDisplayActor);
+        hudGroup.addActor(townCountActor);
         ui.addActor(hudGroup);
         //MENU
         menuGroup.addActor(deckActor);

@@ -88,7 +88,47 @@ public class TerritoryControl {
                 converted++;
             }
             System.out.println("[TerritoryControl] " + color + ": neutralized territory outside castle, converted " + converted + " town(s) to neutral");
+
+            ensureCapital(world, color, castle, keepRadiusWorld);
         }
+    }
+
+    // A color's own "<Noun> Capital" is placed by ordinary world-gen (same as any other town)
+    // somewhere across its *original*, full-size territory - it's not guaranteed to land inside
+    // the small area kept around the castle above, and gets swept to neutral just like any other
+    // out-of-radius town if it doesn't. Rather than leave a color's kept territory without one,
+    // promote the nearest surviving in-radius town to fill the role instead - per user request,
+    // every color's small starting area should have a capital.
+    private static void ensureCapital(World world, String color, PointOfInterest castle, float keepRadiusWorld) {
+        String noun = COLOR_TOWN_NOUN.get(color);
+        if (noun == null)
+            return;
+        String capitalName = noun + " Capital";
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (capitalName.equals(poi.getData().name))
+                return; // already has one (survived the sweep, or was already within radius)
+        }
+        PointOfInterestData capitalData = PointOfInterestData.getPointOfInterest(capitalName);
+        if (capitalData == null)
+            return;
+
+        PointOfInterest nearestTown = null;
+        float nearestDist = Float.MAX_VALUE;
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (!isColorTownOrCapital(poi.getData(), color))
+                continue;
+            float dist = poi.getPosition().dst(castle.getPosition());
+            if (dist <= keepRadiusWorld && dist < nearestDist) {
+                nearestDist = dist;
+                nearestTown = poi;
+            }
+        }
+        if (nearestTown == null) {
+            System.out.println("[TerritoryControl] " + color + ": no in-radius town to promote to " + capitalName);
+            return;
+        }
+        nearestTown.transformInto(capitalData, world.getRandom());
+        System.out.println("[TerritoryControl] " + color + ": promoted a town to " + capitalName);
     }
 
     private static boolean isEnabled() {
