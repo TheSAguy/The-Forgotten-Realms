@@ -1055,6 +1055,39 @@ a literal single merged panel (would need touching hud.json's own avatar-panel b
 that fully, which stays out of scope per the config.json-style non-merge risk already documented
 in `ResourceDisplayActor`'s own comment).
 
+## Real economy-building icons, sourced precisely via Tiled (2026-08-05)
+
+The 6 economy-building icons (`economy_buildings.png`) were hand-cropped from `buildings.png`
+early on, from coordinates that turned out to be wrong for at least the Shard Mine (flagged by
+the user several rounds ago, never fully resolved - my own attempts to eyeball the right spot via
+screenshots got close on a couple but never landed all 6 confidently). Resolved this round: the
+user opened `buildings.png` as a tileset in Tiled and sent screenshots of each icon's own tile
+Properties panel (ID + Rectangle X/Y/W/H, both derivable from the same 28-column/16px grid
+`buildings.tsx` already declares - `X = (ID % 28) * 16`, `Y = (ID // 28) * 16`, confirmed by
+recomputing all 8 reported IDs and matching every one exactly).
+
+**One gotcha found while double-checking, not just trusting the numbers:** cropping a plain 16x16
+region at the *reported* coordinate for each of the 6 building icons produced a fragment, not a
+complete icon - each one is actually a 32x32 sprite (2x2 raw tiles), and the reported ID
+consistently pointed at the **bottom-right** of the 4 tiles, not the top-left. Confirmed by
+rendering wide-context grids around a couple of the reported coordinates (Shard, Gold Mine) and
+visually finding each icon's true boundary - the top-left corner is reliably `(reportedX - 16,
+reportedY - 16)`. The two *HUD* icons in the same batch (Wood/Stone, already fixed in a previous
+round) didn't need this correction - they're genuinely single 16x16 tiles, not part of a larger
+composite, which is presumably why the ID reported for them landed correctly the first time.
+
+Final coordinates used (top-left, 32x32 each), matching `economy_buildings.atlas`'s existing
+layout exactly - **no code or atlas changes needed, this was a pure asset swap**:
+
+| Building | buildings.png (x,y) |
+|---|---|
+| Gold Mine | 96, 176 |
+| Shard Mine | 64, 144 |
+| Stone Mine | 0, 208 |
+| Lumber Mill | 192, 176 |
+| Bank | 256, 432 |
+| Exchange | 64, 304 |
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

@@ -308,6 +308,12 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
 - **Building icons** draw at their real 32x32 native size centered on the shop's 16x16 footprint
   (was incorrectly downscaled to footprint size, see `MOD_CHANGELOG.md`) - same fix applied to
   the broken-shop rubble art.
+- **All 6 building icons now use real, correct art (2026-08-05)** - `economy_buildings.png` was
+  originally hand-cropped from the wrong spots in `common/maps/tileset/buildings.png` (mismatched
+  art, wrong size). Replaced with 6 proper 32x32 icons the user located precisely via Tiled's own
+  tile inspector (Gold Mine, Shard Mine, Stone Mine, Lumber Mill, Bank, Exchange all present as
+  real multi-tile building sprites in that sheet already) - see `MOD_CHANGELOG.md` for the exact
+  coordinates and a gotcha worth knowing about if this comes up again.
 - **Signs re-appear live on rebuild, and are hidden (not wrong) on economy buildings:** the
   sign-post hinting what a shop sells is hidden while that shop is still rubble and now reappears
   the instant it's rebuilt, no need to leave/re-enter the town (`MapStage.java` - see
