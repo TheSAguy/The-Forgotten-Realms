@@ -55,6 +55,7 @@ import forge.adventure.util.Controls;
 import forge.adventure.util.Current;
 import forge.adventure.util.KeyBinding;
 import forge.adventure.util.NavArrowActor;
+import forge.adventure.util.ResourceDisplayActor;
 import forge.adventure.util.TimeOfDayActor;
 import forge.adventure.util.UIActor;
 import forge.adventure.world.WorldSave;
@@ -85,6 +86,7 @@ public class GameHUD extends Stage {
     // multi-day attack cadence) for testing - remove once those features don't need frequent
     // manual speed-up during testing.
     private final CheckBox speedCheckBox;
+    private final ResourceDisplayActor resourceDisplayActor;
     private final InputEvent eventTouchDown, eventTouchUp;
     private final TextraButton deckActor, openMapActor, menuActor, logbookActor, inventoryActor, exitToWorldMapActor, bookmarkActor;
     public final UIActor ui;
@@ -154,6 +156,8 @@ public class GameHUD extends Stage {
                 WorldStage.getInstance().setFastTimeEnabled(((CheckBox) actor).isChecked());
             }
         });
+        resourceDisplayActor = new ResourceDisplayActor();
+        resourceDisplayActor.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 48);
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());
         touchpad.setBounds(15, 15, TOUCHPAD_SCALE, TOUCHPAD_SCALE);
@@ -259,6 +263,7 @@ public class GameHUD extends Stage {
         mapGroup.addActor(timeOfDayActor);
         mapGroup.addActor(waitCheckBox);
         mapGroup.addActor(speedCheckBox);
+        mapGroup.addActor(resourceDisplayActor);
         ui.addActor(mapGroup);
         //HUD
         hudGroup.addActor(gamehud);

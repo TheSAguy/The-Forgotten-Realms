@@ -8,6 +8,7 @@ import forge.adventure.data.ShopData;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.RewardScene;
 import forge.adventure.stage.MapStage;
+import forge.adventure.util.EconomyBuildings;
 import forge.adventure.util.MapDialog;
 import forge.adventure.util.Reward;
 import forge.adventure.util.TownRestoration;
@@ -44,15 +45,32 @@ public class ShopActor extends MapActor {
         if (isDestroyed()) {
             stage.getPlayerSprite().stop();
             MapDialog dialog = TownRestoration.isTownRestored(stage)
-                    ? TownRestoration.buildRebuildShopDialog(stage, objectId)
+                    ? EconomyBuildings.buildChooseBuildingDialog(stage, objectId)
                     : TownRestoration.buildShopLockedDialog(stage, objectId);
             if (dialog.activate())
                 stage.showDialog();
             return;
         }
         stage.getPlayerSprite().stop();
-        RewardScene.instance().loadRewards(rewardData, RewardScene.Type.Shop, this);
-        Forge.switchScene(RewardScene.instance());
+        PointOfInterestChanges changes = stage.getChanges();
+        int economyType = EconomyBuildings.getBuildingType(changes, objectId);
+        switch (economyType) {
+            case EconomyBuildings.BANK:
+                EconomyBuildings.openBankDialog(stage, changes);
+                return;
+            case EconomyBuildings.EXCHANGE:
+                EconomyBuildings.openExchangeDialog(stage);
+                return;
+            case EconomyBuildings.SHARD_MINE:
+            case EconomyBuildings.GOLD_MINE:
+            case EconomyBuildings.LUMBER_MILL:
+            case EconomyBuildings.STONE_MINE:
+                EconomyBuildings.openProductionInfoDialog(stage, economyType);
+                return;
+            default:
+                RewardScene.instance().loadRewards(rewardData, RewardScene.Type.Shop, this);
+                Forge.switchScene(RewardScene.instance());
+        }
     }
 
     private boolean isDestroyed() {
@@ -70,6 +88,14 @@ public class ShopActor extends MapActor {
             TextureRegion brokenSprite = TownRestoration.getBrokenShopSprite(objectId);
             if (brokenSprite != null)
                 batch.draw(brokenSprite, getX(), getY(), getWidth(), getHeight());
+        } else {
+            // A rebuilt shop that was chosen as the town's one economy building draws its
+            // building icon over the normal shop tile; a plain rebuilt Card Shop draws nothing
+            // extra (the underlying Tiled tile already looks right).
+            int economyType = EconomyBuildings.getBuildingType(stage.getChanges(), objectId);
+            TextureRegion buildingSprite = EconomyBuildings.getBuildingSprite(economyType);
+            if (buildingSprite != null)
+                batch.draw(buildingSprite, getX(), getY(), getWidth(), getHeight());
         }
     }
 

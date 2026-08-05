@@ -63,6 +63,8 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
     private int maxLife = 20;
     private int life = 20;
     private int shards = 0;
+    private int wood = 0;
+    private int stone = 0;
     private EffectData blessing; //Blessing to apply for next battle.
     private final PlayerStatistic statistic = new PlayerStatistic();
     private final Map<String, Byte> questFlags = new HashMap<>();
@@ -89,6 +91,8 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
     final SignalList onLifeTotalChangeList = new SignalList();
     final SignalList onShardsChangeList = new SignalList();
     final SignalList onGoldChangeList = new SignalList();
+    final SignalList onWoodChangeList = new SignalList();
+    final SignalList onStoneChangeList = new SignalList();
     final SignalList onPlayerChangeList = new SignalList();
     final SignalList onEquipmentChange = new SignalList();
     final SignalList onBlessing = new SignalList();
@@ -126,6 +130,8 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         maxLife = 20;
         life = 20;
         shards = 0;
+        wood = 0;
+        stone = 0;
         maxDeckCount = 20;
         clearDecks();
         inventoryItems.clear();
@@ -353,6 +359,14 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         return shards;
     }
 
+    public int getWood() {
+        return wood;
+    }
+
+    public int getStone() {
+        return stone;
+    }
+
     public @Null EffectData getBlessing() {
         return blessing;
     }
@@ -467,6 +481,8 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         maxLife = data.readInt("maxLife");
         life = data.readInt("life");
         shards = data.containsKey("shards") ? data.readInt("shards") : 0;
+        wood = data.containsKey("wood") ? data.readInt("wood") : 0;
+        stone = data.containsKey("stone") ? data.readInt("stone") : 0;
         worldPosX = data.readFloat("worldPosX");
         worldPosY = data.readFloat("worldPosY");
 
@@ -830,6 +846,8 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         data.store("life", life);
         data.store("maxLife", maxLife);
         data.store("shards", shards);
+        data.store("wood", wood);
+        data.store("stone", stone);
         data.store("deckName", deck.getName());
 
         data.storeObject("inventory", inventoryItems.toArray(new ItemData[0]));
@@ -1039,6 +1057,16 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         o.run();
     }
 
+    public void onWoodChange(Runnable o) {
+        onWoodChangeList.add(o);
+        o.run();
+    }
+
+    public void onStoneChange(Runnable o) {
+        onStoneChangeList.add(o);
+        o.run();
+    }
+
     public void onBlessing(Runnable o) {
         onBlessing.add(o);
         o.run();
@@ -1133,6 +1161,24 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
             shards = number;
             onShardsChangeList.emit();
         }
+    }
+
+    public void addWood(int number) {
+        takeWood(-number);
+    }
+
+    public void takeWood(int number) {
+        wood -= number;
+        onWoodChangeList.emit();
+    }
+
+    public void addStone(int number) {
+        takeStone(-number);
+    }
+
+    public void takeStone(int number) {
+        stone -= number;
+        onStoneChangeList.emit();
     }
 
     public void addBlessing(EffectData bless) {

@@ -58,6 +58,12 @@ public class WorldSave {
         return pointOfInterestChanges.get(id);
     }
 
+    // Lets a global per-day sweep (see EconomyBuildings.processDailyTick()) find every built
+    // mine/bank across every town without needing to know their POI ids in advance.
+    public java.util.Collection<PointOfInterestChanges> getAllPointOfInterestChanges() {
+        return pointOfInterestChanges.values();
+    }
+
     static public boolean load(int currentSlot) {
 
         String fileName = WorldSave.getSaveFile(currentSlot);

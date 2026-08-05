@@ -624,6 +624,111 @@ No code was added for this - Forge's adventure mode already ships an in-game che
 (press **F9**, type `give gold <amount>`). Use that instead of adding a temporary grant
 anywhere in code.
 
+## Economy Buildings (2026-08-04)
+
+Files: `AdventurePlayer.java` (Wood/Stone resources), `ResourceDisplayActor.java` (new, HUD
+widget), `GameHUD.java` (wiring), `PointOfInterestChanges.java` (`economyBuildingObjectId`,
+`bankBalance`), `WorldSave.java` (`getAllPointOfInterestChanges()`), `EconomyBuildings.java`
+(new, all the feature logic), `ShopActor.java` (draw/collide wiring), `MapStage.java` (sign
+suppression), `WorldStage.java` (daily sweep hook). Plane assets:
+`maps/tileset/economy_buildings.png`/`.atlas` (new, 6 icons cropped from the stock
+`buildings.png` sheet).
+
+### Wood/Stone resources
+Added to `AdventurePlayer.java` mirroring the existing Gold/Shards pattern exactly (field,
+`SignalList`, getter, `addX`/`takeX`, `onXChange` listener registration, save/load). No shop or
+reward currently grants them - Economy Buildings (below) is the only source. Displayed via a
+small self-contained `ResourceDisplayActor` widget stacked under the existing Wait/Speed
+checkboxes in `GameHUD` - deliberately *not* wired through the shared `hud.json` layout that
+drives Gold/Shards, since that file is common to every plane and has no icon-markup registered
+for Wood/Stone; forking it would hit the same "config.json doesn't merge" trap documented above
+for a much smaller payoff. Same reasoning `TimeOfDayActor` used for its own HUD widget.
+
+### PointOfInterestChanges: two new persisted int fields
+`mapFlags` (`Map<String, Byte>`) can't safely hold a bank balance or a Tiled object id - byte
+range is -128..127, and both regularly exceed that. Added `economyBuildingObjectId` (int,
+sentinel `-1` = town has no economy building yet) and `bankBalance` (int, floored at 0) as
+ordinary fields on `PointOfInterestChanges`, following the same simple pattern as
+`isBookmarked`/`isVisited` (plain field + `data.store`/`data.readInt` in `save()`/`load()`).
+`WorldSave.getAllPointOfInterestChanges()` was added (previously `pointOfInterestChanges` had no
+enumeration accessor) so the daily sweep can walk every town without needing to know POI ids in
+advance.
+
+### Build-choice dialog
+Rebuilding a destroyed wasteland shop (once its town's Job Board is restored) now offers 8
+options instead of TownRestoration's original 2: Card Shop, Shard Mine, Gold Mine, Lumber Mill,
+Stone Mine, Bank, Exchange, Not now - each still 100 gold via the same `hasGold`/`addGold`
+declarative `DialogData` pattern `TownRestoration` already used. The 6 special options are also
+gated by `checkMapFlag(ECONOMY_TYPE_FLAG, not=true)` so only one can ever be picked per town
+(Card Shop rebuilds stay unlimited). `EconomyBuildings.ECONOMY_TYPE_FLAG` is a byte-safe map flag
+(values 0-6) used two ways: declaratively, to gate the options above, and as the discriminator a
+`dialogCompleteListener` reads back after the dialog closes to know *which* option was chosen -
+if nonzero, it imperatively calls `changes.setEconomyBuildingObjectId(objectId)`, since the
+object id itself can't travel through the byte-limited flag system. This only works because the
+dialog is provably one-shot per shop (once rebuilt, `ShopActor` never shows it again), so a
+nonzero flag read back here can only mean *this* interaction just set it.
+
+### Sign removal on destroyed shops
+`MapStage.java`'s map-loading code creates a shop's "sign" (`hasSign`/`signXOffset`/
+`signYOffset` Tiled properties → a `TextureSprite` showing the shop type's icon) as a separate
+actor, not part of `ShopActor` itself. Wrapped that block with the same
+`TownRestoration.isWastelandTown() && !isShopRebuilt()` check `ShopActor.isDestroyed()` already
+uses, so the sign (and its `overlaySprite`, if any) simply never gets created while the shop is
+still rubble - nothing to hide/show later, it just doesn't exist until rebuild. Left the
+`shardtrader` case's own separate sign block untouched - shard traders aren't part of the
+wasteland shop-rebuild system.
+
+### Building icons
+`economy_buildings.png`/`.atlas` (96x64, 3x2 grid of 32x32 icons) cropped from the stock
+`common/maps/tileset/buildings.png` sheet at hand-identified coordinates (verified via a
+labeled-pixel-coordinate overlay after an initial row-indexing guess picked the wrong icons for
+several buildings). Card Shop deliberately has no icon in this atlas - a rebuilt Card Shop draws
+nothing extra over the normal tile. `ShopActor.draw()` now branches: destroyed → existing broken-
+shop art (unchanged); rebuilt and *is* the town's registered economy building →
+`EconomyBuildings.getBuildingSprite(type)` drawn opaque over the footprint; otherwise (plain
+rebuilt Card Shop) → nothing extra.
+
+### Mines / Lumber Mill: daily production
+`WorldStage.onActing()` now snapshots `World.getCurrentDay()` immediately before and after its
+existing `advanceTime()` call; on a change, calls `EconomyBuildings.processDaysPassed(daysPassed,
+newDayCount)`. That sweep walks every town's `PointOfInterestChanges` via
+`WorldSave.getAllPointOfInterestChanges()`, and for any town whose registered economy building is
+a producing type (Shard/Gold Mine, Lumber Mill, Stone Mine), grants the player
+`5 * daysPassed` of the matching resource directly (`AdventurePlayer.current().addX(...)`, not
+routed through the declarative dialog-action system - not applicable outside a dialog context).
+This piggybacks on the existing Day/Night clock (`MOD_SCOPE.md` #6), so it only ticks when
+`dayNightCycleEnabled` is on. Visiting a mine/mill in person just shows a small read-only info
+dialog (`EconomyBuildings.openProductionInfoDialog()`) - no other interaction.
+
+### Bank: deposit/withdraw + weekly compound interest
+Built as a fully custom `Dialog` (`stage.getDialog()`, same low-level API `GameStage`'s own
+`effectDialog`/`showImageDialog` helpers already use) rather than through `DialogData` - bank
+balance changes and repeated same-dialog interaction aren't expressible in the declarative
+action system, which only supports one-shot leaf options. `EconomyBuildings.refreshBankDialog()`
+rebuilds the dialog's content/buttons in place after every click (deposit/withdraw 10/50/100,
+each button disabled when unaffordable) rather than closing and reopening, so the balance display
+stays live across several transactions in one visit. Interest: 5% compounding every 7 in-game
+days, applied in the same `processDaysPassed()` sweep as mine production - tracks how many
+7-day periods have elapsed both before and after the days-passed delta and applies one
+compounding step per period actually crossed (handles multi-day jumps, e.g. fast-time testing,
+correctly instead of only checking `dayCount % 7`).
+
+### Exchange: fixed-rate trades
+Same custom-`Dialog`-with-refresh technique as the Bank. Six fixed trades, both directions for
+Gold↔Shards/Wood/Stone: `10 Gold→1 Shard`, `1 Shard→8 Gold`, `5 Gold→5 Wood`, `5 Wood→3 Gold`,
+`5 Gold→5 Stone`, `5 Stone→3 Gold`. Rates are a first pass, explicitly delegated by the user
+("you can choose the exchange rates for now") - raw resources (Wood/Stone) get a buy/sell
+spread, Shards priced as the scarce currency. Not balance-tested against actual playthrough
+economy; revisit once mines have been played with for a while.
+
+### Deferred (needs Dynamic Territory Control, `MOD_SCOPE.md` #7, first)
+Two things from the original request aren't buildable yet because they depend on a capture
+system that doesn't exist: cheaper rebuild cost if the player retakes a lost town, and
+per-building-type ruin art on recapture (only the generic broken-shop art exists for any of the
+6 types, and there's no dedicated Bank/Exchange ruin art at all - falls back to the generic
+broken-shop art once recapture exists, per the user's explicit call). Neither is triggerable or
+testable without #7, so left as a documented gap rather than half-built.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

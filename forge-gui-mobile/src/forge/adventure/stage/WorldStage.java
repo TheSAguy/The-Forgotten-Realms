@@ -113,7 +113,12 @@ public class WorldStage extends GameStage implements SaveFileContent {
         if (player.isMoving())
             waitingForTime = false; // moving cancels an active wait
         if (player.isMoving() || waitingForTime) {
-            WorldSave.getCurrentSave().getWorld().advanceTime(fastTimeEnabled ? delta * FAST_TIME_MULTIPLIER : delta);
+            World world = WorldSave.getCurrentSave().getWorld();
+            int dayBefore = world.getCurrentDay();
+            world.advanceTime(fastTimeEnabled ? delta * FAST_TIME_MULTIPLIER : delta);
+            int dayAfter = world.getCurrentDay();
+            if (dayAfter != dayBefore)
+                EconomyBuildings.processDaysPassed(dayAfter - dayBefore, dayAfter);
             handleMonsterSpawn(delta);
             collided = collided || handlePointsOfInterestCollision();
             globalTimer += delta;

@@ -723,7 +723,12 @@ public class MapStage extends GameStage {
                         }
                         ShopActor actor = new ShopActor(this, id, ret, data);
                         addMapActor(obj, actor);
-                        if (prop.containsKey("hasSign") && (boolean) prop.get("hasSign") && prop.containsKey("signYOffset") && prop.containsKey("signXOffset")) {
+                        // While a wasteland shop is still rubble, the sign would give away what it
+                        // sells before the player has rebuilt it - skip creating the sign/overlay
+                        // sprites entirely in that case (ShopActor's own broken-shop art already
+                        // covers the footprint, see ShopActor.draw()).
+                        boolean shopDestroyed = TownRestoration.isWastelandTown() && !TownRestoration.isShopRebuilt(this, id);
+                        if (!shopDestroyed && prop.containsKey("hasSign") && (boolean) prop.get("hasSign") && prop.containsKey("signYOffset") && prop.containsKey("signXOffset")) {
                             try {
                                 TextureSprite sprite = new TextureSprite(Config.instance().getAtlasSprite(data.spriteAtlas, data.sprite));
                                 sprite.setX(actor.getX() + Float.parseFloat(prop.get("signXOffset").toString()));

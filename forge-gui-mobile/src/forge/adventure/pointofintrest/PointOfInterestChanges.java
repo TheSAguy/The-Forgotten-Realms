@@ -21,6 +21,10 @@ public class PointOfInterestChanges implements SaveFileContent  {
     private final java.util.Map<Integer, Integer> reputation = new HashMap<>();
     private Boolean isBookmarked;
     private Boolean isVisited;
+    // -1 = no economy building chosen for this town yet. Kept as a real int (not a mapFlags
+    // byte) since Tiled object ids can exceed the byte range that mapFlags is limited to.
+    private int economyBuildingObjectId = -1;
+    private int bankBalance = 0;
 
     public static class Map extends HashMap<String,PointOfInterestChanges> implements SaveFileContent {
         @Override
@@ -69,6 +73,8 @@ public class PointOfInterestChanges implements SaveFileContent  {
         }
         isBookmarked = (Boolean) data.readObject("isBookmarked");
         isVisited = (Boolean) data.readObject("isVisited");
+        economyBuildingObjectId = data.containsKey("economyBuildingObjectId") ? data.readInt("economyBuildingObjectId") : -1;
+        bankBalance = data.containsKey("bankBalance") ? data.readInt("bankBalance") : 0;
     }
 
     @Override
@@ -81,6 +87,8 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("reputation", reputation);
         data.storeObject("isBookmarked", isBookmarked);
         data.storeObject("isVisited", isVisited);
+        data.store("economyBuildingObjectId", economyBuildingObjectId);
+        data.store("bankBalance", bankBalance);
         return data;
     }
 
@@ -185,5 +193,24 @@ public class PointOfInterestChanges implements SaveFileContent  {
     }
     public void visit() {
         isVisited = true;
+    }
+
+    public boolean hasEconomyBuilding() {
+        return economyBuildingObjectId != -1;
+    }
+    public int getEconomyBuildingObjectId() {
+        return economyBuildingObjectId;
+    }
+    public void setEconomyBuildingObjectId(int objectId) {
+        economyBuildingObjectId = objectId;
+    }
+    public int getBankBalance() {
+        return bankBalance;
+    }
+    public void setBankBalance(int val) {
+        bankBalance = Math.max(0, val);
+    }
+    public void addBankBalance(int delta) {
+        bankBalance = Math.max(0, bankBalance + delta);
     }
 }

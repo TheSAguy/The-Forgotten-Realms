@@ -236,18 +236,44 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   successful capture (see #7). Needs: fortification levels/costs, and how much each level
   reduces capture chance (currently just "high chance to repel" - not yet numeric).
 
-### 9. Expanded Resources — `Not Started`
-- Currently: Gold, Shards.
-- Add: Stone, Wood as additional upgrade/building materials.
+### 9. Expanded Resources — `In Progress`
+- Wood and Stone added alongside Gold/Shards (`AdventurePlayer.java`, same field/signal/save
+  pattern as Gold/Shards). Small always-on HUD readout (`ResourceDisplayActor.java`) shows
+  current totals next to the minimap, since the shared `hud.json` layout (common to every
+  plane) has no icon markup registered for these two new resources and forking it would hit
+  the same "config.json doesn't merge" problem as the plane config itself.
+- Earned via Economy Buildings (#10) below - no other source yet (not obtainable via shops,
+  rewards, or the `give item` console command).
 
-### 10. Buildings — `Not Started`
-- Gold mine
-- Crystal/Shard mine
-- Research lab (unlocks sets, ties into #4)
-- Fortifications (ties into #8)
-- Roads (ties into #2)
-- Teleporter
-- Shops
+### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04)
+- Wasteland shops (#2) can now be rebuilt as one of 6 special buildings instead of a plain Card
+  Shop: Shard Mine, Gold Mine, Lumber Mill, Stone Mine, Bank, Exchange - offered as extra
+  options on the existing rebuild-shop dialog. Only **one** of these six per town (Card Shop
+  rebuilds are unlimited, same as before). All cost 100 gold, same as a plain rebuild.
+- **Signs removed while a shop is rubble:** the little sign-post hinting what a shop sells no
+  longer renders until that specific shop is rebuilt (`MapStage.java`), since it doesn't make
+  sense to advertise contents through the rubble - the broken-shop art now speaks for itself.
+- **Mines/Lumber Mill:** produce +5 of their resource (Shards/Gold/Wood/Stone respectively)
+  once per elapsed in-game day (`EconomyBuildings.processDaysPassed()`, hooked into
+  `WorldStage.onActing()` off the same day counter #6's clock drives - so this also requires
+  `dayNightCycleEnabled`). Visiting one shows a small info readout, no further interaction.
+- **Bank:** deposit/withdraw gold in fixed denominations (10/50/100). Balance earns 5% compound
+  interest every 7 in-game days. Balance is tracked per-town (`PointOfInterestChanges
+  .bankBalance`), separate from the player's carried gold.
+- **Exchange:** fixed-rate trades between Gold/Shards/Wood/Stone (rates chosen as a first pass,
+  not balance-tested: 10 Gold↔1 Shard/1 Shard↔8 Gold, 5 Gold↔5 Wood/5 Wood↔3 Gold, 5 Gold↔5
+  Stone/5 Stone↔3 Gold - buy/sell spread on the two raw resources, Shards priced as the scarce
+  currency).
+- Rebuilt buildings draw their icon over the shop's normal footprint (cropped from the stock
+  `buildings.png` sheet into a new plane-local `economy_buildings.atlas`); Card Shop rebuilds
+  draw nothing extra (the normal shop tile already looks right).
+- **Deferred, needs #7 (Dynamic Territory Control) first:** if the player loses and retakes a
+  town, buildings should be cheaper to rebuild, and each building type should show its own
+  ruin art on recapture instead of the generic broken-shop art (no dedicated ruin art exists
+  yet for any of the 6 types, nor for the Bank/Exchange fallback case). Not triggerable or
+  testable until territory capture itself exists.
+- Research lab (ties into #4), Fortifications (ties into #8), Roads (ties into #2), Teleporter -
+  still `Not Started`, unrelated to the economy buildings above.
 
 ### 11. Map Polish — `Not Started`
 - More visually diverse map, prettier overall.
