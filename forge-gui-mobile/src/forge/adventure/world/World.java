@@ -413,12 +413,23 @@ public class World implements Disposable, SaveFileContent {
                         futures.add(CompletableFuture.supplyAsync(()-> {
                             long threadStartTime = System.currentTimeMillis();
                             BiomeStructure structure = new BiomeStructure(data, localSeed, biomeWidth, biomeHeight);
-                            structure.initialize();
+                            try {
+                                structure.initialize();
+                            } catch (Exception ex) {
+                                // Below, the main thread busy-waits on structureDataMap.containsKey(data)
+                                // for every structure - if initialize() throws before the put() that used
+                                // to be the only one, that key never appears and world-gen hangs forever
+                                // instead of failing loudly. Hit for real by Territory Control's shrunk
+                                // castle territories (MOD_SCOPE.md #7): a small enough biome region can
+                                // make BiomeStructure.initialize() carve out a WFC chunk smaller than the
+                                // pattern size, which throws inside OverlappingModel.graphics(). Still
+                                // register the (partially-initialized, harmless) structure so the wait
+                                // below can proceed - this biome's decorative structures just come out
+                                // sparse/incomplete rather than hanging the whole game.
+                                ex.printStackTrace();
+                            }
                             structureDataMap.put(data, structure);
                             return measureGenerationTime("wavefunctioncollapse " + data.sourcePath, threadStartTime);
-                        }).exceptionally(ex -> {
-                            ex.printStackTrace();
-                            return 0L;
                         }));
                     }
                 }

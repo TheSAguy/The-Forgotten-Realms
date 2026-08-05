@@ -66,8 +66,29 @@ public class BiomeStructure {
             colorIdMap.put(Integer.parseInt(data.mappingInfo[i].color, 16), i);
         }
         for (int mx = 0; mx < targetWidth; mx += Math.min(targetWidth - mx, MAXIMUM_WAVEFUNCTIONSIZE)) {
-            for (int my = 0; my < targetWidth; my += Math.min(targetHeight - my, MAXIMUM_WAVEFUNCTIONSIZE)) {
-                OverlappingModel model = new OverlappingModel(sourceImage, data.N, Math.min(targetWidth - mx, MAXIMUM_WAVEFUNCTIONSIZE), Math.min(targetHeight - my, MAXIMUM_WAVEFUNCTIONSIZE), data.periodicInput, data.periodicOutput, data.symmetry, data.ground);
+            // Was `my < targetWidth` - a pre-existing typo that happened to be harmless everywhere
+            // this has ever run (targetWidth and targetHeight have always been equal in practice,
+            // since every structure definition to date used the same width/height fraction), but
+            // is still wrong on its own terms - fixed while already in this loop for the chunk-size
+            // bug below.
+            for (int my = 0; my < targetHeight; my += Math.min(targetHeight - my, MAXIMUM_WAVEFUNCTIONSIZE)) {
+                int chunkWidth = Math.min(targetWidth - mx, MAXIMUM_WAVEFUNCTIONSIZE);
+                int chunkHeight = Math.min(targetHeight - my, MAXIMUM_WAVEFUNCTIONSIZE);
+                // A chunk smaller than the WFC pattern size (N) can't have any valid N×N pattern
+                // extracted from it - OverlappingModel.graphics() indexes negatively in that case
+                // (confirmed via forge.log: "Index -10 out of bounds for length 10", thrown for
+                // real by Territory Control's shrunk castle territories, MOD_SCOPE.md #7, making
+                // targetWidth/Height small enough that the final remainder chunk undershoots N).
+                // Treat it the same as the "couldn't find a valid solution" fallback just below,
+                // rather than crashing this async task (which used to hang world-gen forever - see
+                // World.java's structureDataMap wait loop).
+                if (chunkWidth < data.N || chunkHeight < data.N) {
+                    for (int x = 0; x < chunkWidth; x++)
+                        for (int y = 0; y < chunkHeight; y++)
+                            dataMap[mx + x][my + y] = -1;
+                    continue;
+                }
+                OverlappingModel model = new OverlappingModel(sourceImage, data.N, chunkWidth, chunkHeight, data.periodicInput, data.periodicOutput, data.symmetry, data.ground);
 
                 boolean suc = false;
                 for (int i = 0; i < 10 && !suc; i++)

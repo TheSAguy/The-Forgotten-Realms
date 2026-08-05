@@ -1502,6 +1502,61 @@ was for the original prototype. Needs a fresh-world test pass: confirm world-gen
 and travels correctly, arrival both recolors the ground and swaps the town to a real colored town
 map/shop pool on entry, and fighting a mage before arrival leaves the target town untouched.
 
+## Territory Control: world-gen hang, root cause found and fixed (2026-08-05)
+
+First real playtest of the round above: world generation never completed - "stuck... over 5 min,
+usually takes seconds." Found the exact cause in `forge.log`, not guessed:
+
+```
+java.util.concurrent.CompletionException: java.lang.ArrayIndexOutOfBoundsException: Index -10 out of bounds for length 10
+	at forge.adventure.world.OverlappingModel.graphics(OverlappingModel.java:228)
+	at forge.adventure.world.BiomeStructure.initialize(BiomeStructure.java:81)
+	at forge.adventure.world.World.lambda$generateNew$0(World.java:416)
+```
+
+**Two separate bugs, both pre-existing engine code, neither ever triggered before this session
+because no biome region had ever been small enough:**
+
+1. **The actual crash** (`BiomeStructure.java`): each color's decorative-structure generation
+   (dead trees/craters, the same wave-function-collapse system `colorless.json`'s own structures
+   use) splits its target area into ≤10-tile chunks and runs `OverlappingModel` per chunk. With
+   the shrunk `width/height: 0.08` territories, one color's smaller structure definition (`0.2`
+   fraction) produces a target size whose *last* chunk comes out narrower than the pattern size
+   `N` (`2`) - e.g. an 11-tile-wide area chunks into a 10-wide piece plus a 1-wide remainder,
+   and `OverlappingModel.graphics()` can't extract any `N×N` pattern from a 1-wide chunk, indexing
+   negatively. This was always *possible* given the chunking math (`targetSize mod 10` landing
+   between 1 and `N-1`), it just never happened to land there for any biome's numbers before -
+   the original `width: 0.7` regions happened to produce clean remainders for every existing
+   structure definition, by luck rather than by any actual size guarantee. Fixed with a guard
+   before constructing `OverlappingModel`: if either chunk dimension is smaller than `N`, mark
+   that chunk as "no structure" (same as the existing "WFC couldn't find a valid solution" path
+   just below it) instead of attempting it. Also fixed a real, separate typo found in the same
+   loop while touching it - the inner loop's bound read `my < targetWidth` instead of
+   `my < targetHeight` - harmless in every case so far since `targetWidth`/`targetHeight` have
+   always been numerically equal here (every structure definition to date uses matching width/
+   height fractions), but wrong on its own terms regardless.
+2. **The actual hang** (`World.java`): the structure-generation task above runs async
+   (`CompletableFuture.supplyAsync`), and the *main* generation thread busy-waits
+   (`while (!structureDataMap.containsKey(data)) Thread.sleep(10);`) for each one to finish before
+   continuing. The async task only called `structureDataMap.put(data, structure)` *after*
+   `structure.initialize()` returned successfully - so when `initialize()` threw (bug #1 above),
+   that `put()` never ran, `containsKey()` could never become true, and the main thread waited on
+   it forever. The `.exceptionally(ex -> { ex.printStackTrace(); return 0L; })` handler that was
+   already there explains why this failed *silently* into a hang instead of a crash - it printed
+   the stack trace (which is how this got diagnosed) but never unblocked the waiter. This is a
+   real, general robustness gap independent of bug #1 - *any* future exception on this path, for
+   any reason, would hang world-gen the exact same way. Fixed by moving the `try/catch` inside the
+   async task itself and always calling `structureDataMap.put(data, structure)` regardless of
+   whether `initialize()` succeeded - a structure that failed to initialize just ends up sparse/
+   incomplete for that one biome, not a frozen game.
+
+Both fixes are in `forge.adventure.world` (not fenced behind `territoryControlEnabled`) since
+they're genuine bug fixes, not new behavior - they only change what happens in the previously-
+crashing/hanging case, which no other plane has ever hit (every existing biome's numbers happened
+to avoid it). Should be strictly safer for every plane, not just this one.
+
+Not yet re-verified against a fresh world generation after this fix - needs the user to try again.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

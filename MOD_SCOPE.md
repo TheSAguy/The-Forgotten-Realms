@@ -130,8 +130,13 @@ color-wheel targeting and 50/50 recapture logic below are still unbuilt, only re
 color can attack *another color's* town, which this slice doesn't do yet. **Confirmed with the
 user:** a town the player has already restored is fair game for capture like any other neutral
 town for now - eventually meant to be gated by a reputation scale once #1 (Reputation System)
-exists, not built yet either. Not yet confirmed working in an actual playtest - the territory-size
-and mage-arrival-distance constants are first guesses, expect to need tuning.
+exists, not built yet either. The territory-size and mage-arrival-distance constants are first
+guesses, expect to need tuning. **First playtest hit a real world-gen hang** (2026-08-05) - root
+cause was two pre-existing engine bugs in the decorative-structure (wave-function-collapse)
+generator, only ever exposed once a biome region got small enough (see `MOD_CHANGELOG.md` for the
+full diagnosis): a chunk-sizing crash in `BiomeStructure.java`, and a `World.java` busy-wait that
+hung forever instead of failing loudly when that crash happened async. Both fixed generically
+(not just worked around for this feature) - not yet re-confirmed against a fresh world since.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**
