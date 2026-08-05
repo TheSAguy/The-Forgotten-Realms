@@ -1,5 +1,5 @@
 economy_buildings.png
-size: 96,64
+size: 128,64
 format: RGBA8888
 filter: Nearest,Nearest
 repeat: none
@@ -20,4 +20,10 @@ Bank
   size: 32, 32
 Exchange
   xy: 64, 32
+  size: 32, 32
+PlainShop
+  xy: 96, 0
+  size: 32, 32
+SpecialShop
+  xy: 96, 32
   size: 32, 32

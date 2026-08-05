@@ -161,27 +161,6 @@ public class MapStage extends GameStage {
             t.layer.setCell(t.col, t.row, hidden ? null : t.originalCell);
     }
 
-    /**
-     * World-space bounding box of the real building art found above this shop, for positioning a
-     * replacement overlay exactly over it - or null if none was found (e.g. search radius missed
-     * it), in which case the caller should fall back to a fixed guess.
-     */
-    public Rectangle getShopOverheadBounds(int shopId) {
-        List<OverheadTile> tiles = shopOverheadTiles.get(shopId);
-        if (tiles == null || tiles.isEmpty())
-            return null;
-        float tileW = tiles.get(0).layer.getTileWidth();
-        float tileH = tiles.get(0).layer.getTileHeight();
-        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
-        for (OverheadTile t : tiles) {
-            minX = Math.min(minX, t.col * tileW);
-            minY = Math.min(minY, t.row * tileH);
-            maxX = Math.max(maxX, (t.col + 1) * tileW);
-            maxY = Math.max(maxY, (t.row + 1) * tileH);
-        }
-        return new Rectangle(minX, minY, maxX - minX, maxY - minY);
-    }
-
     //todo: add additional graphs for other sprite sizes if desired. Current implementation
     // allows for mobs of any size to fit into 16x16 tiles for navigation purposes
     float collisionWidthMod = 0.4f;

@@ -2,7 +2,6 @@ package forge.adventure.character;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.data.ShopData;
@@ -56,9 +55,16 @@ public class ShopActor extends MapActor {
     public void onPlayerCollide() {
         if (isDestroyed()) {
             stage.getPlayerSprite().stop();
-            MapDialog dialog = TownRestoration.isTownRestored(stage)
-                    ? EconomyBuildings.buildChooseBuildingDialog(stage, objectId)
-                    : TownRestoration.buildShopLockedDialog(stage, objectId);
+            MapDialog dialog;
+            if (!TownRestoration.isTownRestored(stage)) {
+                dialog = TownRestoration.buildShopLockedDialog(stage, objectId);
+            } else if (EconomyBuildings.isSpecialShop(shopData)) {
+                // Booster/service shops skip the Bank/Exchange/Industry conversion choice
+                // entirely - see EconomyBuildings.buildSimpleRepairDialog().
+                dialog = EconomyBuildings.buildSimpleRepairDialog(stage, objectId);
+            } else {
+                dialog = EconomyBuildings.buildChooseBuildingDialog(stage, objectId);
+            }
             if (dialog.activate())
                 stage.showDialog();
             return;
@@ -100,40 +106,47 @@ public class ShopActor extends MapActor {
             // muddying the detail via a forced downscale).
             TextureRegion brokenSprite = TownRestoration.getBrokenShopSprite(objectId);
             if (brokenSprite != null)
-                drawCenteredOverFootprint(batch, brokenSprite);
+                drawRuinOverFootprint(batch, brokenSprite);
         } else {
-            // A rebuilt shop that was chosen as the town's one economy building draws its
-            // building icon over the normal shop tile; a plain rebuilt Card Shop draws nothing
-            // extra (the underlying Tiled tile already looks right).
+            // waste_town_player.tmx has no baked-in building art at all anymore (see
+            // MOD_CHANGELOG.md), so every rebuilt shop needs SOME icon drawn here, not just the
+            // 6 economy building types - otherwise a rebuilt plain Card Shop is invisible.
             int economyType = EconomyBuildings.getBuildingType(stage.getChanges(), objectId);
             TextureRegion buildingSprite = EconomyBuildings.getBuildingSprite(economyType);
+            if (buildingSprite == null) {
+                buildingSprite = EconomyBuildings.isSpecialShop(shopData)
+                        ? EconomyBuildings.getSpecialShopSprite()
+                        : EconomyBuildings.getPlainShopSprite();
+            }
             if (buildingSprite != null)
-                drawCenteredOverFootprint(batch, buildingSprite);
+                drawBuildingOverFootprint(batch, buildingSprite);
         }
     }
 
-    // Source art for both broken-shop and economy-building overlays is 32x32 against this shop's
+    // Source art for both broken-shop and building-icon overlays is 32x32 against this shop's
     // 16x16 footprint - draw at the texture's own native size instead of stretching/squishing it
-    // to getWidth()/getHeight().
+    // to getWidth()/getHeight(), centered horizontally over the footprint (the doorstep tile the
+    // player stands on to interact - the actual building looms above it).
     //
-    // Positioned over the real building art's own detected bounds (MapStage.
-    // getShopOverheadBounds() - the same tiles act() hides), not centered on the shop's own
-    // footprint - that footprint is just the doorstep tile the player stands on to interact, the
-    // actual building lives one or more tiles above it (see MapStage's findOverheadTiles() for
-    // how that's located; a fixed-offset guess here didn't hold across every town map tried).
-    // Falls back to a one-tile-up guess if no overhead tiles were found for this shop at all.
-    private void drawCenteredOverFootprint(Batch batch, TextureRegion region) {
+    // Vertical placement used to be derived from MapStage.getShopOverheadBounds() (the detected
+    // baked-tile bounds), but waste_town_player.tmx no longer has that baked art to detect at
+    // all, and the couple of shops with a stray leftover tile were getting positioned off of
+    // that single stray tile instead - worse than the plain fallback. Fixed offsets (calibrated
+    // against user testing) are simpler and correct for every shop now. Ruins and rebuilt
+    // building icons get different offsets since they're visually different heights/shapes.
+    private void drawRuinOverFootprint(Batch batch, TextureRegion region) {
         float w = region.getRegionWidth();
         float h = region.getRegionHeight();
-        Rectangle bounds = stage.getShopOverheadBounds(objectId);
-        float x, y;
-        if (bounds != null) {
-            x = bounds.x + (bounds.width - w) / 2f;
-            y = bounds.y + (bounds.height - h) / 2f;
-        } else {
-            x = getX() + (getWidth() - w) / 2f;
-            y = getY() + getHeight();
-        }
+        float x = getX() + (getWidth() - w) / 2f;
+        float y = getY() + getHeight() - 32f;
+        batch.draw(region, x, y, w, h);
+    }
+
+    private void drawBuildingOverFootprint(Batch batch, TextureRegion region) {
+        float w = region.getRegionWidth();
+        float h = region.getRegionHeight();
+        float x = getX() + (getWidth() - w) / 2f;
+        float y = getY() + getHeight() - 16f;
         batch.draw(region, x, y, w, h);
     }
 

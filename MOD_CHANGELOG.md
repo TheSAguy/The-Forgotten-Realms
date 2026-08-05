@@ -1273,10 +1273,64 @@ this was already resolved by the building-free template above (nothing left to m
 for Wasteland towns specifically), but it's a real correctness fix in `findOverheadTiles()`'s own
 search regardless of which town template is active.
 
+## Special (booster) shops get their own repair dialog and icon; plain rebuilt shops now show an icon at all (2026-08-05)
+
+Two more rough edges from the building-free `waste_town_player.tmx` template above.
+
+**Special shops.** The user's own Tiled screenshots identified 2 of the 10 shops in
+`waste_town_player.tmx` as sitting next to the Inn and next to the bulletin board respectively,
+and revealed something not previously known: these are "special" shops that sell boosters, not
+regular card shops - `ShopData` has no explicit category field for this, but `shops.json` (plane-
+specific) confirmed the pattern: `BoosterPackShop`/`WhiteBoosterPackShop`/etc, 10 variants, every
+one with `Booster` in its `name`. `EconomyBuildings.isSpecialShop(ShopData)` name-matches on that.
+A destroyed special shop now gets `EconomyBuildings.buildSimpleRepairDialog()` (repair-or-not,
+nothing else) instead of the normal `buildChooseBuildingDialog()` (Bank/Exchange/Industry/Card
+Shop choice) - converting a themed booster shop into a generic economy building doesn't make
+sense, and it was never a plain Card Shop either so that option's label would be wrong too.
+
+**New icons.** Cropped `PlainShop` (buildings.png 416,656) and `SpecialShop` (320,624) into
+`economy_buildings.png`/`.atlas` (sheet grown 96x64 -> 128x64), same "-16,-16 from the Tiled tile
+ID's reported top-left" correction the 6 economy-building icons needed, confirmed against the
+user's own Tiled preview thumbnails this time instead of by trial and error.
+
+**Rebuilt plain shops were invisible.** `ShopActor.draw()`'s non-destroyed branch used to draw
+nothing at all once a shop wasn't one of the 6 economy building types - fine when the old baked
+tile art was still there to look at, but the building-free template erased that art, so a rebuilt
+plain Card Shop (or a repaired special shop) now had nothing to look at. Fixed: that branch always
+resolves *some* icon now - the economy building icon if the shop was converted, else `SpecialShop`
+or `PlainShop` depending on `isSpecialShop()`.
+
+**Dropped `MapStage.getShopOverheadBounds()`-based positioning entirely**, in favor of two fixed
+vertical offsets. It was meant as the general-purpose answer (position the overlay exactly where
+the real building tile was found), but the building-free template means almost nothing is ever
+found for it to measure - 8 of the 10 shops always fell through to the old one-tile-up guess, and
+the 2 special shops were the *only* ones still using bounds-based positioning at all (a residual
+Overlay tile survived near each in the user's template), putting them on a fundamentally different
+- and per this round's feedback, worse - code path than every other shop. Recalibrated from the
+user's pixel numbers instead: `ShopActor.drawRuinOverFootprint()` (destroyed/not-yet-rebuilt) now
+uses `getY() + getHeight() - 32`; `drawBuildingOverFootprint()` (rebuilt, any icon) uses
+`getY() + getHeight() - 16`. Horizontal centering is unchanged. Removed `getShopOverheadBounds()`
+from `MapStage` as dead code once nothing called it; `findOverheadTiles()`/
+`setShopOverheadTilesHidden()` are untouched and still run every frame - hiding a residual baked
+tile is still correct behavior even though it's no longer used for icon placement.
+
+Not verified in a running game yet - the `-16`/`-32` split is derived from which shops the user
+described as needing which adjustment, matched against which code path each shop was provably
+using (traced by re-decoding `waste_town_player.tmx`'s object/tile layers and simulating the
+search algorithm against all 10 shops), not from watching the fix live. Needs a test pass to
+confirm all 10 shops (2 special + 8 plain) land correctly before considering this closed.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
-Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)
-under `.claude\Tools\` on the machine doing the work, both on the user's PATH. This is
-machine-local setup, not tracked in git - if working from a fresh machine, these need
-installing again there. `mvn -pl forge-gui-mobile -am compile -DskipTests` is the fast way to
-check the adventure-mode module still compiles after a change.
+Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),
+both on the user's PATH - this is the intended/documented setup, but it's machine-local and not
+tracked in git, so it can drift. On the "gaming PC" as of 2026-08-05, neither `mvn` nor `jar` was
+actually on PATH under a fresh shell (no `.claude\Tools\` directory exists there either) - had to
+search the disk to find them: Maven at `C:\Users\User\Downloads\apache-maven-3.9.16\bin\mvn.cmd`,
+JDK 22 (not 17) at `C:\Program Files\Java\jdk-22\bin\` (`jar.exe` needed directly for byte-
+verifying deployed classes; `javac`/`mvn` don't need it separately since Maven bundles its own
+compiler plugin). If a fresh session on either machine can't find `mvn`/`jar` on PATH, search the
+disk (`Downloads`, `Program Files\Java\*`) before assuming the toolchain needs reinstalling -
+don't take this doc's PATH claim at face value. `mvn -pl forge-gui-mobile -am compile -DskipTests
+-o` (add `-o` once dependencies are cached) is the fast way to check the adventure-mode module
+still compiles after a change.

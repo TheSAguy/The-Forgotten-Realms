@@ -10,6 +10,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.github.tommyettinger.textra.TextraButton;
 import com.github.tommyettinger.textra.TypingLabel;
 import forge.adventure.data.DialogData;
+import forge.adventure.data.ShopData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.stage.MapStage;
@@ -71,13 +72,33 @@ public class EconomyBuildings {
 
     /**
      * Icon to draw over a rebuilt shop's normal footprint when it's the town's registered economy
-     * building, or null for a plain Card Shop (which keeps its normal map-tile appearance).
+     * building, or null if it isn't one (a plain or special shop - see getPlainShopSprite()/
+     * getSpecialShopSprite()).
      */
     public static TextureRegion getBuildingSprite(int type) {
         String region = atlasRegion(type);
         if (region == null)
             return null;
         return Config.instance().getAtlasSprite(ATLAS, region);
+    }
+
+    // The waste-town map template no longer has any baked-in building art at all (see
+    // MOD_CHANGELOG.md) - a rebuilt shop needs *some* icon regardless of what it became, not just
+    // the 6 economy building types. "Special" shops (currently just the various *BoosterPackShop
+    // entries in shops.json - a booster/service shop, not a normal card-selling one) get their
+    // own distinct icon and skip the economy-building conversion choice entirely (see
+    // buildSimpleRepairDialog()) - converting a themed booster shop into a generic Bank doesn't
+    // make sense, and it's not a normal Card Shop either.
+    public static boolean isSpecialShop(ShopData data) {
+        return data != null && data.name != null && data.name.contains("Booster");
+    }
+
+    public static TextureRegion getPlainShopSprite() {
+        return Config.instance().getAtlasSprite(ATLAS, "PlainShop");
+    }
+
+    public static TextureRegion getSpecialShopSprite() {
+        return Config.instance().getAtlasSprite(ATLAS, "SpecialShop");
     }
 
     public static boolean isProducingType(int type) {
@@ -235,6 +256,29 @@ public class EconomyBuildings {
             }
         });
         return dialog;
+    }
+
+    /**
+     * Simplified rebuild dialog for "special" shops (see isSpecialShop()) - just repairs the shop
+     * back to itself, skipping the Bank/Exchange/Industry conversion choice entirely. Converting
+     * a themed booster/service shop into a generic economy building doesn't make sense, and it
+     * was never a normal Card Shop to begin with, so buildOption(NONE, ...)'s "Card Shop" label
+     * would be wrong here too - this builds its own single option instead of reusing that one.
+     */
+    public static MapDialog buildSimpleRepairDialog(MapStage stage, int objectId) {
+        DialogData root = new DialogData();
+        root.text = "This shop is buried in rubble. Repair it?";
+
+        DialogData repair = new DialogData();
+        repair.name = "Repair Shop (" + BUILD_COST + " gold)";
+        repair.isDisabled = AdventurePlayer.current().getGold() < BUILD_COST;
+        repair.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId)};
+
+        DialogData notNow = new DialogData();
+        notNow.name = "Not now";
+
+        root.options = new DialogData[]{repair, notNow};
+        return new MapDialog(root, stage, objectId, null);
     }
 
     // ---- Bank / Exchange interaction dialogs (built directly, not via DialogData, since they

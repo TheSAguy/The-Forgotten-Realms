@@ -375,6 +375,13 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   not guessed. Fixed - see `MOD_CHANGELOG.md`. **Also fixed a big visual gap** after "Buy 5"/
   "Sell 5" in each row (the button's own label cell defaulted to expand/fill, shoving the icons
   off to the far right) - see `MOD_CHANGELOG.md`.
+- **"Special" (booster-selling) shops now identified and handled distinctly (2026-08-05):**
+  discovered mid-session (not previously known/documented) that some shops - the various
+  `*BoosterPackShop` entries in `shops.json` - aren't plain Card Shops, and converting one into a
+  generic economy building via the normal rebuild menu doesn't make sense. A destroyed special
+  shop now gets a simple repair-only dialog instead of the Bank/Exchange/Industry/Card Shop
+  choice, and gets its own dedicated icon (new `SpecialShop` art) once repaired, same as a plain
+  rebuilt shop now gets a `PlainShop` icon (previously invisible - see `MOD_CHANGELOG.md`).
 - **Deferred, needs #7 (Dynamic Territory Control) first:** if the player loses and retakes a
   town, buildings should be cheaper to rebuild, and each building type should show its own
   ruin art on recapture instead of the generic broken-shop art (no dedicated ruin art exists
@@ -393,6 +400,34 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
 
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
+
+### 13. Capitol City — `Not Started` (2026-08-05)
+- Once the player owns 5 towns, they can upgrade **one** of them into their Capitol - only 1
+  allowed at a time. Needs a "which 5 towns count as owned" definition, which depends on #7
+  (Dynamic Territory Control) existing first - "owns a town" isn't a concept the game has yet
+  outside the player's always-safe Spawn/home base.
+- **Losing the Capitol ends the game.** Ties into #7's capture-resolution logic (a captured town
+  either flips to the attacker or reverts to neutral) and #8 (Town Fortifications) - the Capitol
+  is presumably the single highest-value thing Fortifications exist to protect.
+- **Certain buildings only buildable in the Capitol, not any town** - user's list so far: Bank,
+  Archeologist (send an expedition/exploration party out - new building, not built at all yet,
+  needs its own design pass), Exchange. **Open question, needs the user's call before this is
+  built:** #10's Bank/Exchange are *already implemented and shippable* as buildable in any
+  Wasteland/Neutral town today, one of each per town, no Capitol concept involved. Gating them
+  behind a not-yet-built Capitol system would be a real behavior change to already-working
+  buildings, not just new content - needs a decision on whether that's still wanted once #7
+  (and thus "5 owned towns") actually exists, or whether Bank/Exchange stay town-buildable and
+  only *new* Capitol-exclusive buildings (Archeologist, etc.) get the restriction.
+- **Other Capitol-flavored buildings to consider** (none started):
+  - **Teleporter** - already on the wishlist as an unscoped to-do under #10; this may be its
+    natural home (Capitol-exclusive fast travel) rather than a plain per-town building.
+  - **Barracks** - hire a garrison that patrols around the city and fights off incoming threats.
+    Ties into #7's attack-unit mechanic (something for the garrison to intercept).
+  - **Upgrade to Fortification** - likely the same system as #8, not a separate one; worth
+    merging into that item's design rather than tracking twice once #8 gets scoped.
+  - **Outlook** - expands the town's visible radius. Natural pairing with #3 (Fog of War) - could
+    plausibly be implemented as a local, permanent boost to the existing vision-radius mechanic
+    rather than new systems.
 
 ## Backlog: Ideas Borrowed From Other Planes
 
