@@ -1,9 +1,15 @@
 package forge.adventure.util;
 
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.github.tommyettinger.textra.TypingLabel;
 import forge.adventure.data.DialogData;
 import forge.adventure.player.AdventurePlayer;
@@ -296,12 +302,16 @@ public class EconomyBuildings {
     // 80 gold (80% buyback, a flat 20% spread) - previously each resource had its own bespoke
     // rate/quantity, no longer the case.
     private static final class Trade {
-        final String label;
+        final String verb; // "Buy" or "Sell"
+        final String resourceAtlas, resourceIcon; // the non-Gold side of the trade
         final int giveGold, giveShards, giveWood, giveStone;
         final int getGold, getShards, getWood, getStone;
-        Trade(String label, int giveGold, int giveShards, int giveWood, int giveStone,
+        Trade(String verb, String resourceAtlas, String resourceIcon,
+              int giveGold, int giveShards, int giveWood, int giveStone,
               int getGold, int getShards, int getWood, int getStone) {
-            this.label = label;
+            this.verb = verb;
+            this.resourceAtlas = resourceAtlas;
+            this.resourceIcon = resourceIcon;
             this.giveGold = giveGold; this.giveShards = giveShards; this.giveWood = giveWood; this.giveStone = giveStone;
             this.getGold = getGold; this.getShards = getShards; this.getWood = getWood; this.getStone = getStone;
         }
@@ -324,19 +334,22 @@ public class EconomyBuildings {
     private static final int TRADE_UNITS = 5;
     private static final int TRADE_BUY_PRICE = 100;
     private static final int TRADE_SELL_PRICE = 80;
+    private static final String RESOURCE_ICON_ATLAS = "maps/tileset/resource_icons.atlas";
 
-    // Gold/Shards render as real icons via [+Gold]/[+Shards] markup (Controls.getTextraFont()'s
-    // registered items.atlas - proven working, unlike the Lumber/Stone markup attempt that didn't
-    // pan out, see ResourceDisplayActor). Lumber/Stone have real icon art now too, but only as a
-    // separate atlas rendered through actual Image actors (not font markup), which a TextraButton
-    // label can't embed - so those two trades stay text-labeled for now.
+    // Every trade shows real icons for both sides now - Gold/Shards from the shared items.atlas
+    // (same one [+Gold]/[+Shards] markup elsewhere reads from), Lumber/Stone from the small
+    // dedicated resource_icons.atlas (see ResourceDisplayActor) - built as real Image actors via
+    // buildTradeRow() below rather than inline font markup, since Lumber/Stone's icons were never
+    // registered with the font (and, being in the mod plane's own resources, registering them
+    // globally in Controls.getTextraFont() risked a null-FileHandle crash for every other plane -
+    // see MOD_CHANGELOG.md).
     private static final Trade[] TRADES = {
-            new Trade("Buy " + TRADE_UNITS + " [+Shards] for " + TRADE_BUY_PRICE + " [+Gold]", TRADE_BUY_PRICE, 0, 0, 0, 0, TRADE_UNITS, 0, 0),
-            new Trade("Sell " + TRADE_UNITS + " [+Shards] for " + TRADE_SELL_PRICE + " [+Gold]", 0, TRADE_UNITS, 0, 0, TRADE_SELL_PRICE, 0, 0, 0),
-            new Trade("Buy " + TRADE_UNITS + " Lumber for " + TRADE_BUY_PRICE + " [+Gold]", TRADE_BUY_PRICE, 0, 0, 0, 0, 0, TRADE_UNITS, 0),
-            new Trade("Sell " + TRADE_UNITS + " Lumber for " + TRADE_SELL_PRICE + " [+Gold]", 0, 0, TRADE_UNITS, 0, TRADE_SELL_PRICE, 0, 0, 0),
-            new Trade("Buy " + TRADE_UNITS + " Stone for " + TRADE_BUY_PRICE + " [+Gold]", TRADE_BUY_PRICE, 0, 0, 0, 0, 0, 0, TRADE_UNITS),
-            new Trade("Sell " + TRADE_UNITS + " Stone for " + TRADE_SELL_PRICE + " [+Gold]", 0, 0, 0, TRADE_UNITS, TRADE_SELL_PRICE, 0, 0, 0),
+            new Trade("Buy", Paths.ITEMS_ATLAS, "Shards", TRADE_BUY_PRICE, 0, 0, 0, 0, TRADE_UNITS, 0, 0),
+            new Trade("Sell", Paths.ITEMS_ATLAS, "Shards", 0, TRADE_UNITS, 0, 0, TRADE_SELL_PRICE, 0, 0, 0),
+            new Trade("Buy", RESOURCE_ICON_ATLAS, "Lumber", TRADE_BUY_PRICE, 0, 0, 0, 0, 0, TRADE_UNITS, 0),
+            new Trade("Sell", RESOURCE_ICON_ATLAS, "Lumber", 0, 0, TRADE_UNITS, 0, TRADE_SELL_PRICE, 0, 0, 0),
+            new Trade("Buy", RESOURCE_ICON_ATLAS, "Stone", TRADE_BUY_PRICE, 0, 0, 0, 0, 0, 0, TRADE_UNITS),
+            new Trade("Sell", RESOURCE_ICON_ATLAS, "Stone", 0, 0, 0, TRADE_UNITS, TRADE_SELL_PRICE, 0, 0, 0),
     };
 
     public static void openExchangeDialog(MapStage stage) {
@@ -358,13 +371,46 @@ public class EconomyBuildings {
         dialog.getContentTable().add(label).width(250f).row();
 
         for (Trade trade : TRADES) {
-            addButtonRow(dialog, trade.label, trade.affordable(player), () -> {
-                trade.apply(player);
-                refreshExchangeDialog(stage);
-            });
+            boolean enabled = trade.affordable(player);
+            int price = trade.verb.equals("Buy") ? TRADE_BUY_PRICE : TRADE_SELL_PRICE;
+            dialog.getButtonTable().add(buildTradeRow(trade.verb, TRADE_UNITS, trade.resourceAtlas, trade.resourceIcon,
+                    price, enabled, () -> {
+                        trade.apply(player);
+                        refreshExchangeDialog(stage);
+                    })).width(240f).row();
         }
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
+    }
+
+    // One clickable trade row, e.g. "Buy 5 [shard icon] for 100 [gold icon]" - built directly out
+    // of a Table + real Image icons rather than a single TextraButton, since a button's own label
+    // can't embed an Image the way inline font markup can (and Lumber/Stone's icons aren't
+    // registered as font markup at all - see the Trade array's own comment above).
+    private static Table buildTradeRow(String verb, int qty, String resourceAtlas, String resourceIcon,
+                                        int price, boolean enabled, Runnable action) {
+        Table row = new Table();
+        row.setBackground(Controls.getSkin().getDrawable(enabled ? "unpressed10patch" : "unpressed-disable10Patch"));
+        row.pad(2f, 6f, 2f, 6f);
+
+        row.add(Controls.newTypingLabel(verb + " " + qty)).padRight(4f);
+        Sprite resourceSprite = Config.instance().getAtlasSprite(resourceAtlas, resourceIcon);
+        if (resourceSprite != null)
+            row.add(new Image(new TextureRegionDrawable(resourceSprite))).size(16f).padRight(10f);
+        row.add(Controls.newTypingLabel("for " + price)).padRight(4f);
+        Sprite goldSprite = Config.instance().getAtlasSprite(Paths.ITEMS_ATLAS, "Gold");
+        if (goldSprite != null)
+            row.add(new Image(new TextureRegionDrawable(goldSprite))).size(16f);
+
+        if (enabled) {
+            row.addListener(new ClickListener() {
+                @Override
+                public void clicked(InputEvent event, float x, float y) {
+                    action.run();
+                }
+            });
+        }
+        return row;
     }
 
     private static void addButtonRow(Dialog dialog, String name, boolean enabled, Runnable action) {

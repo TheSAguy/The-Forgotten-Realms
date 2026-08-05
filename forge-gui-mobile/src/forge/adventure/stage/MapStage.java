@@ -97,12 +97,28 @@ public class MapStage extends GameStage {
         }
     }
 
-    // Searches "Walls" then "Overlay" for the nearest non-empty cell directly above the shop's
-    // own column (checked first, confirmed correct by decoding real town .tmx tile data - the
-    // Walls tile consistently sits one row above the shop's own row, Overlay one row above that),
-    // falling back to searching below in case a particular town's authoring differs. Only ever
-    // called once per shop, at map-load time, before any shop's tiles have been hidden - later
-    // shops searching past an earlier shop's now-hidden cell would get a false miss.
+    // Searches "Walls" then "Overlay" for the nearest non-empty cell at or above the shop's own
+    // column/row. Two rounds of getting this wrong taught real lessons worth recording:
+    //
+    // 1) The shop's own row (`getCell(col, row)`, dr=0) is NOT empty - the Walls tile actually
+    //    lives *there*, not one tile above it. Confirmed by decompiling libGDX's own
+    //    BaseTmxMapLoader (javap -c on gdx-1.13.5.jar): TmxMapLoader.Parameters defaults
+    //    flipY=true, so object x/y properties get computed as `heightInPixels - rawXmlY` (a
+    //    continuous pixel-space flip), while loadTileLayer() computes a tile layer's row as
+    //    `(heightInTiles - 1) - rawXmlRow` (a discrete tile-index flip, with its own "-1"). These
+    //    two flips don't cancel out cleanly when converting between them via simple division -
+    //    working an actual shop's numbers through both formulas side by side (not just reasoning
+    //    about direction in the abstract, which is what went wrong the first two times) showed
+    //    the Walls tile's true gdx row equals `actor.getY() / tileHeight` exactly, no offset.
+    //    Previously started this search at dr=1, so it always skipped the one row that actually
+    //    had the Walls tile.
+    // 2) Overlay (the roof) is one row above that (dr=1 in gdx terms, matching Walls' raw-XML row
+    //    minus one, i.e. one row closer to the top of the authored map).
+    //
+    // Searches dr=0..3 above first (where the evidence points), falling back to below in case a
+    // particular town's authoring differs. Only ever called once per shop, at map-load time,
+    // before any shop's tiles have been hidden - later shops searching past an earlier shop's
+    // now-hidden cell would get a false miss.
     private List<OverheadTile> findOverheadTiles(int shopCol, int shopRow) {
         List<OverheadTile> found = new ArrayList<>();
         if (tiledMap == null)
@@ -114,7 +130,7 @@ public class MapStage extends GameStage {
             TiledMapTileLayer layer = (TiledMapTileLayer) mapLayer;
             TiledMapTileLayer.Cell hit = null;
             int hitRow = -1;
-            for (int dr = 1; dr <= 3 && hit == null; dr++) {
+            for (int dr = 0; dr <= 3 && hit == null; dr++) {
                 TiledMapTileLayer.Cell cell = layer.getCell(shopCol, shopRow + dr);
                 if (cell != null) {
                     hit = cell;

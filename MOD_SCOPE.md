@@ -297,7 +297,10 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   Still positioned in code (not `hud.json`) - forking that shared, common-to-every-plane file
   remains a full-copy-not-merge risk, same as `config.json`. **Enlarged (2026-08-05)** - icons
   were touching the panel's border; panel grew 64x32 -> 72x36 with more padding, icons now
-  vertically centered in their row.
+  vertically centered in their row. **Was invisible inside towns (2026-08-05)** - it had been
+  added to `GameHUD`'s `mapGroup` (grouped with the minimap it's positioned relative to), which
+  gets hidden entirely on entering a town/dungeon; Gold/Shards/HP live in `hudGroup` instead,
+  which only fades, never hides. Moved to `hudGroup` to match - visible everywhere now.
 - Earned via Economy Buildings (#10) below - no other source yet (not obtainable via shops,
   rewards, or the `give item` console command).
 
@@ -324,21 +327,20 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   original randomly-rolled type though (e.g. a Card Shop sign), so once it becomes a Bank/Mine/
   Exchange the sign would show wrong info - hidden entirely in that case for now. **Wishlist:**
   dedicated sign art per economy building type, so e.g. a Bank gets its own sign instead of none.
-- **Rebuilt/destroyed shops showed the old image behind the ruin/building art - took three
-  attempts across 2026-08-05 to actually fix.** Attempt 1 assumed the shop's normal-looking body
-  was a Tiled-rendered tile-object and tried toggling `MapObject.setVisible()` live - a no-op,
-  since this codebase's renderer never actually draws gid-having objects at all (confirmed by
-  decompiling the renderer). Attempt 2 found the real mechanism (the building is baked into the
-  town's `Walls`/`Overlay` tile layers, not the shop object) and tried covering it with a
-  precisely-offset overlay - still didn't work in testing, and the offset math kept checking out
-  fine on paper even after re-deriving it multiple ways, which was the sign to stop trying to
-  perfectly predict a fixed offset. **Real fix (attempt 3):** stop covering it, hide it instead -
-  `MapStage.findOverheadTiles()` locates each shop's actual Walls/Overlay tile(s) at map-load
-  time (searching, not assuming, so it doesn't matter whether every town template is laid out the
-  same way), `setShopOverheadTilesHidden()` nulls/restores those cells live, and the overlay art
-  now positions itself over whatever was actually found instead of a guessed offset. See
-  `MOD_CHANGELOG.md` for the full blow-by-blow, including why attempt 2's math wasn't obviously
-  wrong yet still didn't hold up in practice.
+- **Rebuilt/destroyed shops showed the old image behind the ruin/building art - took four
+  attempts across 2026-08-05 to actually fix, done now.** Attempt 1 assumed the shop's normal-
+  looking body was a Tiled-rendered tile-object and tried toggling `MapObject.setVisible()` live -
+  a no-op, since this codebase's renderer never actually draws gid-having objects at all. Attempt
+  2 found the real mechanism (baked into the town's `Walls`/`Overlay` tile layers, not the shop
+  object) and tried covering it with a precisely-offset overlay - didn't hold up in testing.
+  Attempt 3 switched to hiding the real tiles instead of covering them
+  (`MapStage.findOverheadTiles()`/`setShopOverheadTilesHidden()`) - the right *approach*, but
+  still had a bug: the search started one row too late (`dr=1`), skipping the row that actually
+  had the Walls tile (`dr=0`), found by decompiling libGDX's own tile/object-loading bytecode
+  instead of continuing to reason about it in the abstract. **Fixed for real (attempt 4):** search
+  starts at `dr=0`. See `MOD_CHANGELOG.md` for the full derivation, including the specific lesson
+  (concrete numbers through gdx's actual formulas beat more abstract direction-reasoning, which
+  had already produced two confident-but-wrong answers in a row).
 - **Build menu now always shows all options, cost included, greyed out if unaffordable** -
   matches the pattern the Bank/Exchange dialogs already used (`addButtonRow`'s `enabled` flag);
   previously an option was hidden entirely if the player was short on gold, via a `hasGold`
@@ -355,10 +357,11 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   separate from the player's carried gold.
 - **Exchange:** trades between Gold/Shards/Lumber/Stone. **Standardized (2026-08-05)** to one
   denomination for every resource - buy 5 for 100 gold, sell 5 back for 80 gold (80% buyback) -
-  replacing the original bespoke per-resource rates. Gold/Shard trade buttons now show real
-  `[+Gold]`/`[+Shards]` icons inline instead of words (per a reference screenshot); Lumber/Stone
-  stay text-labeled since their icon art only exists as separate `Image` actors (see #9), not
-  something a button label can embed.
+  replacing the original bespoke per-resource rates. **All four resources show real icons now**
+  (2026-08-05, extended from an initial Gold/Shards-only pass) - each trade row is a small `Table`
+  mixing text with real `Image` icons rather than a single button label, since Lumber/Stone's
+  icons aren't registered as font markup the way Gold/Shards' are (see #9's HUD readout for why
+  that's deliberate).
 - **Deferred, needs #7 (Dynamic Territory Control) first:** if the player loses and retakes a
   town, buildings should be cheaper to rebuild, and each building type should show its own
   ruin art on recapture instead of the generic broken-shop art (no dedicated ruin art exists

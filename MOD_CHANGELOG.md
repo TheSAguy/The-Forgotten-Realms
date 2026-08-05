@@ -1148,6 +1148,61 @@ doesn't matter anymore, this works per-shop regardless of which town template is
   for 100 gold, sell 5 back for 80 gold (80% buyback, flat 20% spread) - replacing each resource's
   previous bespoke rate/quantity (10:1 Shards, 1:1 Lumber/Stone at smaller amounts).
 
+## Shop overlay fix, take four - the actual off-by-one (2026-08-05)
+
+Take three's tile-hiding search still didn't work in testing - same double-image, still visible
+after the fix was live. This time the root cause was findable and fixable for real, not another
+positional guess:
+
+**Wrong file checked.** Both prior derivations decoded `towns/waste_town.tmx` (no suffix) as "the
+wasteland town map." Checked `points_of_interest.json` this round and found it's dead weight -
+`BiomeColorless` towns actually spawn from `waste_town_generic.tmx`/`_identity.tmx`/`_tribal.tmx`
+(30-35 count each); the unsuffixed file isn't referenced anywhere. Re-decoded the 3 files that
+actually matter - same tile pattern as before, so this wasn't itself the bug, just something
+worth not repeating.
+
+**The actual bug: an off-by-one in the search range, caused by not knowing libGDX's own object/
+tile-layer loading well enough.** Decompiled `BaseTmxMapLoader` (`javap -c` on the project's real
+`gdx-1.13.5.jar`, not guessing from memory) and found two *different* Y-flip formulas in play:
+`TmxMapLoader.Parameters.flipY` defaults `true` (confirmed in `BaseTiledMapLoader$Parameters`'
+bytecode), and under that default, `loadObject()` computes object y as `heightInPixels - rawY`
+(continuous, pixel-space), while `loadTileLayer()` computes a tile layer's row as `(heightInTiles
+- 1) - rawRow` (discrete, tile-index-space, with its own separate "-1"). These two flips don't
+cancel out cleanly when converting between "an actor's world Y" and "that same position's tile
+layer row" via simple division - working one shop's actual numbers through *both* formulas side
+by side (map height 30 tiles/480px, a shop at raw y=208) showed the Walls tile's true gdx row
+equals `actor.getY() / tileHeight` **exactly, zero offset** - not one row up as both previous
+attempts assumed. `findOverheadTiles()`'s search started at `dr=1`, so it always skipped the one
+row (`dr=0`) that actually had the tile. Fixed by starting the search at `dr=0`; Overlay (the
+roof) is confirmed to still be one row above that, at `dr=1`.
+
+Recorded in `findOverheadTiles()`'s own doc comment in detail, including the specific lesson: two
+prior passes reasoned about flip *direction* in the abstract and kept convincing themselves the
+existing offset was right - what actually resolved it was working concrete numbers through gdx's
+own confirmed formulas side by side, not more abstract reasoning about which way "up" goes.
+
+## Lumber/Stone missing from the HUD inside towns (2026-08-05)
+
+`ResourceDisplayActor` had been added to `GameHUD`'s `mapGroup` (grouped with the minimap/clock
+since it was positioned relative to them) - but `mapGroup` is the group `showHideMap()` calls
+`setVisible(false)` on entirely when the player enters a town/dungeon (the minimap doesn't make
+sense indoors). Gold/Shards/HP live in `hudGroup` instead, which only has its *alpha* adjusted on
+map transitions, never hidden outright - explaining why they stayed visible while Lumber/Stone
+vanished. Moved `resourceDisplayActor` to `hudGroup` to match; position/sizing unchanged.
+
+## Exchange dialog: real icons for every resource (2026-08-05)
+
+Extended the Gold/Shards-only icon treatment to Lumber/Stone too, per feedback with a reference
+screenshot. Since Lumber/Stone's icons aren't (and, per the crash-risk reasoning above, shouldn't
+be) registered as font markup, a single `TextraButton` label can't hold a real `Image` for them
+the way `[+Gold]`/`[+Shards]` markup can for the other two. Rebuilt every trade row as a `Table`
+(`EconomyBuildings.buildTradeRow()`) mixing a `TypingLabel` ("Buy 5") with real `Image`/
+`TextureRegionDrawable` icons for both the resource and the Gold price (Shards/Gold sourced from
+the shared `items.atlas`, Lumber/Stone from `resource_icons.atlas`) - same visual result for all
+four resources now, not just two. The row is manually clickable (`ClickListener` on the `Table`
+itself) and swaps `unpressed10patch`/`unpressed-disable10Patch` backgrounds to match the
+skin's own affordable/greyed-out look, since it's no longer a stock `TextraButton`.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

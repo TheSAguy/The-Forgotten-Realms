@@ -273,7 +273,6 @@ public class GameHUD extends Stage {
         mapGroup.addActor(timeOfDayActor);
         mapGroup.addActor(waitCheckBox);
         mapGroup.addActor(speedCheckBox);
-        mapGroup.addActor(resourceDisplayActor);
         ui.addActor(mapGroup);
         //HUD
         hudGroup.addActor(gamehud);
@@ -282,6 +281,11 @@ public class GameHUD extends Stage {
         hudGroup.addActor(shards);
         hudGroup.addActor(money);
         hudGroup.addActor(blank);
+        // Not mapGroup - that group gets hidden entirely (showHideMap/mapGroup.setVisible(false))
+        // whenever the player enters a town/dungeon, which was hiding Lumber/Stone right along
+        // with the minimap. hudGroup only has its alpha adjusted, never hidden outright, matching
+        // Gold/Shards/HP staying visible everywhere - Lumber/Stone should behave the same way.
+        hudGroup.addActor(resourceDisplayActor);
         ui.addActor(hudGroup);
         //MENU
         menuGroup.addActor(deckActor);
