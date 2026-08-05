@@ -35,6 +35,12 @@ import com.github.tommyettinger.textra.TextraLabel;
 import com.github.tommyettinger.textra.TypingLabel;
 
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import forge.Forge;
 import forge.adventure.character.EnemySprite;
@@ -72,6 +78,21 @@ public class GameHUD extends Stage {
     static public GameHUD instance;
     private final GameStage gameStage;
     private final Image avatar, miniMapPlayer;
+    // Territory Control (MOD_SCOPE.md #7): one minimap dot per in-flight mage, same "player marker
+    // tracks a live world position" pattern as miniMapPlayer above, just dynamic (created when a
+    // mage spawns, removed when it's gone - arrival or defeat, WorldStage.enemies is the source of
+    // truth either way) rather than a single always-present marker. Colored per mage's own
+    // territoryColor so multiple in-flight mages stay distinguishable from each other and from the
+    // player's own white marker.
+    private final Map<EnemySprite, Image> mageMinimapMarkers = new HashMap<>();
+    private static final Map<String, Color> MAGE_MARKER_COLORS = new HashMap<>();
+    static {
+        MAGE_MARKER_COLORS.put("white", Color.LIGHT_GRAY); // pure white would be indistinguishable from the player's own marker
+        MAGE_MARKER_COLORS.put("blue", Color.BLUE);
+        MAGE_MARKER_COLORS.put("black", Color.PURPLE); // same readability swap EnemySprite.drawColorHints() already uses for black
+        MAGE_MARKER_COLORS.put("red", Color.RED);
+        MAGE_MARKER_COLORS.put("green", Color.GREEN);
+    }
     private final TypingLabel keyCollection;
     private final TypingLabel lifePoints;
     private final TypingLabel money;
@@ -415,6 +436,37 @@ public class GameHUD extends Stage {
                 !Controls.actorContainsVector(notificationPane, new Vector2(miniMapPlayer.getX(), miniMapPlayer.getY()))
                 && (!Controls.actorContainsVector(console, new Vector2(miniMapPlayer.getX(), miniMapPlayer.getY()))
                 || !console.isVisible())); // prevent drawing on top of console or notifications
+        updateMageMinimapMarkers();
+    }
+
+    // Territory Control (MOD_SCOPE.md #7): keeps mageMinimapMarkers in sync with whichever mages
+    // are currently in WorldStage.enemies, same per-frame position math as miniMapPlayer above but
+    // for a variable-size set of markers instead of one fixed one.
+    private void updateMageMinimapMarkers() {
+        Set<EnemySprite> stillActive = new HashSet<>();
+        for (Pair<Float, EnemySprite> pair : WorldStage.getInstance().enemies) {
+            EnemySprite mob = pair.getValue();
+            if (mob.territoryTarget == null)
+                continue;
+            stillActive.add(mob);
+            Image marker = mageMinimapMarkers.get(mob);
+            if (marker == null) {
+                marker = new Image(Forge.getAssets().getTexture(Config.instance().getFile("ui/minimap_player.png")));
+                marker.setColor(MAGE_MARKER_COLORS.getOrDefault(mob.territoryColor, Color.ORANGE));
+                mapGroup.addActor(marker);
+                mageMinimapMarkers.put(mob, marker);
+            }
+            int xPosMini = (int) ((mob.getX() / WorldSave.getCurrentSave().getWorld().getTileSize() / WorldSave.getCurrentSave().getWorld().getWidthInTiles()) * miniMap.getWidth());
+            int yPosMini = (int) ((mob.getY() / WorldSave.getCurrentSave().getWorld().getTileSize() / WorldSave.getCurrentSave().getWorld().getHeightInTiles()) * miniMap.getHeight());
+            marker.setPosition(miniMap.getX() + xPosMini - marker.getWidth() / 2, miniMap.getY() + yPosMini - marker.getHeight() / 2);
+            marker.setVisible(miniMap.isVisible());
+        }
+        mageMinimapMarkers.entrySet().removeIf(entry -> {
+            if (stillActive.contains(entry.getKey()))
+                return false;
+            entry.getValue().remove(); // detach from mapGroup - the mage arrived, was defeated, or despawned
+            return true;
+        });
     }
 
     Texture miniMapTexture;

@@ -1651,6 +1651,82 @@ Not yet re-verified against a fresh world - needs the user to generate a new one
 won't retroactively gain visible castles - `questFlagsToActivate` is only read at placement, not
 per-frame) and watch for the new notifications.
 
+## Territory Control: redesigned world-gen approach, mage lifetime bug, minimap markers (2026-08-05)
+
+Fourth playtest round: castles now visible, but three new problems - the map "looked totally
+off" compared to a stock-generated one (a stark ring of dense, sparsely-decorated colorless
+terrain around small, richly-decorated color patches - direct consequence of the earlier
+`width`/`height` JSON-tuning approach and its side effects), Blue's tiny territory was still
+packed with dungeons, and mages sent notifications ("X sends a mage...") but then simply
+vanished before arriving.
+
+**Mage lifetime bug, found immediately - a real, separate bug from anything about the map
+itself.** `EnemySprite`s in `WorldStage.enemies` all share one despawn timer
+(`getLifetime()`, minimum 20 real-time seconds) meant for an ordinary roaming monster that should
+vanish if the player never engages it. A Territory Control mage was silently subject to the exact
+same timer despite needing to travel for a long real-world-equivalent time to reach a distant
+town (worse without 10x speed) - so every mage was being auto-despawned well before arrival,
+explaining "got the dispatch message, then they just disappeared." Fixed: `WorldStage.onActing()`
+now skips that despawn check entirely for any `EnemySprite` with `territoryTarget` set - it
+already has its own real lifecycle (removed on arrival by `TerritoryControl.onMageArrived()`, or
+on defeat via the normal path, both untouched by this fix).
+
+**World-gen approach redesigned, not just re-tuned - the "make it look normal" ask was really an
+architecture question.** Every previous round's world-gen problem (the WFC chunk-size crash/hang,
+the ocean-coverage gap, castles getting crowded out, 181 real POIs deleted, and now this "looks
+totally off" report) traced back to the same root decision: shrinking each color's own `width`/
+`height` biome parameters *during* generation, fighting the engine's noise/distance placement math
+and its wave-function-collapse structure generator at every turn. Per direct user suggestion -
+**generate the map exactly like normal first, then sweep colors down to a small area around their
+castle afterward** - replacing that whole approach:
+
+- Reverted every earlier Part-A JSON change: deleted the 5 plane-specific color biome overrides
+  (`width`/`height` back to stock `0.7`, inherited from `common/` again, nothing plane-specific
+  needed anymore) and the `colorless.json` override (back to stock `0.85`), and restored all 176
+  previously-zeroed POI counts to their original values (verified via `git diff` against the
+  commit before Territory Control started - the file is now byte-identical to that commit except
+  for the castle `questFlagsToActivate` fix, which stays). **This also un-deletes the Planeswalker
+  side-bosses and Story-tagged content flagged as a real find two rounds ago** - they're back,
+  generated normally, just now sitting on repainted-neutral ground instead of vanishing outright.
+- New `World.neutralizeTerritoryOutsideRadius(colorBiomeName, keepCenter, radiusTiles, ...)` - the
+  inverse of the existing `repaintBiomeAroundTown()` prototype (that one paints a circle *to* a
+  color; this one paints everything *outside* a circle *away from* a color, back to "waste").
+  Deliberately scans the whole map rather than re-deriving the original per-biome bounding box by
+  hand (a real flip-convention risk - the painting loop in `generateNew()` tracks x/y as raw array
+  indices, this method needs world/game tile coordinates via `getBiome()`'s own flip) - acceptable
+  cost for a one-time post-generation pass, not a per-frame one.
+- New `TerritoryControl.neutralizeAfterGeneration(World)`, called once from the very end of
+  `World.generateNew()` (after everything else, including decoration doodads, has already run
+  normally): for each color, finds its castle, repaints everything outside `CASTLE_KEEP_RADIUS_TILES`
+  (`40`, first guess) back to neutral, and converts any of that color's own Town/Capital POIs
+  outside that radius into their Waste Town equivalent via `PointOfInterest.transformInto()` - the
+  *same* mechanism a live capture already uses, just run in bulk and in reverse here. Every *other*
+  POI type (dungeons, caves, forts, boss encounters) is left exactly where normal generation put
+  it, keeping its original color-flavored identity - only towns and terrain get swept, matching
+  what was actually asked for and preserving everything else world-gen already does well.
+- Existing doodad placement (rocks/flowers/decorative structures) is untouched by this sweep -
+  every color's own decorations were already placed normally during generation using the *real*
+  proven-good density/distribution logic, so leaving them in place (just under a recolored ground)
+  should read as close to "the original map script" as this feature can get while still existing.
+
+**Mage minimap markers added** (`GameHUD.java`, requested): each in-flight mage now gets its own
+dot on the always-visible HUD minimap, same per-frame position-tracking pattern already used for
+`miniMapPlayer`, just for a dynamic set instead of one fixed marker - created when a mage spawns,
+removed when `WorldStage.enemies` no longer contains it (arrival or defeat either way, no separate
+tracking needed). Colored by `territoryColor` (using the same white/blue/black/red/green ->
+`Color` mapping `EnemySprite.drawColorHints()` already established, including swapping black for
+purple so it stays visible against a dark minimap) so multiple in-flight mages and the player's
+own marker stay distinguishable. No new art - reuses the same `ui/minimap_player.png` texture the
+player's own marker uses, just tinted.
+
+**`count towns` is a console command, not a HUD readout** (per "I did not see a towns counter") -
+open the debug console with **F9 or F10**, then type `count towns`. Worth trying again now that
+the sweep above should put every town back except for the ones deliberately converted to neutral.
+
+Not yet re-verified in a running game - every fix in this round (mage lifetime, the redesigned
+world-gen sweep, minimap markers) needs a fresh world and a full test pass before considering any
+of it closed.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

@@ -128,7 +128,14 @@ public class WorldStage extends GameStage implements SaveFileContent {
             Iterator<Pair<Float, EnemySprite>> it = enemies.iterator();
             while (it.hasNext()) {
                 Pair<Float, EnemySprite> pair = it.next();
-                if (globalTimer >= pair.getKey() + pair.getValue().getLifetime()) {
+                // Territory Control (MOD_SCOPE.md #7): a mage is exempt from the ordinary
+                // roaming-monster despawn timer below - getLifetime() defaults to a real-time
+                // 20s floor meant for a monster that wanders near the player and should vanish if
+                // never engaged, but a mage may need to travel for a long real-world-equivalent
+                // time (especially without 10x speed) to reach a distant town. It already has its
+                // own, deliberate lifecycle: removed on arrival (TerritoryControl.onMageArrived())
+                // or on defeat (the normal path below, unaffected by this check).
+                if (pair.getValue().territoryTarget == null && globalTimer >= pair.getKey() + pair.getValue().getLifetime()) {
                     AdventureQuestController.instance().updateDespawn(pair.getValue());
                     AdventureQuestController.instance().showQuestDialogs(MapStage.getInstance());
                     foregroundSprites.removeActor(pair.getValue());

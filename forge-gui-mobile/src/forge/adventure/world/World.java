@@ -22,6 +22,7 @@ import forge.adventure.util.Config;
 import forge.adventure.util.Paths;
 import forge.adventure.util.SaveFileContent;
 import forge.adventure.util.SaveFileData;
+import forge.adventure.util.TerritoryControl;
 import forge.gui.GuiBase;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -890,6 +891,12 @@ public class World implements Disposable, SaveFileContent {
             biomeImage = pix;
             rebuildFogOfWarPixmap();
             measureGenerationTime("sprites", currentTime[0]);
+            // Territory Control (MOD_SCOPE.md #7), opt-in via territoryControlEnabled - runs after
+            // everything else above has finished with every color's normal, full-size territory,
+            // then sweeps each color down to a small area around its own castle. See
+            // TerritoryControl.neutralizeAfterGeneration()'s own doc comment for why this replaced
+            // shrinking each color's world-gen territory directly.
+            TerritoryControl.neutralizeAfterGeneration(this);
             System.out.println("Generating world took :\t\t" + ((System.currentTimeMillis() - startTime) / 1000f) + " s");
             WorldStage.getInstance().clearCache();
 
@@ -1098,6 +1105,85 @@ public class World implements Disposable, SaveFileContent {
             int maxChunkX = Math.floorDiv(centerWorldX + radius, chunkSize);
             int minChunkY = Math.floorDiv(centerWorldY - radius, chunkSize);
             int maxChunkY = Math.floorDiv(centerWorldY + radius, chunkSize);
+            for (int cx = minChunkX; cx <= maxChunkX; cx++)
+                for (int cy = minChunkY; cy <= maxChunkY; cy++)
+                    onChunkNeedsReload.accept(cx, cy);
+        }
+    }
+
+    /**
+     * Territory Control (MOD_SCOPE.md #7): repaints every tile belonging to the named color biome
+     * to the "waste" (colorless) biome, EXCEPT within radiusTiles of keepCenter - the inverse of
+     * repaintBiomeAroundTown() above (that one paints a small circle TO a color; this one paints
+     * everything OUTSIDE a small circle AWAY from a color). Used once, right after normal
+     * generateNew() finishes with every color's original, full-size territory (unlike
+     * repaintBiomeAroundTown()'s live, mid-game single-town use, world-gen hasn't produced a
+     * live WorldStage/WorldBackground yet, so onTileRepainted/onChunkNeedsReload are typically
+     * null here - nothing needs a live-refresh callback before the scene has even loaded).
+     * <p>
+     * Deliberately scans the *entire* map rather than a precomputed bounding box: the original
+     * per-biome painting loop in generateNew() tracks x/y as raw array indices, while this method
+     * (like repaintBiomeAroundTown()) works in world/game tile coordinates via getBiome()'s own
+     * height-y-1 flip - reusing that already-correct accessor sidesteps re-deriving the bounding
+     * box's own flip conversion by hand, at the cost of a full-map scan. Acceptable for a one-time
+     * post-generation pass (not a per-frame or even per-capture operation).
+     */
+    public void neutralizeTerritoryOutsideRadius(String colorBiomeName, Vector2 keepCenter, int radiusTiles,
+                                                  BiConsumer<Integer, Integer> onTileRepainted,
+                                                  BiConsumer<Integer, Integer> onChunkNeedsReload) {
+        if (data == null || biomeMap == null || terrainMap == null)
+            return;
+        List<BiomeData> biomes = data.GetBiomes();
+        int colorIndex = -1, colorlessIndex = -1;
+        for (int i = 0; i < biomes.size(); i++) {
+            if (colorBiomeName.equalsIgnoreCase(biomes.get(i).name))
+                colorIndex = i;
+            if ("waste".equalsIgnoreCase(biomes.get(i).name))
+                colorlessIndex = i;
+        }
+        if (colorIndex < 0 || colorlessIndex < 0)
+            return;
+        BiomeData colorlessBiome = biomes.get(colorlessIndex);
+
+        int centerTileX = (int) (keepCenter.x / data.tileSize);
+        int centerTileY = (int) (keepCenter.y / data.tileSize);
+        int radiusSq = radiusTiles * radiusTiles;
+        long roadBit = 1L << biomes.size();
+        int mm = data.miniMapTileSize;
+
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        for (int wx = 0; wx < width; wx++) {
+            for (int wy = 0; wy < height; wy++) {
+                if (highestBiome(getBiome(wx, wy)) != colorIndex)
+                    continue;
+                int dx = wx - centerTileX;
+                int dy = wy - centerTileY;
+                if (dx * dx + dy * dy <= radiusSq)
+                    continue; // close enough to the castle - stays this color
+
+                int rawY = height - wy - 1;
+                if ((biomeMap[wx][rawY] & roadBit) != 0)
+                    continue; // preserve roads, same as repaintBiomeAroundTown()
+                biomeMap[wx][rawY] = 1L << colorlessIndex;
+                terrainMap[wx][rawY] = 0;
+
+                if (biomeImage != null)
+                    biomeImage.drawPixmap(createSmallPixmap(colorlessBiome.tilesetAtlas, colorlessBiome.tilesetName, 0), wx * mm, rawY * mm);
+                updateFogOfWarPixmap(wx, rawY);
+
+                if (onTileRepainted != null)
+                    onTileRepainted.accept(wx, wy);
+                minX = Math.min(minX, wx); maxX = Math.max(maxX, wx);
+                minY = Math.min(minY, wy); maxY = Math.max(maxY, wy);
+            }
+        }
+
+        if (onChunkNeedsReload != null && minX <= maxX) {
+            int chunkSize = getChunkSize();
+            int minChunkX = Math.floorDiv(minX, chunkSize);
+            int maxChunkX = Math.floorDiv(maxX, chunkSize);
+            int minChunkY = Math.floorDiv(minY, chunkSize);
+            int maxChunkY = Math.floorDiv(maxY, chunkSize);
             for (int cx = minChunkX; cx <= maxChunkX; cx++)
                 for (int cy = minChunkY; cy <= maxChunkY; cy++)
                     onChunkNeedsReload.accept(cx, cy);

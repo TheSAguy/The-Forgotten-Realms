@@ -116,43 +116,41 @@ Helping a color angers its two enemies, not its allies.
 
 ### 7. Dynamic Territory Control — `In Progress` (first slice built 2026-08-05, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
-2026-08-05 (opt-in via new `territoryControlEnabled` flag): world-gen now shrinks each color's
-territory to just around its castle and removes its pre-colored starter towns/dungeons (see
-`MOD_CHANGELOG.md` for the full removed-POI list - **needs re-adding later**, most likely by
-migrating them into `colorless.json`'s own POI list so they still spawn, just scattered across
-the neutral majority of the map); each color independently sends a real, visible, fightable mage
-(reusing the existing "Adept `<Color>` Wizard" enemies) at a random 2-5 day interval toward one of
-its 3 nearest neutral towns; reaching the town transforms it into a genuine instance of that
-color's own town (real map/shops/theme, not a reskin - see `PointOfInterest.transformInto()`),
-plus recolors the surrounding terrain via the already-built repaint prototype. Only ever targets
-neutral towns (including player-restored ones, deliberately - see below) - the ally/enemy
-color-wheel targeting and 50/50 recapture logic below are still unbuilt, only relevant once a
-color can attack *another color's* town, which this slice doesn't do yet. **Confirmed with the
-user:** a town the player has already restored is fair game for capture like any other neutral
-town for now - eventually meant to be gated by a reputation scale once #1 (Reputation System)
-exists, not built yet either. The territory-size and mage-arrival-distance constants are first
-guesses, expect to need tuning. **First playtest hit a real world-gen hang** (2026-08-05) - root
-cause was two pre-existing engine bugs in the decorative-structure (wave-function-collapse)
-generator, only ever exposed once a biome region got small enough (see `MOD_CHANGELOG.md` for the
-full diagnosis): a chunk-sizing crash in `BiomeStructure.java`, and a `World.java` busy-wait that
-hung forever instead of failing loudly when that crash happened async. Both fixed generically
-(not just worked around for this feature) - not yet re-confirmed against a fresh world since.
-**Second playtest finding (2026-08-05, same day)**: once a world did generate, the playable map
-shrank to roughly the neutral area's own radius - the 5 colors' old large territories had been
-quietly covering the outer ring of the map that `colorless.json`'s own formula never fully
-reached on its own. Fixed via a new plane-specific `colorless.json` override (`width`/`height`
-0.85 -> 1.6). Also added a `count towns` debug console command so actual on-map town density can
-be checked empirically (real numbers: ~430 placeable towns before this feature, 102 after - see
-`MOD_CHANGELOG.md`) rather than guessed - whether 102 needs bumping up is still open, pending the
-user trying this build. **Third playtest finding, same day**: all 5 castles were invisible on the
-real map (showed on minimap only) - root cause was Shandalar's own main-story `questFlagsToActivate`
-gate on every castle entry, irrelevant to Territory Control but blocking rendering entirely.
-Removed for the 5 castle entries in the plane's own `points_of_interest.json` only. Also: day
-length dropped 12->10 min/day per request, and `TerritoryControl` now posts on-screen
-notifications + `forge.log` lines for mage dispatch/capture (the user reported a week of play
-with zero mages sighted - can't diagnose further without running the game, so added visibility
-into the pipeline instead of guessing another fix; the invisible-castle bug is a strong candidate
-for why nothing was *seen* even if dispatch was working the whole time).
+2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
+playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
+color's own world-gen `width`/`height` biome parameters directly; reverted - see
+`MOD_CHANGELOG.md`'s "world-gen approach redesigned" entry for the full story of why):
+
+- World-gen runs completely normally/unmodified - every color gets its usual full-size territory,
+  starter towns, and dungeons, exactly like every other plane. Immediately afterward, a new sweep
+  (`TerritoryControl.neutralizeAfterGeneration()`) repaints each color's territory back to neutral
+  everywhere except a radius around its own castle, and converts that color's own Town/Capital
+  POIs outside that radius into their Waste Town equivalent. Every other POI type (dungeons,
+  caves, forts, boss encounters - including the Planeswalker side-bosses/Story content an earlier
+  round's approach was deleting outright) is left alone, still color-flavored, just now sitting on
+  repainted-neutral ground.
+- Each color independently sends a real, visible, fightable mage (reusing the existing "Adept
+  `<Color>` Wizard" enemies, now with their own colored minimap dot too) at a random 2-5 day
+  interval toward one of its 3 nearest neutral towns; reaching the town transforms it into a
+  genuine instance of that color's own town (real map/shops/theme, not a reskin - see
+  `PointOfInterest.transformInto()`), plus recolors the surrounding terrain via the already-built
+  repaint prototype.
+- Only ever targets neutral towns (including player-restored ones, deliberately - confirmed with
+  the user, eventually meant to be gated by a reputation scale once #1 exists, not built yet) - the
+  ally/enemy color-wheel targeting and 50/50 recapture logic below are still unbuilt, only relevant
+  once a color can attack *another color's* town, which this slice doesn't do yet.
+- **Bugs found and fixed across the 4 playtest rounds** (all detailed in `MOD_CHANGELOG.md`): a
+  world-gen hang (two pre-existing engine bugs in the wave-function-collapse structure generator,
+  only ever exposed once a biome region got small enough under the since-reverted approach);
+  castles invisible on the real map (Shandalar's own main-story quest-gate, removed for the 5
+  castle entries only); mages despawning via the ordinary roaming-monster lifetime timer before
+  ever reaching their target (fixed - mages are now exempt).
+- Day length dropped 12->10 min/day per request. `count towns` (debug console, **F9/F10** to open)
+  shows the actual on-map town count/breakdown. `TerritoryControl` posts on-screen notifications +
+  `forge.log` lines for mage dispatch/capture, for diagnosing "is this actually firing" without
+  being able to run the game directly.
+- Tunable first-guess constants, not yet validated by playtesting: `CASTLE_KEEP_RADIUS_TILES`
+  (`40`), mage arrival distance, the 2-5 day dispatch interval.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**
@@ -161,13 +159,13 @@ needs its own design pass before any of this gets built:**
   time (ties into the next point) - ask before scoping this one, the request as given covers both
   readings.
 - **A way to handle color-specific "special" POIs** (Groves, Vampire Castles, Merfolk Pools, the
-  Planeswalker side-bosses, etc - the same POI types removed from world-gen this round, see the
-  removed-POI list above). Right now they simply don't exist anywhere on a Territory-Control map.
-  Open question beyond just "add them back": should they appear near a town once that color
-  captures it (dynamically, tied to ownership), or just be scattered back across the neutral map
-  generically (the "migrate into colorless.json" idea above)? The former reads better thematically
-  for a world where color presence actually expands over time, but is real additional design/build
-  work beyond a data migration.
+  Planeswalker side-bosses, etc). **Overtaken by the world-gen redesign later the same day** - the
+  approach that deleted these outright was reverted; they now generate normally and simply sit on
+  repainted-neutral ground outside a color's castle radius. Still an open, unbuilt question though:
+  should they eventually change/appear differently based on which color controls the surrounding
+  territory (dynamically tied to ownership), or is "unowned dungeon on neutral ground regardless of
+  its own color flavor" fine indefinitely? The former would be a real, separate feature on top of
+  what exists now, not a prerequisite for anything currently built.
 - **Quest expiration timer**: a configurable number of days a quest stays active before it fails
   automatically. This is the concrete version of something #6 (Time System) already listed as
   unbuilt ("quest timers") - worth building against #6's existing day-counter hook

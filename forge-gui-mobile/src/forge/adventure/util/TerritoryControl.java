@@ -43,8 +43,53 @@ public class TerritoryControl {
     private static final int MAX_ATTACK_DAYS = 5;
     private static final int NEAREST_CANDIDATES = 3;
     private static final int RECOLOR_RADIUS = 10;
+    private static final int CASTLE_KEEP_RADIUS_TILES = 40; // first-guess constant, tune after testing
 
     private TerritoryControl() {}
+
+    /**
+     * Called once from World.generateNew(), right after normal generation finishes with every
+     * color's original, full-size territory untouched (see MOD_CHANGELOG.md for why this
+     * replaced the earlier approach of shrinking each color's own world-gen territory directly -
+     * that produced a map that "looked totally off" and fought the engine's own placement/
+     * wave-function-collapse logic at several points). Runs world-gen completely normally, then
+     * sweeps each color's territory down to a small circle around its own castle: repaints
+     * everything else back to neutral (World.neutralizeTerritoryOutsideRadius()) and converts any
+     * of that color's own Town/Capital POIs that fall outside the circle into their Waste Town
+     * equivalent (PointOfInterest.transformInto(), the same mechanism a live capture uses, just
+     * run in reverse and in bulk here). Deliberately leaves every *other* POI type (dungeons,
+     * caves, forts, boss encounters) exactly where world-gen put them, keeping their original
+     * color-flavored identity - only towns and terrain get swept, matching the request precisely
+     * and preserving content (e.g. Planeswalker side-bosses) that an earlier, since-reverted
+     * approach was deleting outright.
+     */
+    public static void neutralizeAfterGeneration(World world) {
+        if (!isEnabled())
+            return;
+        for (String color : COLORS) {
+            PointOfInterest castle = findCastle(world, color);
+            if (castle == null) {
+                System.out.println("[TerritoryControl] " + color + ": no castle found, skipping neutralize sweep");
+                continue;
+            }
+            world.neutralizeTerritoryOutsideRadius(color, castle.getPosition(), CASTLE_KEEP_RADIUS_TILES, null, null);
+
+            float keepRadiusWorld = CASTLE_KEEP_RADIUS_TILES * (float) world.getTileSize();
+            int converted = 0;
+            for (PointOfInterest poi : new ArrayList<>(world.getAllPointOfInterest())) {
+                if (!isColorTownOrCapital(poi.getData(), color))
+                    continue;
+                if (poi.getPosition().dst(castle.getPosition()) <= keepRadiusWorld)
+                    continue;
+                PointOfInterestData wasteData = matchingWasteData(poi.getData(), color);
+                if (wasteData == null)
+                    continue;
+                poi.transformInto(wasteData, world.getRandom());
+                converted++;
+            }
+            System.out.println("[TerritoryControl] " + color + ": neutralized territory outside castle, converted " + converted + " town(s) to neutral");
+        }
+    }
 
     private static boolean isEnabled() {
         ConfigData configData = Config.instance().getConfigData();
@@ -169,5 +214,32 @@ public class TerritoryControl {
             return null;
         String suffix = wasteData.name.substring("Waste Town".length()).trim();
         return PointOfInterestData.getPointOfInterest(noun + " Town " + suffix);
+    }
+
+    // True for a color's own "<Noun> Capital" or "<Noun> Town <Variant>" - the entries
+    // neutralizeAfterGeneration() sweeps, mirroring isWastelandTown()'s equivalent check for the
+    // opposite direction (a neutral town, not yet captured by anyone).
+    private static boolean isColorTownOrCapital(PointOfInterestData data, String color) {
+        String noun = COLOR_TOWN_NOUN.get(color);
+        if (noun == null || data.name == null)
+            return false;
+        return data.name.equals(noun + " Capital") || data.name.startsWith(noun + " Town");
+    }
+
+    // Inverse of matchingTownData(): "Forest Town Identity" -> "Waste Town Identity". "Forest
+    // Capital" has no direct Waste Town equivalent (colorless has no "capital" POI type at all) -
+    // falls back to "Waste Town Generic" rather than being left as a color's own capital sitting
+    // on now-neutral ground.
+    private static PointOfInterestData matchingWasteData(PointOfInterestData colorData, String color) {
+        String noun = COLOR_TOWN_NOUN.get(color);
+        if (noun == null || colorData.name == null)
+            return null;
+        if (colorData.name.equals(noun + " Capital"))
+            return PointOfInterestData.getPointOfInterest("Waste Town Generic");
+        if (colorData.name.startsWith(noun + " Town")) {
+            String suffix = colorData.name.substring((noun + " Town").length()).trim();
+            return PointOfInterestData.getPointOfInterest("Waste Town " + suffix);
+        }
+        return null;
     }
 }
