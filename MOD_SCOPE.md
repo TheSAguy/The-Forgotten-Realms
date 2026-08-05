@@ -341,6 +341,13 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   starts at `dr=0`. See `MOD_CHANGELOG.md` for the full derivation, including the specific lesson
   (concrete numbers through gdx's actual formulas beat more abstract direction-reasoning, which
   had already produced two confident-but-wrong answers in a row).
+  - **Made moot for Wasteland/Neutral towns specifically, same day:** the user authored
+    `waste_town_player.tmx` directly in Tiled - same layout, shop buildings' `Walls`/`Overlay` art
+    actually erased - and it's now what "Waste Town Generic/Identity/Tribal" all load, via a new
+    plane-specific `points_of_interest.json` override (scoped to this plane only, same pattern as
+    `config.json` - every other plane still reads the original common file, untouched). With
+    nothing baked in to hide, the runtime hide/cover code above is now mostly a no-op for these
+    towns, kept only as the right fallback for any future template that still has baked art.
 - **Build menu now always shows all options, cost included, greyed out if unaffordable** -
   matches the pattern the Bank/Exchange dialogs already used (`addButtonRow`'s `enabled` flag);
   previously an option was hidden entirely if the player was short on gold, via a `hasGold`
@@ -365,7 +372,9 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   `Table`s rather than `TextraButton`s, which broke a hard requirement in `MapStage.showDialog()`
   (every button-table cell must be an actual `TextraButton`) and threw an exception every frame
   the dialog was open, leaving the player stuck unable to move. Found via the actual Forge log,
-  not guessed. Fixed - see `MOD_CHANGELOG.md`.
+  not guessed. Fixed - see `MOD_CHANGELOG.md`. **Also fixed a big visual gap** after "Buy 5"/
+  "Sell 5" in each row (the button's own label cell defaulted to expand/fill, shoving the icons
+  off to the far right) - see `MOD_CHANGELOG.md`.
 - **Deferred, needs #7 (Dynamic Territory Control) first:** if the player loses and retakes a
   town, buildings should be cheaper to rebuild, and each building type should show its own
   ruin art on recapture instead of the generic broken-shop art (no dedicated ruin art exists

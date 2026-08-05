@@ -392,6 +392,12 @@ public class EconomyBuildings {
                                                int price, boolean enabled, Runnable action) {
         TextraButton button = Controls.newTextButton(verb + " " + qty, enabled ? action : () -> {});
         button.setDisabled(!enabled);
+        // Controls.newTextButton()'s own label cell defaults to expand()+fill() (fine for a
+        // plain single-label button, which is all this framework normally builds) - left as-is,
+        // it greedily claims the whole 240f button width, shoving every cell added below off to
+        // the far right and leaving a big gap after "Buy 5"/"Sell 5". Disable that so the label
+        // only takes its natural width and the icons sit right next to it.
+        button.getTextraLabelCell().expand(false, false).fill(false, false);
 
         Sprite resourceSprite = Config.instance().getAtlasSprite(resourceAtlas, resourceIcon);
         if (resourceSprite != null)

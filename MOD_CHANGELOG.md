@@ -1224,6 +1224,55 @@ wrapper `Table` at all. Fixed `buildTradeRow()` to build on `Controls.newTextBut
 `TextraButton`, satisfying `showDialog()`'s cast) and append the icon/price cells onto that
 directly, instead of constructing a standalone `Table`. Same visual result, no protocol violation.
 
+## Wasteland town map: user-authored building-free template (2026-08-05)
+
+Sidesteps the whole "hide the real building tiles at runtime" mechanism above for its actual
+target case: the user opened `waste_town_generic.tmx` in Tiled directly and produced
+`waste_town_player.tmx` - the same layout (identical `Ground`/`Background` and the same 10 shop
+objects at the same positions, confirmed by decoding it the same way as every other town file
+this session) but with the shop buildings' `Walls`/`Overlay` art actually erased. Verified before
+wiring anything up: all 10 shops now have empty `Walls`/`Overlay` at their own position and the
+few rows above it, except one residual roof tile near a single shop (harmless - `findOverheadTiles
+()` already handles a partial miss generically, nothing special-cased).
+
+**Wired in scoped to this plane only**, not applied globally: `points_of_interest.json` (which
+drives the "map" file for every dungeon/town in the *entire* game, Shandalar included) is loaded
+via `Config.getFile()` - already plane-aware, just never had a plane-specific override before.
+Added one: `The Forgotten Realms/world/points_of_interest.json`, a full copy of the common file
+(same "full copy, not a merge" pattern as `config.json`), with only the three Wasteland/Neutral
+entries changed - "Waste Town Generic"/"Identity"/"Tribal" now all point at
+`../The Forgotten Realms/maps/map/towns/waste_town_player.tmx` instead of their original
+`../common/maps/map/towns/waste_town_*.tmx`. (The relative-path convention here is odd but
+verified working: `TileMapScene`/`MapStage` resolve every "map" field via `getCommonFilePath()`,
+which unconditionally prepends `.../adventure/common/` regardless of which plane's `points_of_
+interest.json` the entry came from - so reaching a plane-specific file needs an explicit `../`
+escape back out to the sibling `adventure/` folder. Confirmed by resolving the actual path in
+Python before touching any Java.) Every other plane keeps reading the original common file
+untouched, so this can't leak into Shandalar or anything else.
+
+With this in place, the runtime hide/cover mechanism becomes mostly moot for Wasteland/Neutral
+towns specifically (there's nothing left to hide) - kept as-is rather than removed, since it's
+still the right fallback for any future town template that does still have baked-in building art,
+and for the one shop with a residual tile in this template.
+
+## Exchange dialog: gap between label and icons; one shop 16px off (2026-08-05)
+
+**Big gap after "Buy 5"/"Sell 5":** `Controls.newTextButton()`'s own internal label cell defaults
+to `.expand().fill()` - fine for an ordinary single-label button, but once `buildTradeRow()`
+started appending more cells (the icons) after it, that expand/fill greedily claimed the button's
+whole 240f width first, shoving everything else to the far right. Fixed by grabbing the button's
+own label cell (`getTextraLabelCell()`) and turning expand/fill back off, so it only takes its
+natural width and the icon/price cells sit right next to it.
+
+**One shop rendering 16px off from its neighbors:** `shopCol`/`shopRow` were computed with a
+truncating `(int)` cast on `actor.getX()/getWidth()` - fine for shops placed exactly on the tile
+grid, but at least one shop instance in these town files isn't (a couple of pixels of authoring
+slop, same kind of thing noted earlier this session for other shops), and truncation rounds
+toward zero instead of to the nearest tile. Switched to `Math.round()`. Most visible impact of
+this was already resolved by the building-free template above (nothing left to misalign against
+for Wasteland towns specifically), but it's a real correctness fix in `findOverheadTiles()`'s own
+search regardless of which town template is active.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers)

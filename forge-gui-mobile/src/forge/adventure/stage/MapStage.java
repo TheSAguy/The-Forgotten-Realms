@@ -834,8 +834,11 @@ public class MapStage extends GameStage {
                         // Locate the real building art baked above this shop's own footprint (see
                         // findOverheadTiles()'s own doc comment) once, right after the actor's
                         // final position is set, before any shop's tiles get hidden this session.
-                        int shopCol = (int) (actor.getX() / actor.getWidth());
-                        int shopRow = (int) (actor.getY() / actor.getHeight());
+                        // Math.round(), not a truncating cast - some shop instances aren't placed
+                        // perfectly tile-aligned (a couple of pixels of authoring slop), which a
+                        // plain (int) cast would round toward zero and land on the wrong row for.
+                        int shopCol = Math.round(actor.getX() / actor.getWidth());
+                        int shopRow = Math.round(actor.getY() / actor.getHeight());
                         shopOverheadTiles.put(id, findOverheadTiles(shopCol, shopRow));
                         // While a wasteland shop is still rubble, the sign would give away what it
                         // sells before the player has rebuilt it. Signs used to only be created at
