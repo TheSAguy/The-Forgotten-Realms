@@ -1320,6 +1320,43 @@ using (traced by re-decoding `waste_town_player.tmx`'s object/tile layers and si
 search algorithm against all 10 shops), not from watching the fix live. Needs a test pass to
 confirm all 10 shops (2 special + 8 plain) land correctly before considering this closed.
 
+## Ruin/building icon offset correction, and a second special-shop type: Armory (2026-08-05)
+
+First in-game test of the round above: buildings landed correctly, but every ruin was still
+16px too low. The `-16`/`-32` split was wrong - **both cases need the same `-16` offset** (ruins
+were never a genuinely different case, they just hadn't been tested yet when the split was
+written). `ShopActor.drawRuinOverFootprint()`/`drawBuildingOverFootprint()` collapsed into one
+`drawOverFootprint()` method, one constant, since keeping two identical methods around would just
+invite them to drift apart again.
+
+**Second special-shop type found: Armory.** The user's Tiled screenshot (tile ID 687, buildings.png
+240,384 - corrected per the usual "-16,-16" rule to 224,368, 32x32) named the building next to the
+Inn "Armory" and said it "only sells items." Checked what that shop position can actually resolve
+to by decoding `waste_town_player.tmx`'s object properties directly (`commonShopList` on object
+id=48 near the Inn): `Equipment` - a single fixed candidate, not a random roll, confirming this
+shop is *always* the `Equipment` `ShopData` at this position. Checked `shops.json`: `Equipment`
+and its 10 colored/`Items` siblings (`WhiteEquipment`, `RedItems`, etc.) all have `"rewards"` that
+are 100% `{"type":"item"}`, 0% cards - a real, distinct shop family, not a one-off.
+
+Also worth recording: this reveals shop id=58 (the *other* "special" shop, near the bulletin
+board) **isn't guaranteed to be a Booster shop at all** - its `commonShopList` mixes the 5
+`*BoosterPackShop` names in with several ordinary card-pack shop names, so which one it resolves
+to depends on the world's random seed. It happened to roll a Booster shop in the user's current
+save (matching what they described a few rounds back), but a different seed could just as easily
+give that position a plain card shop instead - not a bug, just a fact about how `commonShopList`
+works that's worth knowing if a future report says "the shop next to the bulletin board isn't
+special" on a different save.
+
+**Implementation**, generalized rather than hardcoded to this one shop instance (same reasoning
+as the Booster detection): `EconomyBuildings.isBoosterShop()`/`isArmoryShop()` (name ends with
+`Equipment` or `Items`) are now the two special-shop sub-types; `isSpecialShop()` is `isBoosterShop
+() || isArmoryShop()`. `buildSimpleRepairDialog()` now takes the shop's `ShopData` and labels its
+one option "Repair Armory" for armory shops, "Repair Shop" (unchanged) for booster shops.
+`ShopActor.draw()`'s icon fallback chain is now: economy building icon (if converted) → Armory
+icon (if `isArmoryShop`) → generic Special icon (if `isBoosterShop`) → Plain icon. New `Armory`
+region added to `economy_buildings.png`/`.atlas` (grew 128x64 -> 128x96, a 3rd row) alongside
+`PlainShop`/`SpecialShop`.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

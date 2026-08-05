@@ -375,13 +375,20 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
   not guessed. Fixed - see `MOD_CHANGELOG.md`. **Also fixed a big visual gap** after "Buy 5"/
   "Sell 5" in each row (the button's own label cell defaulted to expand/fill, shoving the icons
   off to the far right) - see `MOD_CHANGELOG.md`.
-- **"Special" (booster-selling) shops now identified and handled distinctly (2026-08-05):**
-  discovered mid-session (not previously known/documented) that some shops - the various
-  `*BoosterPackShop` entries in `shops.json` - aren't plain Card Shops, and converting one into a
-  generic economy building via the normal rebuild menu doesn't make sense. A destroyed special
-  shop now gets a simple repair-only dialog instead of the Bank/Exchange/Industry/Card Shop
-  choice, and gets its own dedicated icon (new `SpecialShop` art) once repaired, same as a plain
-  rebuilt shop now gets a `PlainShop` icon (previously invisible - see `MOD_CHANGELOG.md`).
+- **"Special" (non-card-selling) shops now identified and handled distinctly (2026-08-05):**
+  discovered mid-session (not previously known/documented) that some shops aren't plain Card
+  Shops, and converting one into a generic economy building via the normal rebuild menu doesn't
+  make sense. A destroyed special shop now gets a simple repair-only dialog instead of the Bank/
+  Exchange/Industry/Card Shop choice, and gets its own dedicated icon once repaired, same as a
+  plain rebuilt shop now gets a `PlainShop` icon (previously invisible - see `MOD_CHANGELOG.md`).
+  Two sub-types found so far, both name-pattern-matched off `ShopData.name` (no explicit category
+  field exists): **Booster** (the various `*BoosterPackShop` entries - sells booster packs, keeps
+  the generic "Repair Shop" label + `SpecialShop` icon) and **Armory** (`Equipment`/`*Equipment`/
+  `*Items` entries - 100% item rewards, 0% cards - gets a "Repair Armory" label + dedicated
+  `Armory` icon, per user feedback after they identified one in-game via Tiled). See
+  `MOD_CHANGELOG.md` for exactly how each shop position's possible types are determined
+  (`commonShopList`/etc on the Tiled shop object) - notably, not every "special-looking" shop
+  position is guaranteed to always roll a special type; it depends on the world's random seed.
 - **Deferred, needs #7 (Dynamic Territory Control) first:** if the player loses and retakes a
   town, buildings should be cheaper to rebuild, and each building type should show its own
   ruin art on recapture instead of the generic broken-shop art (no dedicated ruin art exists

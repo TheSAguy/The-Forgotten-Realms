@@ -1,5 +1,5 @@
 economy_buildings.png
-size: 128,64
+size: 128,96
 format: RGBA8888
 filter: Nearest,Nearest
 repeat: none
@@ -26,4 +26,7 @@ PlainShop
   size: 32, 32
 SpecialShop
   xy: 96, 32
+  size: 32, 32
+Armory
+  xy: 0, 64
   size: 32, 32

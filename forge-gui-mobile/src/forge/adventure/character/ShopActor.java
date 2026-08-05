@@ -59,9 +59,9 @@ public class ShopActor extends MapActor {
             if (!TownRestoration.isTownRestored(stage)) {
                 dialog = TownRestoration.buildShopLockedDialog(stage, objectId);
             } else if (EconomyBuildings.isSpecialShop(shopData)) {
-                // Booster/service shops skip the Bank/Exchange/Industry conversion choice
+                // Booster/Armory shops skip the Bank/Exchange/Industry conversion choice
                 // entirely - see EconomyBuildings.buildSimpleRepairDialog().
-                dialog = EconomyBuildings.buildSimpleRepairDialog(stage, objectId);
+                dialog = EconomyBuildings.buildSimpleRepairDialog(stage, objectId, shopData);
             } else {
                 dialog = EconomyBuildings.buildChooseBuildingDialog(stage, objectId);
             }
@@ -106,7 +106,7 @@ public class ShopActor extends MapActor {
             // muddying the detail via a forced downscale).
             TextureRegion brokenSprite = TownRestoration.getBrokenShopSprite(objectId);
             if (brokenSprite != null)
-                drawRuinOverFootprint(batch, brokenSprite);
+                drawOverFootprint(batch, brokenSprite);
         } else {
             // waste_town_player.tmx has no baked-in building art at all anymore (see
             // MOD_CHANGELOG.md), so every rebuilt shop needs SOME icon drawn here, not just the
@@ -114,12 +114,15 @@ public class ShopActor extends MapActor {
             int economyType = EconomyBuildings.getBuildingType(stage.getChanges(), objectId);
             TextureRegion buildingSprite = EconomyBuildings.getBuildingSprite(economyType);
             if (buildingSprite == null) {
-                buildingSprite = EconomyBuildings.isSpecialShop(shopData)
-                        ? EconomyBuildings.getSpecialShopSprite()
-                        : EconomyBuildings.getPlainShopSprite();
+                if (EconomyBuildings.isArmoryShop(shopData))
+                    buildingSprite = EconomyBuildings.getArmoryShopSprite();
+                else if (EconomyBuildings.isSpecialShop(shopData))
+                    buildingSprite = EconomyBuildings.getSpecialShopSprite();
+                else
+                    buildingSprite = EconomyBuildings.getPlainShopSprite();
             }
             if (buildingSprite != null)
-                drawBuildingOverFootprint(batch, buildingSprite);
+                drawOverFootprint(batch, buildingSprite);
         }
     }
 
@@ -131,18 +134,11 @@ public class ShopActor extends MapActor {
     // Vertical placement used to be derived from MapStage.getShopOverheadBounds() (the detected
     // baked-tile bounds), but waste_town_player.tmx no longer has that baked art to detect at
     // all, and the couple of shops with a stray leftover tile were getting positioned off of
-    // that single stray tile instead - worse than the plain fallback. Fixed offsets (calibrated
-    // against user testing) are simpler and correct for every shop now. Ruins and rebuilt
-    // building icons get different offsets since they're visually different heights/shapes.
-    private void drawRuinOverFootprint(Batch batch, TextureRegion region) {
-        float w = region.getRegionWidth();
-        float h = region.getRegionHeight();
-        float x = getX() + (getWidth() - w) / 2f;
-        float y = getY() + getHeight() - 32f;
-        batch.draw(region, x, y, w, h);
-    }
-
-    private void drawBuildingOverFootprint(Batch batch, TextureRegion region) {
+    // that single stray tile instead - worse than the plain fallback. A single fixed offset
+    // (calibrated against user testing, including one round where ruins and building icons were
+    // briefly given different offsets before testing showed they actually match) is simpler and
+    // correct for every shop now.
+    private void drawOverFootprint(Batch batch, TextureRegion region) {
         float w = region.getRegionWidth();
         float h = region.getRegionHeight();
         float x = getX() + (getWidth() - w) / 2f;
