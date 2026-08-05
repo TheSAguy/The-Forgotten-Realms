@@ -39,5 +39,6 @@ public class ConfigData {
     public boolean fogOfWarEnabled = false;
     public boolean dayNightCycleEnabled = false;
     public boolean townReconstructionEnabled = false;
+    public boolean territoryControlEnabled = false;
 
 }

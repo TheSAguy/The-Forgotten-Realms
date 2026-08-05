@@ -20,6 +20,7 @@ import forge.adventure.data.EffectData;
 import forge.adventure.data.EnemyData;
 import forge.adventure.data.RewardData;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.util.Config;
 import forge.adventure.stage.MapStage;
 import forge.adventure.util.Current;
@@ -90,6 +91,15 @@ public class EnemySprite extends CharacterSprite implements Steerable<Vector2> {
     public String questStageID;
     private ProgressableGraphPath<NavigationVertex> navPath;
     public Vector2 fleeTarget;
+
+    // Territory Control (MOD_SCOPE.md #7): set only on a "mage" sent by a colored castle to
+    // capture a nearby neutral town - null for every ordinary enemy. When set, WorldStage.onActing
+    // seeks this town instead of the player; reaching it (or being defeated first) is handled by
+    // TerritoryControl, not by anything in this class. territoryColor (lowercase, e.g. "green")
+    // records which color dispatched this mage - tracked explicitly rather than parsed back out
+    // of the enemy's display name, so it can't break if that name ever changes.
+    public PointOfInterest territoryTarget;
+    public String territoryColor;
 
     public EnemySprite(EnemyData enemyData) {
         this(0,enemyData);

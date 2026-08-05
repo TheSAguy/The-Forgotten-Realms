@@ -112,6 +112,26 @@ public class PointOfInterest implements Serializable, SaveFileContent {
         return data;
     }
 
+    // Territory Control (MOD_SCOPE.md #7): rebuilds this POI's sprite/rectangle/active-state from
+    // a *different* PointOfInterestData, in place - used when a captured neutral town becomes a
+    // real instance of the capturing color's own town (e.g. "Waste Town Identity" -> "Forest Town
+    // Identity"). Mutates in place rather than replacing the object (the two-arg constructor above
+    // does the equivalent for a fresh object) so every existing reference/cache to this POI - the
+    // world's own POI registry, its rendered PointOfInterestMapSprite, anything else - stays valid
+    // without needing to be found and updated individually. getID() incorporates data.name, so
+    // this also naturally gives the transformed POI a fresh PointOfInterestChanges entry - it
+    // doesn't inherit the old town's shop-rebuild/Job-Board state, which is intentional: it's a
+    // genuinely different town now, not a reskinned wasteland one.
+    public void transformInto(PointOfInterestData newData, Random random) {
+        Array<Sprite> textureAtlas = Config.instance().getPOISprites(newData);
+        spriteIndex = random.nextInt(Integer.SIZE - 1) % textureAtlas.size;
+        sprite = textureAtlas.get(spriteIndex);
+        data = newData;
+        active = newData.active;
+        displayName = null; // falls back to newData.getDisplayName() on next access
+        rectangle.set(position.x, position.y, sprite.getWidth(), sprite.getHeight());
+    }
+
     public long getSeedOffset() {
         return  (long)position.x*715567   +(long)position.y+(data.name+"/"+oldMapId).hashCode();
     }

@@ -114,8 +114,24 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `Not Started` (design settled, not built)
-Full design worked out 2026-08-03 - detailed enough to build from, just not started yet.
+### 7. Dynamic Territory Control — `In Progress` (first slice built 2026-08-05, not yet playtested)
+Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
+2026-08-05 (opt-in via new `territoryControlEnabled` flag): world-gen now shrinks each color's
+territory to just around its castle and removes its pre-colored starter towns/dungeons (see
+`MOD_CHANGELOG.md` for the full removed-POI list - **needs re-adding later**, most likely by
+migrating them into `colorless.json`'s own POI list so they still spawn, just scattered across
+the neutral majority of the map); each color independently sends a real, visible, fightable mage
+(reusing the existing "Adept `<Color>` Wizard" enemies) at a random 2-5 day interval toward one of
+its 3 nearest neutral towns; reaching the town transforms it into a genuine instance of that
+color's own town (real map/shops/theme, not a reskin - see `PointOfInterest.transformInto()`),
+plus recolors the surrounding terrain via the already-built repaint prototype. Only ever targets
+neutral towns (including player-restored ones, deliberately - see below) - the ally/enemy
+color-wheel targeting and 50/50 recapture logic below are still unbuilt, only relevant once a
+color can attack *another color's* town, which this slice doesn't do yet. **Confirmed with the
+user:** a town the player has already restored is fair game for capture like any other neutral
+town for now - eventually meant to be gated by a reputation scale once #1 (Reputation System)
+exists, not built yet either. Not yet confirmed working in an actual playtest - the territory-size
+and mage-arrival-distance constants are first guesses, expect to need tuning.
 
 - **Start state:** map generates 100% neutral/colorless. Every town starts broken (ties into
   #2 - this is the same "destroyed" state `TownRestoration` already models, just now something
@@ -123,7 +139,9 @@ Full design worked out 2026-08-03 - detailed enough to build from, just not star
 - **Attack cadence:** every 3-4 in-game days (ties into #6's clock), each of the 5 colored
   Castles sends a unit at one of its 3 closest towns it doesn't already own, chosen randomly
   among those 3. Recommend independent per-color timers (each color rolls its own 3-4 day
-  cooldown) rather than all 5 firing in lockstep - reads as more organic.
+  cooldown) rather than all 5 firing in lockstep - reads as more organic. **Built as random 2-5
+  days** (close enough to the "3-4, recommend independent timers" spec above - each color rolls
+  its own delay independently).
 - **Ally/enemy targeting:** a color's targets are limited by the existing color-wheel table
   (top of this doc) - e.g. Green never attacks a White or Red town, only Black or Blue ones.
   This applies to attacking *other colors'* towns; attacking neutral/unowned towns isn't

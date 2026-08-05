@@ -43,6 +43,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
     private PointOfInterestMapSprite collidingPoint;
     protected ArrayList<Pair<Float, EnemySprite>> enemies = new ArrayList<>();
     private final static Float dieTimer = 20f;//todo config
+    private static final float TERRITORY_ARRIVAL_EPSILON = 8f; // MOD_SCOPE.md #7
     private Float globalTimer = 0f;
     private transient boolean enterSpawnPOI = false;
 
@@ -117,8 +118,10 @@ public class WorldStage extends GameStage implements SaveFileContent {
             int dayBefore = world.getCurrentDay();
             world.advanceTime(fastTimeEnabled ? delta * FAST_TIME_MULTIPLIER : delta);
             int dayAfter = world.getCurrentDay();
-            if (dayAfter != dayBefore)
+            if (dayAfter != dayBefore) {
                 EconomyBuildings.processDaysPassed(dayAfter - dayBefore, dayAfter);
+                TerritoryControl.processDaysPassed(dayAfter - dayBefore, dayAfter);
+            }
             handleMonsterSpawn(delta);
             collided = collided || handlePointsOfInterestCollision();
             globalTimer += delta;
@@ -134,7 +137,23 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 }
                 EnemySprite mob = pair.getValue();
 
-                if (!currentModifications.containsKey(PlayerModification.Hide)) {
+                // Territory Control (MOD_SCOPE.md #7): a mage seeks its target town instead of
+                // homing toward the player - checked first since it's an unconditional replacement
+                // for the whole homing block below, not an addition to it. Still falls through to
+                // the ordinary player-collision check afterward, so the player can fight and stop
+                // a mage before it arrives - only reaching the town skips that (mage is gone by
+                // then, removed here, `continue`s past collision since there's nothing left to hit).
+                if (mob.territoryTarget != null) {
+                    if (mob.pos().dst(mob.territoryTarget.getPosition()) < TERRITORY_ARRIVAL_EPSILON) {
+                        TerritoryControl.onMageArrived(mob);
+                        foregroundSprites.removeActor(mob);
+                        it.remove();
+                        continue;
+                    }
+                    enemyMoveVector.set(mob.territoryTarget.getPosition()).sub(mob.pos());
+                    enemyMoveVector.setLength(mob.speed() * delta);
+                    mob.moveBy(enemyMoveVector.x, enemyMoveVector.y);
+                } else if (!currentModifications.containsKey(PlayerModification.Hide)) {
                     enemyMoveVector.set(player.getX(), player.getY()).sub(mob.pos());
                     enemyMoveVector.setLength(mob.speed() * delta);
                     tempBoundingRect.set(mob.getX() + enemyMoveVector.x, mob.getY() + enemyMoveVector.y, mob.getWidth(), mob.getHeight() * mob.getCollisionHeight());
@@ -374,6 +393,18 @@ public class WorldStage extends GameStage implements SaveFileContent {
             }
         }
         return false;
+    }
+
+    // Territory Control (MOD_SCOPE.md #7): places a mage directly at a given world position
+    // (a castle) rather than scattered near the player like every other spawn(...) overload here -
+    // for TerritoryControl (a different package) to call. No collision retry loop since castles
+    // sit in open territory; the mage's own movement (onActing's homing block) handles obstacles
+    // once it's underway.
+    public void spawnAt(EnemySprite sprite, Vector2 pos) {
+        sprite.setX(pos.x);
+        sprite.setY(pos.y);
+        enemies.add(Pair.of(globalTimer, sprite));
+        foregroundSprites.addActor(sprite);
     }
 
     private boolean spawn(EnemyData enemyData) {

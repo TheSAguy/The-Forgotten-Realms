@@ -70,6 +70,23 @@ public class World implements Disposable, SaveFileContent {
     private float dayProgress = 0.375f; // fresh world starts at 09:00
     private int dayCount = 1;
 
+    // Territory Control (MOD_SCOPE.md #7): each of the 5 AI colors independently counts down to
+    // its next attempt to send a mage at a nearby neutral town. Keyed by lowercase color name
+    // (matches each color biome's own "name" field, e.g. green.json's "name": "green"). This is
+    // just the persisted counter itself - TerritoryControl.java owns the actual 2-5 day random
+    // range and what happens when a color's count reaches zero. Absent from the map (rather than
+    // eagerly seeded for all 5 up front) means "not yet initialized" - lets a save from before
+    // this feature existed load with an empty map instead of needing a version check here.
+    private final java.util.Map<String, Integer> colorNextAttackDay = new java.util.HashMap<>();
+
+    public Integer getColorNextAttackDay(String color) {
+        return colorNextAttackDay.get(color);
+    }
+
+    public void setColorNextAttackDay(String color, int day) {
+        colorNextAttackDay.put(color, day);
+    }
+
     public Random getRandom() {
         return random;
     }
@@ -152,6 +169,12 @@ public class World implements Disposable, SaveFileContent {
         // default to 0, so fall back to the same fresh-world start used by the field initializers.
         dayProgress = saveFileData.containsKey("dayProgress") ? saveFileData.readFloat("dayProgress") : 0.375f;
         dayCount = saveFileData.containsKey("dayCount") ? saveFileData.readInt("dayCount") : 1;
+
+        colorNextAttackDay.clear();
+        if (saveFileData.containsKey("colorNextAttackDay")) {
+            //noinspection unchecked
+            colorNextAttackDay.putAll((java.util.Map<String, Integer>) saveFileData.readObject("colorNextAttackDay"));
+        }
     }
 
     @Override
@@ -170,6 +193,7 @@ public class World implements Disposable, SaveFileContent {
         data.storeObject("explored", explored);
         data.store("dayProgress", dayProgress);
         data.store("dayCount", dayCount);
+        data.storeObject("colorNextAttackDay", colorNextAttackDay);
         return data;
     }
 

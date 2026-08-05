@@ -1357,6 +1357,151 @@ icon (if `isArmoryShop`) → generic Special icon (if `isBoosterShop`) → Plain
 region added to `economy_buildings.png`/`.atlas` (grew 128x64 -> 128x96, a 3rd row) alongside
 `PlainShop`/`SpecialShop`.
 
+## Dynamic Territory Control, first slice (2026-08-05)
+
+First real implementation of MOD_SCOPE.md #7, beyond the recolor-terrain prototype from
+2026-08-03/04. New opt-in flag `ConfigData.territoryControlEnabled` (default `false`, on in
+`The Forgotten Realms/config.json`), same pattern as every other mod flag. **Only affects newly
+generated worlds** - world-gen changes (below) don't retroactively apply to an existing save.
+
+**World-gen: castle territory shrunk, colored starter content removed.** Each of the 5 AI
+colors used to claim a large (`width`/`height: 0.7`) home region at world-gen, pre-populated with
+its own themed Capital + 3 Town variants (e.g. green.json's "Forest Capital"/"Forest Town
+Generic/Identity/Tribal") plus ~30-40 unique dungeons (Groves, Merfolk Pools, Vampire Castles,
+etc.). New plane-specific overrides `The Forgotten Realms/world/biomes/{white,blue,black,red,
+green}.json` shrink `width`/`height` to `0.08` (first-guess constant, expect to tune after visual
+testing) so each color's terrain color now only shows up right around its own castle - Wasteland/
+colorless already covers ~85% of the map by default, so the shrunk color regions don't leave gaps.
+
+Every non-castle POI entry for the 5 colors was also zeroed (`"count": 0`) in the plane's own
+`points_of_interest.json` override, **not just the Capital/Town ones** - `World.java`'s POI
+placement loop retries up to 500 times per instance and, on total failure, clears everything and
+reruns the *entire* placement pass from scratch (`"Can not place POI...Rerunning.."`), which is a
+real hang/slowdown risk if a shrunk region can't fit everything that used to spawn across a 10x
+larger one, not just a cosmetic issue. Zeroing everything but the castle itself keeps this safe.
+Verified via a Python script (computed each color's POI names *exclusive* to that color, i.e.
+excluding anything also referenced by colorless.json or another color's list, like "Aerie"/
+"KorEncampment"/"Fort8"/several MageTower and Cave entries that are shared and must NOT be
+zeroed) before editing anything - a surgical text-level edit changing only the matched `"count"`
+lines, verified via `git diff` to touch nothing else in a 4219-line file.
+
+**This removes real content, flagged explicitly per the user's request - full list of the 181
+POI names zeroed, one deliverable of this round, so it can be added back later (most likely by
+migrating them into colorless.json's own POI list instead, so they still spawn but scattered
+across the neutral majority of the map):**
+
+- White (28): Castle, Castle1, Castle2, Castle3, CatLairW, CatLairW1, CatLairW2, CaveW, CaveW1,
+  CaveW2, CaveW3, CaveW4, CaveW5, CaveW6, MageTower White, Monastery, Monastery1, Monastery2,
+  Monastery3, Monastery4, Nahiri Encampment, NestW, OrthodoxyBasilica, Plains Capital, Plains Town
+  Generic, Plains Town Identity, Plains Town Tribal, UnhallowedAbbey
+- Blue (31): CaveU, CaveU1, CaveU2, CaveU3, CaveU4, Crawlspace, DjinnPalace, DjinnPalace1, Dream
+  Halls, FortBlue1, FortBlue2, FortBlue3, FortBlue4, FortBlue5, GitaxianLab, Island Capital, Island
+  Town Generic, Island Town Identity, Island Town Tribal, Jacehold, Kiora Island, MerfolkPool,
+  MerfolkPool1, MerfolkPool2, MerfolkPool3, MerfolkPool4, MerfolkPool5, NestU,
+  Quest_LibraryOfVarsil, Skep, Teferi Hideout
+- Black (40): CaveB, CaveB1, CaveB2, CaveB3, CaveB4, CaveB5, CaveB6, CaveB8, CaveLarge1,
+  DemonTower, DrossOutpost, EvilGrove, EvilGrove1, EvilGrove2, EvilGrove3, EvilGrove4, EvilGrove5,
+  EvilGrove6, Graveyard, Graveyard1, Graveyard2, Graveyard3, Graveyard4, Grolnoks Bog, Lich's
+  Mirror, SkullCaveB, SkullCaveB1, SkullCaveB2, Slimefoots Lair, Swamp Capital, Swamp Town Generic,
+  Swamp Town Identity, Swamp Town Tribal, Swamp Town2, Temple of Liliana, VampireCastle,
+  VampireCastle1, VampireCastle2, VampireCastle3, Zombie Town
+- Red (45): BarbarianCamp, BarbarianCamp1, BarbarianCamp2, BarbarianCamp3, BarbarianCamp4,
+  BarbarianCamp5, CaveDragon, CaveR, CaveR1, CaveR2, CaveR3, CaveR4, CaveR5, CaveR6, CaveR7,
+  CaveR8, CaveR9, CaveRA, CaveRB, CaveRC, CaveRE, CaveRG, CaveRH, FurnaceBase, LavaForge1,
+  LavaForge2, Lavaforge Kobold, Maze, Maze1, Maze2, Mountain Capital, Mountain Town Generic,
+  Mountain Town Identity, Mountain Town Tribal, Quest_ShardMines, SkullCaveR, SkullCaveR1,
+  SkullCaveR2, SnowAbbey, SnowAbbey1, SnowAbbey2, Temple of Chandra, Tibalts Fortress, YuleTown,
+  Zedruu City
+- Green (37): CatLairG, CatLairG1, CatLairG2, CaveG, CaveG1, CaveG2, CaveG3, CaveG4, CaveG5,
+  CaveG6, CaveG8, CaveG9, CopperhostForest, ElfTown, Forest Capital, Forest Town Generic, Forest
+  Town Identity, Forest Town Tribal, Fort7, Fort9, Garruk Forest, Grove, Grove1, Grove2, Grove3,
+  Grove4, Grove5, Grove6, Grove7, Grove8, GroveBamboo, GroveCentaur, GroveGreenDragon, Kavu Lair,
+  Quest_FrostbittenCavern, Scarecrow Farm, WurmPond
+
+(Also recorded in MOD_SCOPE.md #7 as a tracked follow-up, not just here - 5 names referenced by
+the biome files - `CaveDragon`, `CaveG8`, `CaveR1`, `GroveCentaur`, `MageTower White` - turned out
+to have no matching entry in `points_of_interest.json` at all, in either the plane's copy or
+common's; pre-existing stale references, not something this change introduced or needs to handle.)
+
+**The mage itself is a real, visible, fightable overworld unit** - deliberately built by extending
+the existing overworld enemy system rather than a new movement/combat system:
+- `EnemySprite` gained two nullable fields, `territoryTarget` (a `PointOfInterest`) and
+  `territoryColor` - null for every ordinary enemy.
+- `WorldStage.onActing()`'s per-enemy movement block (previously: every enemy unconditionally
+  homes toward the player) now branches - a mage seeks `territoryTarget.getPosition()` instead,
+  with a straight-line move (no obstacle-avoidance pathing, unlike the player-homing case - not
+  worth the complexity for a first pass) - and despawns itself via `TerritoryControl.onMageArrived
+  ()` once within `TERRITORY_ARRIVAL_EPSILON` (8px) of the target. Falls through to the *same*
+  player-collision/duel-trigger code every other enemy uses either way, so **fighting a mage
+  before it arrives just works already** - no new combat code needed, and a defeated mage's
+  already-existing removal is exactly "capture attempt cancelled," no separate cancellation logic.
+- New public `WorldStage.spawnAt(EnemySprite, Vector2)` places a sprite at an exact position
+  (every existing `spawn(...)` overload scatters near the player instead) - for `TerritoryControl`
+  to place a mage at its castle's position.
+- No new art/data: reuses the existing "Adept White/Blue/Black/Red/Green Wizard" `EnemyData`
+  entries (already defined, already used elsewhere via colorless.json's own enemy list) - matches
+  "for now this will just be a random mage" literally.
+
+**Capture is a real POI transformation, not a reskin** - per explicit user feedback during
+planning: walking into a captured town should show that color's actual town (buildings/shops/
+theme), not a Wasteland town with different paint. `PointOfInterest` already had an unused 2-arg
+constructor hinting at exactly this capability (rebuild sprite/rectangle from a *different*
+`PointOfInterestData`, same position) - added `PointOfInterest.transformInto(PointOfInterestData,
+Random)` as an in-place equivalent (mutates the existing instance instead of constructing a new
+one, so every existing reference/cache - the world's POI registry, its rendered
+`PointOfInterestMapSprite` - stays valid with nothing to find-and-replace). Because everything
+downstream already reads `poi.getData()` fresh rather than caching it at world-gen, this one
+mutation is enough on its own:
+- `WorldStage.loadPOI()` reads `poi.getData().map` at load time, so walking into a transformed
+  town loads that color's real town map/shop pool automatically - no `TileMapScene.java` changes.
+- `TownRestoration.isWastelandTown()` already gates on the `BiomeColorless` quest tag, so a
+  transformed town (now tagged `BiomeGreen`/etc) is automatically excluded from future capture
+  targeting *and* from every Wasteland-only system (ruin art, special/armory shops, economy
+  buildings) with no new checks anywhere.
+- `PointOfInterest.getID()` incorporates `data.name`, so a transformed town's `PointOfInterestChanges`
+  lookup lands on a fresh entry - it starts completely clean, not carrying over the old Wasteland
+  town's `townRestored`/`shopRebuilt_*` state. Falls out of the existing id scheme, nothing
+  explicit needed.
+- **One real bug found and fixed along the way**: `PointOfInterestMapSprite` cached
+  `point.getSprite()` once into a `final normalTexture` field at construction and never re-read
+  it - after a `transformInto()` the overworld icon would've stayed stuck on the old sprite
+  forever. Fixed by reading `pointOfInterest.getSprite()` fresh in `draw()` instead of caching it -
+  simpler than what it replaced, not just a targeted workaround.
+
+**New `TerritoryControl.java`** (`forge-gui-mobile/src/forge/adventure/util/`), stateless logic
+mirroring `EconomyBuildings.java`'s structure - the only persisted state is a per-color "next
+attack day" countdown added to `World.java` (`colorNextAttackDay`, saved/loaded exactly like
+`dayCount`/`dayProgress` already are; ownership itself needs no tracking at all, it's just which
+`PointOfInterestData` each POI currently points at). Hooked into `WorldStage.onActing()` right
+next to the existing `EconomyBuildings.processDaysPassed(...)` call, so it only ticks while time
+is actually advancing (already frozen in towns/dungeons). Each color: finds its own castle POI by
+name (`"<Color> Castle"`), collects every remaining `TownRestoration.isWastelandTown()`-true town,
+takes the 3 nearest by distance, picks one at random (matches the original #7 design's "chosen
+randomly among those 3"), spawns a mage. On arrival, re-checks the town is *still* neutral before
+transforming it - another color's mage (or this same color's earlier one) may have gotten there
+first, which the original design calls out as a real race condition; resolved here for free since
+it's just a state check, not a lock, so whichever arrival is processed first wins and the loser's
+is a silent no-op. Reuses the **already-built** `World.repaintBiomeAroundTown()` prototype
+(`TownRestoration.recolorTerrainForTesting()` proved this out in an earlier round) to recolor the
+ground around a captured town, passing the capturing color's own biome name instead of the
+hardcoded `"player"` test value that method previously always used.
+
+**Explicitly out of scope for this pass** (already called out in MOD_SCOPE.md #7 as later work,
+or a direct, deliberate consequence of the "real town swap" approach - not silently dropped):
+ally/enemy color-wheel attack restrictions and the 50/50 recapture-vs-revert logic (both only
+apply to a color attacking *another color's* town - this pass only ever targets neutral ones);
+Fortifications (#8) and reputation-gated targeting (#1, both unbuilt prerequisites - the user
+plans to gate player-restored-town targeting behind a reputation scale once #1 exists, not now);
+persisting an in-flight mage across a save/quit (on reload it's just gone, the color's timer keeps
+counting from where it was); any reward for defeating a mage beyond preventing the capture.
+
+**Not yet verified in a running game** - the `width`/`height: 0.08` shrink factor and the
+`TERRITORY_ARRIVAL_EPSILON: 8f` constant are both first-guess numbers, same as `RECOLOR_RADIUS`
+was for the original prototype. Needs a fresh-world test pass: confirm world-gen doesn't hang/spam
+"Can not place POI", the map reads as neutral outside small castle patches, a mage becomes visible
+and travels correctly, arrival both recolors the ground and swaps the town to a real colored town
+map/shop pool on entry, and fighting a mage before arrival leaves the target town untouched.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

@@ -18,13 +18,10 @@ public class PointOfInterestMapSprite extends MapSprite {
     Rectangle boundingRect;
     MapSprite mapSprite;
 
-    private final TextureRegion normalTexture;
-
     public PointOfInterestMapSprite(PointOfInterest point) {
         super(point.getPosition(), point.getSprite(), point);
         pointOfInterest = point;
         mapSprite = this;
-        normalTexture = point.getSprite();
         boundingRect = new Rectangle(getX(), getY(), texture.getRegionWidth(), texture.getRegionHeight());
     }
 
@@ -54,8 +51,11 @@ public class PointOfInterestMapSprite extends MapSprite {
     @Override
     public void draw(Batch batch, float parentAlpha) {
         if (pointOfInterest.getActive()) {
+            // Read the POI's own current sprite fresh rather than caching it, since Territory
+            // Control (MOD_SCOPE.md #7) can change it after this actor was constructed
+            // (PointOfInterest.transformInto() when a captured town becomes a different POI).
             TextureRegion brokenTexture = TownRestoration.getBrokenTownSprite(pointOfInterest);
-            texture = brokenTexture != null ? brokenTexture : normalTexture;
+            texture = brokenTexture != null ? brokenTexture : pointOfInterest.getSprite();
             super.draw(batch, parentAlpha);
         }
         //batch.draw(getDebugTexture(),getX(),getY());
