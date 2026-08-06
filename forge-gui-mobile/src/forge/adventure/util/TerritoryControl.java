@@ -47,12 +47,6 @@ public class TerritoryControl {
     private static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
     private static final int EXPANSION_TILES_PER_DAY = 3; // first-guess constant, tune after testing
     private static final int MAX_TERRITORY_RADIUS = 300; // generous cap - bounds the scan once a color has filled all reachable wasteland
-    // Parity with an AI color's own starting keep (CASTLE_KEEP_RADIUS_TILES) - the player's home
-    // base gets a real, nearest-anchor-respecting circle around Spawn instead of the old flat
-    // "don't claim within N tiles" bubble. Does not grow over time yet (not in COLORS/
-    // processTerritoryExpansion()'s daily loop) - a deliberate, smaller follow-up once this is
-    // confirmed working, not an oversight.
-    private static final int PLAYER_KEEP_RADIUS_TILES = CASTLE_KEEP_RADIUS_TILES;
 
     private TerritoryControl() {}
 
@@ -75,14 +69,12 @@ public class TerritoryControl {
     public static void neutralizeAfterGeneration(World world) {
         if (!isEnabled())
             return;
-        List<Vector2> castlePositions = new ArrayList<>();
         for (String color : COLORS) {
             PointOfInterest castle = findCastle(world, color);
             if (castle == null) {
                 System.out.println("[TerritoryControl] " + color + ": no castle found, skipping neutralize sweep");
                 continue;
             }
-            castlePositions.add(castle.getPosition());
             world.neutralizeTerritoryOutsideRadius(color, castle.getPosition(), CASTLE_KEEP_RADIUS_TILES, null, null);
 
             float keepRadiusWorld = CASTLE_KEEP_RADIUS_TILES * (float) world.getTileSize();
@@ -103,16 +95,11 @@ public class TerritoryControl {
             ensureCapital(world, color, castle, keepRadiusWorld);
             world.setColorTerritoryRadius(color, CASTLE_KEEP_RADIUS_TILES);
         }
-
-        // Give the player's home base a real starting circle around Spawn too - parity with each
-        // AI color's own kept circle above, via the same nearest-anchor-aware claim
-        // (World.claimWastelandRing()) so it comes out with a clean border against whichever
-        // colors ended up nearby instead of the old flat "don't claim near Spawn" bubble.
-        Vector2 spawnPosition = new Vector2(world.getWidthInPixels() * world.getData().playerStartPosX,
-                world.getHeightInPixels() * world.getData().playerStartPosY);
-        world.claimWastelandRing("player", spawnPosition, castlePositions, 0, PLAYER_KEEP_RADIUS_TILES, null, null);
-        world.setColorTerritoryRadius("player", PLAYER_KEEP_RADIUS_TILES);
-        System.out.println("[TerritoryControl] player: claimed starting circle around Spawn");
+        // The player does NOT get a free starting circle here - per explicit user correction,
+        // "the player should only start once he takes his first city." Spawn still participates
+        // as a permanent rival anchor inside World.claimWastelandRing() itself (unconditional,
+        // not tied to this method), which stops AI colors from claiming right up to Spawn - it
+        // just never gets *painted* player-color until an actual town capture does that.
     }
 
     // A color's own "<Noun> Capital" is placed by ordinary world-gen (same as any other town)

@@ -2125,6 +2125,46 @@ Not yet re-verified in game - needs a **fresh world** (nearest-anchor claiming a
 starting circle only apply going forward; an existing save's already-repainted areas keep whatever
 they already have).
 
+## Territory Control playtest round 7, corrections (2026-08-05, same day)
+
+Fast first-look feedback on round 7 caught a real design misstep and surfaced a much bigger,
+previously-invisible process gap.
+
+**Design correction: the player does NOT get a free starting circle.** User: "the player should
+only start once he takes his first city." The earlier round's "give the player parity with an AI
+color" reasoning over-applied - the nearest-anchor Voronoi fix (Spawn as a permanent rival anchor
+inside `World.claimWastelandRing()`, blocking AI colors from claiming too close to Spawn) was the
+right fix for the border-seam problem and is unchanged, but the *separate* one-time call that
+actually painted a `PLAYER_KEEP_RADIUS_TILES` disc "player"-color around Spawn at world-gen end was
+wrong - that's unearned territory. Removed that call (and the now-dead `castlePositions`/
+`PLAYER_KEEP_RADIUS_TILES` code in `TerritoryControl.neutralizeAfterGeneration()`) entirely. Spawn
+protection against AI encroachment is preserved (still baked into `claimWastelandRing()`
+unconditionally) - it just never paints anything until an actual town capture does.
+
+**World Standings' "Player" icon was a dot, not the player's actual picture.** Used
+`ui/minimap_player.png` (a generic marker texture) instead of the player's real chosen avatar.
+Fixed to `Current.player().avatar()` - the exact same `TextureRegion` source `GameHUD`'s own
+`avatar` HUD portrait actor already uses (`avatar.setDrawable(new TextureRegionDrawable(
+Current.player().avatar()));`), so it's genuinely "his little picture," not a generic marker.
+
+**Bigger finding: resource files (JSON/PNG/atlas) were never actually reaching the deployed game.**
+This session's entire deploy-and-verify workflow (`jar uf` + byte-`cmp` against the installed jar)
+only ever covered compiled `.class` files. `E:\GAMES\FORGE\res\` is a **separate, non-symlinked
+copy** of `forge-gui/res/`, not a live view of the repo - confirmed directly (`Get-Item` showed no
+`LinkType`). A `diff -rq` between the repo's `The Forgotten Realms` folder and the deployed one
+turned up multiple stale files, including this round's own `color_icons.png` (still the broken
+753-vs-1164-byte pre-fix version) and, critically, `player.json` - meaning the deployed game had
+been running **without player's structures the entire time this was tested**, which fully explains
+the "some doodads near a captured town remained wasteland or green instead of becoming player
+color" symptom reported alongside these corrections: `pickReplacement()` had nothing to swap to
+under the stale player.json (no `structures[]` at all), so it correctly left those tiles alone -
+exactly the deferred-tile behavior it was designed to have, just never actually exercised with the
+real fix in place. Resynced the whole plane folder (`robocopy ... /MIR`) to fix this immediately;
+**this needs to be a standing part of the deploy workflow going forward, not a one-off** - see the
+Toolchain section below. Given this, the "doodads not correctly captured" report should very likely
+already be resolved by this sync alone - flagged to the user to retest before concluding anything
+else needs to change there.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),
@@ -2139,3 +2179,24 @@ disk (`Downloads`, `Program Files\Java\*`) before assuming the toolchain needs r
 don't take this doc's PATH claim at face value. `mvn -pl forge-gui-mobile -am compile -DskipTests
 -o` (add `-o` once dependencies are cached) is the fast way to check the adventure-mode module
 still compiles after a change.
+
+**Deploying to the installed game is two separate steps, not one - both required every round that
+touches either kind of file:**
+1. **Compiled Java (`.class` files):** `jar uf` the specific touched `.class` files (plus any
+   inner/anonymous classes the same source file generates - check with `jar` listing
+   `target/classes`) into `E:\GAMES\FORGE\forge-gui-mobile-dev-2.0.14-SNAPSHOT-jar-with-
+   dependencies.jar`, then byte-verify with `jar xf` + `cmp -s` against `target/classes`. This is
+   the workflow used all session and it's solid - the gap below is a *different* step, not a flaw
+   in this one.
+2. **Resource files (any `.json`/`.png`/`.atlas`/`.tmx`/etc under `forge-gui/res/`):** these are
+   **not** inside the jar and were, for most of this session, never actually synced anywhere -
+   `E:\GAMES\FORGE\res\` is a separate, real copy of the resource tree (confirmed via `Get-Item`:
+   no `LinkType`, i.e. not a symlink/junction), not a live view of the repo checkout. Any round that
+   edits/adds a resource file needs `robocopy "<repo>\forge-gui\res\adventure\The Forgotten Realms"
+   "E:\GAMES\FORGE\res\adventure\The Forgotten Realms" /MIR` (mirror - also deletes files removed
+   from the repo side) as an explicit step, verified with `diff -rq` between the two folders coming
+   back empty. Skipping this doesn't error or warn anywhere - the game just keeps running whatever
+   was last actually copied there, which is exactly what silently invalidated a full round of
+   playtesting this session (see "Territory Control playtest round 7, corrections" above). Scope
+   the mirror to the mod's own plane folder (`The Forgotten Realms`) unless a `common/` file was
+   also touched, which should be rare per this repo's own ground rules.

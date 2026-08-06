@@ -7,9 +7,9 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.github.tommyettinger.textra.TypingLabel;
-import forge.Forge;
 import forge.adventure.util.Config;
 import forge.adventure.util.Controls;
+import forge.adventure.util.Current;
 import forge.adventure.util.TerritoryControl;
 import forge.adventure.world.WorldSave;
 
@@ -26,11 +26,6 @@ import java.util.Map;
  */
 public class WorldStandingsScene extends UIScene {
     private static final String ICON_ATLAS = "maps/tileset/color_icons.atlas";
-    // "Player" has no color_icons.atlas region (that sheet is only the 6 territory colors) - reuse
-    // the same overworld minimap marker texture GameHUD.miniMapPlayer already loads, so there's one
-    // source of truth for "what does the player's own marker look like" rather than a second copy
-    // baked into color_icons.png.
-    private static final String PLAYER_ICON_PATH = "ui/minimap_player.png";
     private static final int ICON_SIZE = 16;
 
     private final Table standingsList;
@@ -67,7 +62,10 @@ public class WorldStandingsScene extends UIScene {
         for (String row : TerritoryControl.STANDINGS_ROWS) {
             Image icon = null;
             if ("Player".equals(row)) {
-                icon = new Image(Forge.getAssets().getTexture(Config.instance().getFile(PLAYER_ICON_PATH)));
+                // The little HUD portrait (GameHUD's own "avatar" actor uses the exact same
+                // source, Current.player().avatar()) - a dot/marker texture like the minimap's
+                // own miniMapPlayer isn't "his picture," this is the actual chosen player avatar.
+                icon = new Image(new TextureRegionDrawable(Current.player().avatar()));
             } else {
                 TextureRegion region = Config.instance().getAtlasSprite(ICON_ATLAS, row);
                 if (region != null)

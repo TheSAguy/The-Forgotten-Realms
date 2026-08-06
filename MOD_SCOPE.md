@@ -223,6 +223,18 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
   any biome (confirmed pre-existing engine behavior, not a regression). Expansion speed left
   untouched per explicit user request (easier to observe progression while testing). Full
   engineering detail in `MOD_CHANGELOG.md`. Not yet playtested.
+  - **Corrected same day, fast first-look feedback:** the player does NOT get a free starting
+    circle - "the player should only start once he takes his first city." Removed the one-time
+    world-gen-end claim; Spawn still blocks AI encroachment via the nearest-anchor check, it just
+    never paints anything until an actual capture does. Also fixed the World Standings "Player"
+    icon (was a generic minimap dot, now the player's real chosen avatar,
+    `Current.player().avatar()`). Bigger finding: resource files (JSON/PNG/atlas) were never
+    actually syncing to the deployed game (`E:\GAMES\FORGE\res\` is a separate copy, not a live
+    view of the repo) - this alone likely explains the "captured town doodads stayed wasteland/
+    green instead of player color" report, since the deployed `player.json` had no structures the
+    whole time it was tested. Resynced; now a standing required deploy step (see
+    `MOD_CHANGELOG.md`'s Toolchain section). Asked the user to retest before assuming anything else
+    needs to change there.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**
