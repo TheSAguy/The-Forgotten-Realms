@@ -2349,4 +2349,41 @@ that it's live, not assumed solved just because it compiled clean. Needs a fresh
 town capture, or a fresh world's own neutralize sweep) to observe - existing already-repainted
 tiles keep whatever `biomeMap` value was already saved for them.
 
+**Confirmed by the user immediately after: the revert fixed the island regression** ("that seems
+to have fixed the major issue"). No more grid/checkerboard artifact.
+
+**The original "blue border" is still present, and a new clue narrows it down: it traces roads
+specifically.** Two new screenshots ("Player right after restore" vs. "Moving right after
+restore") - clean immediately after a town capture, a thin blue outline appears tracing the road
+specifically once the player moves and the chunk refreshes. Working theory, not yet verified by
+code reading: all 3 repaint methods deliberately skip road tiles entirely (`if ((biomeMap[wx][rawY]
+& roadBit) != 0) continue;`), which means a road tile keeps whatever real-biome bit it had *before*
+the repaint (e.g. still "blue" or "wasteland") even after everything around it gets repainted to
+"player" - `onTileRevealed()`'s live per-tile patch never touches skipped road tiles either, so the
+mismatch is invisible until the chunk gets freshly rebuilt from scratch (matches "not immediately,
+appears on refresh" exactly, and separately from the now-reverted ocean-bit theory). Not yet
+confirmed against the actual code - next step before touching anything again, given this session
+already shipped one regression from an unverified theory.
+
+**User proposed a bigger architectural alternative worth seriously considering**: instead of
+"generate each AI color's normal full-size territory, then sweep almost all of it away" (today's
+approach, and the root of several of these lingering issues - the swept zone still carries
+leftover artifacts from a color's own discarded WFC generation, not wasteland's own), generate the
+*entire* map as wasteland from the start (skip the 5 AI colors' own territory-claiming placement
+loop in `generateNew()` entirely) and then claim each color's *starting circle only* using the
+already-proven `claimWastelandRing()` mechanism (the same one daily expansion already uses) instead
+of the current generate-big-then-`neutralizeTerritoryOutsideRadius()`-away pattern. Plausible
+upside: uniform, richly-detailed wasteland everywhere outside the small starting circles (directly
+addresses the recurring "dead zone between starting areas" report), no discarded per-color WFC
+generation, and roads passing through never-claimed territory would never carry a stale AI-color
+bit in the first place (a plausible fix for the road-tracing blue border, not just the coverage-gap
+theory that didn't pan out). Real open question flagged, not yet resolved: castle/capital/town
+placement for each color currently depends on that color's own placement-condition math running
+during the POI-placement loop, matching `highestBiome(...)` against that color's own claimed
+territory - if the color never claims territory, that matching would never succeed anywhere.
+Needs a real design pass (Plan Mode) before touching `generateNew()`'s core placement loop, which
+has already caused a real world-gen hang once this session (see the "world-gen hang" entry, much
+earlier this session) - this is not a small patch, it's changing how map generation itself decides
+territory, and deserves the same care as that fix did.
+
 
