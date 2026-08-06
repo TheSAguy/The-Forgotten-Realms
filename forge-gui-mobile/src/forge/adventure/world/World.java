@@ -393,6 +393,10 @@ public class World implements Disposable, SaveFileContent {
             long startTime = System.currentTimeMillis();
 
             loadWorldData();
+            // Generate-as-wasteland redesign (MOD_SCOPE.md #7) - must run before the WFC/placement
+            // loop below, right after biome data is available and before anything reads it.
+            if (isTerritoryControlEnabled())
+                TerritoryControl.prepareBiomesForGeneration(this);
 //////////////////
 ///////// initialize
 //////////////////
@@ -1230,6 +1234,91 @@ public class World implements Disposable, SaveFileContent {
         return table[oldRaw];
     }
 
+    // Generate-as-wasteland world-gen redesign (MOD_SCOPE.md #7, 2026-08-06): what
+    // swapColorsToWastelandContent() below snapshots per color before overwriting its
+    // terrain/structures/spriteNames, so restoreColorsRealContent() can put the real values back.
+    private static final class BiomeContentSnapshot {
+        final BiomeTerrainData[] terrain;
+        final BiomeStructureData[] structures;
+        final String[] spriteNames;
+        BiomeContentSnapshot(BiomeData biome) {
+            terrain = biome.terrain;
+            structures = biome.structures;
+            spriteNames = biome.spriteNames;
+        }
+    }
+    private final Map<String, BiomeContentSnapshot> pendingContentRestore = new HashMap<>();
+
+    /**
+     * Generate-as-wasteland world-gen redesign (MOD_SCOPE.md #7): temporarily points each named
+     * color biome's terrain/structures/spriteNames at colorless's ("waste") own, so the WFC/
+     * placement loop below generates that color's territory using wasteland's own recipe - not a
+     * differently-shaped, color-specific pattern later reskinned to wasteland's art (which kept
+     * that color's own WFC density/pattern forever, just wearing wasteland's texture - the "dead
+     * zone" symptom next to wasteland's own naturally-generated core, see MOD_CHANGELOG.md). Safe
+     * to reassign these 3 fields post-loadWorldData(): BiomeTexture (the only thing that caches
+     * them) is built once inside loadWorldData(), before this ever runs, and never re-reads
+     * BiomeData afterward (confirmed by reading BiomeTexture.generate()/getPixmap()/
+     * drawPixmapOn()) - so this is invisible to rendering, and only affects the live WFC/placement
+     * loop and per-tile terrain assignment still to come. Deliberately leaves
+     * startPointX/Y/width/height/noiseWeight/distWeight untouched - territory shape/extent and all
+     * POI/castle placement (which matches against those via highestBiome()) are unaffected. Call
+     * restoreColorsRealContent() before anything needs the real values again.
+     */
+    public void swapColorsToWastelandContent(String[] colorBiomeNames) {
+        List<BiomeData> biomes = data.GetBiomes();
+        BiomeData colorless = null;
+        for (BiomeData biome : biomes) {
+            if ("waste".equalsIgnoreCase(biome.name)) {
+                colorless = biome;
+                break;
+            }
+        }
+        if (colorless == null)
+            return;
+        pendingContentRestore.clear();
+        for (String colorName : colorBiomeNames) {
+            for (BiomeData biome : biomes) {
+                if (!colorName.equalsIgnoreCase(biome.name))
+                    continue;
+                pendingContentRestore.put(colorName, new BiomeContentSnapshot(biome));
+                biome.terrain = colorless.terrain;
+                biome.structures = colorless.structures;
+                biome.spriteNames = colorless.spriteNames;
+                break;
+            }
+        }
+    }
+
+    /**
+     * Undoes swapColorsToWastelandContent() - restores each swapped color's real
+     * terrain/structures/spriteNames. Also resets structureSwapCache: any [color][colorless] table
+     * built by translateStructure() while content was still swapped above (e.g. by the pass-1
+     * radius-0 sweep in TerritoryControl.neutralizeAfterGeneration()) was built from wasteland's
+     * content, not that color's real content, and would silently stay wrong - wrong table length,
+     * wrong structure names - for the rest of the game if some later, real-content call reused that
+     * same cached index pair. A blanket clear (not just the touched slots) is simplest and correct;
+     * this runs once per world generation, not a hot path, so losing a few unrelated cached entries
+     * costs nothing.
+     */
+    public void restoreColorsRealContent() {
+        if (pendingContentRestore.isEmpty())
+            return;
+        List<BiomeData> biomes = data.GetBiomes();
+        for (Map.Entry<String, BiomeContentSnapshot> entry : pendingContentRestore.entrySet()) {
+            for (BiomeData biome : biomes) {
+                if (!entry.getKey().equalsIgnoreCase(biome.name))
+                    continue;
+                biome.terrain = entry.getValue().terrain;
+                biome.structures = entry.getValue().structures;
+                biome.spriteNames = entry.getValue().spriteNames;
+                break;
+            }
+        }
+        pendingContentRestore.clear();
+        structureSwapCache = null;
+    }
+
     /**
      * Repaints a circular area of terrain around a point to a named biome (e.g. "green") - used
      * live, mid-game, for an individual mage-captured town (see TerritoryControl.onMageArrived()).
@@ -1272,10 +1361,17 @@ public class World implements Disposable, SaveFileContent {
         int centerWorldY = (int) (point.getPosition().y / data.tileSize);
         int radiusSq = radius * radius;
         int mm = data.miniMapTileSize;
-        // Roads are represented as one extra bit past the last real biome (see the road-drawing
-        // pass in generateNew()) - preserve any tile that has it instead of silently erasing it,
-        // both so existing roads survive a repaint and so a future roads/upgrade-roads feature
-        // (MOD_SCOPE.md #2) has something left to build on.
+        // Roads are one extra bit past the last real biome (see the road-drawing pass in
+        // generateNew()). Preserved across a repaint by carrying existingRoadBit forward into the
+        // new biomeMap value below, instead of skipping the tile entirely (the old behavior) - a
+        // skipped tile's ground never updates to match its repainted surroundings, which is what
+        // let roads visibly trace a stale-biome border once a chunk rebuilt (see MOD_CHANGELOG.md).
+        // Safe unlike a bit-preservation idea that regressed elsewhere this round (ocean): road's
+        // own tileset has exactly one region (index 0, verified in world.json - no terrain/
+        // structures entries), and a road tile's terrainMap is always exactly 0 (set unconditionally
+        // by the road-drawing pass), so "draw the road texture" is road's only possible meaning at
+        // that index - no shared-terrainMap misinterpretation risk the way ocean's multi-region
+        // tileset had.
         long roadBit = 1L << data.GetBiomes().size();
         for (int wx = centerWorldX - radius; wx <= centerWorldX + radius; wx++) {
             if (wx < 0 || wx >= width)
@@ -1289,14 +1385,13 @@ public class World implements Disposable, SaveFileContent {
                     continue;
 
                 int rawY = height - wy - 1;
-                if ((biomeMap[wx][rawY] & roadBit) != 0)
-                    continue;
+                long existingRoadBit = biomeMap[wx][rawY] & roadBit;
 
                 int oldBiomeIndex = highestBiome(biomeMap[wx][rawY]); // read before overwriting below
                 Integer newTerrain = translateStructure(oldBiomeIndex, biomeIndex, terrainMap[wx][rawY]);
                 if (newTerrain == null)
                     continue;
-                biomeMap[wx][rawY] = 1L << biomeIndex;
+                biomeMap[wx][rawY] = existingRoadBit | (1L << biomeIndex);
                 terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)
@@ -1373,13 +1468,12 @@ public class World implements Disposable, SaveFileContent {
                     continue; // close enough to the castle - stays this color
 
                 int rawY = height - wy - 1;
-                if ((biomeMap[wx][rawY] & roadBit) != 0)
-                    continue; // preserve roads, same as repaintBiomeAroundTown()
+                long existingRoadBit = biomeMap[wx][rawY] & roadBit; // preserve roads, same as repaintBiomeAroundTown()
 
                 Integer newTerrain = translateStructure(colorIndex, colorlessIndex, terrainMap[wx][rawY]);
                 if (newTerrain == null)
                     continue;
-                biomeMap[wx][rawY] = 1L << colorlessIndex;
+                biomeMap[wx][rawY] = existingRoadBit | (1L << colorlessIndex);
                 terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)
@@ -1484,13 +1578,12 @@ public class World implements Disposable, SaveFileContent {
                     continue; // some other anchor (an AI castle, or the player's Spawn) is closer
 
                 int rawY = height - wy - 1;
-                if ((biomeMap[wx][rawY] & roadBit) != 0)
-                    continue;
+                long existingRoadBit = biomeMap[wx][rawY] & roadBit; // preserve roads, same as repaintBiomeAroundTown()
 
                 Integer newTerrain = translateStructure(colorlessIndex, colorIndex, terrainMap[wx][rawY]);
                 if (newTerrain == null)
                     continue;
-                biomeMap[wx][rawY] = 1L << colorIndex;
+                biomeMap[wx][rawY] = existingRoadBit | (1L << colorIndex);
                 terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)

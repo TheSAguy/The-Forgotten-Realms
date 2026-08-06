@@ -65,7 +65,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `List<Vector2> otherAnchors` parameter and switched its claim condition from "am I within my own
   radius" to a Voronoi-style "is my anchor the nearest of all colors' castles and the player's
   Spawn" check - Spawn is now baked into the method as a permanent rival anchor, replacing the
-  removed `SPAWN_PROTECTION_RADIUS_TILES` constant/hard-block entirely.
+  removed `SPAWN_PROTECTION_RADIUS_TILES` constant/hard-block entirely. Generate-as-wasteland
+  redesign (#7, 2026-08-06 - see `MOD_CHANGELOG.md`) added `swapColorsToWastelandContent()`/
+  `restoreColorsRealContent()` (temporarily points a color's terrain/structures/spriteNames at
+  colorless's own for the duration of world-gen, new `$BiomeContentSnapshot` inner class) and one
+  more call near the top of `generateNew()` into `TerritoryControl.prepareBiomesForGeneration()`;
+  also changed all 3 repaint methods to carry a road tile's existing road bit forward into a
+  repaint instead of skipping the tile outright (fixes a border that traced roads specifically).
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've

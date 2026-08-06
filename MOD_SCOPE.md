@@ -114,7 +114,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (Territory Expansion added 2026-08-05, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (generate-as-wasteland redesign added 2026-08-06, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -249,6 +249,25 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
     generated it (the chosen design preserves WFC footprint exactly rather than re-deriving
     placement) - the doodad fix helps but doesn't fully close this gap. Full detail in
     `MOD_CHANGELOG.md`. Not yet playtested - needs a fresh world.
+  - **Generate-as-wasteland redesign + road-bit preservation, next day (2026-08-06):** the "blue
+    border on roads" report and round 8's own honestly-flagged density/pattern gap above both
+    traced to the same underlying cause - each AI color generating and then mostly discarding its
+    *own* full-size WFC territory, rather than the swept area ever actually being generated as
+    wasteland. Redesigned per a user proposal, refined during planning: each color's
+    terrain/structures/spriteNames are now temporarily pointed at colorless's own for the whole
+    duration of world generation (`World.swapColorsToWastelandContent()`/
+    `restoreColorsRealContent()`), so the swept ~95% of a color's claim is generated using
+    wasteland's actual recipe from the start, not a differently-patterned territory later reskinned
+    - then each color's real starting circle is claimed back with real content via the
+    already-proven `claimWastelandRing()`, once generation finishes. Territory shape/extent and
+    castle/POI placement are completely unaffected (only which *content* a color generates with
+    changed, not where/how much). Separately, fixed the road-tracing border itself: verified
+    (unlike the reverted ocean-bit attempt) that a road tile safely carries its road bit through a
+    normal repaint instead of needing to skip the tile outright, since road has exactly one
+    renderable region and its terrainMap value is always 0 - all 3 repaint methods updated
+    accordingly. Full engineering detail (including a `structureSwapCache` staleness bug caught and
+    fixed during planning, before it ever shipped) in `MOD_CHANGELOG.md`. **Not yet playtested** -
+    needs a fresh world; this is a real architecture change to world generation, first time tested.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

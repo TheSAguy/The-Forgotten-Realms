@@ -2386,4 +2386,112 @@ has already caused a real world-gen hang once this session (see the "world-gen h
 earlier this session) - this is not a small patch, it's changing how map generation itself decides
 territory, and deserves the same care as that fix did.
 
+## Territory Control: generate-as-wasteland redesign + road-bit preservation (2026-08-06)
+
+Planned properly (Plan Mode) before writing any code, given the proposal above meant touching
+`generateNew()`'s own path and this session had already shipped one bit-preservation regression
+(the ocean-bit entry above). Refined the user's own proposal - "rename the terrain sets, e.g. copy
+Wasteland's graphics into a Green_terrain_graphics file so the program still thinks it's green but
+looks like wasteland, then switch back and redraw the starting circles after generation" - one step
+further than swapping just the rendered art: the WFC solver's placement *pattern* (density, what
+gets placed where) is driven by a biome's `structures[]`/`terrain[]` **content**, not which atlas
+renders it, so a pure graphics-only swap would still have left the swept area carrying whichever
+color's own WFC pattern originally generated it - the actual "dead zone" complaint, unsolved. So the
+implementation swaps the full content definition instead (`terrain`/`structures`/`spriteNames`
+together), not just the tileset reference.
+
+**Verified safe before writing any code** (an Explore-agent pass, specifically because of the
+ocean-bit lesson - checked *before* shipping this time, not after): `BiomeTexture` (the only thing
+that ever caches a biome's terrain/structures for rendering) is built exactly once, inside
+`loadWorldData()`, and never re-reads `BiomeData` fields afterward (confirmed by reading
+`generate()`/`getPixmap()`/`drawPixmapOn()`) - so reassigning `terrain`/`structures`/`spriteNames`
+*after* `loadWorldData()` has already run is invisible to rendering (which already happened, using
+the real values) and affects *only* the still-upcoming WFC/placement loop and per-tile terrain
+assignment - exactly the two things meant to be redirected, nothing else. `startPointX/Y`/`width`/
+`height`/`noiseWeight`/`distWeight` are deliberately never touched, so territory shape/extent and
+all POI/castle placement (which matches against those fields via `highestBiome(...)`) are
+completely unaffected - answering the "would castle placement break if a color never claims
+territory" concern raised when this was first proposed: it doesn't apply, because every color still
+claims its normal full-size territory during generation, just filled with wasteland's own content
+instead of its own.
+
+**Mechanism**: `World.swapColorsToWastelandContent(String[] colorBiomeNames)`, called from the new
+`TerritoryControl.prepareBiomesForGeneration(World)`, itself called from `World.generateNew()`
+immediately after `loadWorldData()` - before the WFC/placement loop starts. For each of the 5 AI
+colors, snapshots its current `terrain`/`structures`/`spriteNames` (a small private
+`BiomeContentSnapshot` holder), then reassigns those 3 fields to literally the same array
+references colorless's (`"waste"`) own `BiomeData` already has - reference assignment, no new
+content authored or copied.
+
+`TerritoryControl.neutralizeAfterGeneration()` (called later, same call site as before, near the
+end of `generateNew()`) restructured from one per-color loop into two passes around a restore step:
+- **Pass 1** (content still swapped): `World.neutralizeTerritoryOutsideRadius(color, castlePosition,
+  0, ...)` - radius **0**, not the real `CASTLE_KEEP_RADIUS_TILES` - sweeps virtually the color's
+  entire claimed territory back to colorless. Lossless: since content currently matches colorless
+  exactly, `translateStructure()`'s exact-name-match tier finds a perfect correspondence for every
+  tile - indistinguishable from native wasteland generation, not a reskin of a different pattern
+  (the actual fix for the "dead zone" complaint). The existing out-of-radius Town/Capital-to-Waste
+  POI conversion runs in the same per-color iteration, unchanged, still checked against the real
+  `CASTLE_KEEP_RADIUS_TILES` - a pure POI-position-vs-castle-position distance check, unaffected by
+  the ground-content swap state either way.
+- **Restore**: `World.restoreColorsRealContent()` puts each color's real `terrain`/`structures`/
+  `spriteNames` back. **Also clears `structureSwapCache`** - caught and fixed during planning, not
+  left as a latent bug for later: `structureSwapCache` is memoized by `[oldBiomeIndex][newBiomeIndex]`
+  index pair, reset only once at the very top of `generateNew()`, not between these sub-steps within
+  it. Without this, pass 1's sweep would leave a `[color][colorless]` cache entry built from
+  wasteland-shaped (not real) content, silently wrong for the rest of the game if any later,
+  real-content call (nothing today, but `neutralizeTerritoryOutsideRadius()` is a general-purpose
+  public method - a live territory-loss feature would hit this) ever reused that same index pair. A
+  blanket clear rather than tracking exactly which slots were touched - this runs once per world
+  generation, not a hot path, so losing a few unrelated cached entries costs nothing.
+- **Pass 2** (content real again): `World.claimWastelandRing(color, castlePosition, otherAnchors, 0,
+  CASTLE_KEEP_RADIUS_TILES, ...)` - reuses the exact same, already-proven method daily territory
+  expansion grows with, run once here instead of incrementally, claiming each color's real starting
+  circle with real content and real doodads (`claimWastelandRing()`'s own internal
+  `regenerateDoodadsInRadius()` call). `ensureCapital()`/`setColorTerritoryRadius()` moved here too
+  - they need the real small territory to already exist to make sense, not pass 1's barely-swept
+  intermediate state.
+
+Left the round-8 `world.regenerateDoodadsForBiome("waste")` full-map safety-net call in place rather
+than removing it - reasoning it through, it should now be a true no-op (pass 2's claims place
+correct doodads inside each circle, everything outside kept its original wasteland-recipe doodads
+from generation itself, since generation now used wasteland's own `spriteNames` for the
+swept-then-reclaimed territory too) - but cheap and idempotent, not worth the risk of removing
+without a real playtest confirming that first.
+
+**Also fixed the road-tracing blue border** (a separate change, same round - the redesign above
+does *not* automatically fix this on its own, since roads are drawn during generation, before any
+sweep, and are still skipped by all 3 repaint methods either way). Verified structurally different
+from the reverted ocean-bit attempt *before* touching anything, given the recent lesson: 
+`data.roadTileset` has `terrain`/`structures` both null (confirmed by reading `world.json` - only
+`tilesetAtlas`/`tilesetName`/`color` are set), so road has exactly **one** renderable region (index
+0), and the road-drawing pass unconditionally sets a road tile's `terrainMap` to **0** (confirmed by
+reading the actual lines, not assumed). Since every biome's index 0 already means "plain ground, no
+structure" and road's only index (0) means "draw the road texture," there's no shared-index
+misinterpretation possible the way ocean's 3-region tileset had (unrelated structure indices 1-2
+resolving to real, wrong, water art) - for a nonzero shared index (a structure tile), road's render
+call safely no-ops via the existing bounds guard instead of drawing anything wrong. Changed all 3
+repaint methods (`repaintBiomeAroundTown()`, `neutralizeTerritoryOutsideRadius()`,
+`claimWastelandRing()`) to carry a tile's existing road bit forward into the repainted `biomeMap`
+value (`existingRoadBit | (1L << newIndex)`) instead of skipping the tile outright - a road tile's
+underlying ground now updates along with its surroundings on every repaint, with the road still
+drawn on top, so it can no longer retain a stale pre-repaint biome bit that only becomes visible
+once a chunk rebuilds from scratch.
+
+**Compiled, deployed, and byte-verified**: `World.class` + its `$BiomeContentSnapshot` (new)/
+`$DrawInfo`/`$DrawingInformation` inner classes, and `TerritoryControl.class` - `cmp -s` against
+`target/classes` confirmed byte-identical. No resource files touched this round, no `robocopy`
+needed.
+
+**Not yet playtested - both changes are first-implementation.** Needs a fresh world (both parts only
+affect what happens during/after generation - an existing save's already-generated map is
+unaffected). Specifically worth confirming: no world-gen hang or slowdown (the historical hang cause
+depends on `width`/`height`, untouched here, but this still adds new code to `generateNew()`'s own
+path); minimap shows uniform texture/density outside the 5 starting circles (the actual "dead zone"
+fix); each color's starting circle shows real art, not wasteland-styled; castles/capitals/towns
+still place sensibly; roads no longer show a border specifically after walking away and a chunk
+rebuilds (the exact repro already demonstrated). Flagged to the user as a real architecture change
+to world generation, first time tested - expect to iterate, same as every other first-pass feature
+in this log.
+
 
