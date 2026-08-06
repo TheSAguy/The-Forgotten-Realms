@@ -114,7 +114,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (first slice built 2026-08-05, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (Territory Expansion added 2026-08-05, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -150,7 +150,9 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
   `forge.log` lines for mage dispatch/capture, for diagnosing "is this actually firing" without
   being able to run the game directly.
 - Tunable first-guess constants, not yet validated by playtesting: `CASTLE_KEEP_RADIUS_TILES`
-  (`40`), mage arrival distance, the 2-5 day dispatch interval.
+  (`20`, was `40` before Territory Expansion also adopted it as the starting radius), mage arrival
+  distance, the 2-5 day dispatch interval, `EXPANSION_TILES_PER_DAY` (`3`), `MAX_TERRITORY_RADIUS`
+  (`300`), and the 15-tile player-spawn protection buffer (see Territory Expansion entry below).
 - **Fifth playtest round** ("map looks much better"): fixed minimap town icons getting partially
   painted over by the neutralize sweep's own terrain repaint (`World.redrawAllPoiMarkers()`, runs
   after the sweep); every color now guaranteed a Capital within its kept territory even if the
@@ -169,6 +171,19 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
   - the panel was taking up too much space for data that rarely changes. Confirmed mages flying
   straight over water/terrain to their target is an intentional first-pass simplification (no
   pathfinder built for this), not a bug.
+- **Territory Expansion, same (sixth) round:** the user's other big ask that round - the ground
+  *between* towns stayed permanently neutral even after a color owned every town nearby. Each AI
+  color's territory now slowly grows outward from its own castle every in-game day, claiming only
+  currently-neutral wasteland (never another color's already-claimed land - two expanding circles
+  simply stop at each other, forming a border) via a new `TerritoryControl.processTerritoryExpansion()`
+  tick and `World.claimWastelandRing()`. A 15-tile buffer around the player's Spawn point is
+  protected from being swallowed by a nearby color's growth. Player-color expansion (the
+  7th-color/gold-tint biome) is a deliberate follow-up, not built this round - it needs its own
+  anchor-point design first, since the player can restore multiple towns where each AI color has
+  exactly one fixed castle. Full engineering detail (constants, the "first claim wins" no-overlap
+  reasoning, what's still out of scope) in `MOD_CHANGELOG.md`'s "Territory Expansion" entry. Not
+  yet playtested - needs a fresh world (existing saves won't have the new per-color radius state
+  seeded) and several in-game days fast-forwarded at speed to see the effect.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

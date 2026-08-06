@@ -88,6 +88,21 @@ public class World implements Disposable, SaveFileContent {
         colorNextAttackDay.put(color, day);
     }
 
+    // Territory Control (MOD_SCOPE.md #7) expansion: each color's current territory radius in
+    // tiles, grown over time by TerritoryControl.processTerritoryExpansion() via
+    // claimWastelandRing() above. Seeded once (to the same starting radius as the initial
+    // neutralizeAfterGeneration() sweep) rather than lazily like colorNextAttackDay - there's no
+    // "not yet initialized" state to distinguish here, the starting value is always well-defined.
+    private final java.util.Map<String, Integer> colorTerritoryRadius = new java.util.HashMap<>();
+
+    public Integer getColorTerritoryRadius(String color) {
+        return colorTerritoryRadius.get(color);
+    }
+
+    public void setColorTerritoryRadius(String color, int radiusTiles) {
+        colorTerritoryRadius.put(color, radiusTiles);
+    }
+
     public Random getRandom() {
         return random;
     }
@@ -176,6 +191,12 @@ public class World implements Disposable, SaveFileContent {
             //noinspection unchecked
             colorNextAttackDay.putAll((java.util.Map<String, Integer>) saveFileData.readObject("colorNextAttackDay"));
         }
+
+        colorTerritoryRadius.clear();
+        if (saveFileData.containsKey("colorTerritoryRadius")) {
+            //noinspection unchecked
+            colorTerritoryRadius.putAll((java.util.Map<String, Integer>) saveFileData.readObject("colorTerritoryRadius"));
+        }
     }
 
     @Override
@@ -194,6 +215,7 @@ public class World implements Disposable, SaveFileContent {
         data.storeObject("explored", explored);
         data.store("dayProgress", dayProgress);
         data.store("dayCount", dayCount);
+        data.storeObject("colorTerritoryRadius", colorTerritoryRadius);
         data.storeObject("colorNextAttackDay", colorNextAttackDay);
         return data;
     }
@@ -1130,7 +1152,7 @@ public class World implements Disposable, SaveFileContent {
             }
         }
 
-        regenerateDoodadsInRadius(centerWorldX, centerWorldY, radius, biome);
+        regenerateDoodadsInRadius(centerWorldX, centerWorldY, 0, radius, biome);
 
         if (onChunkNeedsReload != null) {
             int chunkSize = getChunkSize();
@@ -1223,12 +1245,111 @@ public class World implements Disposable, SaveFileContent {
         }
     }
 
+    // Keeps the player's own Spawn point (and a small buffer around it) neutral regardless of
+    // which color's expanding ring reaches it - MOD_SCOPE.md #7's player-color expansion (from the
+    // player's own restored towns) is a deliberate follow-up, not built yet, so without this an
+    // adjacent AI color could otherwise swallow the player's home base first.
+    private static final int SPAWN_PROTECTION_RADIUS_TILES = 15;
+
+    /**
+     * Territory Control (MOD_SCOPE.md #7) expansion: claims every WASTELAND tile in the annulus
+     * between innerRadiusTiles and outerRadiusTiles of center for the named color - unlike
+     * repaintBiomeAroundTown() (which recolors everything in a radius unconditionally), this only
+     * claims a tile if it's *currently* the "waste" biome, so two different colors' independently
+     * growing territories naturally stop at each other instead of overlapping or re-claiming land
+     * - whichever color's claim runs first each tick wins a contested tile, the same "first
+     * arrival wins" resolution already used for the mage-capture race condition, no lock needed.
+     * <p>
+     * Called every in-game day a color's territory grows (unlike neutralizeTerritoryOutsideRadius(),
+     * a one-time world-gen-time sweep) - scoped to a bounding box around center, not a full-map
+     * scan, since this runs repeatedly rather than once.
+     */
+    public void claimWastelandRing(String colorBiomeName, Vector2 center, int innerRadiusTiles, int outerRadiusTiles,
+                                    BiConsumer<Integer, Integer> onTileRepainted,
+                                    BiConsumer<Integer, Integer> onChunkNeedsReload) {
+        if (data == null || biomeMap == null || terrainMap == null)
+            return;
+        List<BiomeData> biomes = data.GetBiomes();
+        int colorIndex = -1, colorlessIndex = -1;
+        for (int i = 0; i < biomes.size(); i++) {
+            if (colorBiomeName.equalsIgnoreCase(biomes.get(i).name))
+                colorIndex = i;
+            if ("waste".equalsIgnoreCase(biomes.get(i).name))
+                colorlessIndex = i;
+        }
+        if (colorIndex < 0 || colorlessIndex < 0)
+            return;
+        BiomeData colorBiome = biomes.get(colorIndex);
+
+        int centerTileX = (int) (center.x / data.tileSize);
+        int centerTileY = (int) (center.y / data.tileSize);
+        int innerRadiusSq = innerRadiusTiles * innerRadiusTiles;
+        int outerRadiusSq = outerRadiusTiles * outerRadiusTiles;
+        long roadBit = 1L << biomes.size();
+        int mm = data.miniMapTileSize;
+
+        int spawnTileX = (int) (width * data.playerStartPosX);
+        int spawnTileY = (int) (height * data.playerStartPosY);
+        int spawnProtectSq = SPAWN_PROTECTION_RADIUS_TILES * SPAWN_PROTECTION_RADIUS_TILES;
+
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        for (int wx = Math.max(0, centerTileX - outerRadiusTiles); wx <= Math.min(width - 1, centerTileX + outerRadiusTiles); wx++) {
+            int dx = wx - centerTileX;
+            for (int wy = Math.max(0, centerTileY - outerRadiusTiles); wy <= Math.min(height - 1, centerTileY + outerRadiusTiles); wy++) {
+                int dy = wy - centerTileY;
+                int distSq = dx * dx + dy * dy;
+                if (distSq > outerRadiusSq || distSq < innerRadiusSq)
+                    continue;
+                if (highestBiome(getBiome(wx, wy)) != colorlessIndex)
+                    continue; // not wasteland - already someone else's (or ocean/base) - leave it
+
+                int sdx = wx - spawnTileX, sdy = wy - spawnTileY;
+                if (sdx * sdx + sdy * sdy < spawnProtectSq)
+                    continue; // keep the player's home base neutral
+
+                int rawY = height - wy - 1;
+                if ((biomeMap[wx][rawY] & roadBit) != 0)
+                    continue;
+                biomeMap[wx][rawY] = 1L << colorIndex;
+                terrainMap[wx][rawY] = 0;
+
+                if (biomeImage != null)
+                    biomeImage.drawPixmap(createSmallPixmap(colorBiome.tilesetAtlas, colorBiome.tilesetName, 0), wx * mm, rawY * mm);
+                updateFogOfWarPixmap(wx, rawY);
+
+                if (onTileRepainted != null)
+                    onTileRepainted.accept(wx, wy);
+                minX = Math.min(minX, wx); maxX = Math.max(maxX, wx);
+                minY = Math.min(minY, wy); maxY = Math.max(maxY, wy);
+            }
+        }
+
+        regenerateDoodadsInRadius(centerTileX, centerTileY, innerRadiusTiles, outerRadiusTiles, colorBiome);
+
+        if (onChunkNeedsReload != null && minX <= maxX) {
+            int chunkSize = getChunkSize();
+            int minChunkX = Math.floorDiv(minX, chunkSize);
+            int maxChunkX = Math.floorDiv(maxX, chunkSize);
+            int minChunkY = Math.floorDiv(minY, chunkSize);
+            int maxChunkY = Math.floorDiv(maxY, chunkSize);
+            for (int cx = minChunkX; cx <= maxChunkX; cx++)
+                for (int cy = minChunkY; cy <= maxChunkY; cy++)
+                    onChunkNeedsReload.accept(cx, cy);
+        }
+    }
+
     /**
      * Removes mapObjectIds doodad entries (rocks/flowers/etc, placed via BiomeData.spriteNames)
-     * within the radius, then re-places new ones using the target biome's own spriteNames list.
-     * Simplified vs. the original world-gen placement loop: density-only, no noise-region
-     * (startArea/endArea) gating - reasonable for a small localized patch, not worth threading
-     * through the world-gen noise field for.
+     * within the annulus between innerRadiusTiles and outerRadiusTiles, then re-places new ones
+     * using the target biome's own spriteNames list. Simplified vs. the original world-gen
+     * placement loop: density-only, no noise-region (startArea/endArea) gating - reasonable for a
+     * small localized patch, not worth threading through the world-gen noise field for.
+     * <p>
+     * innerRadiusTiles exists for Territory Control's expansion mechanic (MOD_SCOPE.md #7): a
+     * repeated, growing-radius claim needs to touch only the *new* ring each time, not re-clear
+     * and re-randomize every doodad in the whole already-claimed interior on every tick (which
+     * would visibly reshuffle settled territory's scenery every in-game day). Pass 0 for the
+     * original single-circle behavior (repaintBiomeAroundTown()'s own use).
      *
      * BiomeSpriteData.density values (e.g. "Stone" at 0.01) are tuned for full world-gen, where
      * the map is thousands of tiles - over a radius-10 patch (~300 tiles) that same density only
@@ -1238,14 +1359,15 @@ public class World implements Disposable, SaveFileContent {
      */
     private static final float DOODAD_DENSITY_MULTIPLIER = 5f;
 
-    private void regenerateDoodadsInRadius(int centerWorldX, int centerWorldY, int radius, BiomeData biome) {
-        int radiusSq = radius * radius;
+    private void regenerateDoodadsInRadius(int centerWorldX, int centerWorldY, int innerRadiusTiles, int outerRadiusTiles, BiomeData biome) {
+        int innerRadiusSq = innerRadiusTiles * innerRadiusTiles;
+        int outerRadiusSq = outerRadiusTiles * outerRadiusTiles;
         int tileSize = data.tileSize;
         int chunkSize = getChunkSize();
-        int minChunkX = Math.floorDiv(centerWorldX - radius, chunkSize);
-        int maxChunkX = Math.floorDiv(centerWorldX + radius, chunkSize);
-        int minChunkY = Math.floorDiv(centerWorldY - radius, chunkSize);
-        int maxChunkY = Math.floorDiv(centerWorldY + radius, chunkSize);
+        int minChunkX = Math.floorDiv(centerWorldX - outerRadiusTiles, chunkSize);
+        int maxChunkX = Math.floorDiv(centerWorldX + outerRadiusTiles, chunkSize);
+        int minChunkY = Math.floorDiv(centerWorldY - outerRadiusTiles, chunkSize);
+        int maxChunkY = Math.floorDiv(centerWorldY + outerRadiusTiles, chunkSize);
 
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cy = minChunkY; cy <= maxChunkY; cy++) {
@@ -1255,7 +1377,8 @@ public class World implements Disposable, SaveFileContent {
                     int ty = (int) (entry.getLeft().y / tileSize);
                     int dx = tx - centerWorldX;
                     int dy = ty - centerWorldY;
-                    return dx * dx + dy * dy <= radiusSq;
+                    int distSq = dx * dx + dy * dy;
+                    return distSq <= outerRadiusSq && distSq >= innerRadiusSq;
                 });
             }
         }
@@ -1266,15 +1389,16 @@ public class World implements Disposable, SaveFileContent {
         // was skipped there (still the old biome/terrain because it's a road) shouldn't get a
         // fresh doodad placed on top of it either.
         long roadBit = 1L << data.GetBiomes().size();
-        for (int wx = centerWorldX - radius; wx <= centerWorldX + radius; wx++) {
+        for (int wx = centerWorldX - outerRadiusTiles; wx <= centerWorldX + outerRadiusTiles; wx++) {
             if (wx < 0 || wx >= width)
                 continue;
             int dx = wx - centerWorldX;
-            for (int wy = centerWorldY - radius; wy <= centerWorldY + radius; wy++) {
+            for (int wy = centerWorldY - outerRadiusTiles; wy <= centerWorldY + outerRadiusTiles; wy++) {
                 if (wy < 0 || wy >= height)
                     continue;
                 int dy = wy - centerWorldY;
-                if (dx * dx + dy * dy > radiusSq || isStructure(wx, wy))
+                int distSq = dx * dx + dy * dy;
+                if (distSq > outerRadiusSq || distSq < innerRadiusSq || isStructure(wx, wy))
                     continue;
                 if ((biomeMap[wx][height - wy - 1] & roadBit) != 0)
                     continue;

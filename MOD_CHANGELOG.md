@@ -1856,6 +1856,78 @@ deliberate simplification the user can ask to revisit, not defended as unchangea
 Not yet re-verified in game - the JSON layout in particular can only really be confirmed by
 actually opening the new page.
 
+## Territory Expansion: colors slowly grow to fill the wasteland (2026-08-05)
+
+Sixth playtest round also included the next big request on top of the positive feedback: the
+ground *between* towns stayed permanently neutral even after a color had captured every town
+nearby - "I was wondering if we could have the green circles slowly expand from the cities...
+This process will only affect wastelands, so if a green and white circles meet up, they will form
+a border, not consume each other... eventually it will become a solid color... 6 solid colors
+eventually. 5 AI and player." This round implements the 5 AI colors' side of that (player-color
+expansion is a deliberate follow-up - see below). Planned in full via Plan Mode before touching
+code (`C:\Users\User\.claude\plans\dapper-shimmying-crown.md`), approved with no changes requested.
+
+**Growth model: an expanding radius around each color's own castle, not organic/frontier growth.**
+A true frontier-based spread (track actual border tiles, grow irregularly, respect terrain shape)
+would need meaningfully more state and more ways to get subtly wrong, for a visual difference
+that's secondary to the actual ask. A growing circle satisfies the real requirements - land fills
+in over time, two colors border instead of overlap - while reusing patterns already proven this
+session (`repaintBiomeAroundTown()`, `neutralizeTerritoryOutsideRadius()`).
+
+**The "don't overlap" rule falls out of one condition, no locking needed**: a tile is only ever
+claimed if it's *currently wasteland*. Two colors' circles can mathematically both reach the same
+tile on the same tick; colors are processed in a fixed order, so whichever claims it first wins,
+and the second color's own check on that now-non-wasteland tile skips it - the same "first arrival
+wins" reasoning already used for the mage-capture race condition in `onMageArrived()`.
+
+- **`World.java`**: `regenerateDoodadsInRadius()` gained an `innerRadiusTiles` parameter (was
+  full-disc only) so a daily expansion tick only re-randomizes the *new* ring of decorations, not
+  the entire already-claimed interior every time - without this, settled territory would visibly
+  reshuffle its scenery every day. `repaintBiomeAroundTown()`'s call site passes `innerRadiusTiles
+  =0` (unchanged full-disc behavior). New `claimWastelandRing(colorBiomeName, center,
+  innerRadiusTiles, outerRadiusTiles, onTileRepainted, onChunkNeedsReload)` - same shape as
+  `neutralizeTerritoryOutsideRadius()` but scans just the annulus between two radii (bounded by a
+  box around `center`, not a full-map scan, since this runs every in-game day rather than once at
+  world-gen). Skips any tile that isn't currently wasteland, skips roads, and skips a fixed 15-tile
+  buffer around the player's Spawn point (`data.playerStartPosX/Y`) so an adjacent color's
+  expansion can't swallow the player's own home base before player-side expansion exists to contest
+  it. Calls the new ring-aware `regenerateDoodadsInRadius()` for the same ring afterward. New
+  persisted state `colorTerritoryRadius` (`Map<String,Integer>`, current radius per color),
+  saved/loaded exactly like the existing `colorNextAttackDay` map.
+- **`TerritoryControl.java`**: `CASTLE_KEEP_RADIUS_TILES` reduced `40` -> `20` per "make the initial
+  circle a little smaller" - now doing double duty as both the one-time post-world-gen sweep radius
+  and the starting radius expansion grows from. `neutralizeAfterGeneration()` now also seeds
+  `world.colorTerritoryRadius` to that starting value for every color once its sweep finishes, so
+  the expansion logic has a well-defined start with no lazy-init special case. New
+  `processTerritoryExpansion(World, int daysPassed)`, called from `processDaysPassed()` (the same
+  day-tick entry point the mage-dispatch timer already uses) right alongside it: for each color,
+  `newRadius = min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS)`,
+  then `world.claimWastelandRing(...)` with live callbacks (`WorldStage::refreshBackgroundTile`/
+  `reloadBackgroundChunkObjects`, same as an individual town capture already uses) so the player
+  sees land change color in real time during actual gameplay, not just at world-gen.
+
+**First-guess constants, flagged for the user to tune after seeing this run**:
+`EXPANSION_TILES_PER_DAY = 3`, `MAX_TERRITORY_RADIUS = 300` (a generous cap so the scan stops once
+a color has realistically filled all reachable wasteland - not meant as a gameplay limit), and the
+15-tile player-spawn protection buffer.
+
+**Explicitly out of scope this round** (per the plan, so the core mechanic could ship and get
+tested on its own first): player-color expansion (needs its own anchor-point decision first - a
+color has one fixed castle, the player can restore several towns), towns being converted by
+territory expansion (a neutral town stays neutral until an actual mage capture, regardless of the
+color of ground now surrounding it - keeps this mechanic fully decoupled from the existing capture
+system), and any contested-border/fighting rules between two AI colors' circles (they just stop at
+each other for now).
+
+**Needs a fresh world** - existing saves won't have `colorTerritoryRadius` seeded (falls back to
+the same `null`-check pattern `colorNextAttackDay` already uses, so it won't crash on an old save,
+just won't expand until a fresh world reseeds it via `neutralizeAfterGeneration()`).
+
+Not yet re-verified in game - needs fast-forwarding several in-game days at 50x speed to confirm
+territory visibly grows, two colors stop at each other rather than overlapping, new ground gets
+that color's own decorations rather than leftover wasteland ones, the player's spawn stays
+protected, and performance holds up with multiple colors expanding at once.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

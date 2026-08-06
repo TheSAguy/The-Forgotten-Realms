@@ -44,7 +44,9 @@ public class TerritoryControl {
     private static final int MAX_ATTACK_DAYS = 5;
     private static final int NEAREST_CANDIDATES = 3;
     private static final int RECOLOR_RADIUS = 10;
-    private static final int CASTLE_KEEP_RADIUS_TILES = 40; // first-guess constant, tune after testing
+    private static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
+    private static final int EXPANSION_TILES_PER_DAY = 3; // first-guess constant, tune after testing
+    private static final int MAX_TERRITORY_RADIUS = 300; // generous cap - bounds the scan once a color has filled all reachable wasteland
 
     private TerritoryControl() {}
 
@@ -91,6 +93,7 @@ public class TerritoryControl {
             System.out.println("[TerritoryControl] " + color + ": neutralized territory outside castle, converted " + converted + " town(s) to neutral");
 
             ensureCapital(world, color, castle, keepRadiusWorld);
+            world.setColorTerritoryRadius(color, CASTLE_KEEP_RADIUS_TILES);
         }
     }
 
@@ -157,10 +160,35 @@ public class TerritoryControl {
                 world.setColorNextAttackDay(color, newDayCount + randomAttackDelay(world));
             }
         }
+        processTerritoryExpansion(world, daysPassed);
     }
 
     private static int randomAttackDelay(World world) {
         return MIN_ATTACK_DAYS + world.getRandom().nextInt(MAX_ATTACK_DAYS - MIN_ATTACK_DAYS + 1);
+    }
+
+    // Each color's circle slowly grows from its castle, claiming only currently-neutral wasteland
+    // (World.claimWastelandRing() skips anything that isn't wasteland, so two colors' circles stop
+    // at each other - a border - rather than overlapping or fighting over the same tile; see the
+    // plan's "don't overlap" reasoning: first color processed to reach a tile each tick wins it).
+    // A color with no surviving castle (shouldn't normally happen post-neutralizeAfterGeneration,
+    // but a save could predate this feature) or no seeded radius is skipped rather than guessed at.
+    private static void processTerritoryExpansion(World world, int daysPassed) {
+        for (String color : COLORS) {
+            Integer currentRadius = world.getColorTerritoryRadius(color);
+            if (currentRadius == null || currentRadius >= MAX_TERRITORY_RADIUS)
+                continue;
+            PointOfInterest castle = findCastle(world, color);
+            if (castle == null)
+                continue;
+            int newRadius = Math.min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
+            if (newRadius <= currentRadius)
+                continue;
+            world.claimWastelandRing(color, castle.getPosition(), currentRadius, newRadius,
+                    WorldStage.getInstance()::refreshBackgroundTile,
+                    WorldStage.getInstance()::reloadBackgroundChunkObjects);
+            world.setColorTerritoryRadius(color, newRadius);
+        }
     }
 
     // Every early-return below prints why, not just the success path - the only way to tell
