@@ -282,6 +282,20 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       this surfaced: the clone constructor being newly relied on had never copied the WFC
       pattern-size field (`N`). Full mechanism in `MOD_CHANGELOG.md`. Not yet re-verified - needs
       another fresh world.
+    - **Second playtest, same road-border fix confirmed working; circles still flat - real fix,
+      not another reskin.** The `structureDataMap` fix above was necessary but not sufficient:
+      `claimWastelandRing()`'s reskin can only recolor whatever structure a tile already has, never
+      add density that wasn't baked in - and every tile in a circle was generated using colorless's
+      own (sparser, by design) WFC pattern. Fixed with a new `World.regenerateStructuresForClaim()`,
+      called once per color right after `claimWastelandRing()` in the one-time world-gen claim only
+      (daily expansion still calls `claimWastelandRing()` alone, unchanged) - builds a fresh WFC
+      pattern from the color's own real `structures[]` and replaces the reskinned structures with a
+      genuine placement. **Also fixed, a separate report the same round**: AI expansion could grow
+      around a town the player personally captured away from Spawn - a known, already-deferred gap
+      from Territory Expansion's original design, not something this redesign broke. Per user
+      decision, every player-owned town is now a protected rival anchor for daily expansion, not
+      just Spawn. Full detail in `MOD_CHANGELOG.md`. Not yet re-verified - needs another fresh
+      world for the structure fix; the anchor fix works on an existing save.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

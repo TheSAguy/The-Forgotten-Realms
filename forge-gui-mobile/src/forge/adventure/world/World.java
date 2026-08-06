@@ -1643,6 +1643,118 @@ public class World implements Disposable, SaveFileContent {
     }
 
     /**
+     * Companion to claimWastelandRing(), called right after it for the one-time world-gen claim
+     * only (MOD_SCOPE.md #7's generate-as-wasteland redesign) - NOT used by daily territory
+     * expansion, which keeps calling claimWastelandRing() alone, unmodified.
+     * <p>
+     * claimWastelandRing() (and the translateStructure() it uses) can only *reskin* whatever
+     * structure a tile already has - swap which biome's sprite renders an existing index, never
+     * add density that wasn't already baked in. Every tile in a freshly-claimed circle was placed
+     * during generation using colorless's own WFC pattern (see World.swapColorsToWastelandContent()
+     * - that's what fixed the "dead zone" outside these circles), so a plain reskin leaves the
+     * circle wearing the real color's texture over wasteland's own (typically sparser) structure
+     * pattern - visibly flatter than that color's real territory should look, confirmed by the
+     * first playtest of the redesign. This method fixes that by *replacing* the structure portion
+     * of terrainMap with a genuinely fresh placement, queried against the color's own real
+     * structures[] at its own real width/height - the same computation generateNew()'s own per-tile
+     * placement loop does, just run again here, synchronously, scoped to one small circle instead
+     * of the whole map. Leaves the terrain-variant/plain-ground baseline claimWastelandRing() already
+     * painted untouched wherever no fresh structure is found there.
+     * <p>
+     * Must run after claimWastelandRing() (needs biomeMap already updated to know which tiles are
+     * this color's), and re-invokes regenerateDoodadsInRadius() itself afterward - claimWastelandRing()'s
+     * own doodad pass already ran using the stale (reskinned) isStructure() state, so without this
+     * a tile could end up with both a doodad and a freshly-added structure overlapping. Re-running
+     * it is a cheap, ordinary doodad-density pass, not a second WFC build - negligible extra cost
+     * for one small circle, and keeps claimWastelandRing() itself completely unmodified rather than
+     * risking daily expansion (its other, already-proven caller) to special-case this.
+     */
+    public void regenerateStructuresForClaim(String colorBiomeName, Vector2 center, int radiusTiles) {
+        if (data == null || biomeMap == null || terrainMap == null)
+            return;
+        List<BiomeData> biomes = data.GetBiomes();
+        int colorIndex = -1;
+        for (int i = 0; i < biomes.size(); i++) {
+            if (colorBiomeName.equalsIgnoreCase(biomes.get(i).name)) {
+                colorIndex = i;
+                break;
+            }
+        }
+        if (colorIndex < 0)
+            return;
+        BiomeData biome = biomes.get(colorIndex);
+        if (biome.structures == null)
+            return;
+
+        int biomeXStart = (int) Math.round(biome.startPointX * (double) width);
+        int biomeYStart = (int) Math.round(biome.startPointY * (double) height);
+        int biomeWidth = (int) Math.round(biome.width * (double) width);
+        int biomeHeight = (int) Math.round(biome.height * (double) height);
+
+        // Fresh, synchronous, real-content WFC patterns - deliberately separate from
+        // structureDataMap (which, even after the identity-collision fix above, still only ever
+        // holds the wasteland-shaped clones built during generateNew()'s own WFC pass, not these
+        // colors' real structures - restoreColorsRealContent() has already run by the time this is
+        // called). Sized to the color's own real, full biome width/height - matching what ordinary,
+        // non-Territory-Control generation has always safely used for this exact biome - rather
+        // than a smaller custom size, to carry over the same hang-safety this session already had
+        // to fix once (see the "world-gen hang" entry in MOD_CHANGELOG.md) without re-deriving it.
+        Map<BiomeStructureData, BiomeStructure> freshPatterns = new HashMap<>();
+        for (BiomeStructureData structureData : biome.structures) {
+            BiomeStructure structure = new BiomeStructure(structureData, seed, biomeWidth, biomeHeight);
+            try {
+                structure.initialize();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+            freshPatterns.put(structureData, structure);
+        }
+
+        int centerTileX = (int) (center.x / data.tileSize);
+        int centerTileY = (int) (center.y / data.tileSize);
+        int radiusSq = radiusTiles * radiusTiles;
+        long roadBit = 1L << biomes.size();
+        int baseTerrainCounter = 1 + (biome.terrain != null ? biome.terrain.length : 0);
+
+        for (int wx = Math.max(0, centerTileX - radiusTiles); wx <= Math.min(width - 1, centerTileX + radiusTiles); wx++) {
+            int dx = wx - centerTileX;
+            for (int wy = Math.max(0, centerTileY - radiusTiles); wy <= Math.min(height - 1, centerTileY + radiusTiles); wy++) {
+                int dy = wy - centerTileY;
+                if (dx * dx + dy * dy > radiusSq)
+                    continue;
+                if (highestBiome(getBiome(wx, wy)) != colorIndex)
+                    continue; // not this color's claimed ground (e.g. a rival anchor claimed it first) - leave it
+                int rawY = height - wy - 1;
+                if ((biomeMap[wx][rawY] & roadBit) != 0)
+                    continue; // never place a structure on a road
+
+                // Same formula as generateNew()'s own per-tile placement loop - x needs no flip
+                // (matches getBiome()'s own convention), y does: that loop's "y" is raw array-space,
+                // and getBiome(wx,wy)'s own height-wy-1 flip is what makes wy a "world" coordinate
+                // in the first place, so feeding the same rawY back in keeps this consistent with
+                // whatever tile generateNew() itself would have written to at this world position.
+                int terrainCounter = baseTerrainCounter;
+                for (BiomeStructureData structureData : biome.structures) {
+                    BiomeStructure structure = freshPatterns.get(structureData);
+                    int structureXStart = wx - (biomeXStart - biomeWidth / 2) - (int) ((structureData.x * biomeWidth) - (structureData.width * biomeWidth / 2));
+                    int structureYStart = rawY - (biomeYStart - biomeHeight / 2) - (int) ((structureData.y * biomeHeight) - (structureData.height * biomeHeight / 2));
+                    int structureIndex = structure.objectID(structureXStart, structureYStart);
+                    if (structureIndex >= 0) {
+                        int encoded = terrainCounter + structureIndex;
+                        if (structure.collision(structureXStart, structureYStart))
+                            encoded |= collisionBit;
+                        encoded |= isStructureBit;
+                        terrainMap[wx][rawY] = encoded;
+                    }
+                    terrainCounter += structure.structureObjectCount();
+                }
+            }
+        }
+
+        regenerateDoodadsInRadius(centerTileX, centerTileY, 0, radiusTiles, biome);
+    }
+
+    /**
      * Removes mapObjectIds doodad entries (rocks/flowers/etc, placed via BiomeData.spriteNames)
      * within the annulus between innerRadiusTiles and outerRadiusTiles, then re-places new ones
      * using the target biome's own spriteNames list. Simplified vs. the original world-gen

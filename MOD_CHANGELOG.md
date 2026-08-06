@@ -2561,4 +2561,73 @@ alone), but per this session's own standing lesson, "compiles clean" and "the th
 verified" are not the same as "confirmed correct in a real playtest" - asked the user to test fresh
 before treating this as closed.
 
+### Second playtest: road border confirmed fixed; circles still flat (real fix, reskin isn't enough); player-anchor protection
+
+**Confirmed fixed**: the road-tracing blue border. No further reports of it after the road-bit
+preservation fix above.
+
+**Circles were still flat/empty after the `structureDataMap` fix** - that fix was real and
+necessary (every color's WFC pattern is now correctly sized to that color's own width/height again),
+but not sufficient on its own. The remaining, deeper issue: `claimWastelandRing()`'s
+`translateStructure()`-based repaint can only *reskin* whatever structure a tile already has -
+change which biome's sprite renders an existing raw index, never add density that wasn't already
+baked into that index. Every tile that becomes part of a color's reclaimed circle was placed during
+generation using colorless's own WFC pattern (`World.swapColorsToWastelandContent()` - the exact
+mechanism that fixed the "dead zone" *outside* the circles). So a plain reskin leaves the circle
+wearing the real color's texture over wasteland's own (by design, sparser/more desolate) structure
+pattern - visibly flatter than that color's real territory, even with per-biome pattern sizing now
+correct.
+
+**Fixed** with a new `World.regenerateStructuresForClaim(colorBiomeName, center, radiusTiles)`,
+called right after `claimWastelandRing()` in `neutralizeAfterGeneration()`'s pass 2, one-time-claim
+only (daily territory expansion still calls `claimWastelandRing()` alone, unmodified - see "Explicit
+scope decision" below). Builds fresh `BiomeStructure` WFC patterns from the color's own *real*
+`structures[]` (post-restore) at its own *real* width/height - sized the same as ordinary,
+non-Territory-Control generation always has for that exact biome, to carry over the same
+hang-safety already fixed once this session without re-deriving it - then, for every tile the color
+now owns within the circle, replaces `terrainMap`'s structure portion with a genuinely fresh query
+against that pattern (`structure.objectID(structureXStart, structureYStart)`), using the *exact*
+same position formula `generateNew()`'s own per-tile placement loop uses. That formula needed one
+careful translation: the original loop's `x`/`y` are raw array-space (no flip), while this new
+method iterates world-space `wx`/`wy` (needed to check `getBiome()`-based tile ownership) - verified
+via `getBiome()`'s own `biomeMap[x][height-y-1]` convention that the correct translation is
+`rawY = height - wy - 1` fed into the *y* side of the formula only (`x` needs none), not derived by
+guesswork. Leaves the terrain-variant/plain-ground baseline `claimWastelandRing()` already painted
+alone wherever the fresh query finds no structure, and skips road tiles the same way the 3 repaint
+methods do. Re-invokes `regenerateDoodadsInRadius()` itself afterward, since `claimWastelandRing()`'s
+own doodad pass already ran against the stale (reskinned) `isStructure()` state - without this, a
+tile could end up with both a doodad and a freshly-added structure overlapping. Re-running that pass
+is a cheap density roll, not a second WFC build - negligible added cost for one small circle.
+
+**Explicit scope decision**: didn't touch `claimWastelandRing()` itself or add a parameter to it -
+considered doing the structure-regeneration inline (single pass, automatically correct doodad
+ordering) but that would mean modifying a method daily territory expansion also depends on and has
+already been proven correct through actual play. A second, additive, world-gen-only method call
+keeps that proven path completely untouched at the cost of one redundant (cheap) doodad pass.
+
+**Also addressed the same round, a separate report**: AI territory expanding around/near a town the
+player has personally captured, not just the fixed Spawn point - user: "Green is creeping over the
+player... I don't think that should be happening." Checked first, not assumed: this traces back to
+Territory Expansion's own original design (see that section, earlier this log) - Spawn was always a
+protected rival anchor inside `claimWastelandRing()`, but "player-color expansion... needs its own
+anchor-point decision first, since the player can restore multiple towns where each AI color has
+exactly one fixed castle" was explicitly deferred at the time, not something today's redesign broke
+- just more visible now that a color's territory finally looks dense/correct enough to closely
+examine its edges. Per explicit user decision (asked directly rather than assumed), fixed by
+treating *every* player-owned town as a protected rival anchor, not just Spawn:
+`TerritoryControl.processTerritoryExpansion()` now also gathers every POI where
+`TownRestoration.isTownRestored(...)` is true (the exact same check `getTownCounts()` already uses
+for the World Standings "Player" row) and adds each one's position to every color's `otherAnchors`
+list alongside the other colors' castles. Purely additive to `claimWastelandRing()`'s existing
+nearest-anchor check - can only make AI expansion *more* conservative near player-owned ground,
+never less, so no regression risk to the already-proven "colors stop at each other" behavior.
+
+**Compiled, deployed, and byte-verified**: `World.class` (+ its 3 inner classes) and
+`TerritoryControl.class` - `cmp -s` against `target/classes` confirmed byte-identical.
+
+**Not yet re-verified in game** - needs another fresh world for the structure-regeneration fix
+(world-gen-time only), and several in-game days fast-forwarded near a player-captured town away from
+Spawn to confirm the anchor fix on an *existing* save (this one doesn't need a fresh world - it only
+changes daily expansion's own anchor list, not anything baked in at generation time).
+
 

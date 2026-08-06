@@ -84,7 +84,11 @@ public class TerritoryControl {
      * <li>Pass 2: claims a real starting circle back with World.claimWastelandRing() - the exact
      * same, already-proven method daily territory expansion grows with (see
      * processTerritoryExpansion() below), just run once here instead of incrementally - then
-     * ensures a capital and seeds the territory radius that expansion will grow from.</li>
+     * World.regenerateStructuresForClaim() replaces the reskinned (wasteland-density) structures
+     * claimWastelandRing() just painted with a fresh placement using the color's own real WFC
+     * pattern, since a reskin alone can't add density that was never there to begin with (found
+     * during this feature's first playtest - see MOD_CHANGELOG.md) - then ensures a capital and
+     * seeds the territory radius that expansion will grow from.</li>
      * </ul>
      * Deliberately leaves every *other* POI type (dungeons, caves, forts, boss encounters) exactly
      * where world-gen put them, keeping their original color-flavored identity - only towns/
@@ -142,6 +146,7 @@ public class TerritoryControl {
                     otherAnchors.add(other.getValue().getPosition());
             }
             world.claimWastelandRing(color, castle.getPosition(), otherAnchors, 0, CASTLE_KEEP_RADIUS_TILES, null, null);
+            world.regenerateStructuresForClaim(color, castle.getPosition(), CASTLE_KEEP_RADIUS_TILES);
 
             ensureCapital(world, color, castle, keepRadiusWorld);
             world.setColorTerritoryRadius(color, CASTLE_KEEP_RADIUS_TILES);
@@ -233,18 +238,33 @@ public class TerritoryControl {
     }
 
     // Each color's circle slowly grows from its castle, claiming only currently-neutral wasteland
-    // where its own castle is the *nearest* anchor among every other color's castle and the
-    // player's Spawn (World.claimWastelandRing()'s nearest-anchor check) - this is what keeps two
-    // colors' circles (or a color and the player's home base) forming a clean border instead of
-    // overlapping or cutting a stray wedge through each other. A color with no surviving castle
-    // (shouldn't normally happen post-neutralizeAfterGeneration, but a save could predate this
-    // feature) or no seeded radius is skipped rather than guessed at.
+    // where its own castle is the *nearest* anchor among every other color's castle, the player's
+    // Spawn, and every town the player currently owns (World.claimWastelandRing()'s nearest-anchor
+    // check) - this is what keeps two colors' circles (or a color and the player's territory)
+    // forming a clean border instead of overlapping or cutting a stray wedge through each other.
+    // Every player-owned town counts, not just Spawn, per explicit user request - a color has one
+    // fixed castle, but the player can end up owning several towns scattered across the map, and
+    // only protecting Spawn let AI expansion grow right up against (and visually read as "creeping
+    // over") a town the player had captured elsewhere, previously flagged as a known, deliberately
+    // deferred gap (see MOD_CHANGELOG.md). A color with no surviving castle (shouldn't normally
+    // happen post-neutralizeAfterGeneration, but a save could predate this feature) or no seeded
+    // radius is skipped rather than guessed at.
     private static void processTerritoryExpansion(World world, int daysPassed) {
         Map<String, Vector2> castlePositions = new LinkedHashMap<>();
         for (String color : COLORS) {
             PointOfInterest castle = findCastle(world, color);
             if (castle != null)
                 castlePositions.put(color, castle.getPosition());
+        }
+        // Same "is this town actually player-owned" check WorldStandingsScene's town count already
+        // uses (TerritoryControl.getTownCounts()) - a town keeps its own name/color after the
+        // player restores it (see TownRestoration.java), so this is the only reliable way to tell
+        // "the player owns this one" apart from "this happens to still be a Waste Town" or "this
+        // happens to already be some AI color's."
+        List<Vector2> playerTownPositions = new ArrayList<>();
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID())))
+                playerTownPositions.add(poi.getPosition());
         }
         for (String color : COLORS) {
             Integer currentRadius = world.getColorTerritoryRadius(color);
@@ -261,6 +281,7 @@ public class TerritoryControl {
                 if (!entry.getKey().equals(color))
                     otherAnchors.add(entry.getValue());
             }
+            otherAnchors.addAll(playerTownPositions);
             world.claimWastelandRing(color, castlePosition, otherAnchors, currentRadius, newRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
