@@ -411,6 +411,7 @@ public class World implements Disposable, SaveFileContent {
             biomeMap = new long[width][height];
             terrainMap = new int[width][height];
             explored = new boolean[width][height]; // brand new world: nothing explored yet
+            structureSwapCache = null; // don't inherit a previous game's random structure picks
 
             for (int x = 0; x < width; x++) {
                 for (int y = 0; y < height; y++) {
@@ -1079,11 +1080,160 @@ public class World implements Disposable, SaveFileContent {
                 && settingData != null && settingData.fogOfWarEnabled;
     }
 
+    // Terrain Switch-Out (MOD_SCOPE.md #7, redesigned 2026-08-05): when a repaint changes which
+    // biome owns a tile, translates whatever structure (mountain/rock/tree/water - anything from
+    // that biome's own WFC-placed structures[], see world/biomes/*.json) or plain terrain-variant
+    // ground texture was there into the new biome's own equivalent, instead of deleting it (which
+    // is what made repainted territory look flat next to freshly-generated ground - see
+    // MOD_CHANGELOG.md). Every biome's structures[].mappingInfo[].name already shares a mostly-
+    // overlapping vocabulary ("tree"/"tree2"/"rock"/"mountain"/"water"/etc - the atlas region a
+    // structure renders with IS this name, see BiomeTexture.generate()) - STRUCTURE_CATEGORY groups
+    // the handful of biome-specific names (white's "mesa"/"plateau" are still mountain-like, etc)
+    // so a biome missing the literal name (e.g. Blue has no literal "mountain") still gets a
+    // thematically close swap instead of losing the feature. "rock" exists in every one of today's
+    // 6 core biomes (verified by reading all 6 world/biomes/*.json files), so it's used as the
+    // universal last-resort tier below.
+    private static final Map<String, String> STRUCTURE_CATEGORY = new HashMap<>();
+    static {
+        for (String n : new String[]{"tree", "tree2", "tree3", "tree4", "tree5", "dead_tree", "dead_tree2", "dead_tree3", "pineapple"})
+            STRUCTURE_CATEGORY.put(n, "TREE");
+        for (String n : new String[]{"rock", "rock2", "rock3", "rock4", "crater", "hole"})
+            STRUCTURE_CATEGORY.put(n, "ROCK");
+        for (String n : new String[]{"mountain", "mesa", "plateau"})
+            STRUCTURE_CATEGORY.put(n, "MOUNTAIN");
+        STRUCTURE_CATEGORY.put("water", "WATER");
+        for (String n : new String[]{"vine", "plant", "bush", "cactus", "cactus2", "cactus3"})
+            STRUCTURE_CATEGORY.put(n, "FLORA");
+        for (String n : new String[]{"lava", "muck", "dune", "dune2"})
+            STRUCTURE_CATEGORY.put(n, "HAZARD");
+    }
+    private static final String UNIVERSAL_FALLBACK_CATEGORY = "ROCK";
+
+    // [oldBiomeIndex][newBiomeIndex][oldRawIndex] -> translated, fully-encoded terrainMap value
+    // (payload + collisionBit/isStructureBit already applied), or null meaning "leave this tile
+    // alone" (only reachable if newBiome has zero structures at all - today just the not-yet-
+    // built-out `player` placeholder biome, not currently reachable by any repaint call site).
+    // Indexed by data.GetBiomes()'s stable list order, the same ints the 3 repaint methods below
+    // already resolve (colorIndex/colorlessIndex/biomeIndex). Reset whenever generateNew() freshly
+    // allocates biomeMap/terrainMap so a new game doesn't inherit a previous game's random picks.
+    private Integer[][][] structureSwapCache;
+
+    // Every (rawIndex, mapping) pair in biome whose structures[].mappingInfo[].name equals `name`.
+    // rawIndex is the same base-1-relative index generateNew() assigns (terrain.length, then each
+    // structures[] entry's mappingInfo.length, in array order - most biomes have two structures[]
+    // entries, only green has one, so this walks the full list rather than assuming one).
+    private static List<Pair<Integer, BiomeStructureData.BiomeStructureDataMapping>> candidatesByName(BiomeData biome, String name) {
+        List<Pair<Integer, BiomeStructureData.BiomeStructureDataMapping>> result = new ArrayList<>();
+        if (biome.structures == null)
+            return result;
+        int counter = 1 + (biome.terrain != null ? biome.terrain.length : 0);
+        for (BiomeStructureData structure : biome.structures) {
+            for (int i = 0; i < structure.mappingInfo.length; i++) {
+                if (name.equals(structure.mappingInfo[i].name))
+                    result.add(Pair.of(counter + i, structure.mappingInfo[i]));
+            }
+            counter += structure.mappingInfo.length;
+        }
+        return result;
+    }
+
+    // Same as candidatesByName(), matching by STRUCTURE_CATEGORY instead of the literal name.
+    private static List<Pair<Integer, BiomeStructureData.BiomeStructureDataMapping>> candidatesForCategory(BiomeData biome, String category) {
+        List<Pair<Integer, BiomeStructureData.BiomeStructureDataMapping>> result = new ArrayList<>();
+        if (biome.structures == null)
+            return result;
+        int counter = 1 + (biome.terrain != null ? biome.terrain.length : 0);
+        for (BiomeStructureData structure : biome.structures) {
+            for (int i = 0; i < structure.mappingInfo.length; i++) {
+                if (category.equals(STRUCTURE_CATEGORY.get(structure.mappingInfo[i].name)))
+                    result.add(Pair.of(counter + i, structure.mappingInfo[i]));
+            }
+            counter += structure.mappingInfo.length;
+        }
+        return result;
+    }
+
+    // Exact name match, then thematic category, then the universal ROCK fallback - see
+    // STRUCTURE_CATEGORY's comment for why ROCK never bottoms out for any of today's real biomes.
+    // Returns null only when newBiome has no structures of any kind (today: just `player.json`).
+    private Integer pickReplacement(BiomeStructureData.BiomeStructureDataMapping oldMapping, BiomeData newBiome) {
+        List<Pair<Integer, BiomeStructureData.BiomeStructureDataMapping>> pool = candidatesByName(newBiome, oldMapping.name);
+        if (pool.isEmpty()) {
+            String category = STRUCTURE_CATEGORY.get(oldMapping.name);
+            if (category != null)
+                pool = candidatesForCategory(newBiome, category);
+        }
+        if (pool.isEmpty())
+            pool = candidatesForCategory(newBiome, UNIVERSAL_FALLBACK_CATEGORY);
+        if (pool.isEmpty())
+            return null;
+        Pair<Integer, BiomeStructureData.BiomeStructureDataMapping> chosen = pool.get(random.nextInt(pool.size()));
+        int encoded = chosen.getLeft() | isStructureBit;
+        if (chosen.getRight().collision)
+            encoded |= collisionBit;
+        return encoded;
+    }
+
+    // Builds the full oldBiome->newBiome translation table (see structureSwapCache's comment for
+    // the encoding). Index 0 (plain ground) and plain terrain-variant indices carry over unchanged
+    // (every one of today's 6 core biomes has exactly 2 terrain[] entries) except for newBiome's
+    // own biome-wide collision flag, mirroring generateNew()'s own
+    // "if (biome.collision) terrainMap[x][y] |= collisionBit;".
+    private Integer[] buildStructureSwapTable(BiomeData oldBiome, BiomeData newBiome) {
+        int oldTerrainCount = oldBiome.terrain != null ? oldBiome.terrain.length : 0;
+        int newTerrainCount = newBiome.terrain != null ? newBiome.terrain.length : 0;
+        int oldMax = 1 + oldTerrainCount;
+        if (oldBiome.structures != null)
+            for (BiomeStructureData structure : oldBiome.structures)
+                oldMax += structure.mappingInfo.length;
+
+        Integer[] table = new Integer[oldMax];
+        int newBiomeCollision = newBiome.collision ? collisionBit : 0;
+        table[0] = newBiomeCollision;
+        for (int i = 1; i <= oldTerrainCount; i++)
+            table[i] = (i <= newTerrainCount) ? (i | newBiomeCollision) : newBiomeCollision;
+
+        if (oldBiome.structures != null) {
+            int counter = 1 + oldTerrainCount;
+            for (BiomeStructureData structure : oldBiome.structures) {
+                for (int i = 0; i < structure.mappingInfo.length; i++)
+                    table[counter + i] = pickReplacement(structure.mappingInfo[i], newBiome);
+                counter += structure.mappingInfo.length;
+            }
+        }
+        return table;
+    }
+
+    private Integer[] getStructureSwapTable(int oldBiomeIndex, int newBiomeIndex) {
+        List<BiomeData> biomes = data.GetBiomes();
+        if (structureSwapCache == null || structureSwapCache.length != biomes.size())
+            structureSwapCache = new Integer[biomes.size()][biomes.size()][];
+        if (structureSwapCache[oldBiomeIndex][newBiomeIndex] == null)
+            structureSwapCache[oldBiomeIndex][newBiomeIndex] = buildStructureSwapTable(biomes.get(oldBiomeIndex), biomes.get(newBiomeIndex));
+        return structureSwapCache[oldBiomeIndex][newBiomeIndex];
+    }
+
+    // Translates a tile's current encoded terrainMap value from oldBiomeIndex's index space to
+    // newBiomeIndex's, used by all 3 repaint methods below in place of the old "just zero it"
+    // behavior. Short-circuits unchanged if oldBiomeIndex is out of range (defensive) or equals
+    // newBiomeIndex (repainting an already-target-color tile - avoids gratuitously reshuffling an
+    // already-correct tile's structure choice). Returns null to mean "leave this tile's
+    // terrainMap/biomeMap completely untouched" - callers must check for null before writing either.
+    private Integer translateStructure(int oldBiomeIndex, int newBiomeIndex, int oldEncodedValue) {
+        List<BiomeData> biomes = data.GetBiomes();
+        if (oldBiomeIndex < 0 || oldBiomeIndex >= biomes.size() || oldBiomeIndex == newBiomeIndex)
+            return oldEncodedValue;
+        int oldRaw = oldEncodedValue & ~terrainMask;
+        Integer[] table = getStructureSwapTable(oldBiomeIndex, newBiomeIndex);
+        if (oldRaw < 0 || oldRaw >= table.length)
+            return 0;
+        return table[oldRaw];
+    }
+
     /**
-     * PROTOTYPE for MOD_SCOPE.md #7's territory-recolor mechanic - repaints a circular area of
-     * terrain around a point to a named biome (e.g. "green"), for testing whether the underlying
-     * repaint-live mechanism works at all before building the real multi-castle system on top of
-     * it. Known, deliberate simplifications for this test-only version (see MOD_CHANGELOG.md):
+     * Repaints a circular area of terrain around a point to a named biome (e.g. "green") - used
+     * live, mid-game, for an individual mage-captured town (see TerritoryControl.onMageArrived()).
+     * Known, deliberate simplifications (see MOD_CHANGELOG.md):
      * - Hard replace, no autotile blending - generateBiomeSprite() blends multiple biome bits
      *   together for smooth edges, but this just overwrites biomeMap's bits outright, so the
      *   boundary of the recolored patch will look like a hard-edged block, not a natural
@@ -1091,10 +1241,11 @@ public class World implements Disposable, SaveFileContent {
      * - Clears any road bit the tile had, and doesn't avoid the town's own footprint - the whole
      *   radius, including under the town itself, gets recolored uniformly.
      * - Regenerates scattered decoration doodads (mapObjectIds) using the target biome's own
-     *   spriteNames/density - see regenerateDoodadsInRadius(). Does NOT regenerate structures
-     *   (dead trees/craters/etc, cleared but not replaced) - their mask-based placement is tied
-     *   to the biome's own anchor position on the map, not something this patch faithfully
-     *   re-derives for an arbitrary location elsewhere.
+     *   spriteNames/density - see regenerateDoodadsInRadius(). Structures (mountains/rocks/trees/
+     *   water) are reskinned to the new biome's closest equivalent in place, via
+     *   translateStructure() above, rather than regenerated from scratch - see its own comment for
+     *   why (structure placement is anchored to a biome's absolute map position, which has no
+     *   well-defined answer for an arbitrary repainted patch elsewhere on the map).
      *
      * onChunkNeedsReload is called once per chunk overlapping the radius, separately from
      * onTileRepainted (which fires per-tile, for the ground texture patch) - doodad Actors are
@@ -1140,8 +1291,13 @@ public class World implements Disposable, SaveFileContent {
                 int rawY = height - wy - 1;
                 if ((biomeMap[wx][rawY] & roadBit) != 0)
                     continue;
+
+                int oldBiomeIndex = highestBiome(biomeMap[wx][rawY]); // read before overwriting below
+                Integer newTerrain = translateStructure(oldBiomeIndex, biomeIndex, terrainMap[wx][rawY]);
+                if (newTerrain == null)
+                    continue;
                 biomeMap[wx][rawY] = 1L << biomeIndex;
-                terrainMap[wx][rawY] = 0;
+                terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)
                     biomeImage.drawPixmap(createSmallPixmap(biome.tilesetAtlas, biome.tilesetName, 0), wx * mm, rawY * mm);
@@ -1219,8 +1375,12 @@ public class World implements Disposable, SaveFileContent {
                 int rawY = height - wy - 1;
                 if ((biomeMap[wx][rawY] & roadBit) != 0)
                     continue; // preserve roads, same as repaintBiomeAroundTown()
+
+                Integer newTerrain = translateStructure(colorIndex, colorlessIndex, terrainMap[wx][rawY]);
+                if (newTerrain == null)
+                    continue;
                 biomeMap[wx][rawY] = 1L << colorlessIndex;
-                terrainMap[wx][rawY] = 0;
+                terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)
                     biomeImage.drawPixmap(createSmallPixmap(colorlessBiome.tilesetAtlas, colorlessBiome.tilesetName, 0), wx * mm, rawY * mm);
@@ -1310,8 +1470,12 @@ public class World implements Disposable, SaveFileContent {
                 int rawY = height - wy - 1;
                 if ((biomeMap[wx][rawY] & roadBit) != 0)
                     continue;
+
+                Integer newTerrain = translateStructure(colorlessIndex, colorIndex, terrainMap[wx][rawY]);
+                if (newTerrain == null)
+                    continue;
                 biomeMap[wx][rawY] = 1L << colorIndex;
-                terrainMap[wx][rawY] = 0;
+                terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)
                     biomeImage.drawPixmap(createSmallPixmap(colorBiome.tilesetAtlas, colorBiome.tilesetName, 0), wx * mm, rawY * mm);

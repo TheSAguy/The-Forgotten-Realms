@@ -184,6 +184,25 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
   reasoning, what's still out of scope) in `MOD_CHANGELOG.md`'s "Territory Expansion" entry. Not
   yet playtested - needs a fresh world (existing saves won't have the new per-color radius state
   seeded) and several in-game days fast-forwarded at speed to see the effect.
+- **Terrain Switch-Out, same day, re-examined from scratch per user request:** feedback on
+  Territory Expansion identified the real weak point of the whole feature - "the terrain switch...
+  once the over-ride happens, it feels flat." Root cause: every repaint (the initial neutralize
+  sweep, expansion, and individual town captures) deleted a tile's mountains/rocks/trees/water
+  outright (`terrainMap[x][y] = 0`) instead of reskinning them, since a raw structure index is only
+  meaningful under the specific biome that generated it. Confirmed the doodads (small scatter
+  decorations - rocks/flowers/stumps) were already a shared, generic sprite catalog swapped
+  correctly per-biome; the actual gap was the bigger WFC-placed *structures*. Fixed by adding a
+  translation layer (`World.translateStructure()`/`buildStructureSwapTable()`/`pickReplacement()`)
+  that reskins a repainted tile's existing structure to the new biome's closest equivalent -
+  exact-name match first (biomes already share a lot of literal names like `rock`/`tree`/`tree2`),
+  then a thematic category (`STRUCTURE_CATEGORY`, e.g. `mountain`/`mesa`/`plateau` grouped
+  together), then a universal `rock` fallback (present in every one of today's 6 core biomes, so
+  it never bottoms out) - preserving the WFC-generated shape/footprint exactly, only changing which
+  biome's sprite renders it. All 3 repaint call sites (`repaintBiomeAroundTown()`,
+  `neutralizeTerritoryOutsideRadius()`, `claimWastelandRing()`) now go through this shared
+  translation instead of zeroing. Full design writeup and code-level detail in `MOD_CHANGELOG.md`.
+  Not yet playtested - needs a fresh world (a loaded older save's already-repainted areas keep
+  whatever they had when saved).
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**
@@ -354,29 +373,14 @@ needs its own design pass before any of this gets built:**
     types already defined in the shared `map_sprites.json`, not new art) for visual variety - a
     content change, not a code change, so whatever collision each type already has (some doodads
     block movement, most don't) carries over unchanged, nothing about that was touched.
-- **Deferred, not started - the bigger structural terrain features (dead trees/craters) still
-  get wiped by a repaint, not regenerated:** `repaintBiomeAroundTown()` resets
-  `terrainMap[x][y] = 0` for every touched tile (needed to clear stale neighbor data), which also
-  erases whatever structure was there. Investigated whether the old index could just be preserved
-  instead of zeroed (like the round-2 road fix did) - **it can't, safely**: `colorless.json` (2
-  terrain entries + 2 structure sets of 7 objects each) and `green.json` (2 terrain entries + 1
-  structure set of 11 objects) have differently-sized variant tables, so an index valid under
-  the old biome isn't guaranteed valid under the new one - real risk of an out-of-bounds lookup
-  or garbage sprite, not just cosmetic. Current behavior (reset to plain ground, no structure) is
-  the *safe* version of "leave it alone," not an oversight.
-  - **The real fix** would be regenerating structures appropriate to the *new* biome for the
-    repainted tiles the same way doodads now do - i.e. re-running a scoped-down version of
-    `World.generateNew()`'s own per-tile terrain/structure noise selection (see the big loop
-    starting around the `"calculation each biome position based on noise and radius"` comment
-    in `World.java`), but evaluated only within the repaint radius, against the *target*
-    biome's own `terrain`/`structures` arrays, instead of at full world-gen time.
-  - Same size/category of work as the deferred autotile-blending fix above - worth doing as one
-    combined pass on the repaint mechanism rather than two separate ones, since both stem from
-    the same root cause (the prototype does a flat overwrite instead of a biome-aware repaint).
-  - `WorldBackground.onTileRevealed()` already has the "patch one tile's rendered sprite into the
-    live chunk texture" plumbing this would reuse (same as the road/haze fixes did) - the missing
-    piece is purely the *selection* logic (what terrain/structure index to assign per tile for
-    the new biome), not the rendering/patching path.
+- **Resolved (2026-08-05, "Terrain Switch-Out" - see below and `MOD_CHANGELOG.md`):** the bigger
+  structural terrain features (mountains/rocks/trees/water) used to get wiped by every repaint
+  (`terrainMap[x][y] = 0`) instead of regenerated - this item used to describe that as deferred.
+  Rather than the "re-run a scoped-down version of `generateNew()`'s noise selection" approach
+  originally sketched here, the actual fix translates each repainted tile's *existing* structure
+  into the new biome's closest named equivalent (`World.translateStructure()` and friends) -
+  preserves the WFC-generated shape exactly, no re-derivation of placement needed. See "Terrain
+  Switch-Out" below for the full writeup.
 
 ### 8. Town Fortifications — `Not Started`
 - Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete

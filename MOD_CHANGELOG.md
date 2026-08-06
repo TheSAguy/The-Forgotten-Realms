@@ -1928,6 +1928,104 @@ territory visibly grows, two colors stop at each other rather than overlapping, 
 that color's own decorations rather than leftover wasteland ones, the player's spawn stays
 protected, and performance holds up with multiple colors expanding at once.
 
+## Terrain Switch-Out: reskin structures instead of deleting them (2026-08-05)
+
+Same day, immediate follow-up to Territory Expansion: "the weakest part of the game is the terrain
+switch... once the over-ride happens, it feels flat." Re-examined the whole repaint mechanism from
+scratch per explicit request (Plan Mode, effort raised to Ultra), rather than patching the symptom.
+
+**Diagnosis first.** The user asked whether the map's doodads (`world/sprites/map_sprites.png`)
+were already a 1:1 shared set per color. Confirmed yes - `map_sprites.json` defines one generic
+catalog of named sprites (Stone, Gravel, Flower, DarkGras, etc.), and each biome's `spriteNames`
+just lists which of those it uses; `regenerateDoodadsInRadius()` (built earlier this session) was
+already correctly biome-aware here. The actual flatness came from a different, bigger system:
+**structures** - the wave-function-collapse-placed features (mountains, boulders, big trees, water)
+defined per-biome in `world/biomes/*.json`'s `structures[]` arrays, each with collision. All 3
+repaint methods (`repaintBiomeAroundTown()`, `neutralizeTerritoryOutsideRadius()`,
+`claimWastelandRing()`) did `terrainMap[x][y] = 0` on every touched tile - a deliberate safety
+choice from earlier this session (a raw structure index is only meaningful relative to the specific
+biome that generated it; reusing it under a different biome risked an out-of-bounds lookup or a
+garbage sprite - see `MOD_SCOPE.md`'s now-resolved "bigger structural terrain features" deferred
+item), but it meant every mountain/rock/tree/water tile in a repainted area was simply erased.
+
+**How the encoding actually works** (traced through the code, not assumed): `terrainMap[x][y]` is
+an int - two high bits are `collisionBit`/`isStructureBit` flags, the rest is a raw payload index.
+`generateNew()` assigns that index with a running counter: `1..terrain.length` for a biome's own
+ground-texture noise variants (`BiomeData.terrain[]`, e.g. `"Green_1"`/`"Green_2"` - every one of
+the 6 core biomes has exactly 2), then each `structures[]` entry claims the next
+`mappingInfo.length` indices in array order (most biomes have *two* `structures[]` entries -
+white/blue/black/red/colorless; only green has one). `BiomeTexture.generate()` builds its
+renderable sprite-region list in this exact same order, looking up each structure's atlas region by
+`mapping.name` literally - i.e. a structure's JSON `name` field *is* its sprite's region name. Every
+biome's structure names already overlap heavily (`rock` appears in all 6 core biomes; `tree`/
+`tree2` in most; `mountain` only in colorless/green/red; `water` only in green/blue/black, plus a
+few biome-flavored extras) - close enough to a real lookup table already that the fix is a
+translation layer, not a new placement algorithm.
+
+**The fix - index-preserving category swap, not re-running WFC.** New `World.java` machinery:
+- `STRUCTURE_CATEGORY` (static map) groups every observed structure name across all 6 core biome
+  JSONs into `TREE`, `ROCK`, `MOUNTAIN`, `WATER`, `FLORA`, `HAZARD`.
+- `candidatesByName()`/`candidatesForCategory()` collect every `(rawIndex, mapping)` pair in a
+  biome matching a literal name or category, walking *all* of `biome.structures` (not just the
+  first entry).
+- `pickReplacement()` tries an exact name match first (free, faithful swaps wherever two biomes
+  literally share a name - `rock`->`rock`, `tree2`->`tree2`), then the thematic category, then a
+  universal `ROCK` fallback (confirmed by reading all 6 biome JSONs: every one defines at least one
+  `rock`-named structure, so this tier never bottoms out for real content) - reads the real
+  `collision` flag off whichever mapping gets picked. Only returns "give up" (`null`) if the target
+  biome has *zero* structures of any kind at all - today only the not-yet-built-out `player.json`
+  placeholder, not currently reachable by any of the 3 repaint call sites.
+- `buildStructureSwapTable()`/`getStructureSwapTable()` build and cache one `Integer[]` translation
+  table per (oldBiomeIndex, newBiomeIndex) pair (`structureSwapCache`, a 3D array indexed by
+  `data.GetBiomes()`'s stable list order - no string keys), so a large sweep only pays the
+  category-resolution cost once per distinct old structure type, not once per tile. Reset (`=null`)
+  wherever `generateNew()` freshly allocates `biomeMap`/`terrainMap`, so a new game doesn't inherit
+  a previous game's random picks.
+- `translateStructure(oldBiomeIndex, newBiomeIndex, oldEncodedValue)` is what all 3 repaint methods
+  call in place of the old `= 0`. Short-circuits to "unchanged" if `oldBiomeIndex` is out of range
+  or already equals `newBiomeIndex` (repainting an already-correct tile shouldn't reshuffle it).
+  Returns `null` to mean "leave this one tile's `terrainMap`/`biomeMap` completely untouched" - the
+  one case the "give up" path above can hit - which the 3 callers check before writing either.
+- Deliberately does **not** re-run each biome's own WFC solver for the new biome - it keeps the
+  exact shape/footprint of whatever the *old* biome's WFC already generated (a mountain range keeps
+  its shape, a lake keeps its shape), only changing which biome's sprite renders it. Re-deriving
+  placement from scratch was the "real fix" originally sketched in `MOD_SCOPE.md`'s now-resolved
+  deferred item, but structure placement is anchored to a biome's own absolute map position, which
+  has no well-defined answer for an arbitrary repainted patch elsewhere on the map - this approach
+  sidesteps that entirely rather than solving it.
+- Picked once per distinct *old raw index* per translation table, not re-rolled per tile. A biome's
+  WFC source image already places multiple different structure names next to each other (that's
+  what overlapping WFC does), so per-index consistency doesn't produce a uniform blob - the variety
+  already present in the source data carries through naturally, while one repeated feature (e.g.
+  one big mountain cluster, one raw index) reskins as one coherent thing instead of a checkerboard.
+
+**Call sites**: `repaintBiomeAroundTown()` has no fixed "old" biome (it repaints unconditionally
+within its radius, unlike the other two which already filter to a single known source biome before
+reaching this point), so it reads `oldBiomeIndex` dynamically per tile via
+`highestBiome(biomeMap[wx][rawY])` before overwriting it. `neutralizeTerritoryOutsideRadius()` and
+`claimWastelandRing()` pass their already-known fixed color/colorless indices directly.
+
+**Side effect worth knowing, not a regression**: doodad density inside repainted areas will drop
+somewhat versus before, because tiles that now correctly hold a translated structure/terrain-
+variant are (correctly) no longer doodad-eligible via the existing `isStructure()` check that
+`regenerateDoodadsInRadius()` already uses - this brings repainted density in line with how
+natively-generated terrain already looks, rather than repainted patches being artificially denser
+than normal ground ever gets.
+
+Planned via Plan Mode before touching code (effort raised to Ultra per user request, given the
+scope) - a Plan-agent review caught several real refinements incorporated into the final design:
+the exact-name-before-category tier, switching the cache from string-concatenation keys to a direct
+int-indexed 3D array, using `null` instead of an integer sentinel for the "skip this tile" signal
+(a sentinel int risked colliding with a legitimately-producible encoded value from an edge case in
+`base.json`'s "ocean" biome, even though today's actual call sites never reach that combination),
+and the `oldBiomeIndex == newBiomeIndex` identity fast-path in `repaintBiomeAroundTown()`.
+
+Not yet re-verified in game - needs a **fresh world** (a loaded older save's already-repainted
+areas keep whatever they had when saved; only newly-repainted tiles from this point forward use the
+new logic). First-pass judgment call worth flagging: the `STRUCTURE_CATEGORY` groupings and the
+exact-name/category/universal-fallback priority order are reasonable based on reading all 6 biome
+JSONs, but the real test is what it actually looks like in game.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

@@ -55,7 +55,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   ()` - claims an annulus of currently-wasteland tiles for a color instead of a one-time full
   sweep), gave `regenerateDoodadsInRadius()` an `innerRadiusTiles` parameter so a ring-only claim
   doesn't re-randomize the whole already-claimed interior, and added persisted per-color state
-  `colorTerritoryRadius` (same save/load pattern as `colorNextAttackDay`).
+  `colorTerritoryRadius` (same save/load pattern as `colorNextAttackDay`). Terrain Switch-Out (#7,
+  same feature, later same day - see `MOD_CHANGELOG.md`) added the structure-translation machinery
+  (`translateStructure()`, `buildStructureSwapTable()`/`getStructureSwapTable()`, `pickReplacement()`,
+  `candidatesByName()`/`candidatesForCategory()`, `STRUCTURE_CATEGORY`, `structureSwapCache`) that
+  all 3 repaint methods now call instead of zeroing `terrainMap` outright - reskins a repainted
+  tile's existing mountain/rock/tree/water structure to the new biome's closest equivalent instead
+  of deleting it.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
