@@ -2266,4 +2266,41 @@ trade-off of the chosen design, and flagged back to the user rather than silentl
 Not yet re-verified in game - all four fixes need a **fresh world** (the doodad/structure sweep
 only runs once, at world-gen end).
 
+## Territory Control: ocean-bit-loss fix - UNCOMPILED, UNVERIFIED (2026-08-06)
+
+Continued investigating the still-recurring "blue border" report the same day, with two new
+screenshots ("After Taking Town" vs. "When you move") showing a light-blue outline specifically
+tracing the edge of a repainted courtyard - not a generic haze effect. Ruled out the user's own
+hypothesis (an incompletely-tinted `player_terrain.png`/`player_structures.png`) with a pixel-level
+scan of both files: zero blue-dominant pixels in either, confirmed programmatically, not just by
+eye.
+
+Found a real, independently-justified bug instead, verified by direct code reading (`World.java`):
+`biomeMap[x][y]` is a per-tile bitmask - bit 0 is always `"ocean"` (`world/biomes/base.json`,
+`noiseWeight`/`distWeight` both 0, so its placement condition matches literally every tile
+unconditionally during `generateNew()`) and world-gen's own placement loop only ever **OR**s bits
+into `biomeMap` (`biomeMap[x][y] |= (1L << biomeIndex[0])`), meaning ocean's bit is meant to persist
+forever underneath every tile as a rendering backdrop, the same as any other biome's own bit.
+`repaintBiomeAroundTown()`, `neutralizeTerritoryOutsideRadius()`, and `claimWastelandRing()` all did
+a plain `biomeMap[wx][rawY] = 1L << someIndex;` (`=`, not `|=`) when repainting a tile, silently
+dropping ocean's bit. Since rendering (`generateBiomeSprite()`) draws every *set* bit as a layer in
+ascending order, losing ocean's permanent backdrop means there's nothing left drawn underneath
+wherever the new biome's own edge/corner autotile piece doesn't cover the full 16×16 tile - a
+genuine rendering gap at every repaint boundary, not just a style mismatch.
+
+Fixed by adding `World.getPersistentBackgroundBit()` (resolves "ocean" by name, not hardcoded to
+index 0) and OR-ing it into all 3 repaint methods' `biomeMap` assignment instead of overwriting.
+
+**This fix has NOT been compiled, deployed, or byte-verified** - partway through this round,
+Maven disappeared from this machine (`C:\Users\User\Downloads\apache-maven-3.9.16\` no longer
+exists; `Downloads` now only contains an unrelated "MODS V6" folder) with no other `mvn.cmd`
+findable on disk. JDK/`jar.exe` is still present. Committed anyway (source-only, no build
+artifacts) so the fix isn't lost when switching machines - **whoever picks this up needs to
+compile (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`), deploy, and byte-verify before
+this is considered done**, same as every other change this session. Also: I'm not fully certain
+this is *the* complete explanation for "blue" specifically (an Explore-agent pass confirmed the
+gap mechanism is real but found no blue GL clear color anywhere the gap could be revealing) - it's
+a real, worth-having-regardless fix, but the user should specifically confirm whether the reported
+blue border is actually gone once this is verified, not assume it's fully solved.
+
 

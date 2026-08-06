@@ -1230,6 +1230,26 @@ public class World implements Disposable, SaveFileContent {
         return table[oldRaw];
     }
 
+    // The "ocean" background biome (see world/biomes/base.json - noiseWeight/distWeight both 0,
+    // so its placement condition matches literally every tile unconditionally during generateNew())
+    // is meant to persist forever underneath every tile, same as any other biome bit - world-gen's
+    // own placement loop only ever ORs bits into biomeMap, never clears one (`biomeMap[x][y] |= ...`).
+    // All 3 repaint methods below used to do a plain `=` overwrite instead, silently dropping this
+    // bit - since rendering (generateBiomeSprite()) draws every SET bit as a layer in ascending
+    // order, losing it means there's nothing left drawn underneath wherever the new biome's own
+    // edge/corner autotile piece doesn't cover the full 16x16 tile (a normal occurrence at any
+    // territory border) - a genuine rendering gap, not just a visual style difference. Resolved by
+    // name each call rather than hardcoded to index 0, in case a plane's own world.json ever orders
+    // biomesNames differently.
+    private long getPersistentBackgroundBit() {
+        List<BiomeData> biomes = data.GetBiomes();
+        for (int i = 0; i < biomes.size(); i++) {
+            if ("ocean".equalsIgnoreCase(biomes.get(i).name))
+                return 1L << i;
+        }
+        return 0L;
+    }
+
     /**
      * Repaints a circular area of terrain around a point to a named biome (e.g. "green") - used
      * live, mid-game, for an individual mage-captured town (see TerritoryControl.onMageArrived()).
@@ -1267,6 +1287,7 @@ public class World implements Disposable, SaveFileContent {
         if (biomeIndex < 0)
             return;
         BiomeData biome = biomes.get(biomeIndex);
+        long backgroundBit = getPersistentBackgroundBit();
 
         int centerWorldX = (int) (point.getPosition().x / data.tileSize);
         int centerWorldY = (int) (point.getPosition().y / data.tileSize);
@@ -1296,7 +1317,7 @@ public class World implements Disposable, SaveFileContent {
                 Integer newTerrain = translateStructure(oldBiomeIndex, biomeIndex, terrainMap[wx][rawY]);
                 if (newTerrain == null)
                     continue;
-                biomeMap[wx][rawY] = 1L << biomeIndex;
+                biomeMap[wx][rawY] = backgroundBit | (1L << biomeIndex);
                 terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)
@@ -1355,6 +1376,7 @@ public class World implements Disposable, SaveFileContent {
         if (colorIndex < 0 || colorlessIndex < 0)
             return;
         BiomeData colorlessBiome = biomes.get(colorlessIndex);
+        long backgroundBit = getPersistentBackgroundBit();
 
         int centerTileX = (int) (keepCenter.x / data.tileSize);
         int centerTileY = (int) (keepCenter.y / data.tileSize);
@@ -1379,7 +1401,7 @@ public class World implements Disposable, SaveFileContent {
                 Integer newTerrain = translateStructure(colorIndex, colorlessIndex, terrainMap[wx][rawY]);
                 if (newTerrain == null)
                     continue;
-                biomeMap[wx][rawY] = 1L << colorlessIndex;
+                biomeMap[wx][rawY] = backgroundBit | (1L << colorlessIndex);
                 terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)
@@ -1440,6 +1462,7 @@ public class World implements Disposable, SaveFileContent {
         if (colorIndex < 0 || colorlessIndex < 0)
             return;
         BiomeData colorBiome = biomes.get(colorIndex);
+        long backgroundBit = getPersistentBackgroundBit();
 
         int centerTileX = (int) (center.x / data.tileSize);
         int centerTileY = (int) (center.y / data.tileSize);
@@ -1490,7 +1513,7 @@ public class World implements Disposable, SaveFileContent {
                 Integer newTerrain = translateStructure(colorlessIndex, colorIndex, terrainMap[wx][rawY]);
                 if (newTerrain == null)
                     continue;
-                biomeMap[wx][rawY] = 1L << colorIndex;
+                biomeMap[wx][rawY] = backgroundBit | (1L << colorIndex);
                 terrainMap[wx][rawY] = newTerrain;
 
                 if (biomeImage != null)
