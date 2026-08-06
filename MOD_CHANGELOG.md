@@ -2169,16 +2169,25 @@ else needs to change there.
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),
 both on the user's PATH - this is the intended/documented setup, but it's machine-local and not
-tracked in git, so it can drift. On the "gaming PC" as of 2026-08-05, neither `mvn` nor `jar` was
-actually on PATH under a fresh shell (no `.claude\Tools\` directory exists there either) - had to
-search the disk to find them: Maven at `C:\Users\User\Downloads\apache-maven-3.9.16\bin\mvn.cmd`,
-JDK 22 (not 17) at `C:\Program Files\Java\jdk-22\bin\` (`jar.exe` needed directly for byte-
-verifying deployed classes; `javac`/`mvn` don't need it separately since Maven bundles its own
-compiler plugin). If a fresh session on either machine can't find `mvn`/`jar` on PATH, search the
-disk (`Downloads`, `Program Files\Java\*`) before assuming the toolchain needs reinstalling -
-don't take this doc's PATH claim at face value. `mvn -pl forge-gui-mobile -am compile -DskipTests
--o` (add `-o` once dependencies are cached) is the fast way to check the adventure-mode module
-still compiles after a change.
+tracked in git, so it can drift and **has moved at least once already** - don't trust any single
+path in this doc as permanent, re-verify with a search if a command fails. On the "gaming PC":
+- **2026-08-05**: neither `mvn` nor `jar` was on PATH under a fresh shell (no `.claude\Tools\`
+  directory existed there either) - found by searching the disk: Maven at
+  `C:\Users\User\Downloads\apache-maven-3.9.16\bin\mvn.cmd`, JDK 22 (not 17) at `C:\Program
+  Files\Java\jdk-22\bin\` (`jar.exe` needed directly for byte-verifying deployed classes;
+  `javac`/`mvn` don't need it separately since Maven bundles its own compiler plugin).
+- **2026-08-06, later the same day**: the Downloads-folder Maven install was gone entirely
+  (`Downloads` now only contained an unrelated folder) - a real, if brief, mid-session build
+  blocker (see the "ocean-bit-loss fix" entry above, committed source-only while this was
+  unresolved). User relocated it to `C:\Users\User\.claude\Tools\apache-maven-3.9.16\bin\mvn.cmd`
+  - **this is the current path**, but given it's already moved once, treat it as provisional too.
+  JDK 22 at `C:\Program Files\Java\jdk-22\bin\` was unaffected both times.
+
+If a fresh session on either machine can't find `mvn`/`jar` at the paths above, search the disk
+(`Downloads`, `.claude\Tools`, `Program Files\Java\*`) before assuming the toolchain needs
+reinstalling or asking the user to reinstall it - it may have simply moved again. `mvn -pl
+forge-gui-mobile -am compile -DskipTests -o` (add `-o` once dependencies are cached) is the fast
+way to check the adventure-mode module still compiles after a change.
 
 **Deploying to the installed game is two separate steps, not one - both required every round that
 touches either kind of file:**
@@ -2266,7 +2275,7 @@ trade-off of the chosen design, and flagged back to the user rather than silentl
 Not yet re-verified in game - all four fixes need a **fresh world** (the doodad/structure sweep
 only runs once, at world-gen end).
 
-## Territory Control: ocean-bit-loss fix - UNCOMPILED, UNVERIFIED (2026-08-06)
+## Territory Control: ocean-bit-loss fix (2026-08-06)
 
 Continued investigating the still-recurring "blue border" report the same day, with two new
 screenshots ("After Taking Town" vs. "When you move") showing a light-blue outline specifically
@@ -2291,16 +2300,17 @@ genuine rendering gap at every repaint boundary, not just a style mismatch.
 Fixed by adding `World.getPersistentBackgroundBit()` (resolves "ocean" by name, not hardcoded to
 index 0) and OR-ing it into all 3 repaint methods' `biomeMap` assignment instead of overwriting.
 
-**This fix has NOT been compiled, deployed, or byte-verified** - partway through this round,
-Maven disappeared from this machine (`C:\Users\User\Downloads\apache-maven-3.9.16\` no longer
-exists; `Downloads` now only contains an unrelated "MODS V6" folder) with no other `mvn.cmd`
-findable on disk. JDK/`jar.exe` is still present. Committed anyway (source-only, no build
-artifacts) so the fix isn't lost when switching machines - **whoever picks this up needs to
-compile (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`), deploy, and byte-verify before
-this is considered done**, same as every other change this session. Also: I'm not fully certain
-this is *the* complete explanation for "blue" specifically (an Explore-agent pass confirmed the
-gap mechanism is real but found no blue GL clear color anywhere the gap could be revealing) - it's
-a real, worth-having-regardless fix, but the user should specifically confirm whether the reported
-blue border is actually gone once this is verified, not assume it's fully solved.
+**Compiled, deployed, and byte-verified** once Maven was back (see this doc's Toolchain section -
+it had gone missing from `Downloads` mid-round, user relocated it to `C:\Users\User\.claude\Tools\
+apache-maven-3.9.16\bin\mvn.cmd`). Deployed `World.class` + its `$DrawInfo`/`$DrawingInformation`
+inner classes into the installed jar, `cmp -s` against `target/classes` confirmed byte-identical.
+
+Not fully certain this is *the* complete explanation for "blue" specifically, flagged to the user
+as such (an Explore-agent pass confirmed the rendering-gap mechanism is real but found no blue GL
+clear color anywhere the gap could be revealing) - a real, worth-having-regardless fix either way,
+but needs the user to specifically confirm whether the reported blue border is actually gone now
+that it's live, not assumed solved just because it compiled clean. Needs a fresh repaint (a new
+town capture, or a fresh world's own neutralize sweep) to observe - existing already-repainted
+tiles keep whatever `biomeMap` value was already saved for them.
 
 
