@@ -1264,6 +1264,12 @@ public class World implements Disposable, SaveFileContent {
      * startPointX/Y/width/height/noiseWeight/distWeight untouched - territory shape/extent and all
      * POI/castle placement (which matches against those via highestBiome()) are unaffected. Call
      * restoreColorsRealContent() before anything needs the real values again.
+     * <p>
+     * terrain/spriteNames are shared by plain reference - confirmed safe by reading both consuming
+     * loops (the per-tile terrain-variant noise check, and the doodad-placement loop): neither
+     * caches anything keyed by object identity, both just read fields/do string-keyed lookups
+     * fresh each call. structures is different and needs its own clone per color, not a shared
+     * reference - see cloneStructures()'s own comment for why.
      */
     public void swapColorsToWastelandContent(String[] colorBiomeNames) {
         List<BiomeData> biomes = data.GetBiomes();
@@ -1283,11 +1289,36 @@ public class World implements Disposable, SaveFileContent {
                     continue;
                 pendingContentRestore.put(colorName, new BiomeContentSnapshot(biome));
                 biome.terrain = colorless.terrain;
-                biome.structures = colorless.structures;
+                biome.structures = cloneStructures(colorless.structures);
                 biome.spriteNames = colorless.spriteNames;
                 break;
             }
         }
+    }
+
+    // The WFC pattern cache built by generateNew()'s own structure-position loop
+    // (structureDataMap, a Map<BiomeStructureData, BiomeStructure>) is keyed by *object identity*,
+    // not by biome or content - that loop builds one BiomeStructure per (biome, structures[]
+    // entry) pair, sized to *that biome's own* width/height, and stores it under the
+    // BiomeStructureData object as the key. If swapColorsToWastelandContent() pointed multiple
+    // colors' `structures` fields directly at colorless's own array (plain reference, like
+    // terrain/spriteNames above), every one of those colors - plus colorless itself - would share
+    // the exact same BiomeStructureData objects, so that loop would race to store multiple
+    // differently-sized BiomeStructure patterns under the same map keys, with whichever finishes
+    // last (likely colorless's own, since it's the largest biome and plausibly the slowest to
+    // generate) winning for every other biome's per-tile lookups too - a real, verified bug caught
+    // during this feature's first playtest (structures came out visibly missing inside every
+    // color's claimed circle - see MOD_CHANGELOG.md), not a hypothetical. Cloning gives every color
+    // its own distinct BiomeStructureData objects (same content, different identity) via the
+    // existing BiomeStructureData(BiomeStructureData) copy constructor, so each gets its own
+    // correctly-sized WFC pattern instead of colliding with anyone else's.
+    private static BiomeStructureData[] cloneStructures(BiomeStructureData[] source) {
+        if (source == null)
+            return null;
+        BiomeStructureData[] clone = new BiomeStructureData[source.length];
+        for (int i = 0; i < source.length; i++)
+            clone[i] = new BiomeStructureData(source[i]);
+        return clone;
     }
 
     /**

@@ -268,6 +268,20 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
     accordingly. Full engineering detail (including a `structureSwapCache` staleness bug caught and
     fixed during planning, before it ever shipped) in `MOD_CHANGELOG.md`. **Not yet playtested** -
     needs a fresh world; this is a real architecture change to world generation, first time tested.
+    - **First playtest, same day: found and fixed a real bug, not a doodad issue.** All 5 AI
+      circles (not just the area outside them) came out flat/structure-less, only the central
+      wasteland core looked right. Root cause: the swap above shared `structures[]` object
+      references across 5 colors + colorless, but the WFC pattern cache (`structureDataMap`) is
+      keyed by *object identity* and builds one pattern per biome sized to *that biome's own*
+      width/height - sharing objects meant 6 biomes raced to store differently-sized patterns
+      under the same keys, and whichever won (likely colorless's, the largest biome) got queried
+      by every other biome's per-tile placement using the *wrong* coordinate system, silently
+      dropping almost every structure. Fixed by cloning `structures[]` per color instead of
+      sharing it (`terrain`/`spriteNames` sharing is unaffected - confirmed safe by reading their
+      own consuming code, no identity-based caching there). Also fixed a small pre-existing gap
+      this surfaced: the clone constructor being newly relied on had never copied the WFC
+      pattern-size field (`N`). Full mechanism in `MOD_CHANGELOG.md`. Not yet re-verified - needs
+      another fresh world.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

@@ -2494,4 +2494,71 @@ rebuilds (the exact repro already demonstrated). Flagged to the user as a real a
 to world generation, first time tested - expect to iterate, same as every other first-pass feature
 in this log.
 
+### First playtest: all 5 starting circles came out flat/empty - real bug found and fixed, not a doodad issue
+
+First real playtest of the redesign above, same day. User's screenshots showed the density mismatch
+had moved, not disappeared: the central wasteland core (never claimed by any color) now looks
+correctly rich/varied, but *every one of the 5 AI starting circles* came out nearly flat - a solid
+color with almost no trees/rocks/mountains, next to a "before" reference screenshot showing what a
+real, dense green territory should look like. Investigated properly before touching code again
+(this session already shipped one regression from an under-verified theory - see the ocean-bit
+entry above) - read the actual generation code rather than guessing, and found a concrete,
+mechanical bug, not a vague "density feels off":
+
+`generateNew()`'s structure-position loop (the one that runs *wave function collapse* to decide
+where mountains/rocks/trees go, well before the per-tile placement loop that reads the result)
+keeps a cache, `structureDataMap` - a `Map<BiomeStructureData, BiomeStructure>` - **keyed by object
+identity, not by biome name or content.** For every biome, it builds one `BiomeStructure` (a WFC
+pattern) per `structures[]` entry, sized to *that specific biome's own* width/height, and stores it
+under the `BiomeStructureData` object itself as the map key. `swapColorsToWastelandContent()`
+(this same round's own new code) pointed 5 colors' `structures` fields directly at colorless's own
+array - a plain reference assignment, exactly like `terrain`/`spriteNames` right next to it. But
+unlike those two fields (verified safe by reading their own consuming loops - neither one caches
+anything keyed by object identity), aliasing `structures` meant 6 biomes (5 colors + colorless
+itself) now shared the *exact same* `BiomeStructureData` object instances. The structure-position
+loop schedules one async WFC build per (biome, structures-entry) pair regardless, so all 6 raced to
+store their own differently-sized `BiomeStructure` under the same 2 map keys (colorless's
+`structures[]` has 2 entries) - and since the loop is fire-and-forget async, whichever finished
+*last* silently won for every biome sharing that key, not just its own. Colorless (`width`/`height`
+0.85, the largest of any biome, plausibly also the slowest WFC build to finish) most likely won the
+race for both keys - explaining exactly what the screenshots showed: colorless's own tiles look
+right (their coordinate math matches the pattern that won), while every color's per-tile placement
+query (`structure.objectID(structureXStart, structureYStart)`, computed relative to *that color's
+own*, differently-sized bounding box) was being evaluated against a WFC grid built for a different
+biome's dimensions entirely - producing far fewer (often zero) valid structure hits. Confirmed via
+the two biome JSONs directly: `colorless.json` is `width`/`height` 0.85, `green.json` is 0.7 - a
+real, meaningful mismatch, not a rounding-error-sized one.
+
+**Fixed** by no longer sharing `structures[]` object identity at all: `World.cloneStructures()`
+(new) builds each swapped color its own distinct `BiomeStructureData[]` - same content, different
+object identity - via the existing `BiomeStructureData(BiomeStructureData)` copy constructor
+(already used elsewhere in the codebase for exactly this kind of independent-copy need, e.g.
+`BiomeData.getEnemyList()`'s `EnemyData` copies). `swapColorsToWastelandContent()` now calls this
+instead of a plain reference assignment for `structures` specifically (`terrain`/`spriteNames`
+still share by reference - still correct, still verified safe). This restores the *original,
+always-been-there* behavior of one independently-sized WFC build per real biome (6 biomes x ~2
+structures[] entries = 12 separate builds, same computational cost Adventure mode has always paid
+for 6 differently-configured biomes) - the collision this round accidentally introduced had been
+silently *reducing* that to 2 shared builds, not adding cost.
+
+**Also fixed a small, genuinely pre-existing bug this surfaced**, at its source rather than working
+around it locally: `BiomeStructureData`'s copy constructor copied every field except `N` (the WFC
+pattern size), silently reverting a clone to the class's default (`3`) instead of the source's real
+value. Mattered here specifically because `colorless.json` sets `N: 2`, and `N` is exactly the
+parameter implicated in this session's earlier world-gen hang (a WFC chunk smaller than the pattern
+size throws inside `OverlappingModel`) - reverting to a *larger* N than intended for a *smaller*
+biome (any AI color, all narrower than colorless) is the wrong direction for hang-safety, not just
+a cosmetic gap. The constructor wasn't called anywhere in the codebase before this round, so fixing
+it carried no risk of changing any existing caller's behavior.
+
+**Compiled, deployed, and byte-verified**: `World.class` (+ its 3 inner classes) and the newly-
+touched `BiomeStructureData.class` (+ its `$BiomeStructureDataMapping` inner class) - `cmp -s`
+against `target/classes` confirmed byte-identical.
+
+**Not yet re-verified in game** - needs another fresh world. Confident in the mechanism (traced
+directly through the actual code and both biomes' real JSON values, not inferred from symptoms
+alone), but per this session's own standing lesson, "compiles clean" and "the theory is well-
+verified" are not the same as "confirmed correct in a real playtest" - asked the user to test fresh
+before treating this as closed.
+
 

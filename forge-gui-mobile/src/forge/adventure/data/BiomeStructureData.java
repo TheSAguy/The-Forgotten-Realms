@@ -42,6 +42,7 @@ public class BiomeStructureData {
 
     }
     public BiomeStructureData(BiomeStructureData biomeStructureData) {
+        this.N=biomeStructureData.N;
         this.structureAtlasPath=biomeStructureData.structureAtlasPath;
         this.sourcePath=biomeStructureData.sourcePath;
         this.maskPath=biomeStructureData.maskPath;

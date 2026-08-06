@@ -72,6 +72,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   more call near the top of `generateNew()` into `TerritoryControl.prepareBiomesForGeneration()`;
   also changed all 3 repaint methods to carry a road tile's existing road bit forward into a
   repaint instead of skipping the tile outright (fixes a border that traced roads specifically).
+  First-playtest fix, same day: added `cloneStructures()`, called from
+  `swapColorsToWastelandContent()` - gives each swapped color its own distinct `BiomeStructureData`
+  objects instead of sharing colorless's own by reference, fixing a `structureDataMap` key-identity
+  collision that left every AI color's claimed circle with almost no structures (see
+  `MOD_CHANGELOG.md`'s "First playtest" entry for the full mechanism).
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -83,6 +88,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the
   `player` placeholder biome, #7, but a general engine bug, not player-biome-specific).
+- **`forge-gui-mobile/src/forge/adventure/data/BiomeStructureData.java`** — **bug fix**: the
+  `BiomeStructureData(BiomeStructureData)` copy constructor copied every field except `N` (WFC
+  pattern size), silently reverting a clone to the class default (`3`) instead of the source's real
+  value. Found via the generate-as-wasteland redesign's `World.cloneStructures()` (#7, 2026-08-06 -
+  see `MOD_CHANGELOG.md`), the first real caller of this constructor, so fixing it carried no risk
+  to any existing behavior.
 - **`forge-gui-mobile/src/forge/adventure/stage/WorldBackground.java`** — added chunk-reload/tile-
   patch hooks (`onTileRevealed`, `reloadChunkObjects`) so a live terrain repaint (#7) or fog
   reveal (#3) shows up immediately instead of only on map reload.
