@@ -433,6 +433,33 @@ needs its own design pass before any of this gets built:**
   purpose beyond flavor: protects a player-restored town's progress from being wiped by a
   successful capture (see #7). Needs: fortification levels/costs, and how much each level
   reduces capture chance (currently just "high chance to repel" - not yet numeric).
+- **New idea (2026-08-06), on hold, not scoped - hireable AI guard mages:** let the player hire/
+  station defender mages at a town that intercept and fight incoming attacker mages (#7), as an
+  alternative or addition to a numeric repel-chance. Overlaps with #13's "Barracks" idea
+  (Capitol-exclusive garrison) - needs a decision on whether guards are Capitol-only or available
+  to any fortified town before either gets built.
+  - **Researched (2026-08-06): how Forge actually resolves AI-vs-AI fights.** It's a hybrid, not
+    "always simulated" - any fight involving the human player runs the real Forge duel engine
+    (`DuelScene.initDuels()`), but AI-vs-AI fights that don't involve the player use a
+    statistical shortcut instead: `ArenaScene.setWinner()` weights a random roll by each
+    fighter's `life` stat, and `EventScene.startRound()`'s Inn tournament AI-vs-AI rounds are a
+    flat 50/50 coin flip (literally marked `//Todo: Actually run match simulation here` in the
+    existing code). The engine *can* run two-AI matches headlessly with no human
+    (`forge-gui-desktop`'s `SimulateMatch.java` proves it), but nothing in Adventure mode wires
+    that up today - `DuelScene` always assumes one side is the human.
+  - **Stat gotcha found during that research:** `EnemyData` has no single "power level" field.
+    `life` is what `ArenaScene`'s formula actually weighs, but all 5 "Adept `<Color>` Wizard"
+    enemies `TerritoryControl` already uses for attacker mages share the identical `life: 15` -
+    only `difficulty` differs (0.6-1 across the 5 colors), and `difficulty` currently only
+    affects deck-tier selection, not any win-probability formula. Reusing `ArenaScene`'s formula
+    unchanged today would make a guard fight any attacker mage a flat coin flip regardless of
+    intended strength - a real "power" concept (deliberately higher `life` for guard tiers, or a
+    new stat actually used in the odds formula) needs to be introduced for guard levels to mean
+    anything.
+  - Given Territory Control could generate frequent mage-vs-mage fights at scale, a real
+    simulated duel per fight (the `SimulateMatch` pattern) is likely too expensive to run
+    routinely - leaning toward the same stat-weighted-RNG approach `ArenaScene` already uses for
+    routine defense, reserving anything simulated for rare/important battles.
 
 ### 9. Expanded Resources — `In Progress`
 - Wood and Stone added alongside Gold/Shards (`AdventurePlayer.java`, same field/signal/save
@@ -611,7 +638,10 @@ needs its own design pass before any of this gets built:**
   - **Teleporter** - already on the wishlist as an unscoped to-do under #10; this may be its
     natural home (Capitol-exclusive fast travel) rather than a plain per-town building.
   - **Barracks** - hire a garrison that patrols around the city and fights off incoming threats.
-    Ties into #7's attack-unit mechanic (something for the garrison to intercept).
+    Ties into #7's attack-unit mechanic (something for the garrison to intercept). Same idea as
+    the "hireable AI guard mages" entry under #8 (Town Fortifications) - see that entry for
+    duel-resolution research and a stat gotcha found while looking into it; needs a decision on
+    Capitol-only vs. any-town before either gets built.
   - **Upgrade to Fortification** - likely the same system as #8, not a separate one; worth
     merging into that item's design rather than tracking twice once #8 gets scoped.
   - **Outlook** - expands the town's visible radius. Natural pairing with #3 (Fog of War) - could
