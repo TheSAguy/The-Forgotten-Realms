@@ -235,6 +235,20 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
     whole time it was tested. Resynced; now a standing required deploy step (see
     `MOD_CHANGELOG.md`'s Toolchain section). Asked the user to retest before assuming anything else
     needs to change there.
+  - **Round 8, next day - confirmed the icon/avatar fixes worked, four more fixes:** World
+    Standings now ranks the 5 AI colors by town count (Colorless pinned last). Fixed a real,
+    unrelated-to-Territory-Control bug the user diagnosed themselves - `ShopActor` was drawing a
+    fallback building icon over every shop unconditionally, duplicating the baked-in art every
+    AI-color town template already has (only the wasteland/player-rebuilt template actually needs
+    the fallback). Leading hypothesis for the recurring "blue border" - fog-of-war's haze tint had
+    a slight blue color bias, removed. Added a full-map doodad regeneration pass to the one-time
+    neutralize sweep (structures were already being reskinned correctly, doodads weren't touched
+    at all) - directly responds to a detailed user report about the map not "feeling like one
+    continuous area" outside AI keep circles. Explicitly NOT fixed, flagged honestly instead:
+    structure *density/pattern* in swept territory still reflects whichever color originally
+    generated it (the chosen design preserves WFC footprint exactly rather than re-deriving
+    placement) - the doodad fix helps but doesn't fully close this gap. Full detail in
+    `MOD_CHANGELOG.md`. Not yet playtested - needs a fresh world.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

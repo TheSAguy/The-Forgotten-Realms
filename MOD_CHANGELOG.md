@@ -2200,3 +2200,70 @@ touches either kind of file:**
    playtesting this session (see "Territory Control playtest round 7, corrections" above). Scope
    the mirror to the mod's own plane folder (`The Forgotten Realms`) unless a `common/` file was
    also touched, which should be rare per this repo's own ground rules.
+
+## Territory Control playtest round 8: score page, shop icons, haze, doodad consistency (2026-08-06)
+
+Confirmed working from round 7's corrections: the icon crop and the real player avatar. New
+feedback batch, four concrete fixes plus one honestly-flagged, not-fully-solved design trade-off.
+
+**Score page (World Standings) reordering.** User: move "Colorless" to the very bottom, and rank
+the 5 AI colors by town count instead of a fixed order. New `TerritoryControl.getSortedStandingsRows
+(Map<String,Integer> counts)` sorts the 5 `COLORS` by count descending, then appends "Player" then
+"Colorless" - `WorldStandingsScene.refresh()` now iterates this instead of the static
+`STANDINGS_ROWS` array (which stays, only used to zero-initialize `getTownCounts()`'s map, order
+no longer meaningful there).
+
+**Duplicate shop icon overlays in AI-color towns.** User's own diagnosis was right: "the images
+should already be on the templates, so the template alone should be good." Root cause in
+`ShopActor.draw()`'s non-destroyed branch - a comment from the earlier Economy Buildings round
+explained it was drawing a fallback building icon "because `waste_town_player.tmx` has no baked-in
+building art at all anymore," but the code did this **unconditionally for every town**, not just
+that one template family. Every AI-color town (whether from world-gen or a mage/player capture via
+`transformInto()`) has its own baked-in building art, so the fallback icon was redundantly drawing
+on top of it. Fixed by gating the plain/special/armory fallback behind
+`TownRestoration.isWastelandTown()` - an actual economy-building conversion (Bank/Mine/etc) still
+always draws its own icon regardless of town template, since `getBuildingSprite()` already returns
+`null` for `NONE` and no baked art could represent a player's dynamic building choice anyway.
+
+**"Blue border" appearing on walk/refresh, not immediately after a repaint.** Leading hypothesis,
+not fully confirmed: `World.hazeTile()` (the fog-of-war tint for "known but not currently visible"
+tiles - i.e. explored, but now outside the live vision radius) used `(0, 0, 0.05, 0.55)`, a
+darkening overlay with a slight blue channel bias. Fog of war is confirmed enabled in this plane's
+`config.json`. This matches the reported symptom exactly: a freshly-repainted tile shows clean
+(just became visible, no haze), but as the player walks away, it crosses into "known, not
+currently visible" and gets the tinted haze - reads as a border trailing the player's vision
+radius. Changed to `(0, 0, 0, 0.55)` - pure black, no color bias. Flagged to the user as the
+current best hypothesis, not a certainty - the 0.05 blue value is genuinely faint or blended, so
+if this doesn't fully resolve it there's likely a second, distinct contributor still to find.
+
+**Doodads not matching structures after the one-time neutralize sweep.** User's own detailed
+report (irregular "starfish" wasteland core vs. perfectly circular AI keep circles vs. a sparser,
+inconsistent middle zone; white's own desert hills specifically missing outside its kept circle)
+pointed at `neutralizeTerritoryOutsideRadius()` handling `mapObjectIds` (doodads - rocks/flowers/
+etc) differently from structures. Confirmed: that method already reskins *structures* correctly via
+`translateStructure()` (last round's fix), but never touched doodads at all - a color's own
+original doodads (e.g. white's "DarkGras" tufts) were left sitting untouched on now-wasteland
+ground even after every nearby structure got properly reskinned to wasteland's own style. New
+`World.regenerateDoodadsForBiome(String biomeName)` - a full-map scan (like
+`neutralizeTerritoryOutsideRadius()` itself; there's no single center/radius for "every tile a
+biome currently owns" after all 5 colors' sweeps have run) that clears and re-places doodads using
+the biome's own natural density (no `DOODAD_DENSITY_MULTIPLIER` boost - that's calibrated for a
+small, otherwise-sparse localized patch, not appropriate at map scale). Called once from
+`TerritoryControl.neutralizeAfterGeneration()`, after all 5 colors' sweeps, targeting `"waste"`.
+
+**Honestly flagged, not fixed this round: structure density/pattern in swept territory still
+reflects whichever color originally generated it, not wasteland's own natural pattern.**
+`translateStructure()` deliberately preserves the *exact* WFC-derived footprint/shape from the
+original biome (a mountain range keeps its shape, just re-skinned) rather than re-deriving
+placement for the new biome - this was the explicit design choice last round, specifically because
+re-deriving placement per-tile was already investigated and rejected as too much work (structure
+placement is anchored to a biome's own absolute map position, which has no well-defined answer for
+an arbitrary repainted patch). The doodad fix above closes part of the gap the user described, but
+if white's own structure density/symmetry parameters differ from wasteland's natural ones, the
+swept area will still *feel* different from wasteland's own core territory - not a bug, an inherent
+trade-off of the chosen design, and flagged back to the user rather than silently left unaddressed.
+
+Not yet re-verified in game - all four fixes need a **fresh world** (the doodad/structure sweep
+only runs once, at world-gen end).
+
+

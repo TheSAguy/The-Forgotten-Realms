@@ -100,6 +100,14 @@ public class TerritoryControl {
         // as a permanent rival anchor inside World.claimWastelandRing() itself (unconditional,
         // not tied to this method), which stops AI colors from claiming right up to Spawn - it
         // just never gets *painted* player-color until an actual town capture does that.
+
+        // Every color's sweep above reskinned structures via translateStructure() but left
+        // doodads (mapObjectIds) untouched - run once, after all 5 sweeps, so the whole area
+        // that's now "waste" gets wasteland's own doodads instead of a patchwork of whichever
+        // color originally generated each patch. See World.regenerateDoodadsForBiome()'s own
+        // comment for why this is a single full-map pass rather than 5 separate radius-bounded
+        // ones.
+        world.regenerateDoodadsForBiome("waste");
     }
 
     // A color's own "<Noun> Capital" is placed by ordinary world-gen (same as any other town)
@@ -265,12 +273,28 @@ public class TerritoryControl {
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
-    // Display order top-to-bottom for anything showing this data (currently WorldStandingsScene,
-    // previously TownCountActor's HUD panel) - "Colorless" means "still neutral", not one of the
-    // 5 AI colors. Capitalized (not lowercase like COLORS above) since these double as the
-    // color_icons.atlas region names, except "Player" - it has no color_icons.atlas region at all;
-    // WorldStandingsScene special-cases it to render GameHUD's own minimap_player.png instead.
+    // The full set of rows anything showing this data needs to know about (currently
+    // WorldStandingsScene, previously TownCountActor's HUD panel) - just used to zero-initialize
+    // getTownCounts()'s map below, order doesn't matter here. See getSortedStandingsRows() for the
+    // actual display order. "Colorless" means "still neutral", not one of the 5 AI colors.
+    // Capitalized (not lowercase like COLORS above) since these double as the color_icons.atlas
+    // region names, except "Player" - it has no color_icons.atlas region at all;
+    // WorldStandingsScene special-cases it to render the player's own avatar instead.
     public static final String[] STANDINGS_ROWS = {"Green", "White", "Blue", "Black", "Red", "Colorless", "Player"};
+
+    // Display order top-to-bottom: the 5 AI colors ranked by town count (most first), then
+    // "Player" and "Colorless" pinned at the bottom in that order - per user request, so the
+    // "still neutral" count reads as the bottom-line remainder rather than competing for attention
+    // with the actual color standings above it.
+    public static List<String> getSortedStandingsRows(Map<String, Integer> counts) {
+        List<String> sorted = new ArrayList<>();
+        for (String color : COLORS)
+            sorted.add(capitalize(color));
+        sorted.sort((a, b) -> counts.getOrDefault(b, 0) - counts.getOrDefault(a, 0));
+        sorted.add("Player");
+        sorted.add("Colorless");
+        return sorted;
+    }
 
     /**
      * Actual on-map town/capital count per STANDINGS_ROWS entry, for any UI that wants to show it.

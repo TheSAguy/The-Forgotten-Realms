@@ -110,10 +110,18 @@ public class ShopActor extends MapActor {
         } else {
             // waste_town_player.tmx has no baked-in building art at all anymore (see
             // MOD_CHANGELOG.md), so every rebuilt shop needs SOME icon drawn here, not just the
-            // 6 economy building types - otherwise a rebuilt plain Card Shop is invisible.
+            // 6 economy building types - otherwise a rebuilt plain Card Shop is invisible. Every
+            // OTHER town template (an AI color's own, whether straight from world-gen or a
+            // mage/player capture via PointOfInterest.transformInto()) already has its own
+            // building art baked into the tiles - drawing the plain/special/armory fallback icon
+            // there duplicates what's already shown, hence gating it to isWastelandTown() only.
+            // An actual economy-building conversion (Bank/Mine/etc) still needs its own icon
+            // regardless of town template, since no baked art can represent a player's dynamic
+            // choice there - getBuildingSprite() already returns null for NONE, so that path is
+            // unaffected by this gate.
             int economyType = EconomyBuildings.getBuildingType(stage.getChanges(), objectId);
             TextureRegion buildingSprite = EconomyBuildings.getBuildingSprite(economyType);
-            if (buildingSprite == null) {
+            if (buildingSprite == null && TownRestoration.isWastelandTown()) {
                 if (EconomyBuildings.isArmoryShop(shopData))
                     buildingSprite = EconomyBuildings.getArmoryShopSprite();
                 else if (EconomyBuildings.isSpecialShop(shopData))

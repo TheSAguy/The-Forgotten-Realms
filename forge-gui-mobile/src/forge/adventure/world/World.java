@@ -1599,6 +1599,71 @@ public class World implements Disposable, SaveFileContent {
         }
     }
 
+    // Companion to neutralizeTerritoryOutsideRadius() - that method reskins structures via
+    // translateStructure() but, like this one used to, never touches mapObjectIds (rocks/flowers/
+    // etc), so a color's own original doodads were left sitting untouched on now-wasteland ground
+    // even after every structure nearby was correctly reskinned - part of why the swept area
+    // didn't read as "one continuous area" with wasteland's own core territory. Full-map scan
+    // (like neutralizeTerritoryOutsideRadius() itself) rather than a bounded radius, since "every
+    // tile this biome currently owns" has no single center/radius after 5 colors' sweeps have all
+    // run - acceptable for the same reason that method's own full-map scan is: a one-time
+    // post-generation pass, not per-frame or per-capture. Uses the biome's own natural density (no
+    // DOODAD_DENSITY_MULTIPLIER boost - that's calibrated for a small, otherwise-sparse localized
+    // patch, not appropriate at map scale here).
+    public void regenerateDoodadsForBiome(String biomeName) {
+        if (data == null || biomeMap == null || mapObjectIds == null)
+            return;
+        List<BiomeData> biomes = data.GetBiomes();
+        int biomeIndex = -1;
+        for (int i = 0; i < biomes.size(); i++) {
+            if (biomeName.equalsIgnoreCase(biomes.get(i).name)) {
+                biomeIndex = i;
+                break;
+            }
+        }
+        if (biomeIndex < 0)
+            return;
+        BiomeData biome = biomes.get(biomeIndex);
+        if (biome.spriteNames == null)
+            return;
+
+        int tileSize = data.tileSize;
+        final int targetBiomeIndex = biomeIndex;
+        for (int cx = 0; cx < getWidthInChunks(); cx++) {
+            for (int cy = 0; cy < getHeightInChunks(); cy++) {
+                List<Pair<Vector2, Integer>> objects = mapObjectIds.positions(cx, cy);
+                objects.removeIf(entry -> {
+                    int tx = (int) (entry.getLeft().x / tileSize);
+                    int ty = (int) (entry.getLeft().y / tileSize);
+                    return highestBiome(getBiome(tx, ty)) == targetBiomeIndex;
+                });
+            }
+        }
+
+        long roadBit = 1L << biomes.size();
+        for (int wx = 0; wx < width; wx++) {
+            for (int wy = 0; wy < height; wy++) {
+                if (highestBiome(getBiome(wx, wy)) != biomeIndex || isStructure(wx, wy))
+                    continue;
+                if ((biomeMap[wx][height - wy - 1] & roadBit) != 0)
+                    continue;
+                for (String name : biome.spriteNames) {
+                    BiomeSpriteData sprite = data.GetBiomeSprites().getSpriteData(name);
+                    if (sprite == null || random.nextFloat() > sprite.density)
+                        continue;
+                    String spriteKey = sprite.key();
+                    int key = mapObjectIds.containsKey(spriteKey)
+                            ? mapObjectIds.intKey(spriteKey)
+                            : mapObjectIds.put(spriteKey, sprite, data.GetBiomeSprites());
+                    mapObjectIds.putPosition(key, new Vector2(
+                            (wx + .25f + random.nextFloat() / 2) * tileSize,
+                            (wy + .25f - random.nextFloat() / 2) * tileSize));
+                    break;
+                }
+            }
+        }
+    }
+
     /**
      * Marks tiles within radius of (centerWorldX, centerWorldY) as explored (circular area, tile
      * coordinates in the same world-space as getBiome()/getBiomeSprite()). For each tile that was
@@ -1730,7 +1795,10 @@ public class World implements Disposable, SaveFileContent {
         haze.setBlending(Pixmap.Blending.None);
         haze.drawPixmap(real, 0, 0);
         haze.setBlending(Pixmap.Blending.SourceOver);
-        haze.setColor(0f, 0f, 0.05f, 0.55f);
+        // Neutral black, no color bias - was (0,0,0.05,0.55), a slight blue tint that reads as a
+        // "border" wherever the player walks away from an area (known-but-not-currently-visible
+        // tiles trailing the vision-radius circle), reported as a weird blue border effect.
+        haze.setColor(0f, 0f, 0f, 0.55f);
         haze.fillRectangle(0, 0, haze.getWidth(), haze.getHeight());
         return haze;
     }

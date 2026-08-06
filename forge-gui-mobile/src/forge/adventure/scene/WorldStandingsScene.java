@@ -59,7 +59,7 @@ public class WorldStandingsScene extends UIScene {
             return;
 
         Map<String, Integer> counts = TerritoryControl.getTownCounts(WorldSave.getCurrentSave().getWorld());
-        for (String row : TerritoryControl.STANDINGS_ROWS) {
+        for (String row : TerritoryControl.getSortedStandingsRows(counts)) {
             Image icon = null;
             if ("Player".equals(row)) {
                 // The little HUD portrait (GameHUD's own "avatar" actor uses the exact same
