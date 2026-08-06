@@ -2275,7 +2275,7 @@ trade-off of the chosen design, and flagged back to the user rather than silentl
 Not yet re-verified in game - all four fixes need a **fresh world** (the doodad/structure sweep
 only runs once, at world-gen end).
 
-## Territory Control: ocean-bit-loss fix (2026-08-06)
+## Territory Control: ocean-bit-loss fix - REVERTED, caused a worse regression (2026-08-06)
 
 Continued investigating the still-recurring "blue border" report the same day, with two new
 screenshots ("After Taking Town" vs. "When you move") showing a light-blue outline specifically
@@ -2304,6 +2304,42 @@ index 0) and OR-ing it into all 3 repaint methods' `biomeMap` assignment instead
 it had gone missing from `Downloads` mid-round, user relocated it to `C:\Users\User\.claude\Tools\
 apache-maven-3.9.16\bin\mvn.cmd`). Deployed `World.class` + its `$DrawInfo`/`$DrawingInformation`
 inner classes into the installed jar, `cmp -s` against `target/classes` confirmed byte-identical.
+
+**REVERTED the same day, first playtest after deploying it.** Compiling clean and byte-verifying
+only proves the code does what it says - it doesn't prove what it says is correct, and this wasn't:
+user reported a large, obvious new regression ("looks like a bunch of islands") - a visible
+blue grid/checkerboard outlining nearly every individual tile across whole repainted regions
+(player's and Blue's territory specifically), far worse than the narrow edge-gap issue the fix
+targeted. Root cause of the regression, found on inspection: **`terrainMap[x][y]` is a single
+value shared across every bit set in `biomeMap[x][y]`, not one value per biome bit.**
+`generateBiomeSprite()`'s render loop reads that one shared value and hands it to *every* set
+bit's own `BiomeTexture` as if it were that biome's own index. Adding ocean's bit back means
+ocean's rendering pass now also runs, using whatever index the *new* biome's `translateStructure()`
+computed - and since plain "no terrain variant, no structure" ground (raw index 0) and the two
+common terrain-variant indices (1, 2) are valid, in-range indices for ocean's own tiny 3-region
+array too (`base.json` has exactly 2 terrain entries, no structures), ocean's own water texture
+(`Base_1`/`Base_2` - literally blue) renders as a *second, spurious layer* for the vast majority of
+repainted tiles, not just genuine coverage gaps. The "smooths out when you walk into a freshly-
+built chunk" detail the user noticed is consistent with this: a live per-tile patch computes each
+tile's neighbor-match independently and can catch a tile mid-repaint with temporarily-inconsistent
+neighbor data (more partial-edge renders, more chances for the spurious ocean layer to show through
+a gap), while a fully-settled, freshly-built chunk has more uniform neighbor data, fewer partial
+renders, and thus fewer visible instances of the same underlying spurious-layer bug - not a
+different bug, just a different exposure rate.
+
+Reverted all 3 repaint methods back to the plain `biomeMap[wx][rawY] = 1L << someIndex;` overwrite
+(pre-fix behavior) and deleted `getPersistentBackgroundBit()` entirely. Compiled, deployed, and
+byte-verified the revert.
+
+**Net result: back to the pre-existing "blue border" status quo, not worse, not better.** The
+original coverage-gap theory this fix was based on may still be *directionally* correct (a real
+gap likely does exist wherever a biome's own edge/corner autotile piece doesn't achieve full tile
+coverage), but any real fix needs to account for `terrainMap` being shared across bits - either by
+never adding a second bit at all (findings a different way to avoid/paper over the gap), or by
+giving `generateBiomeSprite()` a per-bit-aware index instead of one shared value, which is a
+materially bigger change to the rendering path, not a small patch. **The original "blue border"
+report is unresolved again** - worth re-confirming with the user exactly what it looks like now
+that this revert is live, rather than assuming it's identical to before this fix was ever tried.
 
 Not fully certain this is *the* complete explanation for "blue" specifically, flagged to the user
 as such (an Explore-agent pass confirmed the rendering-gap mechanism is real but found no blue GL
