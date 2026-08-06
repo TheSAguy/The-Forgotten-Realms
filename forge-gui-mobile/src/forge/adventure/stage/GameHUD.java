@@ -46,6 +46,7 @@ import forge.Forge;
 import forge.adventure.character.EnemySprite;
 import forge.adventure.character.CharacterSprite;
 import forge.adventure.data.AdventureQuestData;
+import forge.adventure.data.ConfigData;
 import forge.adventure.data.ItemData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.scene.DeckSelectScene;
@@ -55,6 +56,7 @@ import forge.adventure.scene.MapViewScene;
 import forge.adventure.scene.QuestLogScene;
 import forge.adventure.scene.Scene;
 import forge.adventure.scene.TileMapScene;
+import forge.adventure.scene.WorldStandingsScene;
 import forge.adventure.util.AdventureQuestController;
 import forge.adventure.util.Config;
 import forge.adventure.util.Controls;
@@ -63,7 +65,6 @@ import forge.adventure.util.KeyBinding;
 import forge.adventure.util.NavArrowActor;
 import forge.adventure.util.ResourceDisplayActor;
 import forge.adventure.util.TimeOfDayActor;
-import forge.adventure.util.TownCountActor;
 import forge.adventure.util.UIActor;
 import forge.adventure.world.WorldSave;
 import forge.deck.Deck;
@@ -109,7 +110,7 @@ public class GameHUD extends Stage {
     // manual speed-up during testing.
     private final CheckBox speedCheckBox;
     private final ResourceDisplayActor resourceDisplayActor;
-    private final TownCountActor townCountActor;
+    private final TextraButton worldStandingsActor;
     private final InputEvent eventTouchDown, eventTouchUp;
     private final TextraButton deckActor, openMapActor, menuActor, logbookActor, inventoryActor, exitToWorldMapActor, bookmarkActor;
     public final UIActor ui;
@@ -184,7 +185,12 @@ public class GameHUD extends Stage {
         // miniMap.getWidth() its value at this point in construction.
         timeOfDayActor.setPosition(openMapActor.getX(), openMapActor.getY() - timeOfDayActor.getHeight() - 4);
         resourceDisplayActor = new ResourceDisplayActor();
-        townCountActor = new TownCountActor();
+        // Territory Control (MOD_SCOPE.md #7): opens WorldStandingsScene instead of a permanent
+        // HUD panel (the earlier TownCountActor version of this was taking up too much on-screen
+        // space for data that only changes every few in-game days, per feedback). Built in code,
+        // not hud.json, same "don't fork the shared layout file" reasoning as resourceDisplayActor
+        // - chains off bookmarkActor's own hud.json-driven position the same way.
+        worldStandingsActor = Controls.newTextButton("World", this::openWorldStandings);
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());
         touchpad.setBounds(15, 15, TOUCHPAD_SCALE, TOUCHPAD_SCALE);
@@ -231,9 +237,9 @@ public class GameHUD extends Stage {
         // against it so its own bordered panel reads as a continuation of the same column
         // instead of a separate floating box.
         resourceDisplayActor.setPosition(money.getX(), money.getY() - resourceDisplayActor.getHeight());
-        // Directly below the resource panel, same "butt against the sibling above it" positioning
-        // - per user request ("add them under the resource area").
-        townCountActor.setPosition(resourceDisplayActor.getX(), resourceDisplayActor.getY() - townCountActor.getHeight());
+        worldStandingsActor.setSize(bookmarkActor.getWidth(), bookmarkActor.getHeight());
+        worldStandingsActor.setPosition(bookmarkActor.getX(), bookmarkActor.getY() - worldStandingsActor.getHeight() - 4);
+        worldStandingsActor.setVisible(isTerritoryControlEnabled());
         lifePoints.setText("[%95][+Life]");
         enemyCounterText = Controls.newTypingLabel(Forge.getLocalizer().getMessage("lblRemainingEnemies", String.valueOf(0)));
         enemyCounterText.setColor(Color.BLACK);
@@ -313,7 +319,6 @@ public class GameHUD extends Stage {
         // with the minimap. hudGroup only has its alpha adjusted, never hidden outright, matching
         // Gold/Shards/HP staying visible everywhere - Lumber/Stone should behave the same way.
         hudGroup.addActor(resourceDisplayActor);
-        hudGroup.addActor(townCountActor);
         ui.addActor(hudGroup);
         //MENU
         menuGroup.addActor(deckActor);
@@ -322,6 +327,7 @@ public class GameHUD extends Stage {
         menuGroup.addActor(inventoryActor);
         menuGroup.addActor(exitToWorldMapActor);
         menuGroup.addActor(bookmarkActor);
+        menuGroup.addActor(worldStandingsActor);
         ui.addActor(menuGroup);
         //AVATAR
         avatarGroup.addActor(avatar);
@@ -343,6 +349,19 @@ public class GameHUD extends Stage {
         if (Forge.advFreezePlayerControls)
             return;
         Forge.switchScene(QuestLogScene.instance(Forge.getCurrentScene()));
+    }
+
+    private void openWorldStandings() {
+        if (console.isVisible())
+            return;
+        if (Forge.advFreezePlayerControls)
+            return;
+        Forge.switchScene(WorldStandingsScene.instance());
+    }
+
+    private boolean isTerritoryControlEnabled() {
+        ConfigData configData = Config.instance().getConfigData();
+        return configData != null && configData.territoryControlEnabled;
     }
 
     public static GameHUD getInstance() {

@@ -1814,6 +1814,48 @@ caller of this method the same way, not just `TownCountActor`.
 Deployed and byte-verified immediately given the severity (blocked the game entirely) - not yet
 re-confirmed by the user.
 
+## Town-count HUD panel replaced with a dedicated World Standings page (2026-08-05)
+
+Sixth playtest round, and a genuinely positive one - "seeing the AI take over the map looks so
+cool." Two pieces of feedback on the town-count display specifically: the icons looked a little
+off, and the always-visible panel was taking up too much HUD real estate. Rather than debug the
+small panel further, replaced it outright per the user's own mockup ("Info Page.png" - a
+dedicated "World Standings" page opened via a button, not a permanent fixture).
+
+- Removed `TownCountActor.java` and its `GameHUD` wiring entirely.
+- The counting logic moved to a new public `TerritoryControl.getTownCounts(World)` (plus
+  `STANDINGS_ROWS`, the shared row-order constant) so it's not tied to any one UI element -
+  whatever displays this data reads it the same way.
+- New `WorldStandingsScene.java` (`forge/adventure/scene/`), a real full-screen page following the
+  same pattern as `QuestLogScene`/`SettingsScene` (`extends UIScene`, loads its own JSON layout,
+  `ui.onButtonPress("return", this::back)`). Its layout
+  (`The Forgotten Realms/ui/world_standings.json`) is a **new file in the mod's own plane folder**,
+  not an edit to the shared `common/ui/` - same "new file, not a fork" pattern used everywhere else
+  in this feature, extending it to UI layouts for the first time. Reuses the existing "paper"
+  window style already used by `quests.json`, matching the parchment look in the user's mockup
+  without needing new art.
+- New `GameHUD` button (`worldStandingsActor`, "World") opens it - built entirely in code and
+  chained off `bookmarkActor`'s own `hud.json`-driven position, same "don't fork the shared HUD
+  layout" reasoning `ResourceDisplayActor` already established. Hidden on any plane where
+  `territoryControlEnabled` is off.
+- One real mistake caught before it shipped: the JSON schema's `yDown: true` means each element's
+  `y` is measured from the *top* of the canvas down (confirmed by reading `UIActor.java`'s actual
+  property-loading code, not assumed from the name) - the first draft of `world_standings.json`
+  had the title and content table's `y` values backwards (title would have rendered near the
+  bottom of the window instead of the top). Fixed by working through the actual formula
+  (`actorY = canvasHeight - y - elementHeight`) against `quests.json`'s own known-working values
+  before trusting a guess.
+
+Also answered, no code change: **mages flying in a straight line over water/terrain is
+intentional**, not a bug - `WorldStage`'s mage movement branch (added when the mage system was
+first built) deliberately skips the same obstacle-avoidance pathing normal enemies use, since no
+reusable castle-to-town pathfinder exists in the engine and building one wasn't worth the
+complexity for a first pass. Arguably fits a spellcaster thematically either way - flagged as a
+deliberate simplification the user can ask to revisit, not defended as unchangeable.
+
+Not yet re-verified in game - the JSON layout in particular can only really be confirmed by
+actually opening the new page.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

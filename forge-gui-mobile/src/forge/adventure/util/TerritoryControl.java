@@ -15,6 +15,7 @@ import forge.adventure.world.WorldSave;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -217,6 +218,38 @@ public class TerritoryControl {
 
     private static String capitalize(String s) {
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    // Display order top-to-bottom for anything showing this data (currently WorldStandingsScene,
+    // previously TownCountActor's HUD panel) - "Colorless" means "still neutral", not one of the
+    // 5 AI colors. Capitalized (not lowercase like COLORS above) since these double as the
+    // color_icons.atlas region names.
+    public static final String[] STANDINGS_ROWS = {"Green", "White", "Blue", "Black", "Red", "Colorless"};
+
+    /** Actual on-map town/capital count per STANDINGS_ROWS entry, for any UI that wants to show it. */
+    public static Map<String, Integer> getTownCounts(World world) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (String row : STANDINGS_ROWS)
+            counts.put(row, 0);
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            String type = poi.getData().type;
+            if (!"town".equals(type) && !"capital".equals(type))
+                continue;
+            String name = poi.getData().name;
+            if (name == null)
+                continue;
+            if (name.startsWith("Waste Town")) {
+                counts.merge("Colorless", 1, Integer::sum);
+                continue;
+            }
+            for (Map.Entry<String, String> entry : COLOR_TOWN_NOUN.entrySet()) {
+                if (name.startsWith(entry.getValue())) {
+                    counts.merge(capitalize(entry.getKey()), 1, Integer::sum);
+                    break;
+                }
+            }
+        }
+        return counts;
     }
 
     /** Called by WorldStage when a mage's territoryTarget position has been reached. */

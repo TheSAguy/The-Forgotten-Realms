@@ -98,8 +98,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/stage/GameHUD.java`** — clock readout (#6), resource
   panel (Wood/Stone, #9), fog-of-war/speed-toggle debug checkboxes (#3/#6). Territory Control (#7)
   added a per-mage colored minimap dot (`updateMageMinimapMarkers()`, dynamic set mirroring the
-  existing `miniMapPlayer` marker) and wired in the new `TownCountActor` panel below the resource
-  readout.
+  existing `miniMapPlayer` marker) and a `worldStandingsActor` button (chained off `bookmarkActor`,
+  opens the new `WorldStandingsScene`) - replaced an earlier `TownCountActor` HUD panel version of
+  this, since removed.
 - **`forge-gui-mobile/src/forge/adventure/scene/SettingsScene.java`** — fog-of-war on/off setting
   (#3, a real Settings-screen checkbox, not just the in-game HUD debug toggle).
 - **`forge-gui-mobile/src/forge/adventure/scene/MapViewScene.java`** — extracted the minimap
@@ -134,11 +135,17 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 
 ## New files (won't conflict with an upstream merge, but worth an inventory)
 
-All under `forge-gui-mobile/src/forge/adventure/util/` - upstream doesn't have these paths, so
-there's nothing to reconcile, but they're stock-adjacent code (not mod-plane assets) so they're
-listed here rather than assumed-safe by omission:
+Under `forge-gui-mobile/src/forge/adventure/util/` - upstream doesn't have these paths, so there's
+nothing to reconcile, but they're stock-adjacent code (not mod-plane assets) so they're listed here
+rather than assumed-safe by omission:
 `EconomyBuildings.java`, `ResourceDisplayActor.java`, `RubbleOverlay.java`, `TerritoryControl.java`,
-`TimeOfDayActor.java`, `TownCountActor.java`, `TownRestoration.java`.
+`TimeOfDayActor.java`, `TownRestoration.java`. (`TownCountActor.java` existed briefly, removed the
+same day - see `MOD_CHANGELOG.md`'s "World Standings page" entry.)
+
+Under `forge-gui-mobile/src/forge/adventure/scene/`, same reasoning:
+`WorldStandingsScene.java` (#7) - its own JSON layout lives in the mod's plane folder
+(`The Forgotten Realms/ui/world_standings.json`), not `common/ui/`, so that part needs no tracking
+here either - see "Everything else" below.
 
 ## Everything else (not tracked here - genuinely safe)
 

@@ -163,6 +163,12 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
   Continue/Load - so `World.mapPoiIds` wasn't populated yet, NPEing and leaving the whole menu
   unresponsive. Fixed at the source (`World.getAllPointOfInterest()` now null-safe), not just
   worked around locally.
+- **Sixth playtest round** ("seeing the AI take over the map looks so cool"): replaced
+  `TownCountActor`'s always-visible HUD panel with a dedicated full-screen `WorldStandingsScene`
+  (own JSON layout in the mod's plane folder, opened via a new "World" HUD button) per user mockup
+  - the panel was taking up too much space for data that rarely changes. Confirmed mages flying
+  straight over water/terrain to their target is an intentional first-pass simplification (no
+  pathfinder built for this), not a bug.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

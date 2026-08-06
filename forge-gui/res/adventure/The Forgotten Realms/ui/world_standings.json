@@ -1,0 +1,51 @@
+{
+  "width": 480,
+  "height": 270,
+  "yDown": true,
+  "elements": [
+    {
+      "type": "Image",
+      "name": "lastScreen",
+      "width": 480,
+      "height": 270
+    },
+    {
+      "type": "Window",
+      "name": "standingsWindow",
+      "style": "paper",
+      "x": 15,
+      "y": 18,
+      "width": 400,
+      "height": 235
+    },
+    {
+      "type": "Label",
+      "name": "title",
+      "text": "World Standings",
+      "fontColor": "black",
+      "x": 25,
+      "y": 25,
+      "width": 250,
+      "height": 20
+    },
+    {
+      "type": "Table",
+      "name": "standingsList",
+      "x": 25,
+      "y": 50,
+      "width": 240,
+      "height": 190,
+      "fontColor": "black"
+    },
+    {
+      "type": "TextButton",
+      "name": "return",
+      "text": "tr(lblBack)",
+      "binding": "Back",
+      "width": 60,
+      "height": 30,
+      "x": 335,
+      "y": 215
+    }
+  ]
+}
