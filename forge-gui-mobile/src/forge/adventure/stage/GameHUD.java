@@ -975,6 +975,7 @@ public class GameHUD extends Stage {
 
         setDisabled(exitToWorldMapActor, !MapStage.getInstance().isInMap(), "[%120][+ExitToWorldMap]", "\u2613");
         setDisabled(bookmarkActor, !MapStage.getInstance().isInMap(), "[%120][+Bookmark]", "\u2613");
+        worldStandingsActor.setVisible(isTerritoryControlEnabled() && !MapStage.getInstance().isInMap());
 
         for (TextraButton button : abilityButtonMap) {
             setAlpha(button, visible);

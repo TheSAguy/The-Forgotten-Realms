@@ -61,7 +61,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `candidatesByName()`/`candidatesForCategory()`, `STRUCTURE_CATEGORY`, `structureSwapCache`) that
   all 3 repaint methods now call instead of zeroing `terrainMap` outright - reskins a repainted
   tile's existing mountain/rock/tree/water structure to the new biome's closest equivalent instead
-  of deleting it.
+  of deleting it. Territory Control playtest round 7 (#7, same day) gave `claimWastelandRing()` a
+  `List<Vector2> otherAnchors` parameter and switched its claim condition from "am I within my own
+  radius" to a Voronoi-style "is my anchor the nearest of all colors' castles and the player's
+  Spawn" check - Spawn is now baked into the method as a permanent rival anchor, replacing the
+  removed `SPAWN_PROTECTION_RADIUS_TILES` constant/hard-block entirely.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -111,7 +115,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   added a per-mage colored minimap dot (`updateMageMinimapMarkers()`, dynamic set mirroring the
   existing `miniMapPlayer` marker) and a `worldStandingsActor` button (chained off `bookmarkActor`,
   opens the new `WorldStandingsScene`) - replaced an earlier `TownCountActor` HUD panel version of
-  this, since removed.
+  this, since removed. Territory Control playtest round 7 (same day) wired `worldStandingsActor`'s
+  visibility into the existing `showHideMap(boolean)` method (right next to `bookmarkActor`/
+  `exitToWorldMapActor`'s own `MapStage.isInMap()`-based toggles) so the button hides while inside
+  a town instead of staying visible everywhere.
 - **`forge-gui-mobile/src/forge/adventure/scene/SettingsScene.java`** — fog-of-war on/off setting
   (#3, a real Settings-screen checkbox, not just the in-game HUD debug toggle).
 - **`forge-gui-mobile/src/forge/adventure/scene/MapViewScene.java`** — extracted the minimap

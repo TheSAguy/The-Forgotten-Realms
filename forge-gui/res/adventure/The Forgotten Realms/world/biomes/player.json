@@ -30,5 +30,103 @@
 	"Flower"
 ],
 "pointsOfInterest": [],
-"enemies": []
+"enemies": [],
+"structures": [
+	{
+		"N": 2,
+		"x": 0.5,
+		"y": 0.5,
+		"structureAtlasPath": "world/structures/player_structures.atlas",
+		"sourcePath": "world/structures/models/colorless.png",
+		"maskPath": "world/structures/masks/circle.png",
+		"height": 0.25,
+		"width": 0.25,
+		"symmetry": 8,
+		"mappingInfo": [
+			{
+				"name": "crater",
+				"color": "808080",
+				"collision": true
+			},
+			{
+				"name": "tree",
+				"color": "ff0000",
+				"collision": true
+			},
+			{
+				"name": "tree2",
+				"color": "00ff00",
+				"collision": true
+			},
+			{
+				"name": "tree3",
+				"color": "0000ff",
+				"collision": true
+			},
+			{
+				"name": "tree4",
+				"color": "00ffff",
+				"collision": true
+			},
+			{
+				"name": "rock",
+				"color": "ff00ff",
+				"collision": true
+			},
+			{
+				"name": "mountain",
+				"color": "000000",
+				"collision": true
+			}
+		]
+	},
+	{
+		"N": 2,
+		"x": 0.5,
+		"y": 0.5,
+		"structureAtlasPath": "world/structures/player_structures.atlas",
+		"sourcePath": "world/structures/models/colorless.png",
+		"maskPath": "world/structures/masks/ring.png",
+		"height": 0.5,
+		"width": 0.5,
+		"symmetry": 8,
+		"mappingInfo": [
+			{
+				"name": "hole",
+				"color": "808080",
+				"collision": true
+			},
+			{
+				"name": "tree",
+				"color": "ff0000",
+				"collision": true
+			},
+			{
+				"name": "tree2",
+				"color": "00ff00",
+				"collision": true
+			},
+			{
+				"name": "tree3",
+				"color": "0000ff",
+				"collision": true
+			},
+			{
+				"name": "tree4",
+				"color": "00ffff",
+				"collision": true
+			},
+			{
+				"name": "rock",
+				"color": "ff00ff",
+				"collision": true
+			},
+			{
+				"name": "mountain",
+				"color": "000000",
+				"collision": true
+			}
+		]
+	}
+]
 }

@@ -2026,6 +2026,105 @@ new logic). First-pass judgment call worth flagging: the `STRUCTURE_CATEGORY` gr
 exact-name/category/universal-fallback priority order are reasonable based on reading all 6 biome
 JSONs, but the real test is what it actually looks like in game.
 
+## Territory Control playtest round 7: border seams, player parity, HUD fixes (2026-08-05)
+
+Playtesting Territory Expansion + Terrain Switch-Out surfaced several issues in the same day,
+investigated and confirmed against the actual code before fixing (not guessed from screenshots):
+
+- **A captured neutral town inside AI-claimed territory left some structures in the AI's color.**
+  Root cause confirmed: `TownRestoration.TEST_RECOLOR_BIOME = "player"` (already wired, not a
+  leftover placeholder), but `world/biomes/player.json` had **zero `structures[]` defined** - only
+  a gold-tinted ground reskin existed. `World.pickReplacement()`'s "never delete, skip if nothing
+  to swap to" rule (built last round specifically so mountains/rivers/etc. never vanish) correctly
+  had nothing to swap *to* for `player`, so it left those tiles alone - which read as "the AI's
+  doodads didn't convert."
+- **Weird color borders/seams** (a green wedge cutting through Black's territory; a blue ring
+  around the player's home base). Root cause: each AI color's territory is an independently
+  growing circle around its own castle, with zero awareness of any other color's circle - circles
+  from different centers naturally produce odd tangent/wedge boundaries wherever three or more get
+  close, and the player's home base was only a flat static 15-tile "don't claim this" bubble
+  (`SPAWN_PROTECTION_RADIUS_TILES`), not real territory, so whichever AI color's circle reached it
+  first just rang around the outside.
+
+**Fix for both, in one mechanism**: switched territory claiming from "am I within my own radius" to
+"is my anchor point the *nearest* one to this tile" - a Voronoi-style assignment across all 5
+castles **and** the player's Spawn.
+
+- **Gave `player` real structures**: generated `The Forgotten Realms/world/structures/
+  player_structures.png`/`.atlas` by tinting a copy of `common/world/structures/
+  colorless_structures.png` with the same gold/amber multiply formula already used for the ground
+  (R×1.30, G×1.05, B×0.55 - a one-off PowerShell + `System.Drawing` script, not hand-painted, same
+  technique as the ground tint). `player.json` got a `structures` array that's a copy of
+  `colorless.json`'s own two `structures[]` entries (same `sourcePath`/`maskPath` WFC input models -
+  those only define placement shape, not rendered appearance), with only `structureAtlasPath`
+  repointed at the new tinted atlas. This alone fixes the conversion bug: `pickReplacement()` now
+  finds real `player` candidates (crater/tree/tree2/tree3/tree4/rock/mountain) for every category.
+- **`World.claimWastelandRing()`** gained a `List<Vector2> otherAnchors` parameter (the other AI
+  colors' castle positions for this call). Inside the existing per-tile loop, a tile is only
+  claimed if its distance to `center` is `<=` its distance to every entry in `otherAnchors` **and**
+  `<=` its distance to Spawn (Spawn is now baked into the method internally as a permanent rival
+  anchor, replacing the old separate `SPAWN_PROTECTION_RADIUS_TILES` hard-block special case - it's
+  just another anchor in the same comparison now). Pure add-on to the existing bounding-box scan,
+  not a rewrite. Ties fall back to the existing "whichever color's claim runs first each tick wins"
+  resolution.
+- **`TerritoryControl.processTerritoryExpansion()`** (the daily tick) now gathers all 5 colors'
+  castle positions once per call and passes "every other color's position" as `otherAnchors` into
+  each color's own `claimWastelandRing()` call.
+- **The player now gets a real starting circle at world-gen end**, parity with how each AI color
+  gets its own kept circle from `neutralizeAfterGeneration()`: right after that method's existing
+  per-color loop, one more call - `world.claimWastelandRing("player", spawnPosition,
+  castlePositions, 0, PLAYER_KEEP_RADIUS_TILES, null, null)` (reusing the same nearest-anchor-aware
+  method, one-time instead of incremental) plus `world.setColorTerritoryRadius("player",
+  PLAYER_KEEP_RADIUS_TILES)` for future use. `PLAYER_KEEP_RADIUS_TILES` starts equal to
+  `CASTLE_KEEP_RADIUS_TILES` (20) - real parity with an AI color's own starting size. **Deliberately
+  not wired into the daily expansion loop yet** - the player's territory doesn't grow over time in
+  this round, a smaller, separate follow-up once this is confirmed working.
+
+Net effect: every color (5 AI + player) claims wasteland only where its own anchor is the closest
+of all 6 - clean, mutually-consistent boundaries everywhere, no wedges, and the player's home base
+is real, gold-tinted, doodad-and-structure-bearing territory instead of an empty bubble.
+
+**Smaller, independent fixes in the same round:**
+- **"World" HUD button stayed visible inside a town.** `GameHUD.showHideMap(boolean)` already had
+  the exact right hook - it flips `bookmarkActor`/`exitToWorldMapActor` based on
+  `MapStage.getInstance().isInMap()` on every town-enter/exit (`MapStage.loadMap()` and
+  `MapStage.clearIsInMap()` both call it). Added `worldStandingsActor.setVisible(
+  isTerritoryControlEnabled() && !MapStage.getInstance().isInMap())` right next to those two lines.
+- **World Standings icon crop was still wrong** (bled into neighboring icons' colors/borders). User
+  supplied exact coordinates read directly off the actual source sheet (`common/sprites/
+  items.png`, confirmed 480×1008) - a 2-column grid, 16×16 cells: Colorless (336,80), Black
+  (352,80), Red (336,96), Green (352,96), Blue (336,112), White (352,112). Regenerated
+  `color_icons.png` by re-cropping from those exact coordinates (same PowerShell + `System.Drawing`
+  approach, `NearestNeighbor` interpolation) - `color_icons.atlas`'s region layout was already
+  correct (0/16/32/48/64/80 at 16×16 each) and needed no changes, only the pixel content was wrong.
+  Verified by rendering an 8x upscaled preview: sun (white), droplet (blue), skull (black), flame
+  (red), tree (green), gray orb (colorless) - all correctly cropped with clean badge borders now.
+- **Added a Player row to World Standings.** No "Player Town" POI concept exists - restoring a town
+  via the Job Board never renames/transforms the POI, only recolors the surrounding terrain - so
+  used the signal that already exists instead: `TerritoryControl.getTownCounts()` now also counts
+  POIs where `TownRestoration.isTownRestored(WorldSave.getCurrentSave()
+  .getPointOfInterestChanges(poi.getID()))` is true, as a 7th, independent `STANDINGS_ROWS` entry
+  (not a partition of the other 6 - a restored town keeps whatever color/name it already had, so it
+  can count toward both its original color bucket and "Player"). `WorldStandingsScene` special-
+  cases "Player"'s icon to render `GameHUD`'s own `ui/minimap_player.png` texture directly (the
+  same asset the overworld minimap marker already uses) instead of adding a 7th region to
+  `color_icons.png` - one source of truth for what the player's own marker looks like.
+
+**Investigated and explained, no fix made**: the minimap has never rendered doodads/structures for
+*any* biome, only a flat per-tile color swatch - confirmed via `World.createSmallPixmap()`, which
+always crops a biome's base tileset region (index 0) regardless of what's actually on that tile.
+This is pre-existing engine behavior, not something this session (or this round) changed - reported
+back rather than "fixed," since building doodad-level minimap detail would be a real new feature,
+not a regression.
+
+**Explicitly deferred, per the user's own request**: territory expansion speed
+(`EXPANSION_TILES_PER_DAY`) stays untouched - user asked to leave it fast for now since it makes
+progression easier to observe while testing, revisit once other fixes are confirmed.
+
+Not yet re-verified in game - needs a **fresh world** (nearest-anchor claiming and the player's
+starting circle only apply going forward; an existing save's already-repainted areas keep whatever
+they already have).
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

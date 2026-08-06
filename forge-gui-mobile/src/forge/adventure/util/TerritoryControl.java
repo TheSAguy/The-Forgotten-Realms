@@ -47,6 +47,12 @@ public class TerritoryControl {
     private static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
     private static final int EXPANSION_TILES_PER_DAY = 3; // first-guess constant, tune after testing
     private static final int MAX_TERRITORY_RADIUS = 300; // generous cap - bounds the scan once a color has filled all reachable wasteland
+    // Parity with an AI color's own starting keep (CASTLE_KEEP_RADIUS_TILES) - the player's home
+    // base gets a real, nearest-anchor-respecting circle around Spawn instead of the old flat
+    // "don't claim within N tiles" bubble. Does not grow over time yet (not in COLORS/
+    // processTerritoryExpansion()'s daily loop) - a deliberate, smaller follow-up once this is
+    // confirmed working, not an oversight.
+    private static final int PLAYER_KEEP_RADIUS_TILES = CASTLE_KEEP_RADIUS_TILES;
 
     private TerritoryControl() {}
 
@@ -69,12 +75,14 @@ public class TerritoryControl {
     public static void neutralizeAfterGeneration(World world) {
         if (!isEnabled())
             return;
+        List<Vector2> castlePositions = new ArrayList<>();
         for (String color : COLORS) {
             PointOfInterest castle = findCastle(world, color);
             if (castle == null) {
                 System.out.println("[TerritoryControl] " + color + ": no castle found, skipping neutralize sweep");
                 continue;
             }
+            castlePositions.add(castle.getPosition());
             world.neutralizeTerritoryOutsideRadius(color, castle.getPosition(), CASTLE_KEEP_RADIUS_TILES, null, null);
 
             float keepRadiusWorld = CASTLE_KEEP_RADIUS_TILES * (float) world.getTileSize();
@@ -95,6 +103,16 @@ public class TerritoryControl {
             ensureCapital(world, color, castle, keepRadiusWorld);
             world.setColorTerritoryRadius(color, CASTLE_KEEP_RADIUS_TILES);
         }
+
+        // Give the player's home base a real starting circle around Spawn too - parity with each
+        // AI color's own kept circle above, via the same nearest-anchor-aware claim
+        // (World.claimWastelandRing()) so it comes out with a clean border against whichever
+        // colors ended up nearby instead of the old flat "don't claim near Spawn" bubble.
+        Vector2 spawnPosition = new Vector2(world.getWidthInPixels() * world.getData().playerStartPosX,
+                world.getHeightInPixels() * world.getData().playerStartPosY);
+        world.claimWastelandRing("player", spawnPosition, castlePositions, 0, PLAYER_KEEP_RADIUS_TILES, null, null);
+        world.setColorTerritoryRadius("player", PLAYER_KEEP_RADIUS_TILES);
+        System.out.println("[TerritoryControl] player: claimed starting circle around Spawn");
     }
 
     // A color's own "<Noun> Capital" is placed by ordinary world-gen (same as any other town)
@@ -168,23 +186,35 @@ public class TerritoryControl {
     }
 
     // Each color's circle slowly grows from its castle, claiming only currently-neutral wasteland
-    // (World.claimWastelandRing() skips anything that isn't wasteland, so two colors' circles stop
-    // at each other - a border - rather than overlapping or fighting over the same tile; see the
-    // plan's "don't overlap" reasoning: first color processed to reach a tile each tick wins it).
-    // A color with no surviving castle (shouldn't normally happen post-neutralizeAfterGeneration,
-    // but a save could predate this feature) or no seeded radius is skipped rather than guessed at.
+    // where its own castle is the *nearest* anchor among every other color's castle and the
+    // player's Spawn (World.claimWastelandRing()'s nearest-anchor check) - this is what keeps two
+    // colors' circles (or a color and the player's home base) forming a clean border instead of
+    // overlapping or cutting a stray wedge through each other. A color with no surviving castle
+    // (shouldn't normally happen post-neutralizeAfterGeneration, but a save could predate this
+    // feature) or no seeded radius is skipped rather than guessed at.
     private static void processTerritoryExpansion(World world, int daysPassed) {
+        Map<String, Vector2> castlePositions = new LinkedHashMap<>();
+        for (String color : COLORS) {
+            PointOfInterest castle = findCastle(world, color);
+            if (castle != null)
+                castlePositions.put(color, castle.getPosition());
+        }
         for (String color : COLORS) {
             Integer currentRadius = world.getColorTerritoryRadius(color);
             if (currentRadius == null || currentRadius >= MAX_TERRITORY_RADIUS)
                 continue;
-            PointOfInterest castle = findCastle(world, color);
-            if (castle == null)
+            Vector2 castlePosition = castlePositions.get(color);
+            if (castlePosition == null)
                 continue;
             int newRadius = Math.min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
             if (newRadius <= currentRadius)
                 continue;
-            world.claimWastelandRing(color, castle.getPosition(), currentRadius, newRadius,
+            List<Vector2> otherAnchors = new ArrayList<>();
+            for (Map.Entry<String, Vector2> entry : castlePositions.entrySet()) {
+                if (!entry.getKey().equals(color))
+                    otherAnchors.add(entry.getValue());
+            }
+            world.claimWastelandRing(color, castlePosition, otherAnchors, currentRadius, newRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
             world.setColorTerritoryRadius(color, newRadius);
@@ -251,10 +281,18 @@ public class TerritoryControl {
     // Display order top-to-bottom for anything showing this data (currently WorldStandingsScene,
     // previously TownCountActor's HUD panel) - "Colorless" means "still neutral", not one of the
     // 5 AI colors. Capitalized (not lowercase like COLORS above) since these double as the
-    // color_icons.atlas region names.
-    public static final String[] STANDINGS_ROWS = {"Green", "White", "Blue", "Black", "Red", "Colorless"};
+    // color_icons.atlas region names, except "Player" - it has no color_icons.atlas region at all;
+    // WorldStandingsScene special-cases it to render GameHUD's own minimap_player.png instead.
+    public static final String[] STANDINGS_ROWS = {"Green", "White", "Blue", "Black", "Red", "Colorless", "Player"};
 
-    /** Actual on-map town/capital count per STANDINGS_ROWS entry, for any UI that wants to show it. */
+    /**
+     * Actual on-map town/capital count per STANDINGS_ROWS entry, for any UI that wants to show it.
+     * "Player" is not a partition of the other 6 rows (a town keeps whatever name/color it already
+     * had after the player restores it - restoring it doesn't rename/retransform the POI, only
+     * recolors the surrounding terrain, see TownRestoration.java) - it's a separate count of how
+     * many towns TownRestoration.isTownRestored() is true for, alongside whichever color bucket
+     * that same town also counts toward by name.
+     */
     public static Map<String, Integer> getTownCounts(World world) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (String row : STANDINGS_ROWS)
@@ -263,6 +301,8 @@ public class TerritoryControl {
             String type = poi.getData().type;
             if (!"town".equals(type) && !"capital".equals(type))
                 continue;
+            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID())))
+                counts.merge("Player", 1, Integer::sum);
             String name = poi.getData().name;
             if (name == null)
                 continue;

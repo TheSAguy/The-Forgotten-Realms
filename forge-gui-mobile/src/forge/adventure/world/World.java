@@ -1405,26 +1405,26 @@ public class World implements Disposable, SaveFileContent {
         }
     }
 
-    // Keeps the player's own Spawn point (and a small buffer around it) neutral regardless of
-    // which color's expanding ring reaches it - MOD_SCOPE.md #7's player-color expansion (from the
-    // player's own restored towns) is a deliberate follow-up, not built yet, so without this an
-    // adjacent AI color could otherwise swallow the player's home base first.
-    private static final int SPAWN_PROTECTION_RADIUS_TILES = 15;
-
     /**
      * Territory Control (MOD_SCOPE.md #7) expansion: claims every WASTELAND tile in the annulus
-     * between innerRadiusTiles and outerRadiusTiles of center for the named color - unlike
-     * repaintBiomeAroundTown() (which recolors everything in a radius unconditionally), this only
-     * claims a tile if it's *currently* the "waste" biome, so two different colors' independently
-     * growing territories naturally stop at each other instead of overlapping or re-claiming land
-     * - whichever color's claim runs first each tick wins a contested tile, the same "first
-     * arrival wins" resolution already used for the mage-capture race condition, no lock needed.
+     * between innerRadiusTiles and outerRadiusTiles of center for the named color, but only where
+     * center is the *nearest* anchor point among otherAnchors and the player's own Spawn (always
+     * included automatically) - a Voronoi-style assignment. Without this, independently growing
+     * circles from different centers (or the player's home base) can produce odd wedge/seam
+     * boundaries wherever three or more anchors get close together, since a plain "am I within my
+     * own radius" check has no awareness of any other color's circle. otherAnchors should be every
+     * OTHER anchor's own position (not including center's) - see
+     * TerritoryControl.processTerritoryExpansion() for how these get gathered daily. Ties (exactly
+     * equal distance) fall back to today's existing "whichever color's claim runs first each tick
+     * wins" resolution - no explicit tie-break needed.
      * <p>
      * Called every in-game day a color's territory grows (unlike neutralizeTerritoryOutsideRadius(),
      * a one-time world-gen-time sweep) - scoped to a bounding box around center, not a full-map
-     * scan, since this runs repeatedly rather than once.
+     * scan, since this runs repeatedly rather than once. Also used once, non-incrementally, to give
+     * the player a real starting circle around Spawn (see TerritoryControl.neutralizeAfterGeneration()).
      */
-    public void claimWastelandRing(String colorBiomeName, Vector2 center, int innerRadiusTiles, int outerRadiusTiles,
+    public void claimWastelandRing(String colorBiomeName, Vector2 center, List<Vector2> otherAnchors,
+                                    int innerRadiusTiles, int outerRadiusTiles,
                                     BiConsumer<Integer, Integer> onTileRepainted,
                                     BiConsumer<Integer, Integer> onChunkNeedsReload) {
         if (data == null || biomeMap == null || terrainMap == null)
@@ -1448,9 +1448,18 @@ public class World implements Disposable, SaveFileContent {
         long roadBit = 1L << biomes.size();
         int mm = data.miniMapTileSize;
 
-        int spawnTileX = (int) (width * data.playerStartPosX);
-        int spawnTileY = (int) (height * data.playerStartPosY);
-        int spawnProtectSq = SPAWN_PROTECTION_RADIUS_TILES * SPAWN_PROTECTION_RADIUS_TILES;
+        // Every rival anchor this claim must be at least as near to, in world tile coordinates -
+        // Spawn is always included so the player's home base participates in the same nearest-
+        // anchor comparison as every AI castle (replaces the old flat SPAWN_PROTECTION_RADIUS_TILES
+        // hard block with "closest anchor wins" like everything else, including when colorBiomeName
+        // itself is "player" - center then equals the Spawn rival tile, which ties rather than
+        // disqualifies, see the "< distSq" check below).
+        List<int[]> rivalTiles = new ArrayList<>();
+        rivalTiles.add(new int[]{(int) (width * data.playerStartPosX), (int) (height * data.playerStartPosY)});
+        if (otherAnchors != null) {
+            for (Vector2 anchor : otherAnchors)
+                rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize)});
+        }
 
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
         for (int wx = Math.max(0, centerTileX - outerRadiusTiles); wx <= Math.min(width - 1, centerTileX + outerRadiusTiles); wx++) {
@@ -1463,9 +1472,16 @@ public class World implements Disposable, SaveFileContent {
                 if (highestBiome(getBiome(wx, wy)) != colorlessIndex)
                     continue; // not wasteland - already someone else's (or ocean/base) - leave it
 
-                int sdx = wx - spawnTileX, sdy = wy - spawnTileY;
-                if (sdx * sdx + sdy * sdy < spawnProtectSq)
-                    continue; // keep the player's home base neutral
+                boolean nearest = true;
+                for (int[] rival : rivalTiles) {
+                    int rdx = wx - rival[0], rdy = wy - rival[1];
+                    if (rdx * rdx + rdy * rdy < distSq) {
+                        nearest = false;
+                        break;
+                    }
+                }
+                if (!nearest)
+                    continue; // some other anchor (an AI castle, or the player's Spawn) is closer
 
                 int rawY = height - wy - 1;
                 if ((biomeMap[wx][rawY] & roadBit) != 0)

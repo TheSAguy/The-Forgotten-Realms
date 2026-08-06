@@ -152,7 +152,8 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
 - Tunable first-guess constants, not yet validated by playtesting: `CASTLE_KEEP_RADIUS_TILES`
   (`20`, was `40` before Territory Expansion also adopted it as the starting radius), mage arrival
   distance, the 2-5 day dispatch interval, `EXPANSION_TILES_PER_DAY` (`3`), `MAX_TERRITORY_RADIUS`
-  (`300`), and the 15-tile player-spawn protection buffer (see Territory Expansion entry below).
+  (`300`), and `PLAYER_KEEP_RADIUS_TILES` (`20`, replaces the old 15-tile spawn-protection buffer -
+  see Territory Control playtest round 7 entry below).
 - **Fifth playtest round** ("map looks much better"): fixed minimap town icons getting partially
   painted over by the neutralize sweep's own terrain repaint (`World.redrawAllPoiMarkers()`, runs
   after the sweep); every color now guaranteed a Capital within its kept territory even if the
@@ -203,6 +204,25 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
   translation instead of zeroing. Full design writeup and code-level detail in `MOD_CHANGELOG.md`.
   Not yet playtested - needs a fresh world (a loaded older save's already-repainted areas keep
   whatever they had when saved).
+- **Territory Control playtest round 7, same day:** border-seam/wedge artifacts (a color slicing
+  through another color's territory) and the player's home base getting visually "ringed" by
+  whichever AI color reached its static protection bubble first - both traced to the same root
+  cause (territory claims only checked "am I within my own radius," no awareness of any other
+  color's circle) and fixed together: `World.claimWastelandRing()` now only claims a tile where its
+  own anchor is the *nearest* of all 5 castles **and** the player's Spawn (a Voronoi-style
+  assignment), replacing the old flat Spawn-protection hack. The player also now gets a real
+  starting circle around Spawn at world-gen end (parity with an AI color's own kept circle,
+  `PLAYER_KEEP_RADIUS_TILES` = 20, not yet growing over time - a smaller follow-up), and
+  `player.json` gained real (gold-tinted, reused-from-colorless) structures so captured towns
+  inside AI territory now fully reskin to the player's own color instead of leaving some AI-colored
+  structures behind. Also fixed: the "World" HUD button no longer shows inside a town; the World
+  Standings icon crop (still misaligned after the first attempt) now uses exact coordinates read
+  off the source sheet; added a 7th "Player" row to World Standings using
+  `TownRestoration.isTownRestored()` as the count and the minimap's own player-marker texture as
+  the icon. Explained but not built: the minimap has never shown individual doodads/structures for
+  any biome (confirmed pre-existing engine behavior, not a regression). Expansion speed left
+  untouched per explicit user request (easier to observe progression while testing). Full
+  engineering detail in `MOD_CHANGELOG.md`. Not yet playtested.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**
