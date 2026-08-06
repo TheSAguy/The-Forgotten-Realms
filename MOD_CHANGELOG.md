@@ -1775,6 +1775,45 @@ exception) updated to match.
 Not yet re-verified in a running game - every fix/feature in this round needs a fresh world and a
 test pass, same as always.
 
+## TownCountActor crashed GameHUD construction before any world existed (2026-08-05)
+
+Real regression from the round above, found immediately: the user reported the game frozen -
+unresponsive to any click - right after opening Adventure mode, before even reaching New Game.
+`forge.log` had the exact cause, a real stack trace, not a hang:
+
+```
+java.lang.NullPointerException: Cannot invoke "...PointOfInterestMap.getAllPointOfInterest()" because "this.mapPoiIds" is null
+	at forge.adventure.world.World.getAllPointOfInterest(World.java:1487)
+	at forge.adventure.util.TownCountActor.refresh(TownCountActor.java:121)
+	at forge.adventure.util.TownCountActor.<init>(TownCountActor.java:86)
+	at forge.adventure.stage.GameHUD.<init>(GameHUD.java:187)
+	at forge.adventure.stage.GameHUD.getInstance(GameHUD.java:349)
+	...
+	at forge.Forge.openAdventure(Forge.java:397)
+```
+
+Wrong assumption: `GameHUD`'s singleton (and everything its constructor builds, `TownCountActor`
+included) gets constructed once as part of opening Adventure mode itself - *before* the player has
+picked New Game/Continue/Load, not lazily on the first real gameplay frame the way
+`ResourceDisplayActor`'s analogous pattern happened to get away with (Wood/Stone read from
+`AdventurePlayer.current()`, which apparently tolerates this timing fine - `World.mapPoiIds`
+doesn't, since it's only ever populated by `generateNew()`/`load()`). `TownCountActor.refresh()`
+guarded `WorldSave.getCurrentSave() == null` and `world == null`, but not this - a `World` object
+existing yet not having generated/loaded a real map yet is a real, apparently-common state this
+missed.
+
+An uncaught exception inside `GameHUD`'s constructor left the singleton (and by extension the menu
+screen built on top of it) in a broken, click-unresponsive state, matching exactly what was
+reported.
+
+**Fixed generically, not just patched around**: `World.getAllPointOfInterest()` itself now returns
+an empty list instead of NPEing when `mapPoiIds` is null - "no towns yet" is a legitimate answer
+for a world that hasn't been generated, not a crash, and this protects every current and future
+caller of this method the same way, not just `TownCountActor`.
+
+Deployed and byte-verified immediately given the severity (blocked the game entirely) - not yet
+re-confirmed by the user.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

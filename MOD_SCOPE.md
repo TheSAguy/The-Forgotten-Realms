@@ -157,7 +157,12 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
   real one didn't survive the sweep (`TerritoryControl.ensureCapital()`); added a live town-count
   HUD panel below the resource readout (`TownCountActor.java`, 6 rows - 5 colors + still-neutral -
   new `color_icons.png`/`.atlas` cropped from `common/sprites/items.png`); 10x speed toggle raised
-  to 50x.
+  to 50x. **That same round shipped a real crash**, found and fixed immediately after: the new
+  `TownCountActor` called `world.getAllPointOfInterest()` from `GameHUD`'s constructor, which runs
+  once as part of opening Adventure mode itself - *before* the player has picked New Game/
+  Continue/Load - so `World.mapPoiIds` wasn't populated yet, NPEing and leaving the whole menu
+  unresponsive. Fixed at the source (`World.getAllPointOfInterest()` now null-safe), not just
+  worked around locally.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

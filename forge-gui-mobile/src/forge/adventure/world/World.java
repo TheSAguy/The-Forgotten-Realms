@@ -1484,7 +1484,12 @@ public class World implements Disposable, SaveFileContent {
     }
 
     public List<PointOfInterest> getAllPointOfInterest(){
-        return mapPoiIds.getAllPointOfInterest();
+        // mapPoiIds is only populated by generateNew()/load() - null here means no world exists
+        // yet (confirmed via forge.log: GameHUD's singleton, and now TownCountActor inside it, is
+        // constructed once as part of opening Adventure mode itself, before the player has picked
+        // New Game/Continue/Load - not just lazily on first real gameplay frame as assumed).
+        // Empty list is the correct "no towns yet" answer, not a crash.
+        return mapPoiIds == null ? new ArrayList<>() : mapPoiIds.getAllPointOfInterest();
     }
 
     public int getChunkSize() {
