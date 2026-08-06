@@ -585,6 +585,28 @@ needs its own design pass before any of this gets built:**
   buildings, not just new content - needs a decision on whether that's still wanted once #7
   (and thus "5 owned towns") actually exists, or whether Bank/Exchange stay town-buildable and
   only *new* Capitol-exclusive buildings (Archeologist, etc.) get the restriction.
+- **Reference art provided by the user (2026-08-06), for whenever this gets built:**
+  - **Player Capitol castle icon** - a distinct gray/white stone castle sprite (twin corner
+    towers, arched entrance, blue-flagged central spire), meant to represent the player's own
+    Capitol on the overworld map once #13 exists - visually its own thing, not a recolor of the 5
+    AI castle icons. **Not yet saved into the repo** - it was pasted directly into chat, and
+    pasted chat images aren't retrievable as files from this end; needs the user to actually drop
+    the file somewhere (repo folder, or a path this session can `Read`) before it can be added
+    under `The Forgotten Realms/`.
+  - **Five building-icon tile references**, screenshotted from a Tiled tileset's Properties panel
+    (ID + pixel `Rectangle` X/Y, all 16×16, "Custom Properties" preview thumbnail, all sharing a
+    blue palette suggesting one shared source sheet) - **source tileset file not identified**, the
+    screenshot only showed Tiled's panel and small previews, not the underlying image, so these
+    coordinates aren't actionable yet without that file:
+    - **Look-out** (ID 355, x304 y192) - likely this item's own "Outlook" above (visible-radius
+      building), same name in spirit.
+    - **Archaeologist** (ID 751, x368 y416) - matches "Archeologist" above (expedition/exploration
+      building) directly.
+    - **Teleporter** (ID 528, x384 y288) - matches "Teleporter" above (Capitol-exclusive fast
+      travel) directly.
+    - **Arena** (ID 227, x48 y128) - new, not previously listed; purpose/effect not yet described.
+    - **Science Lab** (ID 805, x336 y448) - new, not previously listed; purpose/effect not yet
+      described.
 - **Other Capitol-flavored buildings to consider** (none started):
   - **Teleporter** - already on the wishlist as an unscoped to-do under #10; this may be its
     natural home (Capitol-exclusive fast travel) rather than a plain per-town building.
