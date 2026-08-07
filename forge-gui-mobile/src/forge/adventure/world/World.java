@@ -477,7 +477,7 @@ public class World implements Disposable, SaveFileContent {
             // during planning). Building that clone used to happen right here, inline, into a local
             // map - now shared with claimWastelandRing() (daily territory expansion, MOD_SCOPE.md #7
             // follow-up: expansion had this exact same reskin-density limitation, never fixed when
-            // Pass B first fixed it for the initial circle) via getOrBuildColorlessRedirectStructures(),
+            // Pass B first fixed it for the initial circle) via buildColorlessRedirectStructuresBlocking(),
             // which lazily builds and caches the same thing on a persistent field instead.
 
 //////////////////
@@ -679,7 +679,7 @@ public class World implements Disposable, SaveFileContent {
                 // Only set (non-null) for one of the 5 AI colors, with Territory Control enabled -
                 // everyone else (base/ocean, colorless, player, or any AI color when the feature is
                 // off) computes exactly as before, unconditionally using their own real content.
-                BiomeStructureData[] redirectStructures = getOrBuildColorlessRedirectStructures(biome.name);
+                BiomeStructureData[] redirectStructures = buildColorlessRedirectStructuresBlocking(biome.name);
                 PointOfInterest realCastle = redirectStructures != null ? TerritoryControl.findCastle(this, biome.name) : null;
                 int castleTileX = 0, castleTileY = 0;
                 if (realCastle != null) {
@@ -732,7 +732,7 @@ public class World implements Disposable, SaveFileContent {
                             for (BiomeStructureData structureData : structuresSource) {
                                 BiomeStructure structure;
                                 if (usingRedirect) {
-                                    // Built synchronously by getOrBuildColorlessRedirectStructures()
+                                    // Built synchronously by buildColorlessRedirectStructuresBlocking()
                                     // (already cached by the time Pass B reaches here in practice,
                                     // since it's called once per biome right above, before this
                                     // per-tile loop starts) - no async future to wait on, unlike a
@@ -1445,8 +1445,10 @@ public class World implements Disposable, SaveFileContent {
     // eagerly during generateNew() specifically so this also works for a game LOADED from a save,
     // not just a freshly-generated one - loading never calls generateNew() at all, so anything only
     // populated there would silently be empty for a loaded game, exactly the situation that
-    // surfaced this gap in the first place.
-    private final Map<BiomeStructureData, BiomeStructure> nativeStructurePatternCache = new HashMap<>();
+    // surfaced this gap in the first place. ConcurrentHashMap, not a plain HashMap - a background
+    // build (see getColorlessRedirectStructuresIfReady() below) can run concurrently with another
+    // color's own background build, both touching this same map.
+    private final Map<BiomeStructureData, BiomeStructure> nativeStructurePatternCache = new ConcurrentHashMap<>();
 
     private BiomeStructure getOrBuildNativePattern(BiomeStructureData structureData, int biomeWidth, int biomeHeight) {
         BiomeStructure cached = nativeStructurePatternCache.get(structureData);
@@ -1458,8 +1460,8 @@ public class World implements Disposable, SaveFileContent {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        nativeStructurePatternCache.put(structureData, structure);
-        return structure;
+        nativeStructurePatternCache.putIfAbsent(structureData, structure);
+        return nativeStructurePatternCache.get(structureData);
     }
 
     // Same reasoning as nativeStructurePatternCache above: generateNew()'s own OpenSimplexNoise
@@ -1481,18 +1483,34 @@ public class World implements Disposable, SaveFileContent {
     // fix. Shared by generateNew()'s Pass B AND claimWastelandRing() (daily territory expansion) so
     // the two can never independently drift on what "outside-radius content" means for a color -
     // daily expansion claims tiles that start out wasteland, so it always needs this redirect
-    // content, never a color's real structures[] (see claimWastelandRing()'s own comment).
-    private final Map<String, BiomeStructureData[]> colorlessRedirectStructureCache = new HashMap<>();
+    // content, never a color's real structures[] (see claimWastelandRing()'s own comment). Both this
+    // and nativeStructurePatternCache are ConcurrentHashMaps, not plain HashMaps, because a cold
+    // build can now run on a background thread (see getColorlessRedirectStructuresIfReady() below) -
+    // up to 5 colors' worth of builds can be in flight at once, all touching these same two maps.
+    private final Map<String, BiomeStructureData[]> colorlessRedirectStructureCache = new ConcurrentHashMap<>();
+    // Tracks which colors currently have a background build running, so a burst of same-day calls
+    // (processTerritoryExpansion() loops over all 5 colors every time the day counter advances)
+    // doesn't kick off 5 redundant builds racing each other for the same color.
+    private final Set<String> colorlessRedirectStructureBuildInFlight = ConcurrentHashMap.newKeySet();
 
-    private BiomeStructureData[] getOrBuildColorlessRedirectStructures(String color) {
-        if (!isTerritoryControlEnabled())
-            return null;
-        boolean isAiColor = false;
+    private boolean isAiColor(String color) {
         for (String c : TerritoryControl.COLORS)
-            if (c.equalsIgnoreCase(color)) { isAiColor = true; break; }
-        if (!isAiColor)
-            return null;
+            if (c.equalsIgnoreCase(color))
+                return true;
+        return false;
+    }
 
+    // Blocking - only safe to call from somewhere that's already expected to take a while and isn't
+    // running mid-gameplay, i.e. generateNew()'s Pass B (which has its own loading screen). Building
+    // a fresh WFC pattern (BiomeStructure.initialize()) is a genuinely heavy computation - measured
+    // in the low seconds per color during world-gen, where every other real structure pattern is
+    // ALSO being built at the same time via parallel futures with the player already expecting to
+    // wait. See getColorlessRedirectStructuresIfReady() for the non-blocking version gameplay-time
+    // callers (claimWastelandRing()) must use instead - calling this one from the game's main/render
+    // thread mid-play is exactly what caused a real, reported freeze (see MOD_CHANGELOG.md).
+    private BiomeStructureData[] buildColorlessRedirectStructuresBlocking(String color) {
+        if (!isTerritoryControlEnabled() || !isAiColor(color))
+            return null;
         BiomeStructureData[] cached = colorlessRedirectStructureCache.get(color);
         if (cached != null)
             return cached;
@@ -1513,8 +1531,47 @@ public class World implements Disposable, SaveFileContent {
         BiomeStructureData[] clone = cloneStructures(colorlessBiomeRef.structures);
         for (BiomeStructureData structureData : clone)
             getOrBuildNativePattern(structureData, colorBiomeWidth, colorBiomeHeight);
-        colorlessRedirectStructureCache.put(color, clone);
-        return clone;
+        colorlessRedirectStructureCache.putIfAbsent(color, clone);
+        return colorlessRedirectStructureCache.get(color);
+    }
+
+    // Non-blocking - the only safe way for gameplay-time code (claimWastelandRing(), called from the
+    // main/render thread whenever the in-game day counter advances) to get this. Returns the cached
+    // result immediately if already built (the common case - after the very first use per color per
+    // game session, every later call is an instant cache hit). If not yet built, kicks off (or lets
+    // an already-running) background build proceed and returns null immediately rather than waiting
+    // - the caller is expected to treat null as "not ready yet, try again later" (see
+    // claimWastelandRing()'s own handling), never to block on it itself.
+    private BiomeStructureData[] getColorlessRedirectStructuresIfReady(String color) {
+        if (!isTerritoryControlEnabled() || !isAiColor(color))
+            return null;
+        BiomeStructureData[] cached = colorlessRedirectStructureCache.get(color);
+        if (cached != null)
+            return cached;
+        if (colorlessRedirectStructureBuildInFlight.add(color)) {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    buildColorlessRedirectStructuresBlocking(color);
+                } finally {
+                    colorlessRedirectStructureBuildInFlight.remove(color);
+                }
+            });
+        }
+        return null;
+    }
+
+    // Called once, right after a save finishes loading (WorldSave.load()) - generateNew() never
+    // runs for a loaded save, so without this, the very first color to need its redirect-structure
+    // pattern during actual gameplay would be the one paying the (background, non-blocking, but
+    // still real) cost of building it. Kicking all 5 off immediately, in parallel, in the background,
+    // gives them a head start before the player has had time to advance a single in-game day - purely
+    // an optimization, not required for correctness (getColorlessRedirectStructuresIfReady() already
+    // handles "not ready yet" safely on its own either way).
+    public void prewarmTerritoryControlCaches() {
+        if (!isTerritoryControlEnabled())
+            return;
+        for (String color : TerritoryControl.COLORS)
+            getColorlessRedirectStructuresIfReady(color);
     }
 
     /**
@@ -1762,7 +1819,17 @@ public class World implements Disposable, SaveFileContent {
         // so it always needs this redirect content, never colorBiome's own real structures[] (those
         // are reserved for the small kept circle around the castle, which daily expansion never
         // touches - it only grows outward from the edge of what's already claimed).
-        BiomeStructureData[] redirectStructures = getOrBuildColorlessRedirectStructures(colorBiomeName);
+        // Non-blocking lookup - this method runs on the game's main/render thread every time the day
+        // counter advances, and building a fresh WFC pattern is a genuinely heavy computation; a
+        // blocking wait here is exactly what caused a real, reported freeze the first time a color's
+        // pattern was needed on a loaded save (generateNew() never runs for a loaded save, so nothing
+        // had pre-built it). If not ready yet, this call still claims the tiles with correct ground/
+        // collision, just without decorative structures - a background build is already in flight (see
+        // getColorlessRedirectStructuresIfReady()) and every later call, including tomorrow's for the
+        // next ring outward, will find it cached.
+        BiomeStructureData[] redirectStructures = getColorlessRedirectStructuresIfReady(colorBiomeName);
+        if (redirectStructures == null)
+            System.out.println("[TerritoryControl] " + colorBiomeName + ": redirect structure pattern still building in the background, claiming this ring with plain ground for now");
         int tilesClaimed = 0, tilesWithStructure = 0;
 
         int centerTileX = (int) (center.x / data.tileSize);

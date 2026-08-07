@@ -100,14 +100,25 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   populated at all for a game loaded from a save, since loading skips `generateNew()` entirely).
   Pass B's own inline redirect-structures precompute was replaced with a call to the new shared
   helper, so the initial circle and later expansion read from the same cache instead of two
-  independently-built copies that could drift apart.
+  independently-built copies that could drift apart. **Same-round regression fix**: that redirect-
+  structures build moved from a plain synchronous call to a background `CompletableFuture.runAsync()`
+  one (`getColorlessRedirectStructuresIfReady()`, non-blocking - returns `null` if not built yet
+  instead of waiting), after the synchronous version caused a real freeze calling it from
+  `claimWastelandRing()` mid-gameplay (see `MOD_CHANGELOG.md`). `buildColorlessRedirectStructuresBlocking()`
+  keeps the old synchronous behavior for Pass B, where it's still safe. `nativeStructurePatternCache`/
+  `colorlessRedirectStructureCache` changed from `HashMap` to `ConcurrentHashMap` accordingly (now
+  touched by concurrent background builds, one potential per color). New public
+  `World.prewarmTerritoryControlCaches()`, called once from `WorldSave.load()` right after a save
+  finishes loading, to give those background builds a head start before gameplay could trigger them.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
   been `targetHeight`, harmless until now but wrong regardless).
 - **`forge-gui-mobile/src/forge/adventure/world/WorldSave.java`** — added
   `getAllPointOfInterestChanges()`, a small accessor so a global per-day sweep (Economy Buildings,
-  #10) can iterate every town's state without knowing ids in advance.
+  #10) can iterate every town's state without knowing ids in advance. Also added one call,
+  `currentSave.world.prewarmTerritoryControlCaches()`, right after a successful `world.load()` inside
+  `WorldSave.load()` (#7, freeze-regression fix - see `World.java`'s own entry above).
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the

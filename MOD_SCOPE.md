@@ -114,7 +114,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and then fixed a real freeze, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -337,8 +337,22 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       work for a game loaded from a save, which never calls `generateNew()` at all). Pass B itself
       now shares the redirect-structures cache too, so the initial circle and its later expansion can
       never independently drift on what "outside-radius content" means for a color. Full mechanism
-      in `MOD_CHANGELOG.md`. **Not yet playtested** - specifically needs an existing save with time
-      advanced (a fresh world alone wouldn't exercise `claimWastelandRing()` at all).
+      in `MOD_CHANGELOG.md`. **Shipped a real regression, found and fixed the same round**: loading
+      an existing save froze the game after a little while - `forge.log` showed white/blue/black's
+      daily expansion completing normally, then nothing where red's line should be, and no java
+      process left running afterward. Root cause: the fix above ran a genuinely heavy WFC computation
+      synchronously on the game's main/render thread, the first time each color's pattern was needed
+      - safe during `generateNew()` (a loading screen the player expects, and parallelized there for
+      a color's own real structures), not safe mid-gameplay with zero warning. Fixed by making that
+      computation build on a background thread instead, with `claimWastelandRing()` never blocking on
+      it - if a color's pattern isn't ready yet, that day's claim still happens with correct ground/
+      collision, just without decorative structures until the background build finishes (self-
+      correcting, at most a one-time, one-ring cosmetic gap per color per game session). A new
+      `World.prewarmTerritoryControlCaches()`, called right after a save loads, gives all 5 colors'
+      builds a head start so this case is rare in practice. Full detail in `MOD_CHANGELOG.md`. **Not
+      yet playtested** - specifically needs an existing save with time advanced (a fresh world alone
+      wouldn't exercise `claimWastelandRing()` at all), watched this time to confirm the game stays
+      responsive.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

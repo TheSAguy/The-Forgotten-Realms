@@ -82,6 +82,12 @@ public class WorldSave {
                     currentSave.world.load(mainData.readSubData("world"));
                     currentSave.pointOfInterestChanges.load(mainData.readSubData("pointOfInterestChanges"));
                     WorldStage.getInstance().load(mainData.readSubData("worldStage"));
+                    // generateNew() never runs for a loaded save, so nothing has pre-built Territory
+                    // Control's per-color WFC structure patterns yet - kick that off now, in the
+                    // background, so the first in-game day that triggers expansion doesn't have to
+                    // (see World.claimWastelandRing()'s own comment - building one of these cold, on
+                    // the game thread, mid-play, is what caused a real, reported freeze).
+                    currentSave.world.prewarmTerritoryControlCaches();
 
                 } catch (Exception e) {
                     System.err.println("Generating New World");

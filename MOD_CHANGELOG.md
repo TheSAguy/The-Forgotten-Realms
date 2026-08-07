@@ -2960,3 +2960,71 @@ whether that's the *complete* explanation or whether a black-specific factor als
 it - worth explicitly re-checking black specifically once expansion has had time to run. Water/road
 border issue remains flagged, unchanged, still needs a more specific repro before it's actionable.
 
+### Regression: loading an existing save froze the game - the fix above blocked the main thread
+
+**Reported immediately after the round above shipped**: loading an existing save (not starting a new
+game) froze after a little while. `forge.log` pinned it exactly: `"white: daily expansion claimed
+775 tile(s)..."`, `"blue: daily expansion claimed 702 tile(s)..."`, `"black: daily expansion claimed
+707 tile(s)..."` all printed in order (`TerritoryControl.COLORS = {white, blue, black, red, green}`),
+then nothing - the log stops mid-loop, exactly where red's own line would be next. `Get-Process java`
+afterward found no process at all - not a crash (nothing in the log), consistent with the window
+having become unresponsive long enough that it was force-closed.
+
+**Root cause: a genuinely heavy computation moved from a loading screen to mid-gameplay, on the main
+thread, with no warning.** The fix above gave `claimWastelandRing()` (daily expansion, called from
+`TerritoryControl.processDaysPassed()` every time the in-game day counter advances - i.e. from the
+game's own render/update loop) the same native WFC structure-pattern computation `generateNew()`'s
+Pass B already used. Pass B does this same amount of work too, but two things made it safe there and
+not here: it runs during an explicit "generating world" loading screen the player already expects to
+wait through, and (for a color's *own* real structures specifically) it's parallelized across a
+thread pool via `CompletableFuture`, not run inline. `claimWastelandRing()`'s new call was neither -
+a synchronous, first-time-only cold build, on the thread that also has to keep rendering frames and
+processing input, for a color whose pattern had never been built before (a loaded save never calls
+`generateNew()` at all, so nothing had pre-built it). White, blue, and black's first-ever calls each
+paid this cost and got through it; by red's turn - four back-to-back cold builds into the same
+render-loop tick with zero user feedback in between - it read as a dead, unresponsive window even if
+the underlying computation would eventually have finished.
+
+**Fix: never let gameplay-time code block on this again**, using the same "lazy, persistent field"
+approach as before but now genuinely safe to call from the render thread:
+- `getOrBuildColorlessRedirectStructures()` split into two: **`buildColorlessRedirectStructuresBlocking()`**
+  (the old logic, unchanged behavior, still used by Pass B - safe there, same reasoning as always) and
+  **`getColorlessRedirectStructuresIfReady()`** (new, non-blocking - returns the cached result
+  immediately if already built; otherwise kicks off, or lets an already-running, background build via
+  `CompletableFuture.runAsync()` and returns `null` immediately without waiting).
+- `claimWastelandRing()` now calls the non-blocking version. A `null` result (pattern not ready yet)
+  is handled gracefully, not as an error: the tile is still claimed with correct ground terrain and
+  collision (neither depends on the structure pattern), just without decorative structures for that
+  one call - the existing `if (structuresSource/redirectStructures != null)` guard already skipped
+  structure placement cleanly, no new branching needed there. Chosen over "skip claiming entirely
+  when not ready" specifically because `TerritoryControl.processTerritoryExpansion()` advances a
+  color's tracked radius unconditionally after calling `claimWastelandRing()` - skipping the claim
+  itself would leave that day's annulus of tiles permanently unclaimed (the next call starts from the
+  new, already-advanced radius and would never revisit it), whereas skipping only the structures is a
+  one-time, minor, self-limited cosmetic gap for one ring's width, on one color, once per game
+  session at most.
+- `nativeStructurePatternCache` and the new `colorlessRedirectStructureCache` both changed from plain
+  `HashMap` to `ConcurrentHashMap` - up to 5 colors' background builds can now run concurrently,
+  all touching these same two maps, which a plain `HashMap` doesn't tolerate under concurrent writes
+  (silent corruption or a resize-loop hang - notably, this could itself have been a contributing
+  factor to what looked like a freeze, not just the synchronous-call cost). A new
+  `colorlessRedirectStructureBuildInFlight` set (`ConcurrentHashMap.newKeySet()`) stops a burst of
+  same-day calls (`processTerritoryExpansion()` loops over all 5 colors every time it runs) from
+  kicking off redundant duplicate builds for the same color.
+- New `World.prewarmTerritoryControlCaches()`, called once from `WorldSave.load()` right after a save
+  finishes loading - kicks off all 5 colors' background builds immediately, in parallel, giving them
+  a head start before the player could possibly advance an in-game day. Pure optimization, not
+  required for correctness (the non-blocking accessor already handles "not ready" safely on its own)
+  - just makes the "not ready yet, plain ground for now" case rare in practice instead of guaranteed
+  on a loaded save's first expansion tick.
+
+Compiled, deployed, byte-verified (`World.class`, `WorldSave.class`).
+
+**Not yet playtested** - needs the same existing-save-with-time-advanced scenario that surfaced the
+freeze, this time watched to confirm the game stays responsive through all 5 colors' first expansion
+tick, and that `forge.log` eventually shows every color's line completing (whether immediately or a
+few calls later, once each color's background build finishes). Whether red's build was genuinely slow
+or something pathological about that data - still unknown, and no longer needs to be answered for
+this fix to be correct: even a permanently-stuck build for one color's background task would now only
+ever cost that color its decorative structures, never the game's responsiveness.
+
