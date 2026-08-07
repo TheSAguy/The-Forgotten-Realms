@@ -516,6 +516,10 @@ public class WorldStage extends GameStage implements SaveFileContent {
             List<Float> x = (List<Float>) data.readObject("x");
             List<Float> y = (List<Float>) data.readObject("y");
             List<String> questStageIDs = (List<String>) data.readObject("questStageIDs");
+            // Both absent on a save predating mage persistence (see save() below) - such a save's
+            // mages simply load the old way, as plain roaming monsters.
+            List<String> territoryColors = data.containsKey("territoryColors") ? (List<String>) data.readObject("territoryColors") : null;
+            List<String> territoryTargetIds = data.containsKey("territoryTargetIds") ? (List<String>) data.readObject("territoryTargetIds") : null;
             for (int i = 0; i < timeouts.size(); i++) {
                 EnemySprite sprite = new EnemySprite(WorldData.getEnemy(names.get(i)));
                 sprite.setX(x.get(i));
@@ -523,6 +527,21 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 sprite.questStageID = questStageIDs.get(i);
                 if (sprite.questStageID != null)
                     AdventureQuestController.instance().rematchQuestSprite(sprite);
+                if (territoryTargetIds != null && i < territoryTargetIds.size() && territoryTargetIds.get(i) != null) {
+                    // WorldSave.load() loads World (and its POIs) before this method runs, so the
+                    // id resolves against the same world state the save captured. If it somehow
+                    // doesn't resolve, the mage degrades to a plain roaming monster (the same
+                    // no-op-on-stale-state stance TerritoryControl.onMageArrived() already takes)
+                    // rather than failing the whole load.
+                    String targetId = territoryTargetIds.get(i);
+                    for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
+                        if (targetId.equals(poi.getID())) {
+                            sprite.territoryTarget = poi;
+                            sprite.territoryColor = territoryColors != null && i < territoryColors.size() ? territoryColors.get(i) : null;
+                            break;
+                        }
+                    }
+                }
                 enemies.add(Pair.of(timeouts.get(i), sprite));
                 foregroundSprites.addActor(sprite);
             }
@@ -548,18 +567,33 @@ public class WorldStage extends GameStage implements SaveFileContent {
         List<Float> x = new ArrayList<>();
         List<Float> y = new ArrayList<>();
         List<String> questStageIDs = new ArrayList<>();
+        // Territory Control (MOD_SCOPE.md #7): a mage's target/color must survive a save/load, or
+        // a mid-flight mage comes back as an ordinary roaming monster - it stops seeking its town
+        // (the seek branch in onActing() requires territoryTarget != null), starts homing on the
+        // player instead, and loses its despawn-timer exemption (its spawn-time timeout plus
+        // getLifetime()'s 20s floor has usually already elapsed by load, so it vanishes almost
+        // immediately) - the announced attack silently never resolves. The target is stored by its
+        // POI id (PointOfInterest.getID(), stable across save/load - derived from position+name+map,
+        // which only change via transformInto(), and a capture removes the mage before that) and
+        // re-resolved against the freshly-loaded world in load() below.
+        List<String> territoryColors = new ArrayList<>();
+        List<String> territoryTargetIds = new ArrayList<>();
         for (Pair<Float, EnemySprite> enemy : enemies) {
             timeouts.add(enemy.getKey());
             names.add(enemy.getValue().getData().getName());
             x.add(enemy.getValue().getX());
             y.add(enemy.getValue().getY());
             questStageIDs.add(enemy.getValue().questStageID);
+            territoryColors.add(enemy.getValue().territoryColor);
+            territoryTargetIds.add(enemy.getValue().territoryTarget == null ? null : enemy.getValue().territoryTarget.getID());
         }
         data.storeObject("timeouts", timeouts);
         data.storeObject("names", names);
         data.storeObject("x", x);
         data.storeObject("y", y);
         data.storeObject("questStageIDs", questStageIDs);
+        data.storeObject("territoryColors", territoryColors);
+        data.storeObject("territoryTargetIds", territoryTargetIds);
         data.store("globalTimer", globalTimer);
         return data;
     }

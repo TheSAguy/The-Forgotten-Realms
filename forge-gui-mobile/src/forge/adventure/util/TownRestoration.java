@@ -103,7 +103,10 @@ public class TownRestoration {
     public static TextureRegion getBrokenTownSprite(PointOfInterest point) {
         if (point == null || !isWastelandTown(point.getData()))
             return null;
-        PointOfInterestChanges changes = WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID());
+        // peek, not get - a pure read for every wasteland town icon drawn on the map; the
+        // get-or-create accessor would materialize an empty changes entry per town just for
+        // rendering (see WorldSave.peekPointOfInterestChanges()).
+        PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(point.getID());
         if (isTownRestored(changes))
             return null;
 

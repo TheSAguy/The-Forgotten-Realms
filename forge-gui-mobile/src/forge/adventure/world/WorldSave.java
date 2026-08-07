@@ -58,6 +58,16 @@ public class WorldSave {
         return pointOfInterestChanges.get(id);
     }
 
+    // Read-only lookup, returns null if the POI has no recorded changes. Unlike the get-OR-CREATE
+    // accessor above (the right semantics when something is about to record a change), this never
+    // inserts - Territory Control's daily expansion sweep and the World Standings town count query
+    // every POI on the map, and letting pure reads materialize an empty PointOfInterestChanges for
+    // every dungeon/cave/town ever scanned would permanently grow this map (and the save file) for
+    // no benefit. Callers must handle null (TownRestoration.isTownRestored(null) already does).
+    public PointOfInterestChanges peekPointOfInterestChanges(String id) {
+        return pointOfInterestChanges.get(id);
+    }
+
     // Lets a global per-day sweep (see EconomyBuildings.processDailyTick()) find every built
     // mine/bank across every town without needing to know their POI ids in advance.
     public java.util.Collection<PointOfInterestChanges> getAllPointOfInterestChanges() {

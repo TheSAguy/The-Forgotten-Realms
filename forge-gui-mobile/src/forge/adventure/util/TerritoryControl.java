@@ -235,7 +235,10 @@ public class TerritoryControl {
         // happens to already be some AI color's."
         List<Vector2> playerTownPositions = new ArrayList<>();
         for (PointOfInterest poi : world.getAllPointOfInterest()) {
-            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID())))
+            // peek, not get - this loop queries EVERY POI on the map once per in-game day, and the
+            // get-or-create accessor would materialize an empty PointOfInterestChanges entry for
+            // each one, permanently bloating the save file for a pure read.
+            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID())))
                 playerTownPositions.add(poi.getPosition());
         }
         // Diagnostic only (MOD_SCOPE.md #7) - no way to otherwise tell from forge.log whether this
@@ -369,7 +372,7 @@ public class TerritoryControl {
             String type = poi.getData().type;
             if (!"town".equals(type) && !"capital".equals(type))
                 continue;
-            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID())))
+            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID()))) // peek, not get - pure read, see processTerritoryExpansion()
                 counts.merge("Player", 1, Integer::sum);
             String name = poi.getData().name;
             if (name == null)

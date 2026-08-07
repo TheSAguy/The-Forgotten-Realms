@@ -2165,6 +2165,89 @@ Toolchain section below. Given this, the "doodads not correctly captured" report
 already be resolved by this sync alone - flagged to the user to retest before concluding anything
 else needs to change there.
 
+## Territory Control: cross-machine code review - 2 real fixes, several paths verified clean (2026-08-07, home PC)
+
+A deliberate second-eyes correctness pass over the Territory Control core (requested by the user
+after the long playtest-fix streak on the other machine), scoped to `TerritoryControl.java`,
+`World.java`'s claim/repaint/cache paths, and `WorldStage.java`'s day-tick/mage lifecycle. Two
+real issues found and fixed; everything else checked came back clean (list below, so the next
+session doesn't re-audit the same ground). Compile-verified; **not playtested** - both fixes are
+save/load-adjacent and need an in-game check on the machine that can run the game.
+
+### Fix 1: a mid-flight mage now survives save/load (`WorldStage.java`)
+
+`WorldStage.save()` persisted each overworld enemy as `timeouts/names/x/y/questStageIDs` only -
+a Territory Control mage's `territoryTarget`/`territoryColor` (plain transient fields on
+`EnemySprite`, set by `TerritoryControl.dispatch()`) were silently dropped. On load the mage came
+back as an ordinary roaming monster:
+
+- The seek branch in `onActing()` requires `territoryTarget != null`, so it stopped flying toward
+  its town and started homing on the player like any wandering enemy.
+- The despawn-timer exemption ALSO requires `territoryTarget != null`, so the ordinary
+  `getLifetime()` check applied again - and since its saved spawn timestamp plus the 20s lifetime
+  floor has usually long elapsed by the time you load, it would typically vanish within seconds.
+
+Net observable symptom: save while a "X sends a mage toward Y!" attack is in flight, load, and
+the attack silently evaporates (the mage either despawns almost immediately or wanders as a
+generic wizard; the town never falls, no notification ever arrives). The color's attack timer was
+already re-armed at dispatch time, so it just tries again days later - nothing breaks permanently,
+but announced attacks were quietly unreliable across any save/load.
+
+Fix: `save()` now also stores `territoryColors` + `territoryTargetIds` (the target as its POI id -
+`PointOfInterest.getID()` is stable across save/load, derived from position+name+map, which only
+change via `transformInto()`, and a capture removes the mage before transforming the town).
+`load()` re-resolves the id against the freshly-loaded world's POI list (`WorldSave.load()` loads
+`World` before `WorldStage`, so ordering is safe) and restores both fields. Backward compatible:
+both keys absent on an older save -> mages just load the old way. If an id ever fails to resolve,
+that mage degrades to a plain roaming monster rather than failing the load - same
+no-op-on-stale-state stance `onMageArrived()` already takes.
+
+### Fix 2: pure reads no longer materialize empty per-POI save entries (`WorldSave.java` + callers)
+
+`WorldSave.getPointOfInterestChanges(id)` is get-OR-CREATE - correct when something is about to
+record a change, wrong for pure reads. Three read-only callers were using it:
+
+- `TerritoryControl.processTerritoryExpansion()` - queries EVERY POI on the map (all types, not
+  just towns) once per in-game day for the player-owned-town rival-anchor list.
+- `TerritoryControl.getTownCounts()` - every town/capital POI, every time World Standings opens.
+- `TownRestoration.getBrokenTownSprite()` - every wasteland town icon drawn on the map.
+
+Each such read permanently inserted an empty `PointOfInterestChanges` (7-ish empty collections)
+into the save map for that POI - after one in-game day with Territory Control on, every dungeon/
+cave/town in the world has one, growing the save file and `getAllPointOfInterestChanges()`'s
+iteration (which `EconomyBuildings.processDaysPassed()` walks daily) for no benefit.
+
+Fix: new `WorldSave.peekPointOfInterestChanges(id)` (plain map get, returns null if absent, never
+inserts), used by all three call sites. `TownRestoration.isTownRestored(null)` was already
+null-safe (`changes != null && ...`), so no caller changes beyond the accessor swap. Existing
+saves that already accumulated empty entries aren't cleaned up by this (harmless, just dead
+weight); new empty entries just stop accumulating.
+
+### Verified clean during the same review (so this ground doesn't get re-audited)
+
+- **Noise/coordinate parity between Pass B and `claimWastelandRing()`**: both use raw array `y`
+  (claimWastelandRing's `rawY` IS the raw index), the identical formula shape, and the same `seed`
+  (`getTerritoryNoise()` constructs `OpenSimplexNoise(seed)`, matching `generateNew()`'s own local
+  instance) - a daily-expansion tile's terrain variant genuinely matches what world-gen would have
+  computed for that tile.
+- **`BiomeStructure.objectID()`/`collision()` are bounds-safe** (return -1/false out of range), so
+  daily expansion growing past a color's original biome rectangle (radius cap is 300, biome rects
+  are smaller) can't crash - those far tiles just get no structures, consistent with the already-
+  documented density behavior.
+- **Mage minimap markers** (`GameHUD.updateMageMinimapMarkers()`) are re-synced against
+  `WorldStage.enemies` every frame with stale entries removed - self-cleaning across load/despawn/
+  arrival, no leak.
+- **`prewarmTerritoryControlCaches()` is wired** in `WorldSave.load()` as documented.
+- **The doodad quarter-tile placement bleed** (a doodad's y can land up to 0.25 tiles into the
+  tile below the one it was rolled for, so ~a quarter of edge doodads register to the neighbor
+  tile in the claimed-tiles membership check) is the ORIGINAL world-gen placement formula verbatim
+  (`(y + .25f) - random.nextFloat()/2`), not something the claim/regen code introduced - inherited
+  cosmetic quirk, left alone deliberately.
+- **`territoryNoise` is only ever touched from the main thread** (claimWastelandRing); the
+  background builds (`buildColorlessRedirectStructuresBlocking()`) don't use it - no lazy-init
+  race. The two ConcurrentHashMap caches are correctly keyed by per-color cloned identities, so
+  concurrent per-color builds can't collide.
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),
