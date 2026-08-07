@@ -3085,3 +3085,77 @@ doodad-without-ownership tiles from before this fix shipped won't retroactively 
 this fix only prevents the mismatch on *future* claims, going forward from here). Water/road border
 issue remains flagged, unchanged, still needs a more specific repro before it's actionable.
 
+### Seventh playtest: black's irregular shape explained (not a bug - a player-owned town as a
+### permanent Voronoi rival anchor), plus three real, separate issues found and fixed
+
+Re-testing surfaced a genuinely different-looking black - not a chord-shaped notch this time, but an
+overall irregular, non-circular blob (screenshots: a coastline-hugging, bay-and-peninsula shape, one
+side visibly cut flatter than the rest). **User's own hypothesis, confirmed correct**: "I'm wondering
+if it's because I built a city there. Is the player maybe somehow blocking the spread?" - yes. Every
+player-owned town (not just Spawn) is an unconditional, unbounded rival anchor in
+`claimWastelandRing()`'s nearest-anchor check (`TerritoryControl.processTerritoryExpansion()` passes
+every currently-player-owned town's position into `otherAnchors`, added earlier this session - see
+the "playtest round 7" entry below). Unlike an AI castle's own kept circle (capped at
+`CASTLE_KEEP_RADIUS_TILES`), a player town has no radius cap of its own in this check - its Voronoi
+cell is simply "every tile closer to this town than to any other anchor," which can be a large,
+straight-edged, distinctly non-circular region if the town sits well inside what would otherwise be
+a color's natural growth area. This is **working exactly as designed** (the whole point of treating
+player towns as rivals is so AI expansion can't swallow player-held territory) - not a bug, though
+worth flagging as a possible future tuning question: should a captured town's protection be capped
+to a bounded radius (like AI castles get), rather than an unbounded Voronoi cell, so its "hole" always
+reads as a small, deliberate pocket instead of potentially reshaping a whole color's territory? Not
+changed this round - a design/balance call, not a correctness fix, and not something to guess at
+without checking first.
+
+**Three separate, real, confirmed issues found and fixed this round:**
+
+1. **Day counter (and other per-game state) not resetting on a same-session "new game."** Reported
+   directly: starting a new game (without quitting the app first) began on day 31, matching where
+   the *previous* save had left off; quitting and relaunching before starting new produced a normal
+   day 1. Root cause, confirmed by reading the code: `World.generateNew()` never reset `dayCount`/
+   `dayProgress`/`colorNextAttackDay`/`colorTerritoryRadius` - only `World.load()` did. `WorldSave.
+   currentSave` (and the `World` object it owns) is a `static final` singleton, constructed exactly
+   once per app run and reused across every "start new game" within that run - so all four fields
+   silently carried over from whichever game was played immediately before. `colorTerritoryRadius`
+   specifically being stale is worse than cosmetic: a leftover, much-larger-than-`CASTLE_KEEP_RADIUS_
+   TILES` radius would make a "fresh" game's very first daily expansion tick claim a huge annulus in
+   one shot instead of growing gradually from the real starting radius - plausibly contributing to
+   how dramatic black's shape looked in the reported screenshots, on top of the Voronoi explanation
+   above. Fixed by explicitly resetting all four at the top of `generateNew()`, alongside the
+   existing cache-clearing block (`structureSwapCache`/`nativeStructurePatternCache`/
+   `colorlessRedirectStructureCache`) that was already doing the same kind of "fresh seed needs fresh
+   everything" reset for other per-game state.
+2. **Corner minimap silently going stale during long uninterrupted play - the real explanation for
+   "map details still being wiped out on the mini-map by the expansion creep."** Confirmed by reading
+   `GameHUD.refreshMiniMap()`: it only ever re-snapshots a `Texture` from `World.biomeImage` when the
+   HUD's `enter()` runs (i.e., when the overworld screen is freshly entered - after leaving a town,
+   opening then closing a menu, etc). `claimWastelandRing()` keeps editing that same `biomeImage`
+   Pixmap in the background every time a day passes, whether or not the player ever re-enters the HUD
+   - so a player who just stays on the overworld screen for a long, uninterrupted stretch (exactly
+   what happens during fast-forwarded playtesting) sees a minimap frozen at whatever it looked like
+   the last time the HUD was entered, silently falling further and further behind the real,
+   continuously-updating ground truth. Not the fog-of-war explanation floated for an earlier report
+   (ruled out there too, directly, by the user confirming they'd already explored the area in
+   question) - a genuinely different, texture-caching issue. Fixed in `GameHUD.draw()` (already runs
+   every frame): compares `World.getCurrentDay()` against a new `lastMiniMapRefreshDayCount` field
+   and calls the existing `refreshMiniMap()` whenever it's changed - refreshes once per in-game day,
+   not every frame, keeping the cost negligible while never falling more than one day out of date.
+3. **Testing speed, per explicit request** ("let's turn up the rate of expansion or maybe change the
+   50x to 100X so testing goes faster"): `WorldStage.FAST_TIME_MULTIPLIER` raised from `50f` to
+   `100f` (each in-game day now passes in roughly half the real time), and the HUD checkbox's label
+   (`lblFastTimeToggle` in `en-US.properties`) updated to match. `EXPANSION_TILES_PER_DAY` left
+   unchanged - that's a gameplay-balance value, not a testing-speed one, and wasn't asked for
+   specifically.
+
+Compiled, deployed, byte-verified (`World.class`, `GameHUD.class`, `WorldStage.class` - plus a plain
+file copy of `en-US.properties` to the deploy directory's `res/languages/`, since that file isn't
+bundled inside the jar the other three are).
+
+**Not yet playtested.** The day-reset fix needs a same-session "start new game" (without restarting
+the app) to confirm day 1 now, matching the already-correct restart-the-app case. The minimap fix
+needs a long uninterrupted stretch on the overworld screen through at least one day boundary. The
+speed toggle just needs a glance at the label/actual pacing. Whether black's shape now looks more
+reasonable once actually starting from a correctly-reset radius (rather than whatever caused this
+round's screenshots) is a secondary thing to re-check, understanding that an irregular boundary near
+a player-owned town is expected, not something either of these two bug fixes was meant to change.
+

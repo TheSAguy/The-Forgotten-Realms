@@ -413,6 +413,19 @@ public class World implements Disposable, SaveFileContent {
             structureSwapCache = null; // don't inherit a previous game's random structure picks
             nativeStructurePatternCache.clear(); // same reasoning - a new seed needs fresh patterns
             colorlessRedirectStructureCache.clear(); // same reasoning
+            // WorldSave.currentSave (and this World instance with it) is a singleton constructed
+            // once per app run, not recreated per game - starting a new game without restarting the
+            // app reuses the SAME World object, so anything only ever reset inside load() (never
+            // here) silently carries over from whatever the previous game session left it at. Real,
+            // reported bug: a fresh game started on day 31 because the previous save had reached day
+            // 31 before the player returned to the main menu and started over. colorTerritoryRadius
+            // is just as load-bearing to reset - a stale, much-larger-than-CASTLE_KEEP_RADIUS_TILES
+            // value there would make the very first daily expansion tick claim a huge annulus in one
+            // shot instead of growing gradually from the real starting radius.
+            dayProgress = 0.375f; // fresh world starts at 09:00, same default load() falls back to
+            dayCount = 1;
+            colorNextAttackDay.clear();
+            colorTerritoryRadius.clear();
 
             for (int x = 0; x < width; x++) {
                 for (int y = 0; y < height; y++) {

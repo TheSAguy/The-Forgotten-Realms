@@ -119,7 +119,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   stayed with the rival. `claimWastelandRing()` now collects its own loop's actual claimed-tile set
   and passes it straight through, so there's one definition of ownership, not two that can disagree.
   `repaintBiomeAroundTown()` (the only other caller) is unaffected - a 4-argument overload preserves
-  its old geometric-only behavior by forwarding `null`.
+  its old geometric-only behavior by forwarding `null`. **Same-round bug fix**: `generateNew()`
+  never reset `dayCount`/`dayProgress`/`colorNextAttackDay`/`colorTerritoryRadius` - only `load()`
+  did. Since `WorldSave.currentSave` (and its `World`) is a singleton constructed once per app run,
+  starting a new game without restarting the app reused the same object with all four still carrying
+  over from the previous session (confirmed: a fresh game started on day 31, matching where the
+  prior save had left off). Now explicitly reset alongside the existing cache-clearing block at the
+  top of `generateNew()`.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -180,7 +186,14 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   this, since removed. Territory Control playtest round 7 (same day) wired `worldStandingsActor`'s
   visibility into the existing `showHideMap(boolean)` method (right next to `bookmarkActor`/
   `exitToWorldMapActor`'s own `MapStage.isInMap()`-based toggles) so the button hides while inside
-  a town instead of staying visible everywhere.
+  a town instead of staying visible everywhere. **Bug fix, same-round as the day-reset fix below**:
+  the corner minimap's `Texture` (`refreshMiniMap()`) was only ever re-snapshotted from `World.
+  biomeImage` on HUD `enter()` - fine for a town capture, but daily Territory Control expansion
+  keeps editing that same Pixmap in the background while the player just stays on the overworld
+  screen, so the displayed minimap silently went stale ("map details wiped out by the expansion
+  creep"). `draw()` (already runs every frame) now compares `World.getCurrentDay()` against a new
+  `lastMiniMapRefreshDayCount` field and calls `refreshMiniMap()` whenever it changes - once per
+  in-game day, not per frame.
 - **`forge-gui-mobile/src/forge/adventure/scene/SettingsScene.java`** — fog-of-war on/off setting
   (#3, a real Settings-screen checkbox, not just the in-game HUD debug toggle).
 - **`forge-gui-mobile/src/forge/adventure/scene/MapViewScene.java`** — extracted the minimap
@@ -191,9 +204,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui/res/languages/en-US.properties`** — **the one shared (non-mod-plane) asset file
   that had to be edited directly** - Forge's localization strings aren't overridable per-plane, so
   3 new label keys (`lblFogOfWar`, `lblFastTimeToggle`, `lblWait`) were added directly to the
-  shared file. Low conflict risk (pure additions at the end of a large file, plus one later value
-  edit - `lblFastTimeToggle`'s text updated from "10x Speed" to "50x Speed" to match the actual
-  multiplier) but worth knowing this is the one exception to "everything lives in the mod folder."
+  shared file. Low conflict risk (pure additions at the end of a large file, plus later value edits
+  - `lblFastTimeToggle`'s text updated 10x -> 50x -> 100x across two rounds to match the actual
+  multiplier, most recently per an explicit request to speed up Territory Control playtesting) but
+  worth knowing this is the one exception to "everything lives in the mod folder." **Deploy note**:
+  unlike `.java` changes, this file isn't bundled inside the jar - Forge loads it directly from
+  `res/languages/en-US.properties` next to the executable, so a source edit here needs a plain file
+  copy to the deploy directory, not a `jar uf`.
 
 ### Player / config
 - **`forge-gui-mobile/src/forge/adventure/player/AdventurePlayer.java`** — added Wood/Stone
@@ -207,7 +224,8 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/stage/WorldStage.java`** — day-counter-driven hooks for
   Economy Buildings (#10) and Territory Control (#7), the mage movement/arrival branch and
   `spawnAt()` (#7, also exempts a mage from the ordinary roaming-monster despawn timer - it has
-  its own lifecycle). `FAST_TIME_MULTIPLIER` raised 10 -> 50 per request (#6).
+  its own lifecycle). `FAST_TIME_MULTIPLIER` raised 10 -> 50 -> 100 across two rounds per request
+  (#6), most recently to speed up Territory Control (#7) playtesting.
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with

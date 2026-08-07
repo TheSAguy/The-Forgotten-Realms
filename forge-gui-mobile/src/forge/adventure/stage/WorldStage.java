@@ -54,11 +54,13 @@ public class WorldStage extends GameStage implements SaveFileContent {
     // "Wait" toggle (see GameHUD's wait checkbox): lets time advance while the player stands
     // still, same idea as resting. Cleared automatically the moment the player moves again.
     private boolean waitingForTime = false;
-    // Debug "10x Speed" toggle (see GameHUD's speed checkbox) - fast-forwards the day/night
+    // Debug "100x Speed" toggle (see GameHUD's speed checkbox) - fast-forwards the day/night
     // clock for testing. Multiplies only the delta passed to advanceTime(), nothing else runs
-    // faster (spawns, movement, etc. are unaffected).
+    // faster (spawns, movement, etc. are unaffected). Raised from 50x per explicit request to
+    // speed up Territory Control playtesting (MOD_SCOPE.md #7) - each in-game day now passes
+    // roughly twice as fast in real time.
     private boolean fastTimeEnabled = false;
-    private static final float FAST_TIME_MULTIPLIER = 50f;
+    private static final float FAST_TIME_MULTIPLIER = 100f;
 
     public WorldStage() {
         super();

@@ -463,6 +463,12 @@ public class GameHUD extends Stage {
                 && (!Controls.actorContainsVector(console, new Vector2(miniMapPlayer.getX(), miniMapPlayer.getY()))
                 || !console.isVisible())); // prevent drawing on top of console or notifications
         updateMageMinimapMarkers();
+
+        int currentDayCount = WorldSave.getCurrentSave().getWorld().getCurrentDay();
+        if (currentDayCount != lastMiniMapRefreshDayCount) {
+            lastMiniMapRefreshDayCount = currentDayCount;
+            refreshMiniMap();
+        }
     }
 
     // Territory Control (MOD_SCOPE.md #7): keeps mageMinimapMarkers in sync with whichever mages
@@ -499,6 +505,16 @@ public class GameHUD extends Stage {
     Texture miniMapToolTipTexture;
     Pixmap miniMapToolTipPixmap;
     public boolean fromWorldMap = false;
+    // refreshMiniMap() used to only ever run once per HUD enter() - fine for a town capture (the
+    // player has to walk back out to see the overworld again anyway) but not for Territory
+    // Control's daily expansion (MOD_SCOPE.md #7), which keeps editing the same World.biomeImage
+    // Pixmap in the background while the player just stays on the overworld screen, day after day,
+    // without ever re-entering. The corner minimap's Texture is a one-time snapshot, not a live view
+    // of that Pixmap, so it silently went stale for as long as the player kept playing uninterrupted
+    // - reported as "map details still being wiped out on the mini-map by the expansion creep."
+    // Fixed below by re-snapshotting once per in-game day (cheap: one int comparison per frame,
+    // real work only on the frame a new day actually starts) instead of only on enter().
+    private int lastMiniMapRefreshDayCount = -1;
 
     private void refreshMiniMap() {
         if (miniMapTexture != null)
@@ -512,6 +528,7 @@ public class GameHUD extends Stage {
         miniMapToolTipPixmap.drawPixmap(WorldSave.getCurrentSave().getWorld().getBiomeImage(), 0, 0, WorldSave.getCurrentSave().getWorld().getBiomeImage().getWidth(), WorldSave.getCurrentSave().getWorld().getBiomeImage().getHeight(), 0, 0, miniMapToolTipPixmap.getWidth(), miniMapToolTipPixmap.getHeight());
         miniMapToolTipTexture = new Texture(miniMapToolTipPixmap);
         miniMap.setDrawable(new TextureRegionDrawable(miniMapTexture));
+        lastMiniMapRefreshDayCount = WorldSave.getCurrentSave().getWorld().getCurrentDay();
     }
 
     public void enter() {

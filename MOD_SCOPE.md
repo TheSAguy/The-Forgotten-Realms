@@ -114,7 +114,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, then found and fixed a pre-existing doodad/ownership mismatch bug, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, then fixed a day-reset bug and minimap staleness, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -370,6 +370,22 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       `MOD_CHANGELOG.md`. **Not yet playtested** - only prevents the mismatch going forward; existing
       mismatched tiles from before this fix won't self-correct without further expansion attempting
       to reclaim that area (unlikely, since ground ownership there is already someone else's).
+    - **Seventh playtest: black's irregular (non-circular) shape explained, not a bug - confirmed the
+      user's own hypothesis that a player-owned town blocks AI expansion around itself, unbounded.**
+      Every player-owned town (not just Spawn) is a permanent rival anchor in the nearest-anchor
+      check, with no radius cap of its own (unlike an AI castle's `CASTLE_KEEP_RADIUS_TILES`) - a
+      real design decision from earlier this session, working as intended, though possibly worth
+      revisiting later (should a captured town's protection be bounded instead of an unbounded
+      Voronoi cell?) - a balance question, not fixed this round. **Three separate, real bugs found
+      and fixed alongside this**: (1) `World.generateNew()` never reset `dayCount`/`colorNextAttackDay`/
+      `colorTerritoryRadius` - only `load()` did, so starting a new game without restarting the app
+      inherited stale state from the previous session (confirmed: a fresh game started on day 31,
+      matching a prior save). (2) The corner minimap's texture only re-snapshots on HUD entry, never
+      while the player just stays on the overworld screen as daily expansion keeps editing the map in
+      the background - the actual explanation for "map details still being wiped out on the mini-map
+      by the expansion creep" (not fog of war, ruled out directly by the user for an earlier report).
+      Now refreshes once per in-game day instead. (3) `FAST_TIME_MULTIPLIER` raised 50x -> 100x per
+      explicit request to speed up testing. Full detail in `MOD_CHANGELOG.md`. **Not yet playtested.**
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**
