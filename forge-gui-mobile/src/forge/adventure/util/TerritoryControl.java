@@ -46,7 +46,13 @@ public class TerritoryControl {
     private static final int MIN_ATTACK_DAYS = 2;
     private static final int MAX_ATTACK_DAYS = 5;
     private static final int NEAREST_CANDIDATES = 3;
-    private static final int RECOLOR_RADIUS = 10;
+    // Public for the same reason CASTLE_KEEP_RADIUS_TILES is: World.claimWastelandRing() caps a
+    // captured town's protection against AI expansion to this same radius, so it never protects a
+    // larger area than repaintBiomeAroundTown() actually paints - the two must always agree, or a
+    // captured town would end up guarding an invisible ring of plain-looking ground beyond its own
+    // visibly-recolored area (a real, reported mismatch: this used to be capped to
+    // CASTLE_KEEP_RADIUS_TILES, twice this value).
+    public static final int RECOLOR_RADIUS = 10;
     // Public for the same reason COLORS is: World.java's placement pass must use the exact same
     // radius this class later uses to flip biomeMap ownership outside it, or content and ownership
     // would disagree at the boundary - see World.java's placement pass and

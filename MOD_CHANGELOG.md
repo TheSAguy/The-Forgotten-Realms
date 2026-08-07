@@ -3235,3 +3235,27 @@ it, to confirm the hole now stays small. The chunk-reload fix needs the exact sa
 standing-there repro that surfaced the bug. The two open threads above are deliberately unresolved,
 pending more specific information rather than another guess.
 
+### Radius mismatch caught immediately: town protection capped to the wrong number
+
+Asked directly after the round above shipped: "does the captured-town protection cap (20 tiles)
+match the radius of terrain change on capture?" It didn't. `TerritoryControl.RECOLOR_RADIUS` (the
+radius `repaintBiomeAroundTown()` actually repaints when a town is captured) is **10 tiles** -
+`CASTLE_KEEP_RADIUS_TILES` (what the cap used last round) is **20**. For an AI castle these two
+numbers are meant to be the same (its visible territory *is* its protection radius), but a captured
+town's *visible* recolor was only ever 10 tiles - capping its protection to 20 left a 10-tile-wide
+ring of plain, unrecolored-looking ground around every captured town that was nonetheless off-limits
+to every AI color's expansion, indistinguishable from ordinary claimable wasteland by eye.
+
+Given three options (shrink protection to 10, grow the recolor to 20, or leave the mismatch as an
+intentional buffer), the user chose shrinking protection to match. `TerritoryControl.RECOLOR_RADIUS`
+made `public` (was `private`) for the same reason `CASTLE_KEEP_RADIUS_TILES`/`COLORS` already are -
+`World.claimWastelandRing()` needs the exact same number `TerritoryControl` uses, or the two could
+silently drift apart again. `boundedCapSq` in `claimWastelandRing()` now derives from
+`RECOLOR_RADIUS` instead of `CASTLE_KEEP_RADIUS_TILES` - a captured town's protection now exactly
+matches what's actually visibly repainted, no invisible buffer.
+
+Compiled, deployed, byte-verified (`World.class`, `TerritoryControl.class`).
+
+**Not yet playtested** - needs a fresh capture to confirm the protected area now visually lines up
+with the recolored area, no gap.
+

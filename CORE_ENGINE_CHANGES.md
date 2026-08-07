@@ -131,7 +131,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   capped to `TerritoryControl.CASTLE_KEEP_RADIUS_TILES` instead of an unbounded Voronoi cell, per
   user decision after an unbounded town's cell was confirmed to grow into a large, fully-enclosed
   hole once a color's own circle passed it on every side). Internally, each rival tile now carries
-  `{x, y, capRadiusSq}` (`-1` = unbounded).
+  `{x, y, capRadiusSq}` (`-1` = unbounded). **Caught and fixed immediately (same round)**: that cap
+  used `CASTLE_KEEP_RADIUS_TILES` (20) at first, which didn't match the radius
+  `repaintBiomeAroundTown()` actually repaints on capture (`TerritoryControl.RECOLOR_RADIUS`, 10) -
+  changed to derive from `RECOLOR_RADIUS` instead, so protection never exceeds what's visibly
+  recolored.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've

@@ -410,6 +410,13 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       whether a stale `TOWN_RESTORED_FLAG` could be the cause - directly refuted by reading
       `PointOfInterest.transformInto()`, which gives a recaptured town a fresh id/state by design - the
       real explanation is still open). Full detail in `MOD_CHANGELOG.md`. **Not yet playtested.**
+    - **Radius mismatch caught immediately after shipping**: asked directly whether the new 20-tile
+      protection cap matched the actual terrain-recolor radius on capture - it didn't
+      (`TerritoryControl.RECOLOR_RADIUS` is 10 tiles, half of `CASTLE_KEEP_RADIUS_TILES`), leaving an
+      invisible 10-tile buffer ring around every captured town. Given the choice, shrank protection to
+      match the recolor radius (10 tiles) instead of growing the recolor or leaving the mismatch.
+      `RECOLOR_RADIUS` made `public` so `World.claimWastelandRing()` can reference the same number
+      directly. Full detail in `MOD_CHANGELOG.md`. **Not yet playtested.**
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

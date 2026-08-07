@@ -1796,14 +1796,18 @@ public class World implements Disposable, SaveFileContent {
      * wins" resolution - no explicit tie-break needed.
      * <p>
      * boundedRivalAnchors is a second, separate rival list (currently: every player-owned captured
-     * town) whose protection is capped to TerritoryControl.CASTLE_KEEP_RADIUS_TILES instead of being
-     * unbounded like otherAnchors/Spawn - a tile beyond that radius from a bounded anchor simply
-     * doesn't consider that anchor at all (falls through to check every other rival normally). Fixed
-     * after a real, reported case: a captured town deep inside a color's growth area, protected by
-     * an *unbounded* Voronoi cell against that color's castle, let that color's own expanding circle
-     * grow around it from every direction until the town's cell became a fully-enclosed island - a
-     * far bigger, more surprising hole than "a small safe pocket around a town," which is what the
-     * unbounded design was actually meant to produce. Spawn and other AI castles stay unbounded -
+     * town) whose protection is capped to TerritoryControl.RECOLOR_RADIUS instead of being unbounded
+     * like otherAnchors/Spawn - a tile beyond that radius from a bounded anchor simply doesn't
+     * consider that anchor at all (falls through to check every other rival normally). RECOLOR_RADIUS,
+     * not CASTLE_KEEP_RADIUS_TILES, deliberately - a captured town's protection must match the radius
+     * repaintBiomeAroundTown() actually repaints around it, or it would guard a wider ring of plain-
+     * looking, unrecolored ground than what's visibly the captor's own (a real, reported mismatch:
+     * this was briefly capped to CASTLE_KEEP_RADIUS_TILES, twice RECOLOR_RADIUS, before this fix).
+     * Fixed after a real, reported case: a captured town deep inside a color's growth area, protected
+     * by an *unbounded* Voronoi cell against that color's castle, let that color's own expanding
+     * circle grow around it from every direction until the town's cell became a fully-enclosed island
+     * - a far bigger, more surprising hole than "a small safe pocket around a town," which is what
+     * the unbounded design was actually meant to produce. Spawn and other AI castles stay unbounded -
      * this cap only applies to ordinary captured towns.
      * <p>
      * Called every in-game day a color's territory grows (unlike neutralizeTerritoryOutsideRadius(),
@@ -1878,7 +1882,10 @@ public class World implements Disposable, SaveFileContent {
             for (Vector2 anchor : otherAnchors)
                 rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize), -1});
         }
-        int boundedCapSq = TerritoryControl.CASTLE_KEEP_RADIUS_TILES * TerritoryControl.CASTLE_KEEP_RADIUS_TILES;
+        // RECOLOR_RADIUS, not CASTLE_KEEP_RADIUS_TILES - a captured town's protection must match the
+        // radius repaintBiomeAroundTown() actually repaints (see RECOLOR_RADIUS's own comment), or
+        // it would protect a wider ring of plain-looking ground than what's visibly the captor's own.
+        int boundedCapSq = TerritoryControl.RECOLOR_RADIUS * TerritoryControl.RECOLOR_RADIUS;
         if (boundedRivalAnchors != null) {
             for (Vector2 anchor : boundedRivalAnchors)
                 rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize), boundedCapSq});
