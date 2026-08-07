@@ -38,16 +38,19 @@ public class TimeOfDayActor extends Group {
         background.setSize(PANEL_WIDTH, PANEL_HEIGHT * 2);
         addActor(background);
 
+        // Left-aligned (was center) per the 2026-08-08 UI tighten-up: centering gave "Day 2" and
+        // "3:44 pm" different left edges since they differ in width, which read as misaligned -
+        // a shared left edge at the padding inset lines the two rows up.
         dayLabel = Controls.newTextraLabel("");
         dayLabel.setSize(PANEL_WIDTH - PADDING * 2, PANEL_HEIGHT);
         dayLabel.setPosition(PADDING, PANEL_HEIGHT);
-        dayLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
+        dayLabel.setAlignment(com.badlogic.gdx.utils.Align.left);
         addActor(dayLabel);
 
         timeLabel = Controls.newTextraLabel("");
         timeLabel.setSize(PANEL_WIDTH - PADDING * 2, PANEL_HEIGHT);
         timeLabel.setPosition(PADDING, 0);
-        timeLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
+        timeLabel.setAlignment(com.badlogic.gdx.utils.Align.left);
         addActor(timeLabel);
 
         setSize(PANEL_WIDTH, PANEL_HEIGHT * 2);

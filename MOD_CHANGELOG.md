@@ -2492,6 +2492,37 @@ Player/Colorless) after Reputation; table widened 300 -> 350 in `world_standings
    over several dispatches the pick distribution should visibly skew (this one's statistical,
    needs patience or log-reading - dispatch logs name the chosen target).
 
+## HUD tighten-up + attack-origin rework (2026-08-08, home PC, per user before/after mockups)
+
+**Compiled clean, not playtested.** Two unrelated changes shipped together per one user request.
+
+### HUD layout (GameHUD.java, TimeOfDayActor.java, ResourceDisplayActor.java)
+
+Per the user's before/mock-after screenshots - the left side consolidates into one column and
+the floating World button joins the top bar:
+
+- **Left column now stacks under the minimap**: Zoom, then Day/Time (gap tightened 4px -> 1px,
+  "moved up a little"), then the 100x and Wait checkboxes UNDER the Day/Time panel (they used to
+  float top-left next to the menu bar). Everything chains off the Zoom button downward.
+- **World button** sits in line with the top menu bar, immediately left of the ESC/menu button,
+  matched to the bar's height (was floating below the bar, chained off bookmarkActor).
+- **Day/Time text left-aligned** (was centered - "Day 2" vs "3:44 pm" got different left edges
+  from centering, which read as misaligned).
+- **Lumber/Stone rows**: icon-to-number gap normalized to 6px and the number text's stray
+  leading space removed - one alignment mechanism instead of two stacking.
+
+### Mage attack origin: 5 nearest from ANY owned property (TerritoryControl.java)
+
+Was: 3 nearest neutral towns measured from the castle alone - a color's attack range never grew
+with its territory. Now (user request): candidates are the **5** nearest neutral towns measured
+by distance to the color's NEAREST owned property (castle + every town/capital currently
+carrying its name), and the mage **launches from whichever owned property is closest to the
+chosen target** - attacks visually come from the frontier, not always the deep-interior castle.
+The reputation-based weighting for player-owned candidate towns (#1) carries over unchanged on
+top of the new candidate set. Dispatch also no longer hard-requires a castle - any owned
+property can originate an attack (castle-less colors were previously silently unable to attack).
+Notification/log now names the launch point: "White sends a mage from Plains Town toward ...".
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

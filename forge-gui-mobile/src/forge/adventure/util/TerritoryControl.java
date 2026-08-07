@@ -45,7 +45,10 @@ public class TerritoryControl {
 
     private static final int MIN_ATTACK_DAYS = 2;
     private static final int MAX_ATTACK_DAYS = 5;
-    private static final int NEAREST_CANDIDATES = 3;
+    // 5 nearest neutral towns measured from ANY of the color's owned properties (castle + its
+    // towns/capitals), per user request 2026-08-08 - was 3 nearest from the castle alone, which
+    // meant a color's expansion frontier never widened as it captured towns.
+    private static final int NEAREST_CANDIDATES = 5;
     // Public for the same reason CASTLE_KEEP_RADIUS_TILES is: World.claimWastelandRing() caps a
     // captured town's protection against AI expansion to this same radius, so it never protects a
     // larger area than repaintBiomeAroundTown() actually paints - the two must always agree, or a
@@ -280,16 +283,28 @@ public class TerritoryControl {
     // notifications in dispatch()/onMageArrived() below - MOD_SCOPE.md #7 was reported as "ran a
     // week, saw zero mages" with no way to tell which stage of the pipeline that pointed at.
     private static void dispatch(World world, String color) {
+        // Every property this color currently owns can be an attack origin (user request
+        // 2026-08-08 - was castle-only): the castle plus every town/capital presently carrying
+        // this color's name. Candidate targets are ranked by distance to the NEAREST owned
+        // property, so the attack frontier widens as the color's holdings grow instead of
+        // forever radiating from the one castle.
+        List<PointOfInterest> ownedSources = new ArrayList<>();
         PointOfInterest castle = findCastle(world, color);
-        if (castle == null) {
-            System.out.println("[TerritoryControl] " + color + ": no castle found, skipping dispatch");
+        if (castle != null)
+            ownedSources.add(castle);
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (isColorTownOrCapital(poi.getData(), color))
+                ownedSources.add(poi);
+        }
+        if (ownedSources.isEmpty()) {
+            System.out.println("[TerritoryControl] " + color + ": no owned castle/town/capital found, skipping dispatch");
             return;
         }
         List<PointOfInterest> towns = findNeutralTowns(world);
         if (towns.isEmpty())
             return; // nothing left to capture - the natural "done" state, quietly no-op forever
 
-        towns.sort(Comparator.comparingDouble(t -> t.getPosition().dst2(castle.getPosition())));
+        towns.sort(Comparator.comparingDouble(t -> distToNearestSource(t, ownedSources)));
         int candidateCount = Math.min(NEAREST_CANDIDATES, towns.size());
         // Color reputation (MOD_SCOPE.md #1) consequence, the user's chosen meaning of "less/
         // more likely to be attacked": among the nearest candidates, a PLAYER-OWNED town's odds
@@ -326,11 +341,26 @@ public class TerritoryControl {
         EnemySprite mage = new EnemySprite(enemyData);
         mage.territoryTarget = target;
         mage.territoryColor = color;
-        WorldStage.getInstance().spawnAt(mage, new Vector2(castle.getPosition()));
+        // The mage launches from whichever owned property is closest to its target - visually,
+        // the attack comes from the frontier, not always the distant castle.
+        PointOfInterest launch = ownedSources.get(0);
+        for (PointOfInterest source : ownedSources) {
+            if (source.getPosition().dst2(target.getPosition()) < launch.getPosition().dst2(target.getPosition()))
+                launch = source;
+        }
+        WorldStage.getInstance().spawnAt(mage, new Vector2(launch.getPosition()));
 
-        String message = capitalize(color) + " sends a mage toward " + target.getDisplayName() + "!";
+        String message = capitalize(color) + " sends a mage from " + launch.getDisplayName()
+                + " toward " + target.getDisplayName() + "!";
         System.out.println("[TerritoryControl] " + message);
         GameHUD.getInstance().addNotification(message);
+    }
+
+    private static double distToNearestSource(PointOfInterest town, List<PointOfInterest> sources) {
+        double best = Double.MAX_VALUE;
+        for (PointOfInterest source : sources)
+            best = Math.min(best, town.getPosition().dst2(source.getPosition()));
+        return best;
     }
 
     // Public: World.java's placement pass (Territory Control #7 v2) calls this directly to find

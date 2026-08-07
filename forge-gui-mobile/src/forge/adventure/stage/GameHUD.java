@@ -163,27 +163,28 @@ public class GameHUD extends Stage {
 
         miniMapPlayer = new Image(Forge.getAssets().getTexture(Config.instance().getFile("ui/minimap_player.png")));
         timeOfDayActor = new TimeOfDayActor();
-        waitCheckBox = Controls.newCheckBox(Forge.getLocalizer().getMessage("lblWait"));
-        waitCheckBox.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 4);
-        waitCheckBox.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, Actor actor) {
-                WorldStage.getInstance().setWaitingForTime(((CheckBox) actor).isChecked());
-            }
-        });
+        // UI tighten-up (2026-08-08, per user before/after mockups): the whole left column now
+        // stacks under the minimap - Zoom, then Day/Time (nudged up, 4px gap -> 1px), then the
+        // 100x and Wait checkboxes UNDER the Day/Time panel (they used to float top-left next to
+        // the menu bar). Everything chains off openMapActor ("Zoom", from hud.json) downward, so
+        // the column stays glued together regardless of hud.json's own values.
+        timeOfDayActor.setPosition(openMapActor.getX(), openMapActor.getY() - timeOfDayActor.getHeight() - 1);
         speedCheckBox = Controls.newCheckBox(Forge.getLocalizer().getMessage("lblFastTimeToggle"));
-        speedCheckBox.setPosition(miniMap.getX() + miniMap.getWidth() + 8, miniMap.getY() + timeOfDayActor.getHeight() + 26);
+        speedCheckBox.setPosition(timeOfDayActor.getX() + 2, timeOfDayActor.getY() - speedCheckBox.getHeight() - 2);
         speedCheckBox.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
                 WorldStage.getInstance().setFastTimeEnabled(((CheckBox) actor).isChecked());
             }
         });
-        // Below the Zoom button (per feedback) - positioned relative to openMapActor ("Zoom",
-        // from hud.json) rather than miniMap directly, same reasoning as waitCheckBox/
-        // speedCheckBox above: stays pinned to a sibling actor regardless of whatever gives
-        // miniMap.getWidth() its value at this point in construction.
-        timeOfDayActor.setPosition(openMapActor.getX(), openMapActor.getY() - timeOfDayActor.getHeight() - 4);
+        waitCheckBox = Controls.newCheckBox(Forge.getLocalizer().getMessage("lblWait"));
+        waitCheckBox.setPosition(timeOfDayActor.getX() + 2, speedCheckBox.getY() - waitCheckBox.getHeight() - 2);
+        waitCheckBox.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                WorldStage.getInstance().setWaitingForTime(((CheckBox) actor).isChecked());
+            }
+        });
         resourceDisplayActor = new ResourceDisplayActor();
         // Territory Control (MOD_SCOPE.md #7): opens WorldStandingsScene instead of a permanent
         // HUD panel (the earlier TownCountActor version of this was taking up too much on-screen
@@ -237,8 +238,11 @@ public class GameHUD extends Stage {
         // against it so its own bordered panel reads as a continuation of the same column
         // instead of a separate floating box.
         resourceDisplayActor.setPosition(money.getX(), money.getY() - resourceDisplayActor.getHeight());
-        worldStandingsActor.setSize(bookmarkActor.getWidth(), bookmarkActor.getHeight());
-        worldStandingsActor.setPosition(bookmarkActor.getX(), bookmarkActor.getY() - worldStandingsActor.getHeight() - 4);
+        // In line with the top menu bar, immediately LEFT of the ESC/menu button (2026-08-08
+        // tighten-up - was floating below the bar chained off bookmarkActor). Matches the bar
+        // buttons' own height/row so it reads as part of the bar.
+        worldStandingsActor.setSize(bookmarkActor.getWidth(), menuActor.getHeight());
+        worldStandingsActor.setPosition(menuActor.getX() - worldStandingsActor.getWidth() - 4, menuActor.getY());
         worldStandingsActor.setVisible(isTerritoryControlEnabled());
         lifePoints.setText("[%95][+Life]");
         enemyCounterText = Controls.newTypingLabel(Forge.getLocalizer().getMessage("lblRemainingEnemies", String.valueOf(0)));

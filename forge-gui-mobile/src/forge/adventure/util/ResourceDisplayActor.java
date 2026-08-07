@@ -49,7 +49,10 @@ public class ResourceDisplayActor extends Group {
         addIcon("Lumber", PANEL_HEIGHT + iconYInset);
         addIcon("Stone", iconYInset);
 
-        float labelX = PADDING + ICON_SIZE + 2;
+        // 2026-08-08 tighten-up: consistent 6px icon-to-number gap (was 2, cramped against the
+        // icon), and the number text no longer carries its own leading space (see refresh
+        // methods) - one alignment mechanism instead of two stacking.
+        float labelX = PADDING + ICON_SIZE + 6;
         float labelWidth = PANEL_WIDTH - labelX - PADDING;
 
         lumberLabel = Controls.newTypingLabel("");
@@ -90,7 +93,7 @@ public class ResourceDisplayActor extends Group {
         int amount = AdventurePlayer.current().getWood();
         if (amount != lastLumber) {
             lastLumber = amount;
-            lumberLabel.restart("[%95]{EMERGE} " + amount + "{ENDEMERGE}");
+            lumberLabel.restart("[%95]{EMERGE}" + amount + "{ENDEMERGE}");
         }
     }
 
@@ -98,7 +101,7 @@ public class ResourceDisplayActor extends Group {
         int amount = AdventurePlayer.current().getStone();
         if (amount != lastStone) {
             lastStone = amount;
-            stoneLabel.restart("[%95]{EMERGE} " + amount + "{ENDEMERGE}");
+            stoneLabel.restart("[%95]{EMERGE}" + amount + "{ENDEMERGE}");
         }
     }
 }

@@ -199,9 +199,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/stage/GameHUD.java`** — clock readout (#6), resource
   panel (Wood/Stone, #9), fog-of-war/speed-toggle debug checkboxes (#3/#6). Territory Control (#7)
   added a per-mage colored minimap dot (`updateMageMinimapMarkers()`, dynamic set mirroring the
-  existing `miniMapPlayer` marker) and a `worldStandingsActor` button (chained off `bookmarkActor`,
-  opens the new `WorldStandingsScene`) - replaced an earlier `TownCountActor` HUD panel version of
-  this, since removed. Territory Control playtest round 7 (same day) wired `worldStandingsActor`'s
+  existing `miniMapPlayer` marker) and a `worldStandingsActor` button (opens the new
+  `WorldStandingsScene`) - replaced an earlier `TownCountActor` HUD panel version of this, since
+  removed. 2026-08-08 tighten-up per user mockups: Day/Time + 100x/Wait consolidated into one
+  column under the Zoom button, World button moved up in line with the top menu bar (left of the
+  ESC/menu button, no longer chained off bookmarkActor). Territory Control playtest round 7 (same day) wired `worldStandingsActor`'s
   visibility into the existing `showHideMap(boolean)` method (right next to `bookmarkActor`/
   `exitToWorldMapActor`'s own `MapStage.isInMap()`-based toggles) so the button hides while inside
   a town instead of staying visible everywhere. **Bug fix, same-round as the day-reset fix below**:
