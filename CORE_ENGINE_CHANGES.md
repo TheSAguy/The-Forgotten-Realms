@@ -183,7 +183,8 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 ### Towns, shops, and buildings (Town Reconstruction / Economy Buildings, #2 & #10)
 - **`forge-gui-mobile/src/forge/adventure/character/ShopActor.java`** — heaviest content-logic
   file after World.java: ruin/rebuilt-building icon rendering, special/armory shop dialogs, shop
-  overhead-tile hide/restore.
+  overhead-tile hide/restore. Color Reputation (#1) added a third factor to `getPriceModifier()`
+  (`colorReputationModifier()` - tier-based card price scaling in a color's towns).
 - **`forge-gui-mobile/src/forge/adventure/character/OnCollide.java`** — added an optional
   town-restoration-gated constructor overload (Job Board building specifically) - the original
   single-arg constructor is unchanged/still used everywhere else unmodified.
@@ -252,7 +253,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Economy Buildings (#10) and Territory Control (#7), the mage movement/arrival branch and
   `spawnAt()` (#7, also exempts a mage from the ordinary roaming-monster despawn timer - it has
   its own lifecycle). `FAST_TIME_MULTIPLIER` raised 10 -> 50 -> 100 across two rounds per request
-  (#6), most recently to speed up Territory Control (#7) playtesting.
+  (#6), most recently to speed up Territory Control (#7) playtesting. Mage persistence: `save()`/
+  `load()` now carry `territoryColors`/`territoryTargetIds` so a mid-flight mage survives a
+  save/load (#7, cross-machine review fix). Color Reputation (#1): severe-tier entry
+  interception in `handlePointsOfInterestCollision()` plus `entryBarredColor()`/
+  `showCapitalTollDialog()` helpers.
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with

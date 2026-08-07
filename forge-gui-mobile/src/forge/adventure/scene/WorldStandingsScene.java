@@ -75,7 +75,11 @@ public class WorldStandingsScene extends UIScene {
             TypingLabel repHeader = Controls.newTypingLabel("[%75]Reputation");
             repHeader.setColor(Color.BLACK);
             repHeader.skipToTheEnd();
-            standingsList.add(repHeader).align(Align.left).padBottom(4);
+            standingsList.add(repHeader).align(Align.left).padRight(14).padBottom(4);
+            TypingLabel statusHeader = Controls.newTypingLabel("[%75]Status");
+            statusHeader.setColor(Color.BLACK);
+            statusHeader.skipToTheEnd();
+            standingsList.add(statusHeader).align(Align.left).padBottom(4);
         }
         standingsList.row();
 
@@ -115,8 +119,13 @@ public class WorldStandingsScene extends UIScene {
                     TypingLabel repLabel = Controls.newTypingLabel("[%85]" + text);
                     repLabel.setColor(Color.BLACK);
                     repLabel.skipToTheEnd();
-                    standingsList.add(repLabel).align(Align.left).padBottom(6);
+                    standingsList.add(repLabel).align(Align.left).padRight(14).padBottom(6);
+                    TypingLabel statusLabel = Controls.newTypingLabel("[%85]" + ColorReputation.getStatus(colorKey).label);
+                    statusLabel.setColor(Color.BLACK);
+                    statusLabel.skipToTheEnd();
+                    standingsList.add(statusLabel).align(Align.left).padBottom(6);
                 } else {
+                    standingsList.add();
                     standingsList.add();
                 }
             }

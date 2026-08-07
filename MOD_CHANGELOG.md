@@ -2418,6 +2418,67 @@ transiently look off-by-a-half from summing to zero, but never drift.
 4. Reputation column absent on a plane without the flag (Shandalar etc. - stock planes' configs
    don't have it, so the column shouldn't render there even if the World button existed).
 
+## Color Reputation - consequences slice (MOD_SCOPE.md #1), built 2026-08-07 (home PC, same day as scoring)
+
+Files: `ColorReputation.java` (Status enum, tier thresholds, multipliers, town-color mapping),
+`ShopActor.java` (price hook), `WorldStage.java` (entry bar + capital toll dialog),
+`TerritoryControl.java` (weighted mage targeting), `WorldStandingsScene.java` +
+`world_standings.json` (Status column). Built from the user's spreadsheet tier table plus a Q&A
+round. **Compiled clean, not playtested.**
+
+### The tier table (thresholds are DISPLAY values, internal half-points divided by 2)
+
+Partner >= 80 / Happy 20..79 / Neutral -19..19 / War -20..-79 / Unhappy <= -80.
+**Label note, deliberate**: the user's corrected sheet names the MODERATE negative tier "War"
+and the SEVERE one "Unhappy" (they explicitly fixed a reversed earlier version to this). The
+labels are display strings on the `Status` enum; the effects are bound to the scale rows. If
+they ever want the names swapped back, it's a two-string change in `ColorReputation.Status`.
+
+### The three effects
+
+1. **Card-shop prices** (user scope pick: card shops ONLY - Inn/spellsmith/trader untouched):
+   `ShopActor.getPriceModifier()` gains a third multiplicative factor - Partner 0.70, Happy
+   0.85, Neutral 1.0, War 1.25, Unhappy 1.25 (reachable only inside a capital after paying the
+   toll). Stacks with the pre-existing per-town haggling rep (up to ~±10%) deliberately - they
+   measure different things. Town color from `ColorReputation.colorOfTown()` (POI name prefix,
+   own noun map so it works with territoryControlEnabled off); player-owned towns exempt.
+2. **Severe-tier entry bar**: `WorldStage.handlePointsOfInterestCollision()` intercepts before
+   `loadPOI()`. Ordinary towns of the barred color bounce with a HUD notification; CAPITALS get
+   a pay-to-enter dialog (`CAPITAL_ENTRY_TOLL` = 100 gold, first-guess constant) - user request,
+   since story bosses live in capitals and a hard bar risks soft-locks. Paying replicates the
+   normal entry sequence exactly (autoSave -> loadPOI -> checkOut -> visit). The existing
+   `collidingPoint` mechanism prevents re-prompting while standing on the POI - walk off and
+   back to retry. Quest targets inside barred ordinary towns stay barred (accepted trade-off).
+3. **Mage targeting odds** (the user's clarified meaning of "less/more likely to be attacked" -
+   NOT roaming-monster behavior): `TerritoryControl.dispatch()`'s pick among the 3 nearest
+   candidate towns is now weighted - a PLAYER-OWNED candidate's weight is scaled by the
+   dispatching color's tier (Partner 0.75, Happy 0.95, Neutral 1.0, War 1.05, Unhappy 1.25),
+   non-player towns stay 1.0 (with no player towns among candidates, identical to the old
+   uniform pick). This is the reputation gate the Territory Control design explicitly deferred.
+
+**Player-owned exemption everywhere** (user: "the player's towns should not match any color"):
+all three effects check `TownRestoration.isTownRestored()` (via the read-only peek accessor)
+before applying anything.
+
+### UI
+
+World Standings gains a Status column (header + per-color tier label, black text, blank for
+Player/Colorless) after Reputation; table widened 300 -> 350 in `world_standings.json`.
+
+### What to verify in-game (on top of the scoring checklist)
+
+1. Console-drive reputation past each threshold and check the Status column flips at
+   80/20/-20/-80 exactly. (No console command for rep exists yet - fastest is editing the tier
+   constants down, or grinding with 100x speed; a `give rep` console command would be a natural
+   small follow-up if testing is annoying.)
+2. Severe tier: ordinary town of that color bounces with the notification; its capital offers
+   the 100-gold toll, pay path enters normally, Leave path stays out, walking off and back
+   re-prompts; both exempt for a player-restored town of that color's name.
+3. Prices in a color's town shift with tier (and revert in Waste/player towns).
+4. Let a color dispatch mages while the player owns a candidate-range town at various tiers -
+   over several dispatches the pick distribution should visibly skew (this one's statistical,
+   needs patience or log-reading - dispatch logs name the chosen target).
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

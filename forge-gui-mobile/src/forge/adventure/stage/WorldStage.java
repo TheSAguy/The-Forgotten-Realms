@@ -4,8 +4,11 @@ import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.github.tommyettinger.textra.TextraButton;
+import com.github.tommyettinger.textra.TypingLabel;
 import forge.Forge;
 import forge.adventure.character.CharacterSprite;
 import forge.adventure.character.EnemySprite;
@@ -289,6 +292,24 @@ public class WorldStage extends GameStage implements SaveFileContent {
                     if (point == collidingPoint) {
                         continue;
                     }
+                    // Color reputation (MOD_SCOPE.md #1) severe-tier consequence: this color's
+                    // ordinary towns are barred outright; its CAPITALS charge a gold toll
+                    // instead (user request - story content lives there, so a hard bar risks
+                    // soft-locks). Player-owned towns are exempt (checked inside
+                    // entryBarredColor()). Setting collidingPoint reuses the existing
+                    // "don't re-trigger while still standing here" mechanism - walk off and
+                    // back on to try again (e.g. after earning gold for the toll).
+                    String barredColor = entryBarredColor(point.getPointOfInterest());
+                    if (barredColor != null) {
+                        collidingPoint = point;
+                        if ("capital".equals(point.getPointOfInterest().getData().type)) {
+                            showCapitalTollDialog(point.getPointOfInterest(), point);
+                        } else {
+                            GameHUD.getInstance().addNotification("The guards of " + point.getPointOfInterest().getDisplayName()
+                                    + " turn you away - your standing with " + capitalizeColor(barredColor) + " is too low.");
+                        }
+                        continue;
+                    }
                     WorldSave.getCurrentSave().autoSave();
                     loadPOI(point.getPointOfInterest());
                     point.getMapSprite().checkOut();
@@ -314,6 +335,55 @@ public class WorldStage extends GameStage implements SaveFileContent {
             System.err.println("Error loading map...");
             e.printStackTrace();
         }
+    }
+
+    // Color reputation (MOD_SCOPE.md #1): the color whose severe-tier standing bars the player
+    // from this POI, or null if entry is fine (not a color's town/capital, standing not severe,
+    // or a player-owned town - exempt per explicit user decision).
+    private String entryBarredColor(PointOfInterest poi) {
+        String color = ColorReputation.colorOfTown(poi.getData());
+        if (color == null || !ColorReputation.isEntryBarred(color))
+            return null;
+        if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID())))
+            return null;
+        return color;
+    }
+
+    private static String capitalizeColor(String color) {
+        return Character.toUpperCase(color.charAt(0)) + color.substring(1);
+    }
+
+    // Severe-tier capitals charge a toll instead of barring outright (user request - capitals
+    // hold story content, a hard bar risks soft-locks; and paying your way past hostile guards
+    // is good flavor). Paying replicates the exact entry sequence the normal collision path
+    // runs (autoSave -> loadPOI -> checkOut -> visit). Declining just closes - collidingPoint
+    // is already set by the caller, so it won't re-prompt until the player walks off and back.
+    private void showCapitalTollDialog(PointOfInterest poi, PointOfInterestMapSprite point) {
+        Dialog dialog = getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+
+        TypingLabel label = Controls.newTypingLabel("The guards of " + poi.getDisplayName()
+                + " bar your way, but greed outweighs grudges: they'll let you pass for [+Gold] "
+                + ColorReputation.CAPITAL_ENTRY_TOLL + " gold.");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+
+        TextraButton payButton = Controls.newTextButton("Pay " + ColorReputation.CAPITAL_ENTRY_TOLL + " gold", () -> {
+            Current.player().takeGold(ColorReputation.CAPITAL_ENTRY_TOLL);
+            hideDialog();
+            WorldSave.getCurrentSave().autoSave();
+            loadPOI(poi);
+            point.getMapSprite().checkOut();
+            WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID()).visit();
+        });
+        payButton.setDisabled(Current.player().getGold() < ColorReputation.CAPITAL_ENTRY_TOLL);
+        dialog.getButtonTable().add(payButton).width(240f).row();
+        dialog.getButtonTable().add(Controls.newTextButton("Leave", this::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog();
     }
 
     @Override

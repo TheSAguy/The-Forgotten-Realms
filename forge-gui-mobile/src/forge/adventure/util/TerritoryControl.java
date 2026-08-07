@@ -291,7 +291,31 @@ public class TerritoryControl {
 
         towns.sort(Comparator.comparingDouble(t -> t.getPosition().dst2(castle.getPosition())));
         int candidateCount = Math.min(NEAREST_CANDIDATES, towns.size());
-        PointOfInterest target = towns.get(world.getRandom().nextInt(candidateCount));
+        // Color reputation (MOD_SCOPE.md #1) consequence, the user's chosen meaning of "less/
+        // more likely to be attacked": among the nearest candidates, a PLAYER-OWNED town's odds
+        // of being picked scale with the player's standing with the dispatching color (Partner
+        // x0.75 ... severe tier x1.25). Non-player towns keep weight 1.0, so with no player
+        // towns in the candidate set this is exactly the old uniform pick. (This is the
+        // reputation gate the original targeting design deferred - "eventually meant to be
+        // gated by a reputation scale once #1 exists".)
+        float[] weights = new float[candidateCount];
+        float totalWeight = 0f;
+        for (int i = 0; i < candidateCount; i++) {
+            boolean playerOwned = TownRestoration.isTownRestored(
+                    WorldSave.getCurrentSave().peekPointOfInterestChanges(towns.get(i).getID()));
+            weights[i] = playerOwned ? ColorReputation.getPlayerTownAttackWeight(color) : 1f;
+            totalWeight += weights[i];
+        }
+        float roll = world.getRandom().nextFloat() * totalWeight;
+        int pick = candidateCount - 1;
+        for (int i = 0; i < candidateCount; i++) {
+            roll -= weights[i];
+            if (roll <= 0f) {
+                pick = i;
+                break;
+            }
+        }
+        PointOfInterest target = towns.get(pick);
 
         String enemyName = "Adept " + capitalize(color) + " Wizard";
         EnemyData enemyData = WorldData.getEnemy(enemyName);

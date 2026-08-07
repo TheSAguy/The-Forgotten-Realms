@@ -5,13 +5,17 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.data.ShopData;
+import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.RewardScene;
+import forge.adventure.scene.TileMapScene;
 import forge.adventure.stage.MapStage;
+import forge.adventure.util.ColorReputation;
 import forge.adventure.util.EconomyBuildings;
 import forge.adventure.util.MapDialog;
 import forge.adventure.util.Reward;
 import forge.adventure.util.TownRestoration;
+import forge.adventure.world.WorldSave;
 
 
 /**
@@ -44,7 +48,22 @@ public class ShopActor extends MapActor {
         PointOfInterestChanges changes = stage.getChanges();
         float townPricemodifier = changes == null ? 1f : changes.getTownPriceModifier();
         float shopPriceModifier = changes == null ? 1f : changes.getShopPriceModifier(objectId);
-        return shopPriceModifier * townPricemodifier;
+        return shopPriceModifier * townPricemodifier * colorReputationModifier();
+    }
+
+    // Color reputation (MOD_SCOPE.md #1) consequence: card prices in a color's town scale with
+    // the player's standing with that color (Partner 30% off ... War 25% up). Stacks
+    // multiplicatively with the existing per-town haggling reputation above - deliberate, they
+    // measure different things (this town's opinion of you vs the color's). Player-owned towns
+    // are exempt entirely per explicit user decision ("the player's towns should not match any
+    // color"), and non-color towns (Waste, Spawn) return 1.0 from colorOfTown() being null.
+    private float colorReputationModifier() {
+        PointOfInterest point = TileMapScene.instance().rootPoint;
+        if (point == null)
+            return 1f;
+        if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(point.getID())))
+            return 1f;
+        return ColorReputation.getShopPriceMultiplier(ColorReputation.colorOfTown(point.getData()));
     }
 
     public MapStage getMapStage() {

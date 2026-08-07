@@ -68,6 +68,99 @@ public class ColorReputation {
         return configData != null && configData.colorReputationEnabled;
     }
 
+    // ---- Consequences (second slice, user's tier table). Thresholds are DISPLAY values.
+    // Label note, deliberate and confirmed twice with the user (their corrected spreadsheet):
+    // the moderate negative tier is called "War" and the severe one "Unhappy" - the labels are
+    // display strings only, trivially swappable, the EFFECTS are bound to the scale rows. ----
+    public enum Status {
+        PARTNER("Partner"),   // rep >= 80: 30% cheaper, town 25% less likely to be mage-targeted
+        HAPPY("Happy"),       // 20..79:    15% cheaper, 5% less likely
+        NEUTRAL("Neutral"),   // -19..19:   no effect
+        WAR("War"),           // -79..-20:  25% pricier, 5% more likely
+        UNHAPPY("Unhappy");   // <= -80:    towns barred (capitals charge a toll), 25% more likely
+
+        public final String label;
+        Status(String label) { this.label = label; }
+    }
+
+    /** Gold demanded to enter a barred color's CAPITAL at the severe tier (towns stay barred
+     *  outright). First-guess constant, tune after testing - matches the mod's other 100-gold
+     *  price points. */
+    public static final int CAPITAL_ENTRY_TOLL = 100;
+
+    public static Status getStatus(String color) {
+        int rep = displayValue(AdventurePlayer.current().getColorReputationHalfPoints(color));
+        if (rep >= 80) return Status.PARTNER;
+        if (rep >= 20) return Status.HAPPY;
+        if (rep >= -19) return Status.NEUTRAL;
+        if (rep >= -79) return Status.WAR;
+        return Status.UNHAPPY;
+    }
+
+    /** Card-shop price multiplier in a color's town (user scope decision: card shops only -
+     *  Inn/spellsmith/trader pricing deliberately untouched for now). */
+    public static float getShopPriceMultiplier(String color) {
+        if (!isEnabled() || color == null)
+            return 1f;
+        switch (getStatus(color)) {
+            case PARTNER: return 0.70f;
+            case HAPPY: return 0.85f;
+            case WAR: return 1.25f;
+            case UNHAPPY: return 1.25f; // reachable inside a capital after paying the toll
+            default: return 1f;
+        }
+    }
+
+    /**
+     * Weight multiplier for a PLAYER-OWNED town when this color's castle picks a mage target
+     * among its nearest candidates (TerritoryControl.dispatch()) - the user's chosen meaning of
+     * "less/more likely to be attacked". 1.0 for non-player towns or when the feature is off.
+     */
+    public static float getPlayerTownAttackWeight(String color) {
+        if (!isEnabled() || color == null)
+            return 1f;
+        switch (getStatus(color)) {
+            case PARTNER: return 0.75f;
+            case HAPPY: return 0.95f;
+            case WAR: return 1.05f;
+            case UNHAPPY: return 1.25f;
+            default: return 1f;
+        }
+    }
+
+    /** True when the player is barred from this color's ordinary towns (severe tier). */
+    public static boolean isEntryBarred(String color) {
+        return isEnabled() && color != null && getStatus(color) == Status.UNHAPPY;
+    }
+
+    // "Plains Town ..."/"Plains Capital" -> white, etc. Deliberately its own copy of the noun
+    // mapping (TerritoryControl has an equivalent private one) so reputation effects work with
+    // territoryControlEnabled off - stock world-gen names color towns the same way regardless.
+    // Returns null for anything that isn't a color's town/capital (Waste Towns, Spawn, dungeons).
+    // PLAYER-OWNED exemption is the CALLER's job (needs the POI id for the changes lookup):
+    // per explicit user decision, "the player's towns should not match any color" - a restored/
+    // captured town ignores color reputation entirely no matter what it's named.
+    private static final Map<String, String> TOWN_NOUN_TO_COLOR = new HashMap<>();
+    static {
+        TOWN_NOUN_TO_COLOR.put("Plains", "white");
+        TOWN_NOUN_TO_COLOR.put("Island", "blue");
+        TOWN_NOUN_TO_COLOR.put("Swamp", "black");
+        TOWN_NOUN_TO_COLOR.put("Mountain", "red");
+        TOWN_NOUN_TO_COLOR.put("Forest", "green");
+    }
+
+    public static String colorOfTown(forge.adventure.data.PointOfInterestData data) {
+        if (data == null || data.name == null || data.type == null)
+            return null;
+        if (!"town".equals(data.type) && !"capital".equals(data.type))
+            return null;
+        for (Map.Entry<String, String> entry : TOWN_NOUN_TO_COLOR.entrySet()) {
+            if (data.name.startsWith(entry.getKey()))
+                return entry.getValue();
+        }
+        return null;
+    }
+
     /** Internal half-points -> user-facing value. Rounds the rare leftover half (only reachable
      *  via a multicolor boss's x3 on odd half-point amounts); the stored value stays exact. */
     public static int displayValue(int halfPoints) {

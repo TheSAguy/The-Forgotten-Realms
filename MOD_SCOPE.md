@@ -40,13 +40,39 @@ Helping a color angers its two enemies, not its allies.
 
 ## Features
 
-### 1. Reputation System — `In Progress` (scoring built 2026-08-07, not yet playtested)
+### 1. Reputation System — `In Progress` (scoring + consequences built 2026-08-07, not yet playtested)
 - Player has a reputation score per color (5 tracks).
 - Helping/hurting one color affects reputation with it, and ripples to its allies/enemies
   per the table above (help Green → Blue & Black annoyed).
-- Rep ≥ 100 with a color: become a de facto ally — that color stops attacking the player.
-- Rep ≤ -100 with a color: locked out of entering that color's towns.
-- Rewards/penalties scale gradually with rep, not just at the ±100 thresholds.
+- ~~Rep ≥ 100 / ≤ -100 thresholds~~ superseded by the user's 5-tier table below (2026-08-07).
+- **Consequences built (same day as scoring, per the user's spreadsheet - thresholds are display
+  values; the tier labels are exactly as the user's CORRECTED sheet has them, "War" for the
+  moderate negative tier and "Unhappy" for the severe one, deliberately - labels are trivially
+  swappable strings if ever wanted the other way):**
+  | Status | Scale | Effects |
+  |--------|-------|---------|
+  | Partner | ≥ 80 | 30% cheaper card shops in that color's towns; player-owned towns 25% less likely to be mage-targeted by that color |
+  | Happy | 20 to 79 | 15% cheaper; 5% less likely |
+  | Neutral | -19 to 19 | none |
+  | War | -20 to -79 | 25% pricier; 5% more likely |
+  | Unhappy | ≤ -80 | barred from that color's towns (capitals charge a 100-gold entry toll instead); 25% more likely |
+  - **"Less/more likely to be attacked" = mage TARGETING odds** (user clarification): when a
+    color's castle picks among its 3 nearest capturable towns, a PLAYER-OWNED town's selection
+    weight scales by the tier - this is the reputation gate the Territory Control targeting
+    design explicitly deferred ("eventually meant to be gated by a reputation scale once #1
+    exists"). Non-player towns keep uniform odds.
+  - **Player-owned towns are exempt from ALL color effects** ("the player's towns should not
+    match any color") - no price change, no entry bar, regardless of the town's color name.
+  - **Prices: card shops only** for now (the existing `ShopActor.getPriceModifier()` hook -
+    stacks multiplicatively with the pre-existing per-town haggling rep). Inn/spellsmith/trader
+    pricing deliberately untouched.
+  - **Entry bar**: ordinary towns of the severe-tier color bounce the player with a notification;
+    CAPITALS offer a pay-100-gold-to-enter dialog instead (user request - story bosses live in
+    capitals, a hard bar risks soft-locks). Quest targets inside barred ordinary towns stay
+    barred (accepted; raise rep or abandon).
+  - Not yet built: "that color stops attacking the player" as a Partner perk in the
+    roaming-monster sense - currently the attack-odds effect only covers mage town-targeting,
+    per the user's clarified definition. Revisit if wanted later.
 - **Scoring slice built (2026-08-07, home PC)** — the tracking/scoring half, per detailed user
   design; consequences (the three bullets above) deliberately later, "let's first get the
   scoring working":
