@@ -89,6 +89,25 @@ public class WorldSave {
                     // the game thread, mid-play, is what caused a real, reported freeze).
                     currentSave.world.prewarmTerritoryControlCaches();
 
+                    // WorldStage/WorldBackground are long-lived singletons for the whole app session
+                    // (WorldStage.getInstance() never gets torn down between games) - loading a save
+                    // mid-session (the in-game Load menu, no app restart) replaces World's own data
+                    // (biomeMap/terrainMap/mapObjectIds) outright, but WorldBackground's per-chunk
+                    // doodad Actor lists (chunksSprites/chunksSpritesBackground) are only ever built
+                    // once and cached (see WorldBackground.reloadChunkObjects()'s own comment) - nothing
+                    // about a plain load tells it any of that's now stale. Real, reported bug: loading
+                    // an earlier save while standing at the same spot still showed doodads from the
+                    // *later* session that was just left behind, because the chunk(s) right there had
+                    // already been cached from it. Force every chunk to rebuild its Actor list from the
+                    // freshly-loaded data - reloadBackgroundChunkObjects() already no-ops instantly for
+                    // any chunk that was never loaded in the first place, so this is cheap even for a
+                    // large map.
+                    int chunksWide = currentSave.world.getWidthInChunks();
+                    int chunksHigh = currentSave.world.getHeightInChunks();
+                    for (int cx = 0; cx < chunksWide; cx++)
+                        for (int cy = 0; cy < chunksHigh; cy++)
+                            WorldStage.getInstance().reloadBackgroundChunkObjects(cx, cy);
+
                 } catch (Exception e) {
                     System.err.println("Generating New World");
                     if (!currentSave.world.generateNew(0))

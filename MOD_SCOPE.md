@@ -114,7 +114,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, then fixed a day-reset bug and minimap staleness, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, fixed a day-reset bug and minimap staleness, then capped captured-town protection radius and fixed a stale-doodad-cache-on-load bug, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -386,6 +386,30 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       by the expansion creep" (not fog of war, ruled out directly by the user for an earlier report).
       Now refreshes once per in-game day instead. (3) `FAST_TIME_MULTIPLIER` raised 50x -> 100x per
       explicit request to speed up testing. Full detail in `MOD_CHANGELOG.md`. **Not yet playtested.**
+    - **Eighth playtest: captured-town protection capped to a fixed radius (user decision, replacing
+      last round's unbounded design); a real stale-doodad-across-load bug found and fixed; two threads
+      left open pending more information.** A controlled A/B test (save before capturing a town near
+      black, capture it, reload the pre-capture save) confirmed last round's explanation was right in
+      kind - the reported "perfect circle, center not the town" is the mature form of the same
+      unbounded-rival-anchor mechanic: once a color's disc grows past the town on every side, its small
+      protected cell becomes a fully-enclosed island rather than just a bite out of the edge. Given the
+      choice, capped a captured town's protection to `CASTLE_KEEP_RADIUS_TILES` (20 tiles, same as an
+      AI castle's own) instead of leaving it unbounded - `claimWastelandRing()` now takes a separate
+      `boundedRivalAnchors` parameter for this, distinct from the still-unbounded `otherAnchors`
+      (other AI castles + Spawn, which need to stay unbounded for clean color-vs-color borders and
+      permanent home-base protection). **Separately, a real bug**: loading an earlier save via the
+      in-game Load menu (not an app restart) while standing at the same spot still showed doodads left
+      over from the later, abandoned session - `WorldBackground`'s per-chunk decoration Actor lists are
+      long-lived-singleton-cached and were never being invalidated by a plain load. Fixed by forcing
+      every chunk to rebuild its Actor list right after a load, reusing the existing (already proven
+      safe) `reloadBackgroundChunkObjects()` mechanism. **Two threads investigated, not fixed, pending
+      more information**: the minimap "still covered by white" report (confirmed to be on the build
+      with last round's refresh fix already - leading alternate theory is the minimap's always-flat
+      per-tile icon design, not a staleness bug, but not yet confirmed against a screenshot showing
+      that specific contrast); and "spread didn't resume after an AI took the city back" (checked
+      whether a stale `TOWN_RESTORED_FLAG` could be the cause - directly refuted by reading
+      `PointOfInterest.transformInto()`, which gives a recaptured town a fresh id/state by design - the
+      real explanation is still open). Full detail in `MOD_CHANGELOG.md`. **Not yet playtested.**
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

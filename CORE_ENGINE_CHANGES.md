@@ -125,7 +125,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   starting a new game without restarting the app reused the same object with all four still carrying
   over from the previous session (confirmed: a fresh game started on day 31, matching where the
   prior save had left off). Now explicitly reset alongside the existing cache-clearing block at the
-  top of `generateNew()`.
+  top of `generateNew()`. **Same-round follow-up (next round)**: `claimWastelandRing()`'s single
+  `otherAnchors` rival list split into two - `otherAnchors` (other AI castles + Spawn, unchanged,
+  still unbounded) and a new `boundedRivalAnchors` parameter (player-owned captured towns, each
+  capped to `TerritoryControl.CASTLE_KEEP_RADIUS_TILES` instead of an unbounded Voronoi cell, per
+  user decision after an unbounded town's cell was confirmed to grow into a large, fully-enclosed
+  hole once a color's own circle passed it on every side). Internally, each rival tile now carries
+  `{x, y, capRadiusSq}` (`-1` = unbounded).
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -134,7 +140,14 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `getAllPointOfInterestChanges()`, a small accessor so a global per-day sweep (Economy Buildings,
   #10) can iterate every town's state without knowing ids in advance. Also added one call,
   `currentSave.world.prewarmTerritoryControlCaches()`, right after a successful `world.load()` inside
-  `WorldSave.load()` (#7, freeze-regression fix - see `World.java`'s own entry above).
+  `WorldSave.load()` (#7, freeze-regression fix - see `World.java`'s own entry above). **Same-round
+  bug fix (next round)**: `WorldStage`/`WorldBackground` are long-lived singletons for the whole app
+  session, and a chunk's decoration Actor list is only ever built once and cached (see
+  `WorldBackground.reloadChunkObjects()`'s own pre-existing comment) - a plain load never invalidated
+  any of that, so loading an earlier save mid-session while standing at the same spot could still show
+  doodads left over from a later, abandoned session (confirmed, reported bug). Fixed by looping over
+  every chunk coordinate right after a load succeeds and calling the existing (already safe/no-op for
+  an unloaded chunk) `WorldStage.reloadBackgroundChunkObjects(cx, cy)` for each.
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the

@@ -3159,3 +3159,79 @@ reasonable once actually starting from a correctly-reset radius (rather than wha
 round's screenshots) is a secondary thing to re-check, understanding that an irregular boundary near
 a player-owned town is expected, not something either of these two bug fixes was meant to change.
 
+### Eighth playtest: captured-town protection capped to a fixed radius; stale doodad-cache-across-
+### load bug found and fixed; two open threads (minimap flatness, AI-recapture non-resume) still need
+### more information before touching code again
+
+Re-testing (post day-reset/minimap-refresh/100x fixes) produced a controlled A/B test from the user:
+saved right before capturing a town near black, captured it (black's spread toward that direction
+stopped, in a shape described as "a perfect circle... though the center is not the town"), reloaded
+the pre-capture save (black spread normally again, "clear evidence"). Confirms last round's
+explanation was right in kind - a captured town is an unbounded rival anchor - but the *shape*
+reported this time (a fully enclosed island, not just a chord bitten out of the edge) is the mature
+form of that same mechanic: once a color's growing disc reaches far enough to pass the town on every
+side (a tile beyond the town can still be closer to the color's own distant castle than to the town,
+since distance doesn't care what's "between" two points), the town's Voronoi cell becomes a small,
+fully-surrounded hole rather than a simple bite - not a new bug, just a more visually dramatic version
+of the same one already explained.
+
+**Decision: cap it.** Asked directly whether a captured town's protection should stay unbounded or
+get capped like an AI castle's own `CASTLE_KEEP_RADIUS_TILES` (20 tiles) - user chose capping.
+Implemented by splitting `claimWastelandRing()`'s single flat rival list into two: `otherAnchors`
+(other AI castles + the player's own Spawn, still unbounded - this is what keeps two colors' borders
+clean, and Spawn's protection is meant to be permanent) and a new `boundedRivalAnchors` parameter
+(player-owned captured towns specifically, each capped to `CASTLE_KEEP_RADIUS_TILES`). Internally,
+each rival tile now carries `{x, y, capRadiusSq}` (`-1` = unbounded); the nearest-anchor check skips
+a bounded rival entirely for any tile outside its own cap, rather than letting it win comparisons at
+unlimited range. `TerritoryControl.processTerritoryExpansion()` updated to pass `playerTownPositions`
+through the new parameter instead of folding it into `otherAnchors`.
+
+**Real, confirmed bug found and fixed: doodads from a later play session bled into an earlier save
+after an in-game Load, at the same map position.** User's own repro, directly confirmed: used the
+in-game Load menu (not an app restart) to revert to a save made just before capturing the town, while
+standing at that same spot - the reverted state's *ownership* was correct (black resumed spreading
+normally), but doodads matching the *later*, now-abandoned session were still visibly there. Root
+cause, confirmed by reading `WorldBackground.java`: `WorldStage`/`WorldBackground` are long-lived
+singletons for the whole app session (`WorldStage.getInstance()` is never torn down between games),
+and a chunk's decoration Actor list (`chunksSprites`/`chunksSpritesBackground`) is only ever built
+once and cached per chunk - confirmed by `reloadChunkObjects()`'s own pre-existing comment ("a plain
+unload+reload would just re-add the same stale Actor list"), which is exactly why that targeted
+per-chunk reload method already existed (built earlier for `repaintBiomeAroundTown()`'s live single-
+town repaints). A plain `WorldSave.load()` never called it for anything - it only replaces `World`'s
+own data (`biomeMap`/`terrainMap`/`mapObjectIds`), with no way to know which already-rendered chunks
+that invalidates. Fixed by looping over every chunk coordinate right after a load succeeds and calling
+the existing `WorldStage.reloadBackgroundChunkObjects(cx, cy)` for each - already a safe no-op for any
+chunk that was never loaded in the first place, so this is cheap even on a large map, and reuses a
+mechanism already proven correct rather than inventing a new one.
+
+**Two threads investigated but NOT fixed this round - genuinely need more information:**
+- **"Mini-map still not refreshing... white has spread and covered any details."** Confirmed by the
+  user to be reported *after* relaunching with last round's per-day-refresh fix, meaning that fix
+  either doesn't fully solve this or isn't the relevant mechanism here. Leading alternative theory,
+  not yet confirmed: the minimap bake has never drawn per-tile ground detail for any biome (a
+  documented, pre-existing simplification from earlier this session) - it draws one flat tileset icon
+  per claimed tile, same icon regardless of what's actually there. If wasteland's own icon happens to
+  have more visible texture/pattern than a claiming color's own icon, a color's territory would
+  always look "flatter" than the wasteland it replaced, by design, with or without any staleness bug
+  - a real visual style question, not something a refresh-timing fix could ever touch. Not yet
+  confirmed against a real screenshot pair showing specifically *that* contrast, so not acted on.
+- **"The spread did not work even after [an AI mage] took the city back."** Investigated a specific
+  hypothesis - that `TownRestoration.TOWN_RESTORED_FLAG` (checked by `isTownRestored()`, which decides
+  whether a town counts as a protected `boundedRivalAnchors` entry) might survive an AI recapture and
+  keep incorrectly protecting a town that's no longer the player's. Reading `PointOfInterest.
+  transformInto()` directly refutes this: `getID()` is derived from `data.name`, which changes on
+  transform (e.g. "Waste Town Identity" -> "Forest Town Identity"), so a recaptured town gets a fresh
+  `PointOfInterestChanges` entry under its new id - the flag doesn't carry over, by the same
+  intentional design documented in `transformInto()`'s own comment. This theory doesn't hold up, so
+  nothing was changed here - the actual explanation is still open (possibly: the recapturing color
+  simply owns that ground validly now, which is correct/expected, not a bug at all - or something else
+  entirely). Needs more specific detail (which color recaptured it, and what that area looks like now)
+  before guessing further.
+
+Compiled, deployed, byte-verified (`World.class`, `TerritoryControl.class`, `WorldSave.class`).
+
+**Not yet playtested.** The radius cap needs a fresh capture near a color with room to grow well past
+it, to confirm the hole now stays small. The chunk-reload fix needs the exact same in-game-Load-while-
+standing-there repro that surfaced the bug. The two open threads above are deliberately unresolved,
+pending more specific information rather than another guess.
+

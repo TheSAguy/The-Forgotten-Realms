@@ -252,8 +252,13 @@ public class TerritoryControl {
                 if (!entry.getKey().equals(color))
                     otherAnchors.add(entry.getValue());
             }
-            otherAnchors.addAll(playerTownPositions);
-            world.claimWastelandRing(color, castlePosition, otherAnchors, currentRadius, newRadius,
+            // Player-owned towns are a separate, BOUNDED rival list (capped to
+            // CASTLE_KEEP_RADIUS_TILES inside claimWastelandRing()) rather than folded into the
+            // unbounded otherAnchors above - a captured town deep inside a color's growth area used
+            // to get an unbounded Voronoi cell against that color's castle, which could grow into a
+            // large, fully-enclosed hole once the color's own circle expanded past it on every side,
+            // not the small protective pocket the design was meant to give a captured town.
+            world.claimWastelandRing(color, castlePosition, otherAnchors, playerTownPositions, currentRadius, newRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
             world.setColorTerritoryRadius(color, newRadius);

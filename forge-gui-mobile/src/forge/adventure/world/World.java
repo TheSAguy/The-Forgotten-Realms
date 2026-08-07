@@ -1795,12 +1795,24 @@ public class World implements Disposable, SaveFileContent {
      * equal distance) fall back to today's existing "whichever color's claim runs first each tick
      * wins" resolution - no explicit tie-break needed.
      * <p>
+     * boundedRivalAnchors is a second, separate rival list (currently: every player-owned captured
+     * town) whose protection is capped to TerritoryControl.CASTLE_KEEP_RADIUS_TILES instead of being
+     * unbounded like otherAnchors/Spawn - a tile beyond that radius from a bounded anchor simply
+     * doesn't consider that anchor at all (falls through to check every other rival normally). Fixed
+     * after a real, reported case: a captured town deep inside a color's growth area, protected by
+     * an *unbounded* Voronoi cell against that color's castle, let that color's own expanding circle
+     * grow around it from every direction until the town's cell became a fully-enclosed island - a
+     * far bigger, more surprising hole than "a small safe pocket around a town," which is what the
+     * unbounded design was actually meant to produce. Spawn and other AI castles stay unbounded -
+     * this cap only applies to ordinary captured towns.
+     * <p>
      * Called every in-game day a color's territory grows (unlike neutralizeTerritoryOutsideRadius(),
      * a one-time world-gen-time sweep) - scoped to a bounding box around center, not a full-map
      * scan, since this runs repeatedly rather than once. Also used once, non-incrementally, to give
      * the player a real starting circle around Spawn (see TerritoryControl.neutralizeAfterGeneration()).
      */
     public void claimWastelandRing(String colorBiomeName, Vector2 center, List<Vector2> otherAnchors,
+                                    List<Vector2> boundedRivalAnchors,
                                     int innerRadiusTiles, int outerRadiusTiles,
                                     BiConsumer<Integer, Integer> onTileRepainted,
                                     BiConsumer<Integer, Integer> onChunkNeedsReload) {
@@ -1857,12 +1869,19 @@ public class World implements Disposable, SaveFileContent {
         // anchor comparison as every AI castle (replaces the old flat SPAWN_PROTECTION_RADIUS_TILES
         // hard block with "closest anchor wins" like everything else, including when colorBiomeName
         // itself is "player" - center then equals the Spawn rival tile, which ties rather than
-        // disqualifies, see the "< distSq" check below).
+        // disqualifies, see the "< distSq" check below). Each entry is {x, y, capRadiusSq} - capRadiusSq
+        // -1 means unbounded (Spawn, other AI castles); a positive value (boundedRivalAnchors, below)
+        // means that rival only blocks a claim within that radius of itself.
         List<int[]> rivalTiles = new ArrayList<>();
-        rivalTiles.add(new int[]{(int) (width * data.playerStartPosX), (int) (height * data.playerStartPosY)});
+        rivalTiles.add(new int[]{(int) (width * data.playerStartPosX), (int) (height * data.playerStartPosY), -1});
         if (otherAnchors != null) {
             for (Vector2 anchor : otherAnchors)
-                rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize)});
+                rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize), -1});
+        }
+        int boundedCapSq = TerritoryControl.CASTLE_KEEP_RADIUS_TILES * TerritoryControl.CASTLE_KEEP_RADIUS_TILES;
+        if (boundedRivalAnchors != null) {
+            for (Vector2 anchor : boundedRivalAnchors)
+                rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize), boundedCapSq});
         }
 
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
@@ -1890,13 +1909,17 @@ public class World implements Disposable, SaveFileContent {
                 boolean nearest = true;
                 for (int[] rival : rivalTiles) {
                     int rdx = wx - rival[0], rdy = wy - rival[1];
-                    if (rdx * rdx + rdy * rdy < distSq) {
+                    int rDistSq = rdx * rdx + rdy * rdy;
+                    int capSq = rival[2];
+                    if (capSq >= 0 && rDistSq > capSq)
+                        continue; // a bounded rival (a captured town) outside its own protection radius doesn't apply to this tile at all
+                    if (rDistSq < distSq) {
                         nearest = false;
                         break;
                     }
                 }
                 if (!nearest)
-                    continue; // some other anchor (an AI castle, or the player's Spawn) is closer
+                    continue; // some other anchor (an AI castle, the player's Spawn, or a captured town within its own radius) is closer
 
                 int rawY = height - wy - 1;
                 long existingRoadBit = biomeMap[wx][rawY] & roadBit; // preserve roads, same as repaintBiomeAroundTown()
