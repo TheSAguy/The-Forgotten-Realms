@@ -2670,4 +2670,137 @@ actual cause, flagged to the user rather than assumed.
 
 Compiled, deployed, byte-verified (`World.class` + inner classes, `TerritoryControl.class`).
 
+## Territory Control: spatially-aware placement - replaces the whole-biome content swap (2026-08-06)
+
+The diagnostic logging above answered its own question fast: `forge.log` showed
+`regenerateStructuresForClaim()` genuinely placing structures on 15-32% of tiles per color, no
+exceptions, coordinates in a sane range - the mechanism wasn't broken, it was working exactly as
+designed and still visibly flatter than real territory. User's read, after seeing the same result a
+third time: the whole-biome swap approach (this same day, earlier entries above) had reached a
+ceiling, not a bug - `regenerateStructuresForClaim()` can only *sample* a small ~40-tile window out
+of a WFC pattern built at a color's full ~490-tile scale, and no amount of tuning that sampling
+makes it structurally equivalent to content that was actually generated at that scale in the first
+place. Asked to stop patching the reconstruction and fix placement itself instead. Answered with
+"just implement your best fix" rather than another planning round for the immediate options, but
+given this meant touching `generateNew()`'s core per-tile loop directly - the same class of code
+that caused a real world-gen hang earlier this session - went through Plan Mode properly rather than
+skip straight to code, using an Explore agent (to nail down exactly how castle placement works,
+since the design's correctness hinges on it) and a Plan agent (to stress-test the design before any
+of it was written) first. Full plan preserved at the time in `C:\Users\User\.claude\plans\
+dapper-shimmying-crown.md`.
+
+**The design that was tried and rejected during planning, worth recording so it isn't tried again
+blind**: predict each color's castle position ahead of generation, from `startPointX/Y` plus the
+castle POI's own `offsetX`/`offsetY` (both known in advance, unlike the castle's *actual* position,
+which also has real random jitter - median ~12 tiles, hard cap ~19 once integer truncation is
+accounted for, derived from the POI-placement code's own `radiusFactor` formula and confirmed
+against the real `points_of_interest.json` values for all 5 castles). The Plan agent traced this
+through the actual rendering path and confirmed a predicted circle and the later-known real circle
+would disagree over a real ring of tiles - not a style mismatch, a rendering bug: `terrainMap`'s raw
+index is interpreted against whichever biome's `BiomeTexture` the tile's `biomeMap` bit names (frozen
+per biome at `loadWorldData()` time, confirmed never re-read afterward), so a tile whose content was
+computed under one biome's index numbering but ends up owned by a different one renders either blank
+(index out of that biome's range) or a wrong sprite (index in range, different meaning) - the same
+class of bug as the ocean-bit regression earlier this session, this time caught before shipping.
+
+**What was actually built instead**: split `generateNew()`'s per-tile placement loop (previously one
+pass doing both the biome claim and the terrain/structure computation together) into two passes
+around the existing POI-placement loop, which is left completely untouched in between:
+
+- **Pass A** (claim only): unchanged claim condition, only `biomeMap[x][y] |= (1L <<
+  biomeIndex[0])` - no terrain/structure work. Reproduces exactly what the old single pass did to
+  `biomeMap`, so POI/castle placement's behavior - including the real jitter around the fixed
+  offset that made prediction unreliable - is completely unaffected. Confirmed by the Plan agent
+  this matters for a second reason too: town POIs sample from a disc up to ~155 tiles in radius
+  (`radiusFactor: 0.8`) - if a color's `biomeMap` claim had already been shrunk to a 20-tile circle
+  before this ran, the overwhelming majority of a town's 500 placement attempts would fail,
+  triggering the existing "can't place POI, regenerate everything" fallback repeatedly - a real,
+  different flavor of hang than the WFC one, avoided by never touching `biomeMap`'s claim shape at
+  all.
+- **POI placement**: unchanged, runs exactly where it always has. This is what makes every color's
+  *real* castle position known, with zero prediction involved.
+- **Pass B** (content, new): same per-biome bounding-box iteration as before, now gated by
+  `highestBiome(biomeMap[x][y]) == biomeIndex` (biomeMap already encodes what Pass A computed) in
+  place of re-deriving the claim, then the same terrain-variant/structure computation the old single
+  pass had, moved here mostly verbatim. The one addition: for the 5 AI colors specifically, with
+  Territory Control enabled, looks up that color's real castle (`TerritoryControl.findCastle()`,
+  made public and called directly rather than duplicating the lookup - `World.java` already depends
+  on `TerritoryControl` for the end-of-generation call, so this isn't a new dependency direction,
+  just a lighter one than re-deriving the same logic twice and risking the two copies drifting
+  apart) and computes distance from the current tile to it, in tiles (`x` needs no flip, matching
+  `getBiome()`'s own convention; `y` needs `height-y-1`, the same conversion
+  `neutralizeTerritoryOutsideRadius()`/`claimWastelandRing()` already use in the opposite
+  direction - verified via `getBiome()`'s own `biomeMap[x][height-y-1]` identity, not re-derived by
+  guesswork this time). Within `CASTLE_KEEP_RADIUS_TILES`: computes with this biome's own real
+  content, exactly as before. Outside it: computes using colorless's own `terrain` directly (no
+  scale concerns - terrain-variant selection is pure noise-at-absolute-position with no per-biome
+  caching, confirmed safe to read straight off a different `BiomeData`) and a **per-color clone** of
+  colorless's `structures`, built once right after the WFC-position loop's futures join, sized to
+  **that color's own** width/height (reuses the existing `cloneStructures()` from the earlier,
+  now-removed swap design - still needed, still solves the same `structureDataMap` identity-
+  collision problem, just referenced from a lookup table instead of assigned into `BiomeData.
+  structures`). The Plan agent flagged why the color's own scale matters here, not colorless's:
+  colorless's own extent doesn't fully contain any color's (colors sit offset toward the map edge,
+  colorless is centered and larger but not enough to cover the far edge) - querying colorless's own,
+  differently-scaled pattern would leave roughly the outer 50 tiles of every color's territory with
+  zero structures, deterministically, not just sparse. Building each color its own clone-based
+  pattern at its own scale avoids that entirely, the same way it already did in the previous design.
+- `TerritoryControl.CASTLE_KEEP_RADIUS_TILES` and `.COLORS` made `public` for the same reason as
+  `findCastle()` - Pass B and the post-generation ownership pass (below) must agree on the *exact*
+  same radius and the *exact* same list of "AI colors," and a shared constant makes disagreement a
+  compile-time impossibility rather than a runtime risk to keep in sync by hand.
+
+**`TerritoryControl.neutralizeAfterGeneration()` simplified to one pass.** Since Pass B already
+gives every tile correct content the moment it's computed, there's nothing left to reconstruct -
+only ownership. `World.neutralizeTerritoryOutsideRadius()` (one caller, safe to change directly)
+had its reskinning half removed entirely (not hidden behind a parameter - a boolean that's always
+passed the same value by its only caller is dead weight, not flexibility) - it now only flips
+`biomeMap`'s bit from color to colorless outside the radius, repaints the corresponding minimap
+pixel, and updates fog-of-war; `terrainMap` is left untouched, since Pass B already computed it
+correctly. This turned up one more real thing to get right, caught by re-reading the actual minimap-
+bake code rather than trusting an earlier summary of it: the initial minimap bake runs *before*
+`neutralizeAfterGeneration()` (right after Pass B/road-drawing), and unlike tile rendering, it reads
+`biome.structures` **live** off whichever biome `biomeMap` currently names dominant - since biomeMap
+isn't flipped yet at bake time, outside-radius tiles briefly get baked using the color's own real
+`structures` array against a colorless-numbered index. Read the actual bake loop to check whether
+this could crash (an out-of-range `mappingInfo` index) - it can't: every `structData.mappingInfo`
+access is bounds-checked and just moves to the next structures entry or draws nothing extra rather
+than indexing out of range - so the only consequence is a temporarily-wrong minimap pixel, corrected
+the moment `neutralizeTerritoryOutsideRadius()`'s own (kept) `biomeImage.drawPixmap(...)` call runs
+for that tile. `TerritoryControl.prepareBiomesForGeneration()` (the old "swap before generation"
+entry point) is gone entirely, along with its call site in `generateNew()` - nothing left to
+prepare, Pass B reads content live, per tile.
+
+**Removed**: `World.swapColorsToWastelandContent()`, `.restoreColorsRealContent()`, the
+`BiomeContentSnapshot` holder class and its backing field, `.regenerateStructuresForClaim()` and its
+diagnostic logging - the whole-biome swap and the post-hoc reconstruction it required are both gone,
+superseded by Pass B computing correct content the first time. **Kept, unchanged**:
+`translateStructure()`/`buildStructureSwapTable()`/`pickReplacement()`/`STRUCTURE_CATEGORY`/
+`structureSwapCache`/`cloneStructures()` (all still load-bearing for `repaintBiomeAroundTown()` and
+`claimWastelandRing()` - individual town captures and daily territory expansion, both entirely
+separate, ongoing gameplay-time mechanisms this redesign doesn't touch), `claimWastelandRing()`
+itself (still used by daily expansion, no longer called from the one-time setup path).
+
+**Logging, per explicit request this round** ("try to add logs where possible to help future
+checks," not just for this one feature): Pass B prints, per AI color, the real castle tile position
+it found and a tile-count summary (how many of that color's claimed tiles kept real content vs. got
+redirected) - same shape as the counters `regenerateStructuresForClaim()` had, now covering the
+whole claim instead of a 40-tile window. The simplified `neutralizeTerritoryOutsideRadius()` prints
+how many tiles it reassigned to colorless, next to the existing "converted N town(s) to neutral"
+line. `generateNew()`'s own timing (`measureGenerationTime(...)`, already used throughout) now
+brackets both the redirect-pattern precompute and Pass B specifically, so a future "did this get
+slower" question has a direct number instead of only the total "Generating world took" line.
+
+Compiled, deployed, byte-verified (`World.class` + `$DrawInfo`/`$DrawingInformation` inner classes -
+`$BiomeContentSnapshot` no longer exists; `TerritoryControl.class`).
+
+**Not yet playtested - needs a fresh world.** This is the fourth attempt at the same underlying
+"circles should look as dense as real territory" problem this session, and the first one that
+removes the structural reason the previous ones were capped (sampling a small window) rather than
+trying to improve the sampling - worth stating plainly rather than assuming success. Specifically
+worth checking: circle density now matches naturally-generated territory elsewhere on the map (the
+actual bar, not just "denser than before"); no world-gen hang or slowdown (this design does *fewer*
+WFC builds than the version it replaces - no more per-color reconstruction rebuild - so generation
+should be the same speed or faster); roads/minimap/doodads show no seam at the circle boundary;
+daily expansion and individual captures (both untouched by this change) still work normally.
 

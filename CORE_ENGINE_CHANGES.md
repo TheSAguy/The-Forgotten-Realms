@@ -65,18 +65,27 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `List<Vector2> otherAnchors` parameter and switched its claim condition from "am I within my own
   radius" to a Voronoi-style "is my anchor the nearest of all colors' castles and the player's
   Spawn" check - Spawn is now baked into the method as a permanent rival anchor, replacing the
-  removed `SPAWN_PROTECTION_RADIUS_TILES` constant/hard-block entirely. Generate-as-wasteland
-  redesign (#7, 2026-08-06 - see `MOD_CHANGELOG.md`) added `swapColorsToWastelandContent()`/
-  `restoreColorsRealContent()` (temporarily points a color's terrain/structures/spriteNames at
-  colorless's own for the duration of world-gen, new `$BiomeContentSnapshot` inner class) and one
-  more call near the top of `generateNew()` into `TerritoryControl.prepareBiomesForGeneration()`;
-  also changed all 3 repaint methods to carry a road tile's existing road bit forward into a
-  repaint instead of skipping the tile outright (fixes a border that traced roads specifically).
-  First-playtest fix, same day: added `cloneStructures()`, called from
-  `swapColorsToWastelandContent()` - gives each swapped color its own distinct `BiomeStructureData`
-  objects instead of sharing colorless's own by reference, fixing a `structureDataMap` key-identity
-  collision that left every AI color's claimed circle with almost no structures (see
-  `MOD_CHANGELOG.md`'s "First playtest" entry for the full mechanism).
+  removed `SPAWN_PROTECTION_RADIUS_TILES` constant/hard-block entirely. Also changed all 3 repaint
+  methods to carry a road tile's existing road bit forward into a repaint instead of skipping the
+  tile outright (fixes a border that traced roads specifically). Territory Control's placement (#7,
+  redesigned 2026-08-06, current approach - see `MOD_CHANGELOG.md` for the two earlier approaches
+  this replaced, both fully removed, not left behind as dead code) splits `generateNew()`'s per-tile
+  placement loop into Pass A (claim only - `biomeMap` bit-setting, unchanged from the original
+  single-pass logic) and Pass B (terrain/structure computation, moved to run after POI placement so
+  every AI color's real castle position is already known, no prediction involved). Pass B computes
+  each AI color's real content within `TerritoryControl.CASTLE_KEEP_RADIUS_TILES` of its real castle
+  and colorless's own content everywhere else in that color's claim, via a per-color clone of
+  colorless's `structures[]` built at that color's own scale (`cloneStructures()`, reused from the
+  prior approach - still needed, still avoids a `structureDataMap` identity collision if colorless's
+  own objects were shared directly). `neutralizeTerritoryOutsideRadius()` lost its reskinning half
+  (the `translateStructure()` call and `terrainMap` rewrite) - it now only flips `biomeMap`'s
+  ownership bit and repaints the minimap/fog-of-war outside the radius, since Pass B already
+  computed correct content the first time. `TerritoryControl.findCastle()`/`.COLORS`/
+  `.CASTLE_KEEP_RADIUS_TILES` made `public` so `World.java` calls/reads them directly instead of
+  duplicating the same lookup/constants (a duplicated radius specifically would risk Pass B and the
+  post-generation ownership pass disagreeing about the boundary - a real rendering bug, not just a
+  style mismatch, since rendering interprets `terrainMap`'s index using whichever biome `biomeMap`'s
+  bit currently names).
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've

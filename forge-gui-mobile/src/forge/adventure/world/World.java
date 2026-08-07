@@ -1,7 +1,6 @@
 package forge.adventure.world;
 
 import com.badlogic.gdx.files.FileHandle;
-import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.TextureData;
@@ -393,10 +392,6 @@ public class World implements Disposable, SaveFileContent {
             long startTime = System.currentTimeMillis();
 
             loadWorldData();
-            // Generate-as-wasteland redesign (MOD_SCOPE.md #7) - must run before the WFC/placement
-            // loop below, right after biome data is available and before anything reads it.
-            if (isTerritoryControlEnabled())
-                TerritoryControl.prepareBiomesForGeneration(this);
 //////////////////
 ///////// initialize
 //////////////////
@@ -466,6 +461,52 @@ public class World implements Disposable, SaveFileContent {
             CompletableFuture.allOf(futuresArray).join();
             futures.clear();
 
+            // Generate-as-wasteland redesign v2 (MOD_SCOPE.md #7, spatially-aware placement -
+            // replaces the previous round's whole-biome content swap, see MOD_CHANGELOG.md for why:
+            // that swap made the swept-away area genuinely wasteland-native, but meant the *kept*
+            // circle around each castle also generated using wasteland's content, needing a
+            // post-hoc reconstruction that could only sample a small window of a WFC pattern and
+            // came out visibly less dense than real, natively-generated territory). For each of the
+            // 5 AI colors (TerritoryControl.COLORS - referenced directly, not duplicated, so this
+            // and TerritoryControl.neutralizeAfterGeneration() can never disagree about which
+            // biomes are "AI colors"), builds a fresh WFC pattern from colorless's own structures[]
+            // content, cloned (cloneStructures() - content-identical, object-distinct, avoiding the
+            // structureDataMap identity collision fixed earlier this session) and sized to THAT
+            // COLOR's own biome width/height, not colorless's - querying colorless's own,
+            // differently-scaled pattern instead would leave roughly the outer 50 tiles of each
+            // color's territory with zero structures (verified during planning; colorless's own
+            // extent doesn't fully contain any color's, since colors are offset toward the map
+            // edge). The placement pass below (after POI placement, once real castle positions are
+            // known) reads from this per-tile for any AI-color tile outside that color's real
+            // castle radius, without ever reassigning BiomeData.structures itself.
+            BiomeData colorlessBiomeRef = null;
+            for (BiomeData b : data.GetBiomes())
+                if ("waste".equalsIgnoreCase(b.name)) { colorlessBiomeRef = b; break; }
+            Map<String, BiomeStructureData[]> colorlessRedirectStructures = new HashMap<>();
+            if (isTerritoryControlEnabled() && colorlessBiomeRef != null && colorlessBiomeRef.structures != null) {
+                for (String color : TerritoryControl.COLORS) {
+                    BiomeData colorBiome = null;
+                    for (BiomeData b : data.GetBiomes())
+                        if (color.equalsIgnoreCase(b.name)) { colorBiome = b; break; }
+                    if (colorBiome == null)
+                        continue;
+                    int colorBiomeWidth = (int) Math.round(colorBiome.width * (double) width);
+                    int colorBiomeHeight = (int) Math.round(colorBiome.height * (double) height);
+                    BiomeStructureData[] clone = cloneStructures(colorlessBiomeRef.structures);
+                    for (BiomeStructureData structureData : clone) {
+                        BiomeStructure structure = new BiomeStructure(structureData, seed, colorBiomeWidth, colorBiomeHeight);
+                        try {
+                            structure.initialize();
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                        structureDataMap.put(structureData, structure);
+                    }
+                    colorlessRedirectStructures.put(color, clone);
+                }
+                currentTime[0] = measureGenerationTime("territory control redirect patterns", currentTime[0]);
+            }
+
 //////////////////
 ///////// calculation each biome position based on noise and radius
 //////////////////
@@ -496,59 +537,12 @@ public class World implements Disposable, SaveFileContent {
                         float distanceValue = ((float) Math.sqrt((x - biomeXStart) * (x - biomeXStart) + (y - biomeYStart) * (y - biomeYStart))) / (Math.max(biomeWidth, biomeHeight) / 2f);
                         distanceValue *= biome.distWeight;
                         if (noiseValue + distanceValue < 1.0 || biome.invertHeight && (1 - noiseValue) + distanceValue < 1.0) {
-                            Color color = biome.GetColor();
-                            float[] hsv = new float[3];
-                            color.toHsv(hsv);
-                            int count = (int) ((noiseValue - 0.5) * 10 / 4);
-                            //hsv[2]+=(count*0.2);
                             biomeMap[x][y] |= (1L << biomeIndex[0]);
-                            int terrainCounter = 1;
-                            terrainMap[x][y] = 0;
-                            if (biome.terrain != null) {
-                                for (BiomeTerrainData terrain : biome.terrain) {
-                                    float terrainNoise = ((float) noise.eval(x / (float) width * (noiseZoom * terrain.resolution), y / (float) height * (noiseZoom * terrain.resolution)) + 1) / 2;
-                                    if (terrainNoise >= terrain.min && terrainNoise <= terrain.max) {
-                                        terrainMap[x][y] = terrainCounter;
-                                        //pix.fillRectangle(x*data.miniMapTileSize, y*data.miniMapTileSize,data.miniMapTileSize,data.miniMapTileSize);
-                                    }
-                                    terrainCounter++;
-                                }
-                            }
-                            if (biome.collision)
-                                terrainMap[x][y] |= collisionBit;
-                            if (biome.structures != null) {
-                                for (BiomeStructureData data : biome.structures) {
-                                    while (!structureDataMap.containsKey(data)) {
-                                        try {
-                                            Thread.sleep(10);
-                                        } catch (InterruptedException e) {
-                                            throw new RuntimeException(e);
-                                        }
-                                    }
-
-                                    BiomeStructure structure = structureDataMap.get(data);
-                                    int structureXStart = x - (biomeXStart - biomeWidth / 2) - (int) ((data.x * biomeWidth) - (data.width * biomeWidth / 2));
-                                    int structureYStart = y - (biomeYStart - biomeHeight / 2) - (int) ((data.y * biomeHeight) - (data.height * biomeHeight / 2));
-
-                                    int structureIndex = structure.objectID(structureXStart, structureYStart);
-                                    if (structureIndex >= 0) {
-
-                                        terrainMap[x][y] = terrainCounter + structureIndex;
-                                        if (structure.collision(structureXStart, structureYStart))
-                                            terrainMap[x][y] |= collisionBit;
-                                        terrainMap[x][y] |= isStructureBit;
-
-                                    }
-
-                                    terrainCounter += structure.structureObjectCount();
-                                }
-                            }
                         }
-
                     }
                 }
             }
-            currentTime[0] = measureGenerationTime("biomes in total", currentTime[0]);
+            currentTime[0] = measureGenerationTime("biome claims", currentTime[0]);
 
 //////////////////
 ///////// set poi placement
@@ -673,6 +667,122 @@ public class World implements Disposable, SaveFileContent {
                 }
             }
             currentTime[0] = measureGenerationTime("poi placement", currentTime[0]);
+
+//////////////////
+///////// assign terrain/structure content per tile (Territory Control: spatially-aware, #7)
+//////////////////
+            // Every color's real castle position is now known (POI placement above just finished),
+            // so this pass never has to predict where a castle will land - see MOD_CHANGELOG.md for
+            // why prediction was tried and rejected during planning (predicted vs. actual castle
+            // position diverge by a real, non-negligible amount - a mismatched ring where content
+            // and ownership disagree is a rendering bug, not just a style issue, since rendering
+            // interprets terrainMap's raw index using whichever biome's BiomeTexture the tile's
+            // biomeMap bit currently names, and BiomeTexture is frozen per-biome at
+            // loadWorldData() time). This is the terrain/structure half of what generateNew()'s
+            // earlier biome-claim loop used to do in one pass - split so this half could move here.
+            biomeIndex[0] = -1;
+            for (BiomeData biome : data.GetBiomes()) {
+                biomeIndex[0]++;
+                int biomeXStart = (int) Math.round(biome.startPointX * (double) width);
+                int biomeYStart = (int) Math.round(biome.startPointY * (double) height);
+                int biomeWidth = (int) Math.round(biome.width * (double) width);
+                int biomeHeight = (int) Math.round(biome.height * (double) height);
+
+                int beginX = Math.max(biomeXStart - biomeWidth / 2, 0);
+                int beginY = Math.max(biomeYStart - biomeHeight / 2, 0);
+                int endX = Math.min(biomeXStart + biomeWidth / 2, width);
+                int endY = Math.min(biomeYStart + biomeHeight / 2, height);
+                if (biome.width == 1.0 && biome.height == 1.0) {
+                    beginX = 0;
+                    beginY = 0;
+                    endX = width;
+                    endY = height;
+                }
+
+                // Only set (non-null) for one of the 5 AI colors, with Territory Control enabled -
+                // everyone else (base/ocean, colorless, player, or any AI color when the feature is
+                // off) computes exactly as before, unconditionally using their own real content.
+                BiomeStructureData[] redirectStructures = colorlessRedirectStructures.get(biome.name);
+                PointOfInterest realCastle = redirectStructures != null ? TerritoryControl.findCastle(this, biome.name) : null;
+                int castleTileX = 0, castleTileY = 0;
+                if (realCastle != null) {
+                    castleTileX = (int) (realCastle.getPosition().x / data.tileSize);
+                    castleTileY = (int) (realCastle.getPosition().y / data.tileSize);
+                }
+                int keepRadiusSq = TerritoryControl.CASTLE_KEEP_RADIUS_TILES * TerritoryControl.CASTLE_KEEP_RADIUS_TILES;
+                int scannedTiles = 0, redirectedTiles = 0;
+
+                for (int x = beginX; x < endX; x++) {
+                    for (int y = beginY; y < endY; y++) {
+                        if (highestBiome(biomeMap[x][y]) != biomeIndex[0])
+                            continue; // some other, higher-priority biome also claimed this tile - its own pass handles it
+                        scannedTiles++;
+
+                        BiomeTerrainData[] terrainSource = biome.terrain;
+                        BiomeStructureData[] structuresSource = biome.structures;
+                        if (realCastle != null) {
+                            // x needs no flip (matches getBiome()'s own convention); y does - this
+                            // loop's y is the same raw array space getBiome(wx,wy)=biomeMap[wx]
+                            // [height-wy-1] reads from, so height-y-1 recovers the "world tile" y
+                            // that realCastle.getPosition() (a world/pixel position) is already in,
+                            // once divided by tileSize - same conversion neutralizeTerritoryOutsideRadius()
+                            // and claimWastelandRing() already use, just in the opposite direction.
+                            int dx = x - castleTileX;
+                            int dy = (height - y - 1) - castleTileY;
+                            if (dx * dx + dy * dy > keepRadiusSq) {
+                                terrainSource = colorlessBiomeRef.terrain;
+                                structuresSource = redirectStructures;
+                                redirectedTiles++;
+                            }
+                        }
+
+                        int terrainCounter = 1;
+                        terrainMap[x][y] = 0;
+                        if (terrainSource != null) {
+                            for (BiomeTerrainData terrain : terrainSource) {
+                                float terrainNoise = ((float) noise.eval(x / (float) width * (noiseZoom * terrain.resolution), y / (float) height * (noiseZoom * terrain.resolution)) + 1) / 2;
+                                if (terrainNoise >= terrain.min && terrainNoise <= terrain.max) {
+                                    terrainMap[x][y] = terrainCounter;
+                                }
+                                terrainCounter++;
+                            }
+                        }
+                        if (biome.collision)
+                            terrainMap[x][y] |= collisionBit;
+                        if (structuresSource != null) {
+                            for (BiomeStructureData structureData : structuresSource) {
+                                while (!structureDataMap.containsKey(structureData)) {
+                                    try {
+                                        Thread.sleep(10);
+                                    } catch (InterruptedException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }
+
+                                BiomeStructure structure = structureDataMap.get(structureData);
+                                int structureXStart = x - (biomeXStart - biomeWidth / 2) - (int) ((structureData.x * biomeWidth) - (structureData.width * biomeWidth / 2));
+                                int structureYStart = y - (biomeYStart - biomeHeight / 2) - (int) ((structureData.y * biomeHeight) - (structureData.height * biomeHeight / 2));
+
+                                int structureIndex = structure.objectID(structureXStart, structureYStart);
+                                if (structureIndex >= 0) {
+                                    terrainMap[x][y] = terrainCounter + structureIndex;
+                                    if (structure.collision(structureXStart, structureYStart))
+                                        terrainMap[x][y] |= collisionBit;
+                                    terrainMap[x][y] |= isStructureBit;
+                                }
+
+                                terrainCounter += structure.structureObjectCount();
+                            }
+                        }
+                    }
+                }
+
+                if (redirectStructures != null)
+                    System.out.println("[TerritoryControl] " + biome.name + ": placement - castle "
+                            + (realCastle != null ? ("at (" + castleTileX + "," + castleTileY + ")") : "not found, real content used everywhere")
+                            + ", " + (scannedTiles - redirectedTiles) + "/" + scannedTiles + " claimed tiles kept real content");
+            }
+            currentTime[0] = measureGenerationTime("territory control placement", currentTime[0]);
 
 //////////////////
 ///////// sort towns and build roads in between
@@ -1234,84 +1344,22 @@ public class World implements Disposable, SaveFileContent {
         return table[oldRaw];
     }
 
-    // Generate-as-wasteland world-gen redesign (MOD_SCOPE.md #7, 2026-08-06): what
-    // swapColorsToWastelandContent() below snapshots per color before overwriting its
-    // terrain/structures/spriteNames, so restoreColorsRealContent() can put the real values back.
-    private static final class BiomeContentSnapshot {
-        final BiomeTerrainData[] terrain;
-        final BiomeStructureData[] structures;
-        final String[] spriteNames;
-        BiomeContentSnapshot(BiomeData biome) {
-            terrain = biome.terrain;
-            structures = biome.structures;
-            spriteNames = biome.spriteNames;
-        }
-    }
-    private final Map<String, BiomeContentSnapshot> pendingContentRestore = new HashMap<>();
-
-    /**
-     * Generate-as-wasteland world-gen redesign (MOD_SCOPE.md #7): temporarily points each named
-     * color biome's terrain/structures/spriteNames at colorless's ("waste") own, so the WFC/
-     * placement loop below generates that color's territory using wasteland's own recipe - not a
-     * differently-shaped, color-specific pattern later reskinned to wasteland's art (which kept
-     * that color's own WFC density/pattern forever, just wearing wasteland's texture - the "dead
-     * zone" symptom next to wasteland's own naturally-generated core, see MOD_CHANGELOG.md). Safe
-     * to reassign these 3 fields post-loadWorldData(): BiomeTexture (the only thing that caches
-     * them) is built once inside loadWorldData(), before this ever runs, and never re-reads
-     * BiomeData afterward (confirmed by reading BiomeTexture.generate()/getPixmap()/
-     * drawPixmapOn()) - so this is invisible to rendering, and only affects the live WFC/placement
-     * loop and per-tile terrain assignment still to come. Deliberately leaves
-     * startPointX/Y/width/height/noiseWeight/distWeight untouched - territory shape/extent and all
-     * POI/castle placement (which matches against those via highestBiome()) are unaffected. Call
-     * restoreColorsRealContent() before anything needs the real values again.
-     * <p>
-     * terrain/spriteNames are shared by plain reference - confirmed safe by reading both consuming
-     * loops (the per-tile terrain-variant noise check, and the doodad-placement loop): neither
-     * caches anything keyed by object identity, both just read fields/do string-keyed lookups
-     * fresh each call. structures is different and needs its own clone per color, not a shared
-     * reference - see cloneStructures()'s own comment for why.
-     */
-    public void swapColorsToWastelandContent(String[] colorBiomeNames) {
-        List<BiomeData> biomes = data.GetBiomes();
-        BiomeData colorless = null;
-        for (BiomeData biome : biomes) {
-            if ("waste".equalsIgnoreCase(biome.name)) {
-                colorless = biome;
-                break;
-            }
-        }
-        if (colorless == null)
-            return;
-        pendingContentRestore.clear();
-        for (String colorName : colorBiomeNames) {
-            for (BiomeData biome : biomes) {
-                if (!colorName.equalsIgnoreCase(biome.name))
-                    continue;
-                pendingContentRestore.put(colorName, new BiomeContentSnapshot(biome));
-                biome.terrain = colorless.terrain;
-                biome.structures = cloneStructures(colorless.structures);
-                biome.spriteNames = colorless.spriteNames;
-                break;
-            }
-        }
-    }
-
     // The WFC pattern cache built by generateNew()'s own structure-position loop
     // (structureDataMap, a Map<BiomeStructureData, BiomeStructure>) is keyed by *object identity*,
-    // not by biome or content - that loop builds one BiomeStructure per (biome, structures[]
+    // not by biome or content - that loop (and the similar per-color redirect-pattern precompute in
+    // generateNew() itself, Territory Control #7) builds one BiomeStructure per (biome, structures[]
     // entry) pair, sized to *that biome's own* width/height, and stores it under the
-    // BiomeStructureData object as the key. If swapColorsToWastelandContent() pointed multiple
-    // colors' `structures` fields directly at colorless's own array (plain reference, like
-    // terrain/spriteNames above), every one of those colors - plus colorless itself - would share
-    // the exact same BiomeStructureData objects, so that loop would race to store multiple
-    // differently-sized BiomeStructure patterns under the same map keys, with whichever finishes
-    // last (likely colorless's own, since it's the largest biome and plausibly the slowest to
-    // generate) winning for every other biome's per-tile lookups too - a real, verified bug caught
-    // during this feature's first playtest (structures came out visibly missing inside every
-    // color's claimed circle - see MOD_CHANGELOG.md), not a hypothetical. Cloning gives every color
-    // its own distinct BiomeStructureData objects (same content, different identity) via the
-    // existing BiomeStructureData(BiomeStructureData) copy constructor, so each gets its own
-    // correctly-sized WFC pattern instead of colliding with anyone else's.
+    // BiomeStructureData object as the key. Sharing colorless's own BiomeStructureData objects
+    // directly across multiple colors (a plain reference, like terrain/spriteNames can safely be -
+    // neither is cached by identity) would mean every color sharing them, plus colorless itself,
+    // racing to store multiple differently-sized BiomeStructure patterns under the same map keys,
+    // with whichever finishes last silently winning for every other biome's per-tile lookups too -
+    // a real, verified bug caught during this feature's first playtest, when a whole-biome content
+    // swap did exactly that (structures came out visibly missing inside every color's claimed
+    // circle - see MOD_CHANGELOG.md), not a hypothetical. Cloning gives every color its own distinct
+    // BiomeStructureData objects (same content, different identity) via the existing
+    // BiomeStructureData(BiomeStructureData) copy constructor, so each gets its own correctly-sized
+    // WFC pattern instead of colliding with anyone else's.
     private static BiomeStructureData[] cloneStructures(BiomeStructureData[] source) {
         if (source == null)
             return null;
@@ -1319,35 +1367,6 @@ public class World implements Disposable, SaveFileContent {
         for (int i = 0; i < source.length; i++)
             clone[i] = new BiomeStructureData(source[i]);
         return clone;
-    }
-
-    /**
-     * Undoes swapColorsToWastelandContent() - restores each swapped color's real
-     * terrain/structures/spriteNames. Also resets structureSwapCache: any [color][colorless] table
-     * built by translateStructure() while content was still swapped above (e.g. by the pass-1
-     * radius-0 sweep in TerritoryControl.neutralizeAfterGeneration()) was built from wasteland's
-     * content, not that color's real content, and would silently stay wrong - wrong table length,
-     * wrong structure names - for the rest of the game if some later, real-content call reused that
-     * same cached index pair. A blanket clear (not just the touched slots) is simplest and correct;
-     * this runs once per world generation, not a hot path, so losing a few unrelated cached entries
-     * costs nothing.
-     */
-    public void restoreColorsRealContent() {
-        if (pendingContentRestore.isEmpty())
-            return;
-        List<BiomeData> biomes = data.GetBiomes();
-        for (Map.Entry<String, BiomeContentSnapshot> entry : pendingContentRestore.entrySet()) {
-            for (BiomeData biome : biomes) {
-                if (!entry.getKey().equalsIgnoreCase(biome.name))
-                    continue;
-                biome.terrain = entry.getValue().terrain;
-                biome.structures = entry.getValue().structures;
-                biome.spriteNames = entry.getValue().spriteNames;
-                break;
-            }
-        }
-        pendingContentRestore.clear();
-        structureSwapCache = null;
     }
 
     /**
@@ -1449,14 +1468,20 @@ public class World implements Disposable, SaveFileContent {
     }
 
     /**
-     * Territory Control (MOD_SCOPE.md #7): repaints every tile belonging to the named color biome
-     * to the "waste" (colorless) biome, EXCEPT within radiusTiles of keepCenter - the inverse of
-     * repaintBiomeAroundTown() above (that one paints a small circle TO a color; this one paints
-     * everything OUTSIDE a small circle AWAY from a color). Used once, right after normal
-     * generateNew() finishes with every color's original, full-size territory (unlike
-     * repaintBiomeAroundTown()'s live, mid-game single-town use, world-gen hasn't produced a
-     * live WorldStage/WorldBackground yet, so onTileRepainted/onChunkNeedsReload are typically
-     * null here - nothing needs a live-refresh callback before the scene has even loaded).
+     * Territory Control (MOD_SCOPE.md #7): reassigns every tile belonging to the named color biome
+     * to the "waste" (colorless) biome, EXCEPT within radiusTiles of keepCenter - the ownership half
+     * of what used to also be a content-reskinning pass, before the spatially-aware placement
+     * redesign (see MOD_CHANGELOG.md). Deliberately does NOT touch terrainMap: generateNew()'s
+     * placement pass already computed every tile's content using colorless's own recipe wherever
+     * it's farther than radiusTiles from this color's real castle (that's the whole point of the
+     * redesign - content is native from the start, never reconstructed after the fact) - rewriting
+     * it here via translateStructure() would misinterpret an already-colorless-shaped index as if
+     * it were still this color's own, the same class of bug the ocean-bit regression was earlier
+     * this session. Only `biomeMap`'s ownership bit, the minimap pixel, and fog-of-war need
+     * touching here. Used once, right after normal generateNew() finishes (unlike
+     * repaintBiomeAroundTown()'s live, mid-game single-town use, world-gen hasn't produced a live
+     * WorldStage/WorldBackground yet, so onTileRepainted/onChunkNeedsReload are typically null here
+     * - nothing needs a live-refresh callback before the scene has even loaded).
      * <p>
      * Deliberately scans the *entire* map rather than a precomputed bounding box: the original
      * per-biome painting loop in generateNew() tracks x/y as raw array indices, while this method
@@ -1487,6 +1512,7 @@ public class World implements Disposable, SaveFileContent {
         int radiusSq = radiusTiles * radiusTiles;
         long roadBit = 1L << biomes.size();
         int mm = data.miniMapTileSize;
+        int tilesReassigned = 0;
 
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
         for (int wx = 0; wx < width; wx++) {
@@ -1500,12 +1526,8 @@ public class World implements Disposable, SaveFileContent {
 
                 int rawY = height - wy - 1;
                 long existingRoadBit = biomeMap[wx][rawY] & roadBit; // preserve roads, same as repaintBiomeAroundTown()
-
-                Integer newTerrain = translateStructure(colorIndex, colorlessIndex, terrainMap[wx][rawY]);
-                if (newTerrain == null)
-                    continue;
                 biomeMap[wx][rawY] = existingRoadBit | (1L << colorlessIndex);
-                terrainMap[wx][rawY] = newTerrain;
+                tilesReassigned++;
 
                 if (biomeImage != null)
                     biomeImage.drawPixmap(createSmallPixmap(colorlessBiome.tilesetAtlas, colorlessBiome.tilesetName, 0), wx * mm, rawY * mm);
@@ -1517,6 +1539,7 @@ public class World implements Disposable, SaveFileContent {
                 minY = Math.min(minY, wy); maxY = Math.max(maxY, wy);
             }
         }
+        System.out.println("[TerritoryControl] " + colorBiomeName + ": " + tilesReassigned + " tile(s) reassigned to colorless outside radius " + radiusTiles);
 
         if (onChunkNeedsReload != null && minX <= maxX) {
             int chunkSize = getChunkSize();
@@ -1640,141 +1663,6 @@ public class World implements Disposable, SaveFileContent {
                 for (int cy = minChunkY; cy <= maxChunkY; cy++)
                     onChunkNeedsReload.accept(cx, cy);
         }
-    }
-
-    /**
-     * Companion to claimWastelandRing(), called right after it for the one-time world-gen claim
-     * only (MOD_SCOPE.md #7's generate-as-wasteland redesign) - NOT used by daily territory
-     * expansion, which keeps calling claimWastelandRing() alone, unmodified.
-     * <p>
-     * claimWastelandRing() (and the translateStructure() it uses) can only *reskin* whatever
-     * structure a tile already has - swap which biome's sprite renders an existing index, never
-     * add density that wasn't already baked in. Every tile in a freshly-claimed circle was placed
-     * during generation using colorless's own WFC pattern (see World.swapColorsToWastelandContent()
-     * - that's what fixed the "dead zone" outside these circles), so a plain reskin leaves the
-     * circle wearing the real color's texture over wasteland's own (typically sparser) structure
-     * pattern - visibly flatter than that color's real territory should look, confirmed by the
-     * first playtest of the redesign. This method fixes that by *replacing* the structure portion
-     * of terrainMap with a genuinely fresh placement, queried against the color's own real
-     * structures[] at its own real width/height - the same computation generateNew()'s own per-tile
-     * placement loop does, just run again here, synchronously, scoped to one small circle instead
-     * of the whole map. Leaves the terrain-variant/plain-ground baseline claimWastelandRing() already
-     * painted untouched wherever no fresh structure is found there.
-     * <p>
-     * Must run after claimWastelandRing() (needs biomeMap already updated to know which tiles are
-     * this color's), and re-invokes regenerateDoodadsInRadius() itself afterward - claimWastelandRing()'s
-     * own doodad pass already ran using the stale (reskinned) isStructure() state, so without this
-     * a tile could end up with both a doodad and a freshly-added structure overlapping. Re-running
-     * it is a cheap, ordinary doodad-density pass, not a second WFC build - negligible extra cost
-     * for one small circle, and keeps claimWastelandRing() itself completely unmodified rather than
-     * risking daily expansion (its other, already-proven caller) to special-case this.
-     */
-    public void regenerateStructuresForClaim(String colorBiomeName, Vector2 center, int radiusTiles) {
-        if (data == null || biomeMap == null || terrainMap == null)
-            return;
-        List<BiomeData> biomes = data.GetBiomes();
-        int colorIndex = -1;
-        for (int i = 0; i < biomes.size(); i++) {
-            if (colorBiomeName.equalsIgnoreCase(biomes.get(i).name)) {
-                colorIndex = i;
-                break;
-            }
-        }
-        if (colorIndex < 0)
-            return;
-        BiomeData biome = biomes.get(colorIndex);
-        if (biome.structures == null)
-            return;
-
-        int biomeXStart = (int) Math.round(biome.startPointX * (double) width);
-        int biomeYStart = (int) Math.round(biome.startPointY * (double) height);
-        int biomeWidth = (int) Math.round(biome.width * (double) width);
-        int biomeHeight = (int) Math.round(biome.height * (double) height);
-
-        // Fresh, synchronous, real-content WFC patterns - deliberately separate from
-        // structureDataMap (which, even after the identity-collision fix above, still only ever
-        // holds the wasteland-shaped clones built during generateNew()'s own WFC pass, not these
-        // colors' real structures - restoreColorsRealContent() has already run by the time this is
-        // called). Sized to the color's own real, full biome width/height - matching what ordinary,
-        // non-Territory-Control generation has always safely used for this exact biome - rather
-        // than a smaller custom size, to carry over the same hang-safety this session already had
-        // to fix once (see the "world-gen hang" entry in MOD_CHANGELOG.md) without re-deriving it.
-        Map<BiomeStructureData, BiomeStructure> freshPatterns = new HashMap<>();
-        for (BiomeStructureData structureData : biome.structures) {
-            BiomeStructure structure = new BiomeStructure(structureData, seed, biomeWidth, biomeHeight);
-            try {
-                structure.initialize();
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-            freshPatterns.put(structureData, structure);
-        }
-
-        int centerTileX = (int) (center.x / data.tileSize);
-        int centerTileY = (int) (center.y / data.tileSize);
-        int radiusSq = radiusTiles * radiusTiles;
-        long roadBit = 1L << biomes.size();
-        int baseTerrainCounter = 1 + (biome.terrain != null ? biome.terrain.length : 0);
-
-        // Diagnostic counters only (MOD_SCOPE.md #7) - the last two attempts at this exact "circles
-        // still look empty" report each seemed sufficient and weren't, and the second one (fixing
-        // structureDataMap's identity collision) left no observable trace either way in forge.log
-        // (no exception, no timing line - that fix genuinely worked, per the resource-load lines
-        // confirming each color's own real content, but visually nothing changed). Rather than ship
-        // a fourth unverified guess, this round adds hard numbers to forge.log so the actual cause -
-        // wrong coordinates vs. a genuinely sparse WFC result vs. something else - can be read
-        // directly instead of inferred from a screenshot.
-        int scannedTiles = 0, placedTiles = 0;
-        int minSX = Integer.MAX_VALUE, maxSX = Integer.MIN_VALUE, minSY = Integer.MAX_VALUE, maxSY = Integer.MIN_VALUE;
-
-        for (int wx = Math.max(0, centerTileX - radiusTiles); wx <= Math.min(width - 1, centerTileX + radiusTiles); wx++) {
-            int dx = wx - centerTileX;
-            for (int wy = Math.max(0, centerTileY - radiusTiles); wy <= Math.min(height - 1, centerTileY + radiusTiles); wy++) {
-                int dy = wy - centerTileY;
-                if (dx * dx + dy * dy > radiusSq)
-                    continue;
-                if (highestBiome(getBiome(wx, wy)) != colorIndex)
-                    continue; // not this color's claimed ground (e.g. a rival anchor claimed it first) - leave it
-                int rawY = height - wy - 1;
-                if ((biomeMap[wx][rawY] & roadBit) != 0)
-                    continue; // never place a structure on a road
-                scannedTiles++;
-
-                // Same formula as generateNew()'s own per-tile placement loop - x needs no flip
-                // (matches getBiome()'s own convention), y does: that loop's "y" is raw array-space,
-                // and getBiome(wx,wy)'s own height-wy-1 flip is what makes wy a "world" coordinate
-                // in the first place, so feeding the same rawY back in keeps this consistent with
-                // whatever tile generateNew() itself would have written to at this world position.
-                int terrainCounter = baseTerrainCounter;
-                boolean tilePlaced = false;
-                for (BiomeStructureData structureData : biome.structures) {
-                    BiomeStructure structure = freshPatterns.get(structureData);
-                    int structureXStart = wx - (biomeXStart - biomeWidth / 2) - (int) ((structureData.x * biomeWidth) - (structureData.width * biomeWidth / 2));
-                    int structureYStart = rawY - (biomeYStart - biomeHeight / 2) - (int) ((structureData.y * biomeHeight) - (structureData.height * biomeHeight / 2));
-                    minSX = Math.min(minSX, structureXStart); maxSX = Math.max(maxSX, structureXStart);
-                    minSY = Math.min(minSY, structureYStart); maxSY = Math.max(maxSY, structureYStart);
-                    int structureIndex = structure.objectID(structureXStart, structureYStart);
-                    if (structureIndex >= 0) {
-                        int encoded = terrainCounter + structureIndex;
-                        if (structure.collision(structureXStart, structureYStart))
-                            encoded |= collisionBit;
-                        encoded |= isStructureBit;
-                        terrainMap[wx][rawY] = encoded;
-                        tilePlaced = true;
-                    }
-                    terrainCounter += structure.structureObjectCount();
-                }
-                if (tilePlaced)
-                    placedTiles++;
-            }
-        }
-
-        System.out.println("[TerritoryControl] " + colorBiomeName + ": regenerateStructuresForClaim placed "
-                + placedTiles + "/" + scannedTiles + " tiles, biome box " + biomeWidth + "x" + biomeHeight
-                + " at (" + biomeXStart + "," + biomeYStart + "), queried structureX in [" + minSX + "," + maxSX
-                + "] structureY in [" + minSY + "," + maxSY + "]");
-
-        regenerateDoodadsInRadius(centerTileX, centerTileY, 0, radiusTiles, biome);
     }
 
     /**

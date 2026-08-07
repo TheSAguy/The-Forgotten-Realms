@@ -30,7 +30,10 @@ import java.util.Map;
  * removes it, nothing extra needed on that path.
  */
 public class TerritoryControl {
-    private static final String[] COLORS = {"white", "blue", "black", "red", "green"};
+    // Public: World.java's placement pass (Territory Control #7 v2, spatially-aware) reads this
+    // directly, rather than duplicating the list - it and this class must never disagree about
+    // which biomes are "AI colors."
+    public static final String[] COLORS = {"white", "blue", "black", "red", "green"};
     private static final Map<String, String> COLOR_TOWN_NOUN = new HashMap<>();
     static {
         COLOR_TOWN_NOUN.put("white", "Plains");
@@ -44,79 +47,56 @@ public class TerritoryControl {
     private static final int MAX_ATTACK_DAYS = 5;
     private static final int NEAREST_CANDIDATES = 3;
     private static final int RECOLOR_RADIUS = 10;
-    private static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
+    // Public for the same reason COLORS is: World.java's placement pass must use the exact same
+    // radius this class later uses to flip biomeMap ownership outside it, or content and ownership
+    // would disagree at the boundary - see World.java's placement pass and
+    // neutralizeTerritoryOutsideRadius() for why that's a real rendering bug, not just cosmetic.
+    public static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
     private static final int EXPANSION_TILES_PER_DAY = 3; // first-guess constant, tune after testing
     private static final int MAX_TERRITORY_RADIUS = 300; // generous cap - bounds the scan once a color has filled all reachable wasteland
 
     private TerritoryControl() {}
 
     /**
-     * Called once from World.generateNew(), immediately after loadWorldData() and before any
-     * WFC/placement logic runs. Temporarily points each of the 5 AI colors' own
-     * terrain/structures/spriteNames at colorless's ("waste") own (World.
-     * swapColorsToWastelandContent()), so every color still claims its normal full-size territory
-     * during generation, but every tile in it is generated using wasteland's own WFC recipe - not
-     * that color's own differently-shaped one, later reskinned. neutralizeAfterGeneration() below
-     * restores the real values partway through its own sweep, once each color's real starting
-     * circle is ready to be claimed with real content. See MOD_CHANGELOG.md for the "dead zone"
-     * symptom this replaced (a reskinned sweep faithfully keeps the original color's own WFC
-     * density/pattern forever, just wearing wasteland's texture - never actually wasteland).
-     */
-    public static void prepareBiomesForGeneration(World world) {
-        if (!isEnabled())
-            return;
-        world.swapColorsToWastelandContent(COLORS);
-    }
-
-    /**
-     * Called once from World.generateNew(), after world-gen has run to completion using every
-     * color's content temporarily swapped to colorless's own (see prepareBiomesForGeneration()
-     * above). Sweeps each color's full-size claim down to a small circle around its own castle, in
-     * two passes:
+     * Called once from World.generateNew(), after world-gen has run to completion. By this point
+     * every AI color's territory content is already correct - generateNew()'s own placement pass
+     * (Territory Control #7 v2, spatially-aware) computed each tile using that color's real content
+     * within CASTLE_KEEP_RADIUS_TILES of its real, already-placed castle, and colorless's own
+     * content everywhere else in that color's claim, natively, the first time - no post-hoc
+     * reskinning or reconstruction needed for ground content (unlike the whole-biome-swap approach
+     * this replaced, which needed a two-pass sweep/restore/reclaim and still came out visibly less
+     * dense inside the kept circle - see MOD_CHANGELOG.md). What's left here is ownership and POIs:
      * <ul>
-     * <li>Pass 1, while content is still swapped: a radius-0 sweep (World.
-     * neutralizeTerritoryOutsideRadius()) back to colorless of virtually the color's whole claim -
-     * lossless, since content currently matches colorless exactly - plus converting any of that
-     * color's out-of-radius Town/Capital POIs to their Waste equivalent
+     * <li>World.neutralizeTerritoryOutsideRadius() flips biomeMap's ownership bit from this color
+     * to colorless outside CASTLE_KEEP_RADIUS_TILES of its real castle - content there is already
+     * colorless-native, so this only touches biomeMap, the minimap pixel, and fog-of-war, not
+     * terrainMap.</li>
+     * <li>Any of that color's own out-of-radius Town/Capital POIs convert to their Waste equivalent
      * (PointOfInterest.transformInto(), the same mechanism a live capture uses, just run in reverse
      * and in bulk here).</li>
-     * <li>Content restored to real (World.restoreColorsRealContent()).</li>
-     * <li>Pass 2: claims a real starting circle back with World.claimWastelandRing() - the exact
-     * same, already-proven method daily territory expansion grows with (see
-     * processTerritoryExpansion() below), just run once here instead of incrementally - then
-     * World.regenerateStructuresForClaim() replaces the reskinned (wasteland-density) structures
-     * claimWastelandRing() just painted with a fresh placement using the color's own real WFC
-     * pattern, since a reskin alone can't add density that was never there to begin with (found
-     * during this feature's first playtest - see MOD_CHANGELOG.md) - then ensures a capital and
-     * seeds the territory radius that expansion will grow from.</li>
+     * <li>ensureCapital() guarantees a capital survives inside the kept circle, and
+     * setColorTerritoryRadius() seeds the radius daily territory expansion (processTerritoryExpansion()
+     * below) grows from.</li>
      * </ul>
      * Deliberately leaves every *other* POI type (dungeons, caves, forts, boss encounters) exactly
      * where world-gen put them, keeping their original color-flavored identity - only towns/
-     * capitals and terrain get swept, matching the request precisely and preserving content (e.g.
-     * Planeswalker side-bosses) that an earlier, since-reverted approach was deleting outright.
+     * capitals get swept, matching the request precisely and preserving content (e.g. Planeswalker
+     * side-bosses) that an earlier, since-reverted approach was deleting outright.
      */
     public static void neutralizeAfterGeneration(World world) {
         if (!isEnabled())
             return;
 
-        // Every color's castle, gathered once upfront - reused across both passes below and for
-        // claimWastelandRing()'s own nearest-anchor comparison in pass 2 (same pattern
-        // processTerritoryExpansion() uses for daily growth). A color missing its castle is simply
-        // absent from this map and skipped by both passes.
-        Map<String, PointOfInterest> castles = new LinkedHashMap<>();
-        for (String color : COLORS) {
-            PointOfInterest castle = findCastle(world, color);
-            if (castle != null)
-                castles.put(color, castle);
-            else
-                System.out.println("[TerritoryControl] " + color + ": no castle found, skipping");
-        }
         float keepRadiusWorld = CASTLE_KEEP_RADIUS_TILES * (float) world.getTileSize();
 
-        for (Map.Entry<String, PointOfInterest> entry : castles.entrySet()) {
-            String color = entry.getKey();
-            Vector2 castlePosition = entry.getValue().getPosition();
-            world.neutralizeTerritoryOutsideRadius(color, castlePosition, 0, null, null);
+        for (String color : COLORS) {
+            PointOfInterest castle = findCastle(world, color);
+            if (castle == null) {
+                System.out.println("[TerritoryControl] " + color + ": no castle found, skipping");
+                continue;
+            }
+            Vector2 castlePosition = castle.getPosition();
+            world.neutralizeTerritoryOutsideRadius(color, castlePosition, CASTLE_KEEP_RADIUS_TILES, null, null);
 
             int converted = 0;
             for (PointOfInterest poi : new ArrayList<>(world.getAllPointOfInterest())) {
@@ -131,22 +111,6 @@ public class TerritoryControl {
                 converted++;
             }
             System.out.println("[TerritoryControl] " + color + ": neutralized territory outside castle, converted " + converted + " town(s) to neutral");
-        }
-
-        // Real terrain/structures/spriteNames back in effect from here on - see World.
-        // restoreColorsRealContent() for why it also clears World's structureSwapCache.
-        world.restoreColorsRealContent();
-
-        for (Map.Entry<String, PointOfInterest> entry : castles.entrySet()) {
-            String color = entry.getKey();
-            PointOfInterest castle = entry.getValue();
-            List<Vector2> otherAnchors = new ArrayList<>();
-            for (Map.Entry<String, PointOfInterest> other : castles.entrySet()) {
-                if (!other.getKey().equals(color))
-                    otherAnchors.add(other.getValue().getPosition());
-            }
-            world.claimWastelandRing(color, castle.getPosition(), otherAnchors, 0, CASTLE_KEEP_RADIUS_TILES, null, null);
-            world.regenerateStructuresForClaim(color, castle.getPosition(), CASTLE_KEEP_RADIUS_TILES);
 
             ensureCapital(world, color, castle, keepRadiusWorld);
             world.setColorTerritoryRadius(color, CASTLE_KEEP_RADIUS_TILES);
@@ -157,12 +121,14 @@ public class TerritoryControl {
         // not tied to this method), which stops AI colors from claiming right up to Spawn - it
         // just never gets *painted* player-color until an actual town capture does that.
 
-        // Pass 2's claims above already placed correct doodads inside each color's small circle
-        // (claimWastelandRing() calls regenerateDoodadsInRadius() itself), and everything outside
-        // those circles kept its original, already-correctly-wasteland-recipe doodads from
-        // generation (pass 1's sweep never touches doodads at all - see its own method) - so this
-        // full-map call is expected to be a no-op now, kept as a cheap, idempotent safety net
-        // rather than removed without first confirming that in a real playtest. See World.
+        // Doodad placement (generateNew()'s own "distribute small rocks and trees" pass, well
+        // before this method runs) reads each tile's spriteNames catalog live, based on whichever
+        // biome currently owns it - since that runs before the biomeMap bit-flip above, every tile
+        // a color originally claimed (including what's now outside its kept circle) got doodads
+        // from that color's own real catalog, not colorless's. This full-map call fixes that
+        // mismatch for every tile that's now colorless - genuinely load-bearing under this
+        // redesign (unlike doodads inside the kept circle, never touched, always correct, or ground
+        // content, already spatially-aware from generateNew()'s own placement pass). See World.
         // regenerateDoodadsForBiome()'s own comment.
         world.regenerateDoodadsForBiome("waste");
     }
@@ -329,7 +295,9 @@ public class TerritoryControl {
         GameHUD.getInstance().addNotification(message);
     }
 
-    private static PointOfInterest findCastle(World world, String color) {
+    // Public: World.java's placement pass (Territory Control #7 v2) calls this directly to find
+    // each color's real castle position, rather than duplicating this exact-name+type lookup.
+    public static PointOfInterest findCastle(World world, String color) {
         String castleName = capitalize(color) + " Castle";
         for (PointOfInterest poi : world.getAllPointOfInterest()) {
             if ("castle".equals(poi.getData().type) && castleName.equals(poi.getData().name))

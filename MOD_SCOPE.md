@@ -114,7 +114,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (generate-as-wasteland redesign added 2026-08-06, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -296,6 +296,20 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       decision, every player-owned town is now a protected rival anchor for daily expansion, not
       just Spawn. Full detail in `MOD_CHANGELOG.md`. Not yet re-verified - needs another fresh
       world for the structure fix; the anchor fix works on an existing save.
+    - **Third playtest: still flat - root-caused to a structural ceiling, not a bug, and fixed by
+      replacing the whole-biome swap.** `regenerateStructuresForClaim()` was confirmed working
+      exactly as designed (15-32% structure placement per `forge.log`, no errors) - the problem was
+      that sampling a small ~40-tile window out of a WFC pattern can never look as dense as content
+      actually generated at full scale, no matter how it's tuned. Replaced the whole-biome content
+      swap with spatially-aware placement: `generateNew()`'s per-tile loop now computes each AI
+      color's real content within `CASTLE_KEEP_RADIUS_TILES` of its real castle (known precisely,
+      not predicted - planned via an Explore + Plan agent specifically to rule out a predicted-vs-
+      actual mismatch that would have been a real rendering bug) and colorless's own content
+      everywhere else in that color's claim, natively, the first time - no reconstruction needed
+      anymore. `regenerateStructuresForClaim()` and the whole-biome swap mechanism are both removed.
+      Full design and mechanism in `MOD_CHANGELOG.md`. **Not yet playtested** - the fourth attempt
+      at this exact density problem, and the first to remove the structural reason the earlier ones
+      were capped rather than trying to improve the sampling.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**
