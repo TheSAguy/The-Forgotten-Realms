@@ -2248,6 +2248,106 @@ weight); new empty entries just stop accumulating.
   race. The two ConcurrentHashMap caches are correctly keyed by per-color cloned identities, so
   concurrent per-color builds can't collide.
 
+## Territory Control: minimap detail wipe + blue border - deep dive, both root-caused and fixed (2026-08-07, home PC)
+
+The two longest-standing visual issues with the spread, investigated together per user request
+(with before/after screenshots). Both root causes were found by reading the actual rendering/bake
+code rather than theorizing - and both turned out to be precise, mechanical, and related to each
+other only in that the same three repaint methods are involved. **Compiled clean; NOT playtested**
+- needs in-game verification on the machine that runs the game (see "what to verify" below).
+
+### Issue 1: color spread wipes the minimap's details (fixed)
+
+The minimap (`World.biomeImage`) is a baked Pixmap. What "detail" means in it, per tile (see
+`rebakeMinimapAfterTerritoryControl()`, which is what made game-start minimaps look right):
+the road tileset's pixel for road tiles; otherwise the owning biome's base pixel PLUS either a
+terrain-variant pixel (`tilesetName_1/_2`) or the structure's own mapped minimap pixel
+(`structData.mappingInfo[...]`). That's the texture you see at game start.
+
+All three live repaint paths (`repaintBiomeAroundTown()`, `neutralizeTerritoryOutsideRadius()`,
+`claimWastelandRing()`) instead stamped `createSmallPixmap(biome.tilesetAtlas, tilesetName, 0)` -
+the FLAT base pixel - over every tile they touched. So the one-time post-sweep rebake fixed the
+world-gen-time version of this (the earlier "no details outside starting circles" bug), and then
+daily expansion re-flattened the map one ring at a time forever after - exactly the reported "as
+the colors spread, it wipes out the details on the mini-map" (game map unaffected, since the real
+renderer reads biomeMap/terrainMap directly, which were always correct).
+
+Fix: new `World.redrawMinimapTile(x, rawY)` - a per-tile extraction of the rebake's own bake
+logic (road pixel / base+structure pixel / base+variant pixel, with null guards) - now called by
+all three repaint paths in place of the flat stamp. Since claimed tiles get REAL terrain/structure
+content (the native computation from the spatially-aware placement work), the minimap now shows
+it. Also: `claimWastelandRing()` now calls `redrawAllPoiMarkers()` after a ring that claimed
+anything - the per-tile redraws can paint over a nearby town's baked marker icon, which
+`repaintBiomeAroundTown()` already handled for captures but daily expansion never did (it was
+clipping marker icons a few pixels per day as it swept past them).
+
+### Issue 2: the blue "water" border along roads and spread edges (fixed for expansion)
+
+Root cause, derived from `generateBiomeSprite()` (the per-tile renderer) directly:
+
+- Every tile's sprite is drawn as LAYERS, one per set bit in `biomeMap[x][y]`, bottom-up. Bit 0
+  is base/ocean - literal blue water - and world-gen leaves it set under every tile.
+- A layer whose 3x3 neighborhood isn't uniform (some neighbor missing that bit / mismatched
+  terrain) draws a partial EDGE piece, not full coverage.
+- The renderer then draws from the last full-coverage layer upward - and if NO layer qualifies as
+  full, it force-promotes the FIRST set bit's layer to full as the base. First set bit = ocean.
+  **That promotion is the blue.** Blue was never a tint, a GL clear color, or bad art - it's the
+  ocean layer legitimately rendering as the fallback base wherever every higher layer failed its
+  full-neighborhood check.
+- Repainted/claimed tiles used to become SINGLE-bit (`color` only; ocean correctly dropped - see
+  the reverted ocean-bit entry for why re-adding ocean to the tile itself checkerboards). A
+  single-bit claim breaks the full-neighborhood checks of every ADJACENT tile's waste layer. And
+  road tiles are skipped by the claim loop entirely (their road bit is the highest, failing the
+  "is this wasteland" check), so a road through claimed land keeps `ocean|waste|road` while its
+  flanks lose their waste bits - maximal neighbor asymmetry on exactly the tiles flanking roads.
+  Result: waste layers go partial, nothing full remains, ocean gets promoted -> blue flanks
+  tracing roads, and blue fringes on the unclaimed side of expansion borders. This also explains
+  why it "appears on chunk refresh": the baked chunk from before the claim still shows the old
+  render until rebuilt.
+
+Fix (deliberately minimal, in `claimWastelandRing()` only): a claimed tile now keeps the
+colorless bit UNDER the color's own bit - `roadBit? | wasteBit | colorBit` - instead of becoming
+single-bit. This restores neighbor-bit symmetry: waste layers around claims (and under roads) stay
+full, render as a genuine base beneath the color's edge pieces - the same multi-bit blending
+mechanism stock world-gen boundaries already use - and ocean never gets promoted. Bonus: the claim
+edge now reads as a soft waste-into-color transition instead of a hard cut. Why this is safe:
+- Ownership: `highestBiome()` still reports the color - every AI color's index is above
+  colorless's (world.json biome order: base, colorless, white, blue, black, red, green, player).
+  Re-claim checks (`!= colorlessIndex`) behave identically.
+- No ocean-bit-regression risk: the kept bit is WASTE, whose own terrain table matches the
+  claimed tile's terrain values exactly (they're computed from colorless's recipe;
+  redirectStructures ARE per-color clones of colorless's own structures[]), so the waste layer
+  interprets the shared terrainMap value correctly - the exact property ocean's 3-region table
+  lacked, which is what made the ocean-bit attempt checkerboard.
+
+### Deliberately NOT changed (and why)
+
+- `repaintBiomeAroundTown()` (town captures) still writes single-bit. The same keep-the-old-bit
+  treatment there has a REAL index-range wrinkle: capture terrain values come from
+  `translateStructure()` sized to the CAPTURING color's (bigger) table, so a kept waste layer
+  could index past waste's own smaller table in `BiomeTexture` - needs its own verified pass, not
+  a drive-by. Captures still show the old hard edge/possible blue fringe until then - now with a
+  precisely-understood mechanism documented here for that follow-up.
+- `neutralizeTerritoryOutsideRadius()` (world-gen sweep, color->waste direction) can't keep the
+  old bit at all: color > colorless in biome order, so `highestBiome()` would still report the
+  color and ownership would be wrong. Swept tiles stay single-bit waste (hard edge at the kept
+  circle's rim - the current, accepted look).
+- The renderer's promotion/fallback logic itself: untouched. It's stock engine behavior every
+  plane depends on.
+
+### What to verify in-game (fresh world for full effect)
+
+1. Let a color expand a few days: minimap should keep terrain texture/structures/roads inside the
+   spread instead of going flat, and town icons should stay intact as the ring passes them.
+2. Roads through newly-expanded territory: no more blue water flanks (existing saves: only NEWLY
+   claimed rings get the kept-waste bit - tiles claimed before this fix stay single-bit in the
+   save, so their blue only clears where future expansion or a capture repaints them; a fresh
+   world is the clean test).
+3. Expansion border against wasteland: should now blend (waste showing through the color's edge
+   pieces) rather than hard-cut or blue-fringe.
+4. Regression watch: claimed territory should still read as the color on the map/standings
+   (ownership is by highest bit, verified by biome order - but this is the assumption to watch).
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),

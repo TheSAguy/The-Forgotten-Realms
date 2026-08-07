@@ -417,6 +417,21 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       match the recolor radius (10 tiles) instead of growing the recolor or leaving the mismatch.
       `RECOLOR_RADIUS` made `public` so `World.claimWastelandRing()` can reference the same number
       directly. Full detail in `MOD_CHANGELOG.md`. **Not yet playtested.**
+    - **Deep dive (2026-08-07, home PC): the two longest-standing visual issues both root-caused
+      and fixed - minimap detail wipe on spread, and the blue "water" border along roads/spread
+      edges.** Minimap: all 3 repaint paths were stamping a flat base pixel per touched tile,
+      erasing the terrain-variant/structure/road detail the post-sweep rebake had put there - now
+      they redraw each tile's real content (`World.redrawMinimapTile()`), and daily expansion also
+      re-draws POI marker icons it sweeps past (was clipping them). Blue border: root-caused to
+      the renderer's fallback promoting the ocean layer (literal blue water, bit 0 under every
+      world-gen tile) to the visible base wherever a single-bit claimed tile broke its neighbors'
+      (and skipped road tiles') full-neighborhood checks - fixed for daily expansion by keeping
+      the colorless bit UNDER the claimed color's bit, restoring the same multi-bit blending
+      stock world-gen boundaries use (also softens the claim edge into a real transition).
+      Captures (`repaintBiomeAroundTown()`) deliberately not given the same treatment yet - real
+      index-range wrinkle documented in `MOD_CHANGELOG.md`, needs its own pass. **Not yet
+      playtested - needs a fresh world for the full effect; pre-fix claimed tiles in an existing
+      save keep their old single-bit state.**
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

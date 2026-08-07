@@ -1158,6 +1158,45 @@ public class World implements Disposable, SaveFileContent {
         }
     }
 
+    // Per-tile version of rebakeMinimapAfterTerritoryControl()'s bake logic, for the three live
+    // repaint paths (repaintBiomeAroundTown/neutralizeTerritoryOutsideRadius/claimWastelandRing).
+    // Those used to stamp a flat index-0 base pixel per touched tile, wiping whatever detail the
+    // minimap had there - terrain variants, structure pixels (mappingInfo), and the road overlay -
+    // which is exactly the reported "the spread wipes out the mini-map's details as it grows"
+    // (the game map itself was always fine; only this baked Pixmap was losing content). The full
+    // post-sweep rebake already fixed this for world-gen time; this fixes it for every live
+    // repaint since, by drawing the tile's REAL current content instead of a flat stamp. Reads
+    // biomeMap/terrainMap directly, so callers must update those first, then call this.
+    private void redrawMinimapTile(int x, int rawY) {
+        if (biomeImage == null)
+            return;
+        int mm = data.miniMapTileSize;
+        if (highestBiome(biomeMap[x][rawY]) >= data.GetBiomes().size()) {
+            biomeImage.drawPixmap(createSmallPixmap(data.roadTileset.tilesetAtlas, data.roadTileset.tilesetName, 0), x * mm, rawY * mm);
+            return;
+        }
+        BiomeData biome = data.GetBiomes().get(highestBiome(biomeMap[x][rawY]));
+        int terrainLength = biome.terrain == null ? 0 : biome.terrain.length;
+        int terrainIndex = terrainMap[x][rawY] & ~terrainMask;
+        if (terrainIndex > terrainLength) {
+            biomeImage.drawPixmap(createSmallPixmap(biome.tilesetAtlas, biome.tilesetName, 0), x * mm, rawY * mm);
+            terrainIndex -= terrainLength;
+            terrainIndex--;
+            if (biome.structures != null) {
+                for (BiomeStructureData structData : biome.structures) {
+                    if (terrainIndex >= structData.mappingInfo.length) {
+                        terrainIndex -= structData.mappingInfo.length;
+                        continue;
+                    }
+                    biomeImage.drawPixmap(createSmallPixmap(structData.structureAtlasPath, structData.mappingInfo[terrainIndex].name, 0), x * mm, rawY * mm);
+                    break;
+                }
+            }
+        } else {
+            biomeImage.drawPixmap(createSmallPixmap(biome.tilesetAtlas, biome.tilesetName, terrainIndex), x * mm, rawY * mm);
+        }
+    }
+
     HashMap<String, Pair<Pixmap, HashMap<String, Pixmap>>> pixmapHash = new HashMap<>();
 
     private Pixmap createSmallPixmap(String tilesetName, String key, int i) {
@@ -1662,8 +1701,7 @@ public class World implements Disposable, SaveFileContent {
                 biomeMap[wx][rawY] = existingRoadBit | (1L << biomeIndex);
                 terrainMap[wx][rawY] = newTerrain;
 
-                if (biomeImage != null)
-                    biomeImage.drawPixmap(createSmallPixmap(biome.tilesetAtlas, biome.tilesetName, 0), wx * mm, rawY * mm);
+                redrawMinimapTile(wx, rawY); // real content (variants/structures/roads), not a flat stamp - see its comment
                 updateFogOfWarPixmap(wx, rawY);
 
                 if (onTileRepainted != null)
@@ -1758,8 +1796,7 @@ public class World implements Disposable, SaveFileContent {
                 biomeMap[wx][rawY] = existingRoadBit | (1L << colorlessIndex);
                 tilesReassigned++;
 
-                if (biomeImage != null)
-                    biomeImage.drawPixmap(createSmallPixmap(colorlessBiome.tilesetAtlas, colorlessBiome.tilesetName, 0), wx * mm, rawY * mm);
+                redrawMinimapTile(wx, rawY); // real content, not a flat stamp - see its comment
                 updateFogOfWarPixmap(wx, rawY);
 
                 if (onTileRepainted != null)
@@ -1930,7 +1967,28 @@ public class World implements Disposable, SaveFileContent {
 
                 int rawY = height - wy - 1;
                 long existingRoadBit = biomeMap[wx][rawY] & roadBit; // preserve roads, same as repaintBiomeAroundTown()
-                biomeMap[wx][rawY] = existingRoadBit | (1L << colorIndex);
+                // The colorless bit is KEPT underneath the color's own bit (unlike repaintBiome-
+                // AroundTown()'s single-bit overwrite) - this is the actual fix for the long-
+                // standing "blue border" artifact at expansion boundaries and along roads.
+                // Mechanism, derived from generateBiomeSprite() directly: the renderer draws every
+                // set bit's layer bottom-up, needs at least one full-coverage base layer, and if
+                // none qualifies it promotes the FIRST set bit - which is base/ocean, literal blue
+                // water - to full. A single-bit claimed tile breaks its NEIGHBORS' waste layers'
+                // full-neighborhood checks (and road tiles, skipped by this loop entirely, keep
+                // ocean|waste|road while everything around them loses waste), so wherever a nearby
+                // tile's own base coverage failed, ocean got promoted and rendered as blue flanks.
+                // Keeping waste underneath restores neighbor-bit symmetry: the waste layer renders
+                // as a genuine full base under the color's edge pieces - the exact multi-bit
+                // blending mechanism stock world-gen boundaries already rely on - so ocean never
+                // gets promoted, and the claim edge reads as a soft transition instead of a hard
+                // cut. Ownership is unaffected: highestBiome() still reports the color, since every
+                // AI color's biome index is above colorless's (world.json order: base, colorless,
+                // then the 5 colors, then player). The ocean bit itself stays dropped - re-adding
+                // THAT was the reverted checkerboard regression (see MOD_CHANGELOG.md's ocean-bit
+                // entry); this keeps a bit whose own terrain table matches the tile's
+                // colorless-recipe terrain values exactly (redirectStructures ARE colorless
+                // clones), so there's no shared-terrainMap misinterpretation risk.
+                biomeMap[wx][rawY] = existingRoadBit | (1L << colorlessIndex) | (1L << colorIndex);
 
                 // Native computation, not a reskin - mirrors generateNew()'s Pass B exactly (same
                 // terrain-variant noise formula/seed via getTerritoryNoise(), same structure-position
@@ -1976,8 +2034,7 @@ public class World implements Disposable, SaveFileContent {
                 tilesClaimed++;
                 claimedTiles.add(packTile(wx, wy));
 
-                if (biomeImage != null)
-                    biomeImage.drawPixmap(createSmallPixmap(colorBiome.tilesetAtlas, colorBiome.tilesetName, 0), wx * mm, rawY * mm);
+                redrawMinimapTile(wx, rawY); // real content, not a flat stamp - see its comment
                 updateFogOfWarPixmap(wx, rawY);
 
                 if (onTileRepainted != null)
@@ -1986,9 +2043,16 @@ public class World implements Disposable, SaveFileContent {
                 minY = Math.min(minY, wy); maxY = Math.max(maxY, wy);
             }
         }
-        if (tilesClaimed > 0)
+        if (tilesClaimed > 0) {
             System.out.println("[TerritoryControl] " + colorBiomeName + ": daily expansion claimed "
                     + tilesClaimed + " tile(s), " + tilesWithStructure + " with a structure");
+            // Same reasoning as repaintBiomeAroundTown()'s own call: the per-tile minimap redraws
+            // above can paint over a nearby POI's marker icon (markers are baked pixels, not
+            // separate actors) - daily expansion sweeps across town markers as it grows, which
+            // was clipping them out of the minimap a few pixels per day.
+            if (biomeImage != null)
+                redrawAllPoiMarkers();
+        }
 
         regenerateDoodadsInRadius(centerTileX, centerTileY, innerRadiusTiles, outerRadiusTiles, colorBiome, claimedTiles);
 
