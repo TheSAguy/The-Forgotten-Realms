@@ -411,6 +411,8 @@ public class World implements Disposable, SaveFileContent {
             terrainMap = new int[width][height];
             explored = new boolean[width][height]; // brand new world: nothing explored yet
             structureSwapCache = null; // don't inherit a previous game's random structure picks
+            nativeStructurePatternCache.clear(); // same reasoning - a new seed needs fresh patterns
+            colorlessRedirectStructureCache.clear(); // same reasoning
 
             for (int x = 0; x < width; x++) {
                 for (int y = 0; y < height; y++) {
@@ -466,46 +468,17 @@ public class World implements Disposable, SaveFileContent {
             // that swap made the swept-away area genuinely wasteland-native, but meant the *kept*
             // circle around each castle also generated using wasteland's content, needing a
             // post-hoc reconstruction that could only sample a small window of a WFC pattern and
-            // came out visibly less dense than real, natively-generated territory). For each of the
-            // 5 AI colors (TerritoryControl.COLORS - referenced directly, not duplicated, so this
-            // and TerritoryControl.neutralizeAfterGeneration() can never disagree about which
-            // biomes are "AI colors"), builds a fresh WFC pattern from colorless's own structures[]
-            // content, cloned (cloneStructures() - content-identical, object-distinct, avoiding the
-            // structureDataMap identity collision fixed earlier this session) and sized to THAT
-            // COLOR's own biome width/height, not colorless's - querying colorless's own,
-            // differently-scaled pattern instead would leave roughly the outer 50 tiles of each
-            // color's territory with zero structures (verified during planning; colorless's own
-            // extent doesn't fully contain any color's, since colors are offset toward the map
-            // edge). The placement pass below (after POI placement, once real castle positions are
-            // known) reads from this per-tile for any AI-color tile outside that color's real
-            // castle radius, without ever reassigning BiomeData.structures itself.
-            BiomeData colorlessBiomeRef = null;
-            for (BiomeData b : data.GetBiomes())
-                if ("waste".equalsIgnoreCase(b.name)) { colorlessBiomeRef = b; break; }
-            Map<String, BiomeStructureData[]> colorlessRedirectStructures = new HashMap<>();
-            if (isTerritoryControlEnabled() && colorlessBiomeRef != null && colorlessBiomeRef.structures != null) {
-                for (String color : TerritoryControl.COLORS) {
-                    BiomeData colorBiome = null;
-                    for (BiomeData b : data.GetBiomes())
-                        if (color.equalsIgnoreCase(b.name)) { colorBiome = b; break; }
-                    if (colorBiome == null)
-                        continue;
-                    int colorBiomeWidth = (int) Math.round(colorBiome.width * (double) width);
-                    int colorBiomeHeight = (int) Math.round(colorBiome.height * (double) height);
-                    BiomeStructureData[] clone = cloneStructures(colorlessBiomeRef.structures);
-                    for (BiomeStructureData structureData : clone) {
-                        BiomeStructure structure = new BiomeStructure(structureData, seed, colorBiomeWidth, colorBiomeHeight);
-                        try {
-                            structure.initialize();
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                        structureDataMap.put(structureData, structure);
-                    }
-                    colorlessRedirectStructures.put(color, clone);
-                }
-                currentTime[0] = measureGenerationTime("territory control redirect patterns", currentTime[0]);
-            }
+            // came out visibly less dense than real, natively-generated territory). Pass B below
+            // (after POI placement, once real castle positions are known) redirects any AI-color
+            // tile outside that color's real castle radius to a per-color clone of colorless's own
+            // structures[], content-identical but sized to that color's own biome width/height (not
+            // colorless's - querying colorless's own, differently-scaled pattern instead would leave
+            // roughly the outer 50 tiles of each color's territory with zero structures, verified
+            // during planning). Building that clone used to happen right here, inline, into a local
+            // map - now shared with claimWastelandRing() (daily territory expansion, MOD_SCOPE.md #7
+            // follow-up: expansion had this exact same reskin-density limitation, never fixed when
+            // Pass B first fixed it for the initial circle) via getOrBuildColorlessRedirectStructures(),
+            // which lazily builds and caches the same thing on a persistent field instead.
 
 //////////////////
 ///////// calculation each biome position based on noise and radius
@@ -680,6 +653,10 @@ public class World implements Disposable, SaveFileContent {
             // biomeMap bit currently names, and BiomeTexture is frozen per-biome at
             // loadWorldData() time). This is the terrain/structure half of what generateNew()'s
             // earlier biome-claim loop used to do in one pass - split so this half could move here.
+            BiomeData colorlessBiomeRef = null;
+            for (BiomeData b : data.GetBiomes())
+                if ("waste".equalsIgnoreCase(b.name)) { colorlessBiomeRef = b; break; }
+
             biomeIndex[0] = -1;
             for (BiomeData biome : data.GetBiomes()) {
                 biomeIndex[0]++;
@@ -702,7 +679,7 @@ public class World implements Disposable, SaveFileContent {
                 // Only set (non-null) for one of the 5 AI colors, with Territory Control enabled -
                 // everyone else (base/ocean, colorless, player, or any AI color when the feature is
                 // off) computes exactly as before, unconditionally using their own real content.
-                BiomeStructureData[] redirectStructures = colorlessRedirectStructures.get(biome.name);
+                BiomeStructureData[] redirectStructures = getOrBuildColorlessRedirectStructures(biome.name);
                 PointOfInterest realCastle = redirectStructures != null ? TerritoryControl.findCastle(this, biome.name) : null;
                 int castleTileX = 0, castleTileY = 0;
                 if (realCastle != null) {
@@ -720,6 +697,7 @@ public class World implements Disposable, SaveFileContent {
 
                         BiomeTerrainData[] terrainSource = biome.terrain;
                         BiomeStructureData[] structuresSource = biome.structures;
+                        boolean usingRedirect = false;
                         if (realCastle != null) {
                             // x needs no flip (matches getBiome()'s own convention); y does - this
                             // loop's y is the same raw array space getBiome(wx,wy)=biomeMap[wx]
@@ -732,6 +710,7 @@ public class World implements Disposable, SaveFileContent {
                             if (dx * dx + dy * dy > keepRadiusSq) {
                                 terrainSource = colorlessBiomeRef.terrain;
                                 structuresSource = redirectStructures;
+                                usingRedirect = true;
                                 redirectedTiles++;
                             }
                         }
@@ -751,15 +730,24 @@ public class World implements Disposable, SaveFileContent {
                             terrainMap[x][y] |= collisionBit;
                         if (structuresSource != null) {
                             for (BiomeStructureData structureData : structuresSource) {
-                                while (!structureDataMap.containsKey(structureData)) {
-                                    try {
-                                        Thread.sleep(10);
-                                    } catch (InterruptedException e) {
-                                        throw new RuntimeException(e);
+                                BiomeStructure structure;
+                                if (usingRedirect) {
+                                    // Built synchronously by getOrBuildColorlessRedirectStructures()
+                                    // (already cached by the time Pass B reaches here in practice,
+                                    // since it's called once per biome right above, before this
+                                    // per-tile loop starts) - no async future to wait on, unlike a
+                                    // biome's own real structures[] below.
+                                    structure = getOrBuildNativePattern(structureData, biomeWidth, biomeHeight);
+                                } else {
+                                    while (!structureDataMap.containsKey(structureData)) {
+                                        try {
+                                            Thread.sleep(10);
+                                        } catch (InterruptedException e) {
+                                            throw new RuntimeException(e);
+                                        }
                                     }
+                                    structure = structureDataMap.get(structureData);
                                 }
-
-                                BiomeStructure structure = structureDataMap.get(structureData);
                                 int structureXStart = x - (biomeXStart - biomeWidth / 2) - (int) ((structureData.x * biomeWidth) - (structureData.width * biomeWidth / 2));
                                 int structureYStart = y - (biomeYStart - biomeHeight / 2) - (int) ((structureData.y * biomeHeight) - (structureData.height * biomeHeight / 2));
 
@@ -1447,6 +1435,88 @@ public class World implements Disposable, SaveFileContent {
         return clone;
     }
 
+    // Lazily-built, persistent cache of a real biome's own native WFC structure pattern - separate
+    // from generateNew()'s own structureDataMap, which is a LOCAL variable scoped to that one
+    // method call and unreachable from anywhere else. claimWastelandRing() (daily territory
+    // expansion, called repeatedly during actual gameplay, long after generateNew() has returned -
+    // MOD_SCOPE.md #7) needs the same kind of native, full-scale pattern generateNew()'s own
+    // placement pass already builds for every color's real structures[], but has no way to reach
+    // it, so this builds (and remembers) one on first need instead. Built lazily rather than
+    // eagerly during generateNew() specifically so this also works for a game LOADED from a save,
+    // not just a freshly-generated one - loading never calls generateNew() at all, so anything only
+    // populated there would silently be empty for a loaded game, exactly the situation that
+    // surfaced this gap in the first place.
+    private final Map<BiomeStructureData, BiomeStructure> nativeStructurePatternCache = new HashMap<>();
+
+    private BiomeStructure getOrBuildNativePattern(BiomeStructureData structureData, int biomeWidth, int biomeHeight) {
+        BiomeStructure cached = nativeStructurePatternCache.get(structureData);
+        if (cached != null)
+            return cached;
+        BiomeStructure structure = new BiomeStructure(structureData, seed, biomeWidth, biomeHeight);
+        try {
+            structure.initialize();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        nativeStructurePatternCache.put(structureData, structure);
+        return structure;
+    }
+
+    // Same reasoning as nativeStructurePatternCache above: generateNew()'s own OpenSimplexNoise
+    // instance is a LOCAL variable there, unreachable from claimWastelandRing() - lazily built once
+    // (from the same seed field generateNew() itself uses) and reused for the rest of this game
+    // session rather than constructed fresh per call, matching how the rest of this codebase always
+    // treats noise as one shared instance for the whole map, never per-tile or per-call.
+    private OpenSimplexNoise territoryNoise;
+
+    private OpenSimplexNoise getTerritoryNoise() {
+        if (territoryNoise == null)
+            territoryNoise = new OpenSimplexNoise(seed);
+        return territoryNoise;
+    }
+
+    // Lazily-built, persistent version of generateNew()'s own colorlessRedirectStructures (a
+    // per-color clone of colorless's structures[], used by Pass B for any AI-color tile outside
+    // that color's real castle radius) - same unreachability problem as the two caches above, same
+    // fix. Shared by generateNew()'s Pass B AND claimWastelandRing() (daily territory expansion) so
+    // the two can never independently drift on what "outside-radius content" means for a color -
+    // daily expansion claims tiles that start out wasteland, so it always needs this redirect
+    // content, never a color's real structures[] (see claimWastelandRing()'s own comment).
+    private final Map<String, BiomeStructureData[]> colorlessRedirectStructureCache = new HashMap<>();
+
+    private BiomeStructureData[] getOrBuildColorlessRedirectStructures(String color) {
+        if (!isTerritoryControlEnabled())
+            return null;
+        boolean isAiColor = false;
+        for (String c : TerritoryControl.COLORS)
+            if (c.equalsIgnoreCase(color)) { isAiColor = true; break; }
+        if (!isAiColor)
+            return null;
+
+        BiomeStructureData[] cached = colorlessRedirectStructureCache.get(color);
+        if (cached != null)
+            return cached;
+
+        BiomeData colorlessBiomeRef = null;
+        for (BiomeData b : data.GetBiomes())
+            if ("waste".equalsIgnoreCase(b.name)) { colorlessBiomeRef = b; break; }
+        if (colorlessBiomeRef == null || colorlessBiomeRef.structures == null)
+            return null;
+        BiomeData colorBiome = null;
+        for (BiomeData b : data.GetBiomes())
+            if (color.equalsIgnoreCase(b.name)) { colorBiome = b; break; }
+        if (colorBiome == null)
+            return null;
+
+        int colorBiomeWidth = (int) Math.round(colorBiome.width * (double) width);
+        int colorBiomeHeight = (int) Math.round(colorBiome.height * (double) height);
+        BiomeStructureData[] clone = cloneStructures(colorlessBiomeRef.structures);
+        for (BiomeStructureData structureData : clone)
+            getOrBuildNativePattern(structureData, colorBiomeWidth, colorBiomeHeight);
+        colorlessRedirectStructureCache.put(color, clone);
+        return clone;
+    }
+
     /**
      * Repaints a circular area of terrain around a point to a named biome (e.g. "green") - used
      * live, mid-game, for an individual mage-captured town (see TerritoryControl.onMageArrived()).
@@ -1677,6 +1747,23 @@ public class World implements Disposable, SaveFileContent {
         if (colorIndex < 0 || colorlessIndex < 0)
             return;
         BiomeData colorBiome = biomes.get(colorIndex);
+        BiomeData colorlessBiome = biomes.get(colorlessIndex);
+        // This color's own real geometry (never touched by Territory Control's placement pass -
+        // no swap, no mutation - so this is always correct, same formula generateNew()'s own
+        // placement pass uses) - needed below to query colorBiome's own native WFC pattern using
+        // the same position formula that pattern was built against.
+        int colorBiomeXStart = (int) Math.round(colorBiome.startPointX * (double) width);
+        int colorBiomeYStart = (int) Math.round(colorBiome.startPointY * (double) height);
+        int colorBiomeWidth = (int) Math.round(colorBiome.width * (double) width);
+        int colorBiomeHeight = (int) Math.round(colorBiome.height * (double) height);
+        // Same per-color clone of colorless's structures[] that generateNew()'s Pass B redirects
+        // outside-castle-radius tiles to (MOD_SCOPE.md #7) - every tile this method claims starts
+        // out wasteland by definition (the claim condition below requires highestBiome == colorless),
+        // so it always needs this redirect content, never colorBiome's own real structures[] (those
+        // are reserved for the small kept circle around the castle, which daily expansion never
+        // touches - it only grows outward from the edge of what's already claimed).
+        BiomeStructureData[] redirectStructures = getOrBuildColorlessRedirectStructures(colorBiomeName);
+        int tilesClaimed = 0, tilesWithStructure = 0;
 
         int centerTileX = (int) (center.x / data.tileSize);
         int centerTileY = (int) (center.y / data.tileSize);
@@ -1722,12 +1809,50 @@ public class World implements Disposable, SaveFileContent {
 
                 int rawY = height - wy - 1;
                 long existingRoadBit = biomeMap[wx][rawY] & roadBit; // preserve roads, same as repaintBiomeAroundTown()
-
-                Integer newTerrain = translateStructure(colorlessIndex, colorIndex, terrainMap[wx][rawY]);
-                if (newTerrain == null)
-                    continue;
                 biomeMap[wx][rawY] = existingRoadBit | (1L << colorIndex);
-                terrainMap[wx][rawY] = newTerrain;
+
+                // Native computation, not a reskin - mirrors generateNew()'s Pass B exactly (same
+                // terrain-variant noise formula/seed via getTerritoryNoise(), same structure-position
+                // formula, using this color's own colorBiomeXStart/YStart/Width/Height since
+                // redirectStructures' WFC pattern was built at that same scale) so a tile claimed by
+                // daily expansion comes out exactly as dense/varied as one claimed at world-gen time.
+                // translateStructure() (reskinning whatever single structure wasteland's own WFC
+                // pattern had already placed at this spot, 1:1) could only preserve or drop existing
+                // density, never add it the way native computation can - this was the actual root
+                // cause of "black skips an area with the fill" / "white looks flat on the minimap
+                // where it spreads": daily expansion still had the exact density cap Pass B was built
+                // to eliminate for the initial circle, just never extended to it (MOD_SCOPE.md #7).
+                int terrainCounter = 1;
+                terrainMap[wx][rawY] = 0;
+                if (colorlessBiome.terrain != null) {
+                    for (BiomeTerrainData terrain : colorlessBiome.terrain) {
+                        float terrainNoise = ((float) getTerritoryNoise().eval(wx / (float) width * (data.noiseZoomBiome * terrain.resolution), rawY / (float) height * (data.noiseZoomBiome * terrain.resolution)) + 1) / 2;
+                        if (terrainNoise >= terrain.min && terrainNoise <= terrain.max) {
+                            terrainMap[wx][rawY] = terrainCounter;
+                        }
+                        terrainCounter++;
+                    }
+                }
+                if (colorBiome.collision)
+                    terrainMap[wx][rawY] |= collisionBit;
+                if (redirectStructures != null) {
+                    for (BiomeStructureData structureData : redirectStructures) {
+                        BiomeStructure structure = getOrBuildNativePattern(structureData, colorBiomeWidth, colorBiomeHeight);
+                        int structureXStart = wx - (colorBiomeXStart - colorBiomeWidth / 2) - (int) ((structureData.x * colorBiomeWidth) - (structureData.width * colorBiomeWidth / 2));
+                        int structureYStart = rawY - (colorBiomeYStart - colorBiomeHeight / 2) - (int) ((structureData.y * colorBiomeHeight) - (structureData.height * colorBiomeHeight / 2));
+
+                        int structureIndex = structure.objectID(structureXStart, structureYStart);
+                        if (structureIndex >= 0) {
+                            terrainMap[wx][rawY] = terrainCounter + structureIndex;
+                            if (structure.collision(structureXStart, structureYStart))
+                                terrainMap[wx][rawY] |= collisionBit;
+                            terrainMap[wx][rawY] |= isStructureBit;
+                            tilesWithStructure++;
+                        }
+                        terrainCounter += structure.structureObjectCount();
+                    }
+                }
+                tilesClaimed++;
 
                 if (biomeImage != null)
                     biomeImage.drawPixmap(createSmallPixmap(colorBiome.tilesetAtlas, colorBiome.tilesetName, 0), wx * mm, rawY * mm);
@@ -1739,6 +1864,9 @@ public class World implements Disposable, SaveFileContent {
                 minY = Math.min(minY, wy); maxY = Math.max(maxY, wy);
             }
         }
+        if (tilesClaimed > 0)
+            System.out.println("[TerritoryControl] " + colorBiomeName + ": daily expansion claimed "
+                    + tilesClaimed + " tile(s), " + tilesWithStructure + " with a structure");
 
         regenerateDoodadsInRadius(centerTileX, centerTileY, innerRadiusTiles, outerRadiusTiles, colorBiome);
 

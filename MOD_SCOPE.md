@@ -114,7 +114,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -321,6 +321,24 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       not caused by either placement redesign. A water/road border reported in a few places is not
       yet investigated - asked for a more specific repro before guessing at it. Full detail in
       `MOD_CHANGELOG.md`.
+    - **Fifth playtest: both minimap fixes confirmed working; black's gap and white's flat minimap
+      root-caused to daily expansion, not world-gen - fixed by extending Pass B's approach to
+      `claimWastelandRing()`.** Reported more precisely this round: black was "skipping an area with
+      the fill" while still placing doodads there, and white's minimap looked flat "where it
+      spreads" despite real content existing on the actual map - both describe territory *outside*
+      the initial circle, i.e. tiles claimed by daily expansion, not world-gen's own placement.
+      Root cause: `claimWastelandRing()` still built claimed tiles via `translateStructure()` (a 1:1
+      reskin of whatever wasteland's own WFC pattern already had there) - the exact same density
+      ceiling Pass B was built to eliminate for the initial circle, never extended to daily growth.
+      Fixed by giving `claimWastelandRing()` the same native-computation approach, via three new
+      lazily-built persistent caches on `World` (a structure-pattern cache, a shared noise instance,
+      and a per-color colorless-redirect-structures cache - all needed since `generateNew()`'s own
+      versions of these are local variables, unreachable from gameplay-time calls, and must also
+      work for a game loaded from a save, which never calls `generateNew()` at all). Pass B itself
+      now shares the redirect-structures cache too, so the initial circle and its later expansion can
+      never independently drift on what "outside-radius content" means for a color. Full mechanism
+      in `MOD_CHANGELOG.md`. **Not yet playtested** - specifically needs an existing save with time
+      advanced (a fresh world alone wouldn't exercise `claimWastelandRing()` at all).
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

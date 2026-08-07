@@ -2868,3 +2868,95 @@ the road-tracing blue border earlier this session) rather than guessing at a fix
 Compiled, deployed, byte-verified (`World.class` + inner classes - no other files touched this
 round).
 
+### Fifth playtest: minimap fixes confirmed; black's "gap" and white's flat minimap root-caused to
+### daily expansion, not world-gen - `claimWastelandRing()` still had Pass B's old reskin limitation
+
+Both minimap fixes from the fourth round confirmed working: "the mini-map seemed like to now had
+the needed background stuff after generating" (the re-bake), "the towns no longer disappear when
+taken from the mini-map" (the marker redraw).
+
+The black-gap report came back, described more precisely this time: **"black is skipping an area
+with the fill, though it is filling with doodads there"** - i.e. `terrainMap`'s ground/structure
+content is missing or wrong for a patch, but doodads (a separate, always-live-read pass, see
+`regenerateDoodadsForBiome()`'s own comment) are present and correct there. Also newly reported:
+**white's minimap looks "all white with no stuff... just not on the mini-map... where it spreads"**
+- content exists on the actual map, just not reflected on the minimap for the same kind of area.
+"Where it spreads" was the key phrase: both reports describe territory *outside* the original
+20-tile castle-radius circle - i.e., tiles claimed by **daily territory expansion**
+(`claimWastelandRing()`), not the initial circle Pass A/B place at world-gen time. Screenshots
+accompanying the report showed large circles (visibly bigger than the 20-tile keep radius) dense
+only right at the castle center with flat/sparse content spreading outward - exactly the shape
+daily expansion would produce if it kept claiming tiles without giving them real content.
+
+**Root cause, confirmed by re-reading `claimWastelandRing()`**: it still built each claimed tile's
+content via `translateStructure(colorlessIndex, colorIndex, terrainMap[wx][rawY])` - a 1:1 reskin of
+whatever wasteland's own WFC pattern had already placed at that exact spot (translate a wasteland
+structure ID to the "closest equivalent" color structure ID, or leave it plain if there was nothing
+there to translate). This is the *exact same* density ceiling that Pass B was built to eliminate for
+the initial circle three rounds ago (a reskin can only preserve or drop existing content, never add
+the density a fresh native WFC placement produces) - it just never got extended to daily expansion,
+since `claimWastelandRing()` was outside that redesign's scope at the time. This fully explains both
+symptoms without needing a black-specific bug or WFC seed variance (the fourth round's leading, but
+unconfirmed, hypothesis for the black gap) - daily expansion is genuinely capped low-density for
+*every* color, and whichever color's expansion ring happened to be most visible in the screenshots
+would show it most clearly. The minimap-not-updating half of the white report is separately
+explained: the minimap bake only runs once (world-gen time) plus the two fourth-round fix points
+(post-`neutralizeAfterGeneration()`, post-`repaintBiomeAroundTown()`) - daily expansion's own
+`biomeImage.drawPixmap(...)` call (already present, one tile at a time) was drawing correctly, but
+was drawing *sparse* content, same root cause as the ground itself.
+
+**Fix: give `claimWastelandRing()` the same native-computation treatment Pass B already has**, so a
+tile claimed by daily expansion comes out exactly as dense/varied as one claimed at world-gen time.
+Mirrors Pass B's terrain-variant noise formula and structure-position formula exactly, but needed
+three pieces of state Pass B only has as `generateNew()` local variables, unreachable from
+`claimWastelandRing()` (called repeatedly during actual gameplay, long after `generateNew()` has
+returned - and never at all for a game loaded from a save, since loading doesn't call
+`generateNew()`):
+- **`nativeStructurePatternCache`** (new field, `Map<BiomeStructureData, BiomeStructure>`) +
+  **`getOrBuildNativePattern(structureData, biomeWidth, biomeHeight)`** - lazily builds (or returns
+  the cached) native WFC pattern for a given structure data, standing in for Pass B's local
+  `structureDataMap`.
+- **`territoryNoise`** (new field, `OpenSimplexNoise`) + **`getTerritoryNoise()`** - lazily built
+  from the same `seed` field `generateNew()` itself uses, so it's deterministically identical to
+  Pass B's own `noise` instance (same seed, same algorithm) - a tile's terrain-variant result is
+  therefore identical whether it happened to get claimed by the initial circle's redirect logic or
+  by expansion later. `noiseZoom` needed no field of its own - it was always just
+  `data.noiseZoomBiome`, already reachable directly.
+- **`colorlessRedirectStructureCache`** (new field, `Map<String, BiomeStructureData[]>`) +
+  **`getOrBuildColorlessRedirectStructures(color)`** - the persistent version of what used to be a
+  `generateNew()`-local map: a per-color clone of colorless's own `structures[]` (via the existing
+  `cloneStructures()`), sized to that color's own biome width/height (matches how the pattern was
+  built, avoiding the out-of-bounds gap Pass B's own design already had to account for). Gated
+  in the exact same way Pass B's redirect used to be (`isTerritoryControlEnabled()` +
+  membership in `TerritoryControl.COLORS`), so behavior for a non-territory-control save/plane is
+  unchanged. **Shared by both Pass B and `claimWastelandRing()`** (Pass B's own inline
+  precompute-and-populate-a-local-map block was removed in favor of calling this) rather than
+  building two independently-maintained copies of the same logic - the whole point of this fix is
+  that the initial circle and its later expansion must never disagree about what "outside-radius
+  content" means for a color, and two copies could drift apart the same way they already had.
+
+`claimWastelandRing()` itself: every tile it claims is wasteland by definition (the claim condition
+requires `highestBiome(...) == colorlessIndex`), so unlike Pass B it doesn't need a castle-distance
+check - it always uses the colorless-redirect terrain/structures, never a color's real ones (real
+content is reserved for the small kept circle around the castle, which expansion never touches, only
+grows outward from). Per-call summary logging added, matching Pass B's own density-reporting shape:
+`"<color>: daily expansion claimed N tile(s), M with a structure"`.
+
+`translateStructure()`/`buildStructureSwapTable()`/`pickReplacement()`/`STRUCTURE_CATEGORY`/
+`structureSwapCache` all **kept, unchanged** - still load-bearing for `repaintBiomeAroundTown()`
+(individual town captures, a genuinely different case: reskinning a specific already-generated
+tile's content in place when the player or an AI mage captures a single town, not claiming fresh
+wasteland).
+
+Compiled, deployed, byte-verified (`World.class` + inner classes only - no other files touched this
+round).
+
+**Not yet playtested.** Needs either a fresh world (exercises Pass B's now-shared helper call) or,
+more importantly, an *existing* save with enough in-game days advanced to trigger daily expansion
+(exercises the actual fix) - a fresh-world-only test would miss this fix entirely, since
+`claimWastelandRing()` never runs during world generation itself. Should fix both the black-gap and
+white-flat-minimap reports, since both were traced to the same root cause; **not yet re-confirmed**
+whether that's the *complete* explanation or whether a black-specific factor also exists underneath
+it - worth explicitly re-checking black specifically once expansion has had time to run. Water/road
+border issue remains flagged, unchanged, still needs a more specific repro before it's actionable.
+

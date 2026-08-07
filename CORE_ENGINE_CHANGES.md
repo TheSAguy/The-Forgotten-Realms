@@ -85,7 +85,22 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   duplicating the same lookup/constants (a duplicated radius specifically would risk Pass B and the
   post-generation ownership pass disagreeing about the boundary - a real rendering bug, not just a
   style mismatch, since rendering interprets `terrainMap`'s index using whichever biome `biomeMap`'s
-  bit currently names).
+  bit currently names). Two follow-up fixes same day: `rebakeMinimapAfterTerritoryControl()` (full
+  minimap re-derive from final `biomeMap`/`terrainMap` state, called once after the neutralize
+  sweep) and a `redrawAllPoiMarkers()` call added to the end of `repaintBiomeAroundTown()` (a live
+  town-capture repaint used to leave that town's own minimap marker painted over - the one-time
+  world-gen sweep already called this, live captures never had). Extended Pass B's approach to daily
+  territory expansion (#7, same day - `claimWastelandRing()` still used the old
+  `translateStructure()` reskin, the same density ceiling Pass B was built to eliminate for the
+  initial circle, just never extended past it): added three lazily-built, persistent caches
+  (`nativeStructurePatternCache`/`getOrBuildNativePattern()`, `territoryNoise`/`getTerritoryNoise()`,
+  `colorlessRedirectStructureCache`/`getOrBuildColorlessRedirectStructures()`) standing in for
+  `generateNew()`'s own `structureDataMap`/`noise`/redirect-structures map, all three of which are
+  local variables unreachable from a method called repeatedly during actual gameplay (and never
+  populated at all for a game loaded from a save, since loading skips `generateNew()` entirely).
+  Pass B's own inline redirect-structures precompute was replaced with a call to the new shared
+  helper, so the initial circle and later expansion read from the same cache instead of two
+  independently-built copies that could drift apart.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
