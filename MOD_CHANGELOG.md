@@ -3028,3 +3028,60 @@ or something pathological about that data - still unknown, and no longer needs t
 this fix to be correct: even a permanently-stuck build for one color's background task would now only
 ever cost that color its decorative structures, never the game's responsiveness.
 
+**Confirmed fixed** by re-testing the same save: `forge.log` showed white/blue/black/red/green all
+completing their daily expansion normally across 5 consecutive in-game days, tile counts growing
+steadily, several towns falling to AI colors, zero exceptions, and not even a single "still building
+in the background" line - the load-time prewarm alone was enough to keep every color's pattern ready
+before its first use. No freeze.
+
+### Sixth playtest: the freeze is gone, but a real, pre-existing doodad/ownership bug surfaced -
+### "black doesn't close up" was never about density, it was regenerateDoodadsInRadius() ignoring
+### the same nearest-anchor check the ground-ownership loop applies
+
+With the freeze fixed, the user could actually look at black's reported gap again, and described it
+precisely this time: **"a visible chunk of the circle. Some doodads did spread there from black, but
+the terrain never changed color. From the mini-map it looks like a section of a perfect circle."**
+That description - doodads present, ground color absent, shaped like a clean chord/section - doesn't
+match either of this round's earlier theories (WFC seed variance, or the reskin-density ceiling fixed
+two rounds ago). It points at something structural: two *different* mechanisms deciding "does this
+color own this tile," able to disagree.
+
+**Root cause, confirmed by reading `regenerateDoodadsInRadius()`:** `claimWastelandRing()`'s own
+ground-ownership loop applies two checks per tile - is it within the geometric annulus, AND is this
+color's anchor the *nearest* among every rival (other AI castles, the player's Spawn, every player-
+owned town) - a Voronoi-style check, added specifically so two colors' circles meet at a clean border
+instead of overlapping. `regenerateDoodadsInRadius()`, called right after that loop to place this
+color's decorative doodads, only ever applied the *first* check (the geometric annulus) - it had no
+way to know about the second, since it never received the rival-anchor list at all. Concretely: a
+tile geometrically inside black's radius but *closer to a neighboring color's castle* correctly never
+gets claimed by black's ground loop (that neighbor already owns it, or will), but
+`regenerateDoodadsInRadius()` placed black's doodads there anyway - and, just as bad in the other
+direction, *removed* whatever legitimate doodads that neighbor (or colorless) already had at that
+same tile, since its removal pass was exactly as geometric-only as its placement pass. A straight
+Voronoi boundary between two point-anchors is a straight line, which cuts a flat chord out of a
+circle - exactly "a section of a perfect circle." This is a **pre-existing gap**, not something
+introduced by this session's recent rounds - `regenerateDoodadsInRadius()` has never taken a rival-
+anchor parameter, so it was structurally incapable of this check from the moment nearest-anchor
+claiming was first added to `claimWastelandRing()`'s ground loop, well before this week's work.
+
+**Fix: stop re-deriving "which tiles does this color own" a second time - reuse the ground loop's own
+answer.** Rather than teach `regenerateDoodadsInRadius()` a duplicate copy of the nearest-anchor
+check (the same kind of two-independent-implementations risk that caused this bug in the first
+place), `claimWastelandRing()` now collects the exact set of tiles its own loop actually claims (a
+`Set<Long>`, packed `(x,y)` coordinates) and hands that directly to a new overload of
+`regenerateDoodadsInRadius(..., Set<Long> claimedTiles)`. When `claimedTiles` is non-null, both the
+removal pass and the placement pass check tile membership in that set instead of re-checking the
+geometric annulus - so doodads and ground ownership can never disagree again, by construction, not by
+keeping two checks in sync by hand. `repaintBiomeAroundTown()` (the only other caller, for individual
+town captures) keeps its old geometric-only behavior unchanged via a 4-argument overload that
+forwards `null` - a captured town unconditionally owns its whole repaint disc, no Voronoi concept
+applies there, so nothing about that path needed to change.
+
+Compiled, deployed, byte-verified (`World.class` only - no other files touched this round).
+
+**Not yet playtested** - needs the same existing save, with expansion advanced far enough to have
+another attempt at whatever gap `claimWastelandRing()` previously carved into black's circle (existing
+doodad-without-ownership tiles from before this fix shipped won't retroactively correct themselves -
+this fix only prevents the mismatch on *future* claims, going forward from here). Water/road border
+issue remains flagged, unchanged, still needs a more specific repro before it's actionable.
+

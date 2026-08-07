@@ -110,6 +110,16 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   touched by concurrent background builds, one potential per color). New public
   `World.prewarmTerritoryControlCaches()`, called once from `WorldSave.load()` right after a save
   finishes loading, to give those background builds a head start before gameplay could trigger them.
+  **Same-round bug fix, pre-existing, not caused by this week's work**: `regenerateDoodadsInRadius()`
+  gained a `Set<Long> claimedTiles` overload (plus a small `packTile(x,y)` helper) - it used to
+  re-derive "which tiles does this color own" using only the geometric annulus, silently ignoring
+  the nearest-anchor (Voronoi) check `claimWastelandRing()`'s own ground-ownership loop applies, so a
+  tile geometrically in range but actually closer to a rival got that color's doodads placed on it
+  (and had a rival's legitimate doodads incorrectly removed) even though ground ownership correctly
+  stayed with the rival. `claimWastelandRing()` now collects its own loop's actual claimed-tile set
+  and passes it straight through, so there's one definition of ownership, not two that can disagree.
+  `repaintBiomeAroundTown()` (the only other caller) is unaffected - a 4-argument overload preserves
+  its old geometric-only behavior by forwarding `null`.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've

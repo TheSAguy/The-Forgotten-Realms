@@ -114,7 +114,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and then fixed a real freeze, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, then found and fixed a pre-existing doodad/ownership mismatch bug, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -349,10 +349,27 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       collision, just without decorative structures until the background build finishes (self-
       correcting, at most a one-time, one-ring cosmetic gap per color per game session). A new
       `World.prewarmTerritoryControlCaches()`, called right after a save loads, gives all 5 colors'
-      builds a head start so this case is rare in practice. Full detail in `MOD_CHANGELOG.md`. **Not
-      yet playtested** - specifically needs an existing save with time advanced (a fresh world alone
-      wouldn't exercise `claimWastelandRing()` at all), watched this time to confirm the game stays
-      responsive.
+      builds a head start so this case is rare in practice. Full detail in `MOD_CHANGELOG.md`.
+      **Confirmed fixed** by re-testing the same save - `forge.log` showed all 5 colors completing
+      normally across 5 in-game days, no freeze, no exceptions.
+    - **Sixth playtest: freeze confirmed fixed, but re-testing surfaced the real cause of "black
+      doesn't close up" - a pre-existing bug, not a density issue.** Described precisely this round:
+      "a visible chunk of the circle - some doodads did spread there from black, but the terrain
+      never changed color... looks like a section of a perfect circle." Root cause:
+      `regenerateDoodadsInRadius()` (places a color's decorative doodads after
+      `claimWastelandRing()`'s own ground-ownership loop runs) only ever checked the plain geometric
+      radius, never the nearest-anchor (Voronoi) check the ownership loop also applies - so a tile
+      geometrically in range but actually closer to a neighboring color's castle got that neighbor's
+      ground correctly, but still got *this* color's doodads placed on it (and had whatever
+      legitimate doodads it already had incorrectly stripped). A straight Voronoi boundary between
+      two castles cuts a flat chord out of a circle - exactly the reported shape. Pre-existing since
+      nearest-anchor claiming was first added to the ground loop, well before this week - not caused
+      by any of this session's recent rounds. Fixed by having `claimWastelandRing()` hand its own
+      loop's exact claimed-tile set directly to doodad placement, instead of that method
+      independently re-deriving (and getting wrong) the same answer a second time. Full detail in
+      `MOD_CHANGELOG.md`. **Not yet playtested** - only prevents the mismatch going forward; existing
+      mismatched tiles from before this fix won't self-correct without further expansion attempting
+      to reclaim that area (unlikely, since ground ownership there is already someone else's).
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

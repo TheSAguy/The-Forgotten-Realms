@@ -1853,6 +1853,17 @@ public class World implements Disposable, SaveFileContent {
         }
 
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        // Tiles this call actually claims (passed the geometric AND nearest-anchor checks below) -
+        // regenerateDoodadsInRadius() used to independently re-derive "which tiles belong to this
+        // color" using only the geometric annulus, silently ignoring the nearest-anchor check this
+        // loop applies - so a tile losing that check to a nearer rival (another AI castle, or a
+        // player town) still got this color's doodads placed on it, while ground ownership correctly
+        // stayed with the rival (or colorless). A real, reported bug: doodads visibly spread into a
+        // chord-shaped section of the circle - exactly the shape a straight Voronoi boundary between
+        // two anchors would cut - while the ground there never changed color. Collecting the actual
+        // claimed set here and handing it directly to doodad placement (see below) means there's only
+        // ever one definition of "does this color own this tile," not two that can drift apart.
+        Set<Long> claimedTiles = new HashSet<>();
         for (int wx = Math.max(0, centerTileX - outerRadiusTiles); wx <= Math.min(width - 1, centerTileX + outerRadiusTiles); wx++) {
             int dx = wx - centerTileX;
             for (int wy = Math.max(0, centerTileY - outerRadiusTiles); wy <= Math.min(height - 1, centerTileY + outerRadiusTiles); wy++) {
@@ -1920,6 +1931,7 @@ public class World implements Disposable, SaveFileContent {
                     }
                 }
                 tilesClaimed++;
+                claimedTiles.add(packTile(wx, wy));
 
                 if (biomeImage != null)
                     biomeImage.drawPixmap(createSmallPixmap(colorBiome.tilesetAtlas, colorBiome.tilesetName, 0), wx * mm, rawY * mm);
@@ -1935,7 +1947,7 @@ public class World implements Disposable, SaveFileContent {
             System.out.println("[TerritoryControl] " + colorBiomeName + ": daily expansion claimed "
                     + tilesClaimed + " tile(s), " + tilesWithStructure + " with a structure");
 
-        regenerateDoodadsInRadius(centerTileX, centerTileY, innerRadiusTiles, outerRadiusTiles, colorBiome);
+        regenerateDoodadsInRadius(centerTileX, centerTileY, innerRadiusTiles, outerRadiusTiles, colorBiome, claimedTiles);
 
         if (onChunkNeedsReload != null && minX <= maxX) {
             int chunkSize = getChunkSize();
@@ -1970,7 +1982,27 @@ public class World implements Disposable, SaveFileContent {
      */
     private static final float DOODAD_DENSITY_MULTIPLIER = 5f;
 
+    // Packs a world tile coordinate into one long key for a Set<Long> membership test - x/y are
+    // always small, non-negative map indices here, well within 32 bits each.
+    private static long packTile(int x, int y) {
+        return ((long) x << 32) | (y & 0xFFFFFFFFL);
+    }
+
     private void regenerateDoodadsInRadius(int centerWorldX, int centerWorldY, int innerRadiusTiles, int outerRadiusTiles, BiomeData biome) {
+        regenerateDoodadsInRadius(centerWorldX, centerWorldY, innerRadiusTiles, outerRadiusTiles, biome, null);
+    }
+
+    // claimedTiles, if non-null, restricts BOTH doodad removal and placement to exactly that set of
+    // world tile coordinates instead of the full geometric annulus. Needed by claimWastelandRing():
+    // its own ownership loop applies a nearest-anchor (Voronoi) check on top of the plain geometric
+    // radius, which can reject a tile within outerRadiusTiles because a nearer rival (another AI
+    // castle, or a player town) already owns it. Without this, this method used to remove/re-place
+    // doodads across the FULL geometric ring regardless of who actually won each tile - stripping a
+    // rival's legitimate doodads and placing this color's doodads on ground that never changed
+    // color. See claimWastelandRing()'s own comment. repaintBiomeAroundTown() (the other caller, via
+    // the null-forwarding overload above) has no Voronoi concept - a captured town unconditionally
+    // owns its whole repaint disc - so it keeps the old geometric-only behavior unchanged.
+    private void regenerateDoodadsInRadius(int centerWorldX, int centerWorldY, int innerRadiusTiles, int outerRadiusTiles, BiomeData biome, Set<Long> claimedTiles) {
         int innerRadiusSq = innerRadiusTiles * innerRadiusTiles;
         int outerRadiusSq = outerRadiusTiles * outerRadiusTiles;
         int tileSize = data.tileSize;
@@ -1986,6 +2018,8 @@ public class World implements Disposable, SaveFileContent {
                 objects.removeIf(entry -> {
                     int tx = (int) (entry.getLeft().x / tileSize);
                     int ty = (int) (entry.getLeft().y / tileSize);
+                    if (claimedTiles != null)
+                        return claimedTiles.contains(packTile(tx, ty));
                     int dx = tx - centerWorldX;
                     int dy = ty - centerWorldY;
                     int distSq = dx * dx + dy * dy;
@@ -2010,6 +2044,8 @@ public class World implements Disposable, SaveFileContent {
                 int dy = wy - centerWorldY;
                 int distSq = dx * dx + dy * dy;
                 if (distSq > outerRadiusSq || distSq < innerRadiusSq || isStructure(wx, wy))
+                    continue;
+                if (claimedTiles != null && !claimedTiles.contains(packTile(wx, wy)))
                     continue;
                 if ((biomeMap[wx][height - wy - 1] & roadBit) != 0)
                     continue;
