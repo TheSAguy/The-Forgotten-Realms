@@ -782,12 +782,13 @@ needs its own design pass before any of this gets built:**
   only *new* Capitol-exclusive buildings (Archeologist, etc.) get the restriction.
 - **Reference art provided by the user (2026-08-06), for whenever this gets built:**
   - **Player Capitol castle icon** - a distinct gray/white stone castle sprite (twin corner
-    towers, arched entrance, blue-flagged central spire), meant to represent the player's own
-    Capitol on the overworld map once #13 exists - visually its own thing, not a recolor of the 5
-    AI castle icons. **Not yet saved into the repo** - it was pasted directly into chat, and
-    pasted chat images aren't retrievable as files from this end; needs the user to actually drop
-    the file somewhere (repo folder, or a path this session can `Read`) before it can be added
-    under `The Forgotten Realms/`.
+    towers, arched entrance, red-roofed spires), meant to represent the player's own Capitol on
+    the overworld map once #13 exists - visually its own thing, not a recolor of the 5 AI castle
+    icons. **Saved into the repo (2026-08-07)** as `The Forgotten Realms/maps/tileset/
+    Player_Capitol.png` (128x128, single image, confirmed the intended art with the user). Not
+    yet wired to anything - no `.atlas` yet, and note the size: existing POI icons are 16x16
+    (normal towns) to 48x48 (broken-town variants), so using this on the overworld will need a
+    scale-down or atlas-region decision when #13 actually gets built.
   - **Five building-icon tile references**, screenshotted from a Tiled tileset's Properties panel
     (ID + pixel `Rectangle` X/Y, all 16×16, "Custom Properties" preview thumbnail, all sharing a
     blue palette suggesting one shared source sheet) - **source tileset file not identified**, the
