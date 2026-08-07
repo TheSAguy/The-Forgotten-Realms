@@ -46,16 +46,20 @@ Helping a color angers its two enemies, not its allies.
   per the table above (help Green → Blue & Black annoyed).
 - ~~Rep ≥ 100 / ≤ -100 thresholds~~ superseded by the user's 5-tier table below (2026-08-07).
 - **Consequences built (same day as scoring, per the user's spreadsheet - thresholds are display
-  values; the tier labels are exactly as the user's CORRECTED sheet has them, "War" for the
-  moderate negative tier and "Unhappy" for the severe one, deliberately - labels are trivially
-  swappable strings if ever wanted the other way):**
+  values; tier labels settled after two rounds of user correction, final answer: Unhappy is the
+  MODERATE negative tier, War the SEVERE one):**
   | Status | Scale | Effects |
   |--------|-------|---------|
   | Partner | ≥ 80 | 30% cheaper card shops in that color's towns; player-owned towns 25% less likely to be mage-targeted by that color |
   | Happy | 20 to 79 | 15% cheaper; 5% less likely |
   | Neutral | -19 to 19 | none |
-  | War | -20 to -79 | 25% pricier; 5% more likely |
-  | Unhappy | ≤ -80 | barred from that color's towns (capitals charge a 100-gold entry toll instead); 25% more likely |
+  | Unhappy | -20 to -79 | 25% pricier; 5% more likely |
+  | War | ≤ -80 | barred from that color's towns (capitals charge a 500-gold entry toll instead, prices 40% up inside); 25% more likely |
+  - **Console command for testing**: `give rep <color> <amount>` (negative allowed) shifts one
+    color by a display amount, spreading the negation across the other 4 so net-zero holds -
+    added because reaching ±80 legitimately takes ~40 duel wins. (For force-winning actual
+    duels: no adventure-console command exists - Forge's own Developer Mode in game settings has
+    in-duel dev tools, e.g. set AI life to 0.)
   - **"Less/more likely to be attacked" = mage TARGETING odds** (user clarification): when a
     color's castle picks among its 3 nearest capturable towns, a PLAYER-OWNED town's selection
     weight scales by the tier - this is the reputation gate the Territory Control targeting

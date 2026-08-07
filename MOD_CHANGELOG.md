@@ -2428,11 +2428,24 @@ round. **Compiled clean, not playtested.**
 
 ### The tier table (thresholds are DISPLAY values, internal half-points divided by 2)
 
-Partner >= 80 / Happy 20..79 / Neutral -19..19 / War -20..-79 / Unhappy <= -80.
-**Label note, deliberate**: the user's corrected sheet names the MODERATE negative tier "War"
-and the SEVERE one "Unhappy" (they explicitly fixed a reversed earlier version to this). The
-labels are display strings on the `Status` enum; the effects are bound to the scale rows. If
-they ever want the names swapped back, it's a two-string change in `ColorReputation.Status`.
+Partner >= 80 / Happy 20..79 / Neutral -19..19 / Unhappy -20..-79 / War <= -80.
+**Label history**: went back and forth twice across the user's two spreadsheet screenshots -
+FINAL answer (explicit user correction, "Unhappy is -20 to -79 and War is <= -80"): Unhappy is
+the moderate tier, War the severe one. Effects were always bound to the scale rows, only the
+labels moved. Same correction round also tuned: capital toll 100 -> 500 gold, and the severe
+(War) tier's card prices 1.25x -> 1.40x (reachable inside a capital after paying the toll;
+the moderate Unhappy tier keeps 1.25x).
+
+### `give rep <color> <amount>` console command (same round)
+
+Added for tier testing - reaching +-80 legitimately takes ~40 duel wins. Shifts one color by a
+display-value amount (negative allowed) and spreads the negation across the other 4 colors
+(remainder half-points one at a time) so the net-zero invariant holds exactly even under debug
+shifts - a raw single-color add would corrupt the very sum the standings page is used to
+eyeball. Echoes all 5 values back after each use. (`ConsoleCommandInterpreter.java` - stock
+file, entry updated in `CORE_ENGINE_CHANGES.md`.) For force-winning actual duels there's no
+adventure-console command - Forge's own Developer Mode (game settings) provides in-duel dev
+tools (e.g. set AI life to 0) for that.
 
 ### The three effects
 

@@ -12,6 +12,7 @@ import forge.adventure.scene.InnScene;
 import forge.adventure.scene.InventoryScene;
 import forge.adventure.util.AdventureEventController;
 import forge.adventure.util.CardUtil;
+import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Config;
 import forge.adventure.util.Current;
 import forge.adventure.util.Paths;
@@ -176,6 +177,29 @@ public class ConsoleCommandInterpreter {
             }
             Current.player().giveGold(amount);
             return "Added " + amount + " gold";
+        });
+        // Color Reputation (MOD_SCOPE.md #1) testing: shift one color's reputation by a display-
+        // value amount (negative allowed), net-zero preserved by spreading the negation across
+        // the other 4 colors - added specifically so tier thresholds (+-20/+-80) can be tested
+        // without grinding ~40 real duel wins per tier.
+        registerCommand(new String[]{"give", "rep"}, s -> {
+            if (s.length < 2) return "Command needs 2 parameters: Color (white/blue/black/red/green) and Amount.";
+            String color = s[0].toLowerCase();
+            boolean known = false;
+            for (String c : ColorReputation.COLORS)
+                if (c.equals(color)) { known = true; break; }
+            if (!known) return "Unknown color \"" + s[0] + "\" - use white, blue, black, red or green.";
+            int amount;
+            try {
+                amount = Integer.parseInt(s[1]);
+            } catch (Exception e) {
+                return "Can not convert " + s[1] + " to number";
+            }
+            ColorReputation.debugShiftReputation(color, amount);
+            StringBuilder sb = new StringBuilder("Shifted " + color + " by " + amount + ". Now:");
+            for (String c : ColorReputation.COLORS)
+                sb.append(" ").append(c).append("=").append(ColorReputation.displayValue(Current.player().getColorReputationHalfPoints(c)));
+            return sb.toString();
         });
         registerCommand(new String[]{"give", "quest"}, s -> {
             if (s.length < 1) return "Command needs 1 parameter: QuestID";

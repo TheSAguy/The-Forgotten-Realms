@@ -69,32 +69,31 @@ public class ColorReputation {
     }
 
     // ---- Consequences (second slice, user's tier table). Thresholds are DISPLAY values.
-    // Label note, deliberate and confirmed twice with the user (their corrected spreadsheet):
-    // the moderate negative tier is called "War" and the severe one "Unhappy" - the labels are
-    // display strings only, trivially swappable, the EFFECTS are bound to the scale rows. ----
+    // Tier labels settled after two rounds of user correction: Unhappy is the MODERATE negative
+    // tier, War the SEVERE one (final answer, 2026-08-07 - the effects were always bound to the
+    // scale rows; only these display strings moved around). ----
     public enum Status {
         PARTNER("Partner"),   // rep >= 80: 30% cheaper, town 25% less likely to be mage-targeted
         HAPPY("Happy"),       // 20..79:    15% cheaper, 5% less likely
         NEUTRAL("Neutral"),   // -19..19:   no effect
-        WAR("War"),           // -79..-20:  25% pricier, 5% more likely
-        UNHAPPY("Unhappy");   // <= -80:    towns barred (capitals charge a toll), 25% more likely
+        UNHAPPY("Unhappy"),   // -79..-20:  25% pricier, 5% more likely
+        WAR("War");           // <= -80:    towns barred (capitals charge a toll), 40% pricier, 25% more likely
 
         public final String label;
         Status(String label) { this.label = label; }
     }
 
-    /** Gold demanded to enter a barred color's CAPITAL at the severe tier (towns stay barred
-     *  outright). First-guess constant, tune after testing - matches the mod's other 100-gold
-     *  price points. */
-    public static final int CAPITAL_ENTRY_TOLL = 100;
+    /** Gold demanded to enter a barred color's CAPITAL at War (towns stay barred outright).
+     *  Raised 100 -> 500 per user tuning, 2026-08-07. */
+    public static final int CAPITAL_ENTRY_TOLL = 500;
 
     public static Status getStatus(String color) {
         int rep = displayValue(AdventurePlayer.current().getColorReputationHalfPoints(color));
         if (rep >= 80) return Status.PARTNER;
         if (rep >= 20) return Status.HAPPY;
         if (rep >= -19) return Status.NEUTRAL;
-        if (rep >= -79) return Status.WAR;
-        return Status.UNHAPPY;
+        if (rep >= -79) return Status.UNHAPPY;
+        return Status.WAR;
     }
 
     /** Card-shop price multiplier in a color's town (user scope decision: card shops only -
@@ -105,8 +104,8 @@ public class ColorReputation {
         switch (getStatus(color)) {
             case PARTNER: return 0.70f;
             case HAPPY: return 0.85f;
-            case WAR: return 1.25f;
-            case UNHAPPY: return 1.25f; // reachable inside a capital after paying the toll
+            case UNHAPPY: return 1.25f;
+            case WAR: return 1.40f; // reachable inside a capital after paying the toll; raised 1.25 -> 1.40 per user tuning
             default: return 1f;
         }
     }
@@ -122,15 +121,41 @@ public class ColorReputation {
         switch (getStatus(color)) {
             case PARTNER: return 0.75f;
             case HAPPY: return 0.95f;
-            case WAR: return 1.05f;
-            case UNHAPPY: return 1.25f;
+            case UNHAPPY: return 1.05f;
+            case WAR: return 1.25f;
             default: return 1f;
         }
     }
 
-    /** True when the player is barred from this color's ordinary towns (severe tier). */
+    /** True when the player is barred from this color's ordinary towns (War tier). */
     public static boolean isEntryBarred(String color) {
-        return isEnabled() && color != null && getStatus(color) == Status.UNHAPPY;
+        return isEnabled() && color != null && getStatus(color) == Status.WAR;
+    }
+
+    /**
+     * Debug/console support (`give rep <color> <amount>`): shifts one color by a display-value
+     * amount while PRESERVING the net-zero invariant - the negation is spread evenly across the
+     * other 4 colors (remainder half-points distributed one at a time so the sum stays exactly
+     * zero). A raw single-color add would silently break the invariant the standings are used
+     * to eyeball, which would muddy exactly the testing this command exists for.
+     */
+    public static void debugShiftReputation(String targetColor, int displayAmount) {
+        AdventurePlayer player = AdventurePlayer.current();
+        int halfPoints = displayAmount * 2;
+        player.addColorReputationHalfPoints(targetColor, halfPoints);
+        int perOther = -halfPoints / 4;
+        int remainder = -halfPoints - perOther * 4;
+        for (String color : COLORS) {
+            if (color.equals(targetColor))
+                continue;
+            int delta = perOther;
+            if (remainder != 0) {
+                int step = remainder > 0 ? 1 : -1;
+                delta += step;
+                remainder -= step;
+            }
+            player.addColorReputationHalfPoints(color, delta);
+        }
     }
 
     // "Plains Town ..."/"Plains Capital" -> white, etc. Deliberately its own copy of the noun
