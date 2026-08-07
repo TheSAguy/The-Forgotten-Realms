@@ -266,6 +266,11 @@ public class TerritoryControl {
             if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID())))
                 playerTownPositions.add(poi.getPosition());
         }
+        // Diagnostic only (MOD_SCOPE.md #7) - no way to otherwise tell from forge.log whether this
+        // is finding the player's town(s) at all, given a report that AI expansion was still
+        // visibly encroaching after this fix shipped.
+        if (!playerTownPositions.isEmpty())
+            System.out.println("[TerritoryControl] daily expansion: " + playerTownPositions.size() + " player-owned town(s) protected as rival anchors");
         for (String color : COLORS) {
             Integer currentRadius = world.getColorTerritoryRadius(color);
             if (currentRadius == null || currentRadius >= MAX_TERRITORY_RADIUS)

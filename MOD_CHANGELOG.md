@@ -2630,4 +2630,44 @@ never less, so no regression risk to the already-proven "colors stop at each oth
 Spawn to confirm the anchor fix on an *existing* save (this one doesn't need a fresh world - it only
 changes daily expansion's own anchor list, not anything baked in at generation time).
 
+### Third playtest: both issues still reported - added instrumentation instead of a fourth guess
+
+Both reports persisted after the structure-regeneration and player-anchor fixes above. Rather than
+ship a fourth unverified theory for the same "circles still look empty" complaint, checked
+`forge.log` directly first (`C:\Users\User\AppData\Roaming\Forge\forge.log`) for hard evidence:
+
+- **No exception anywhere**, and every resource `regenerateStructuresForClaim()` needs
+  (`world/structures/models/white.png`, `desert.png`, `blue.png`, `beach.png`, `black.png`,
+  `red.png`, `volcano.png`, `green.png` - each color's *own real* sourcePath, confirmed by the
+  "Looking for resource...Found!" lines appearing right where the method is called in the log
+  order) loaded successfully. This rules out a crash and confirms `restoreColorsRealContent()` had
+  genuinely run before the method executed, using real per-color content, not stale/swapped data.
+- Read `BiomeStructure.initialize()` itself looking for a silent-failure path: a chunk that can't
+  find a valid WFC solution after 10 attempts wipes its *entire* `dataMap` to "no structure
+  anywhere" and returns early (`BiomeStructure.java` lines ~96-101) - a real, arguably-inconsistent
+  design (the *other* failure case, a chunk smaller than the pattern size `N`, correctly wipes only
+  that one chunk and continues) that seemed like a strong candidate given a full-biome-scale grid
+  means potentially thousands of 10-tile chunks, any single failure among which would erase
+  everything. But that wipe-loop has its own indexing that would throw
+  `ArrayIndexOutOfBoundsException` for any chunk beyond the first if it ever actually ran - and
+  since no such exception appears in the log, this specific failure mode is *not* what's happening
+  here (at least not past the very first chunk) - ruled out by evidence, not just re-reasoned away.
+
+With the coordinate math re-checked twice now and no crash in evidence, the honest position is that
+guessing a fourth root cause isn't worth shipping blind again. Instead, added diagnostic-only
+logging (no behavior change): `regenerateStructuresForClaim()` now prints, per color, how many
+tiles in the claim circle got a structure vs. how many were scanned, plus the actual range of
+`structureXStart`/`structureYStart` values it queried - enough to distinguish "the coordinates are
+landing wildly out of range" from "queries are reasonable but the pattern is genuinely sparse there"
+on the next run, read directly rather than inferred from a screenshot. Also added a one-line count
+of player-owned towns found as protected anchors to `processTerritoryExpansion()`, since there's
+currently no way to tell from the log whether that fix is even finding the player's town(s) at all -
+relevant given the "still creeping" report might not be that fix failing so much as a *different*
+mechanism entirely: `repaintBiomeAroundTown()` (used for every individual town capture, both AI
+mage-dispatch and the player's own) has never had any rival-anchor awareness at all, unlike
+`claimWastelandRing()` - a real, distinct gap from what was just fixed, not yet confirmed as the
+actual cause, flagged to the user rather than assumed.
+
+Compiled, deployed, byte-verified (`World.class` + inner classes, `TerritoryControl.class`).
+
 

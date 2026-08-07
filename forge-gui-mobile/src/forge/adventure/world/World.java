@@ -1716,6 +1716,17 @@ public class World implements Disposable, SaveFileContent {
         long roadBit = 1L << biomes.size();
         int baseTerrainCounter = 1 + (biome.terrain != null ? biome.terrain.length : 0);
 
+        // Diagnostic counters only (MOD_SCOPE.md #7) - the last two attempts at this exact "circles
+        // still look empty" report each seemed sufficient and weren't, and the second one (fixing
+        // structureDataMap's identity collision) left no observable trace either way in forge.log
+        // (no exception, no timing line - that fix genuinely worked, per the resource-load lines
+        // confirming each color's own real content, but visually nothing changed). Rather than ship
+        // a fourth unverified guess, this round adds hard numbers to forge.log so the actual cause -
+        // wrong coordinates vs. a genuinely sparse WFC result vs. something else - can be read
+        // directly instead of inferred from a screenshot.
+        int scannedTiles = 0, placedTiles = 0;
+        int minSX = Integer.MAX_VALUE, maxSX = Integer.MIN_VALUE, minSY = Integer.MAX_VALUE, maxSY = Integer.MIN_VALUE;
+
         for (int wx = Math.max(0, centerTileX - radiusTiles); wx <= Math.min(width - 1, centerTileX + radiusTiles); wx++) {
             int dx = wx - centerTileX;
             for (int wy = Math.max(0, centerTileY - radiusTiles); wy <= Math.min(height - 1, centerTileY + radiusTiles); wy++) {
@@ -1727,6 +1738,7 @@ public class World implements Disposable, SaveFileContent {
                 int rawY = height - wy - 1;
                 if ((biomeMap[wx][rawY] & roadBit) != 0)
                     continue; // never place a structure on a road
+                scannedTiles++;
 
                 // Same formula as generateNew()'s own per-tile placement loop - x needs no flip
                 // (matches getBiome()'s own convention), y does: that loop's "y" is raw array-space,
@@ -1734,10 +1746,13 @@ public class World implements Disposable, SaveFileContent {
                 // in the first place, so feeding the same rawY back in keeps this consistent with
                 // whatever tile generateNew() itself would have written to at this world position.
                 int terrainCounter = baseTerrainCounter;
+                boolean tilePlaced = false;
                 for (BiomeStructureData structureData : biome.structures) {
                     BiomeStructure structure = freshPatterns.get(structureData);
                     int structureXStart = wx - (biomeXStart - biomeWidth / 2) - (int) ((structureData.x * biomeWidth) - (structureData.width * biomeWidth / 2));
                     int structureYStart = rawY - (biomeYStart - biomeHeight / 2) - (int) ((structureData.y * biomeHeight) - (structureData.height * biomeHeight / 2));
+                    minSX = Math.min(minSX, structureXStart); maxSX = Math.max(maxSX, structureXStart);
+                    minSY = Math.min(minSY, structureYStart); maxSY = Math.max(maxSY, structureYStart);
                     int structureIndex = structure.objectID(structureXStart, structureYStart);
                     if (structureIndex >= 0) {
                         int encoded = terrainCounter + structureIndex;
@@ -1745,11 +1760,19 @@ public class World implements Disposable, SaveFileContent {
                             encoded |= collisionBit;
                         encoded |= isStructureBit;
                         terrainMap[wx][rawY] = encoded;
+                        tilePlaced = true;
                     }
                     terrainCounter += structure.structureObjectCount();
                 }
+                if (tilePlaced)
+                    placedTiles++;
             }
         }
+
+        System.out.println("[TerritoryControl] " + colorBiomeName + ": regenerateStructuresForClaim placed "
+                + placedTiles + "/" + scannedTiles + " tiles, biome box " + biomeWidth + "x" + biomeHeight
+                + " at (" + biomeXStart + "," + biomeYStart + "), queried structureX in [" + minSX + "," + maxSX
+                + "] structureY in [" + minSY + "," + maxSY + "]");
 
         regenerateDoodadsInRadius(centerTileX, centerTileY, 0, radiusTiles, biome);
     }
