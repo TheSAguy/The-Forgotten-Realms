@@ -310,6 +310,17 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       Full design and mechanism in `MOD_CHANGELOG.md`. **Not yet playtested** - the fourth attempt
       at this exact density problem, and the first to remove the structural reason the earlier ones
       were capped rather than trying to improve the sampling.
+    - **Fourth playtest: confirmed working for 4/5 colors** (white/blue/red/green all dense and
+      correct - the density problem itself appears solved). Black specifically still showed a gap -
+      investigated and compared directly against red's (working) data, found no structural
+      difference, leading hypothesis is ordinary WFC pattern variance for this specific seed rather
+      than a bug, not yet confirmed either way. Two real, unrelated minimap gaps found and fixed:
+      the minimap can now be explicitly re-baked from final state after Territory Control's sweep
+      (`World.rebakeMinimapAfterTerritoryControl()`, requested directly), and a town's minimap icon
+      no longer gets painted over and lost after a live capture (AI or player) - a pre-existing gap,
+      not caused by either placement redesign. A water/road border reported in a few places is not
+      yet investigated - asked for a more specific repro before guessing at it. Full detail in
+      `MOD_CHANGELOG.md`.
 
 **More raised by the user (2026-08-05), not scoped or started - recorded so they aren't lost,
 needs its own design pass before any of this gets built:**

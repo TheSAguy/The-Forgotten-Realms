@@ -2804,3 +2804,67 @@ WFC builds than the version it replaces - no more per-color reconstruction rebui
 should be the same speed or faster); roads/minimap/doodads show no seam at the circle boundary;
 daily expansion and individual captures (both untouched by this change) still work normally.
 
+### Fourth playtest: 4/5 colors confirmed dense and correct; two real minimap gaps fixed; two open
+
+**The spatially-aware redesign worked** - user confirmed white/blue/red/green all look correct and
+dense, real progress after three rounds that didn't fully land. Four distinct follow-ups from this
+round of feedback:
+
+**Black specifically has a real gap - investigated, not yet explained by anything in this session's
+code.** Compared `black.json`'s `structures[]` directly against `red.json`'s (red confirmed working):
+both have the exact same shape - a `ring.png`-masked entry at `width/height: 0.5` and a
+`circle.png`-masked entry at `width/height: 0.2`, both centered at `x/y: 0.5`, and both colors use
+the identical `±0.1` castle offset magnitude (`points_of_interest.json`), so neither the mask
+geometry nor how far the castle sits from raw center explain a black-specific difference - red has
+the identical setup and works. Leading hypothesis, not confirmed: ordinary WFC output variance - the
+solver's result isn't uniform density everywhere by nature, and it's plausible this specific world
+seed happened to produce a locally sparse patch of black's own pattern exactly where its castle
+landed, which a different seed wouldn't reproduce. Distinguishable from a real bug only by testing
+another fresh world: consistently black (or shifts to a different color) points at seed-dependent
+variance, not a bug; a repeat of specifically black points at something real still to find. Flagged
+rather than guessed at further.
+
+**Two real, code-confirmed minimap gaps fixed, both requested/reported directly:**
+- **"Is there a way to re-initialize [the minimap] after everything is done"** - yes: added
+  `World.rebakeMinimapAfterTerritoryControl()`, called right after `neutralizeAfterGeneration()`
+  (before `redrawAllPoiMarkers()` - a bake only draws ground, so it has to run first or it would
+  erase those markers right back out). Re-derives the minimap Pixmap from `biomeMap`/`terrainMap`'s
+  now-final state, the same computation the original world-gen-time bake already does - a stronger
+  guarantee than trusting `neutralizeTerritoryOutsideRadius()`'s own per-tile incremental repaint to
+  have correctly covered every affected pixel, and cheap (the original bake measures ~0.1s for a
+  full map). Deliberately a separate, duplicated method rather than a refactor of the original bake
+  call site: that one's `biomeImage` assignment happens *after* the doodad-placement pass, not
+  immediately after baking, and `rebuildFogOfWarPixmap()` (called right after) reads `biomeImage`'s
+  dimensions directly and no-ops if it's null - a real, confirmed-by-reading-the-code ordering
+  dependency, not worth risking a second bit-preservation-style regression this session by
+  refactoring it to share code with a new call site instead of just duplicating the ~35-line bake
+  loop once.
+- **"When I or the AI takes towns, the town icon on the mini-map gets painted over... you can't see
+  it anymore."** Confirmed via `grep`: `redrawAllPoiMarkers()` (which exists specifically to fix
+  this same class of issue) had exactly one caller - the one-time world-gen sweep - and was never
+  invoked after a live, mid-game capture repaint. Since both an AI mage's capture
+  (`TerritoryControl.onMageArrived()`) and the player's own both go through
+  `World.repaintBiomeAroundTown()`, adding the same call at the end of that one method (guarded by
+  the same `biomeImage != null` check the method's own loop already uses) covers both paths at once.
+  This was a pre-existing gap, not something either of this session's two placement redesigns
+  introduced - `repaintBiomeAroundTown()` itself is untouched by both.
+
+**Not new, a pre-existing, already-documented simplification, not a regression**: "background
+details... the doodads in the dead zone" missing from the minimap. The minimap bake has never drawn
+individual doodads/structures in detail for *any* biome (confirmed earlier this session, unrelated
+to Territory Control) - it draws one flat tileset icon per tile in the common case. Worth restating
+since it's easy to read as a new gap alongside the two real ones above, but neither of today's fixes
+touches this, and it isn't a regression from either placement redesign.
+
+**Flagged, not yet investigated**: a water/road border appearing "in a few places," reported as
+inconsistent even by the user's own read of it. Checked whether anything in this round's changes
+could explain it - Pass A/B (the spatially-aware placement redesign) only touch the 5 AI colors'
+redirect logic, never `base`/ocean or the road-drawing pass itself, and roads unconditionally zero
+`terrainMap` regardless of what's underneath, same as always - nothing found that obviously
+implicates recent work. Given the user's own uncertainty about when/where it appears, asked for a
+more specific repro (a zoomed screenshot of just the border, similar to what previously pinned down
+the road-tracing blue border earlier this session) rather than guessing at a fix blind.
+
+Compiled, deployed, byte-verified (`World.class` + inner classes - no other files touched this
+round).
+

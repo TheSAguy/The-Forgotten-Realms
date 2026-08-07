@@ -1035,10 +1035,20 @@ public class World implements Disposable, SaveFileContent {
             // shrinking each color's world-gen territory directly.
             if (isTerritoryControlEnabled()) {
                 TerritoryControl.neutralizeAfterGeneration(this);
+                // neutralizeTerritoryOutsideRadius() (called above) already repaints the minimap
+                // pixel for every tile it individually reassigns, which should already be complete
+                // - but a full re-bake from biomeMap/terrainMap's now-final state is a stronger
+                // guarantee than trusting every incremental repaint path to have covered everything
+                // correctly, and it's cheap (the original bake measured ~0.1s for a full map).
+                // Requested directly ("is there a way to re-initial it after everything is done")
+                // after a report that the minimap didn't look right post-sweep.
+                rebakeMinimapAfterTerritoryControl();
                 // The sweep above repaints biomeImage directly, which can partially paint over a
                 // nearby POI's marker icon - markers were only ever baked in once, by the ordinary
                 // placement loop above, before this sweep existed to run afterward. Redraw them all
                 // on top so none end up clipped (reported as "town icons look cut" on the minimap).
+                // Must run after the re-bake above, not before - a bake only draws ground, so it
+                // would otherwise erase these markers right back out again.
                 redrawAllPoiMarkers();
             }
             System.out.println("Generating world took :\t\t" + ((System.currentTimeMillis() - startTime) / 1000f) + " s");
@@ -1077,6 +1087,74 @@ public class World implements Disposable, SaveFileContent {
                     marker.getRegionWidth(), marker.getRegionHeight(), xInPixels, yInPixels, marker.getRegionWidth(), marker.getRegionHeight());
         }
         mapMarkerPixmap.dispose();
+    }
+
+    // Territory Control (MOD_SCOPE.md #7) only - see generateNew()'s call site, right after
+    // neutralizeAfterGeneration(). Re-derives the minimap Pixmap from biomeMap/terrainMap's current
+    // (now-final) state, the same computation the original bake earlier in generateNew() already
+    // did - kept as a separate method rather than refactoring that original call site to share this
+    // one, specifically to avoid disturbing its proven sequencing: biomeImage there is deliberately
+    // assigned *after* the doodad-placement pass, not immediately after baking, and
+    // rebuildFogOfWarPixmap() (called right after) reads biomeImage's dimensions directly - a subtle
+    // ordering dependency not worth risking a second time this session for what's otherwise a
+    // straightforward, self-contained re-bake. Explicitly sets biomeImage itself (unlike the
+    // original inline bake, which relies on that later, separate assignment) - needed here since
+    // there's no such later assignment to fall back on for this call.
+    private void rebakeMinimapAfterTerritoryControl() {
+        Pixmap pix = new Pixmap(width * data.miniMapTileSize, height * data.miniMapTileSize, Pixmap.Format.RGBA8888);
+        pix.setColor(1, 0, 0, 1);
+        pix.fill();
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (highestBiome(biomeMap[x][y]) >= data.GetBiomes().size()) {
+                    Pixmap smallPixmap = createSmallPixmap(data.roadTileset.tilesetAtlas, data.roadTileset.tilesetName, 0);
+                    pix.drawPixmap(smallPixmap, x * data.miniMapTileSize, y * data.miniMapTileSize);
+                } else {
+                    BiomeData biome = data.GetBiomes().get(highestBiome(biomeMap[x][y]));
+                    int terrainIndex = terrainMap[x][y] & ~terrainMask;
+                    if (terrainIndex > biome.terrain.length) {
+                        Pixmap smallPixmap = createSmallPixmap(biome.tilesetAtlas, biome.tilesetName, 0);
+                        pix.drawPixmap(smallPixmap, x * data.miniMapTileSize, y * data.miniMapTileSize);
+
+                        terrainIndex -= biome.terrain.length;
+                        terrainIndex--;
+                        for (BiomeStructureData structData : biome.structures) {
+                            if (terrainIndex >= structData.mappingInfo.length) {
+                                terrainIndex -= structData.mappingInfo.length;
+                                continue;
+                            }
+                            smallPixmap = createSmallPixmap(structData.structureAtlasPath, structData.mappingInfo[terrainIndex].name, 0);
+                            pix.drawPixmap(smallPixmap, x * data.miniMapTileSize, y * data.miniMapTileSize);
+                            break;
+                        }
+                    } else {
+                        Pixmap smallPixmap = createSmallPixmap(biome.tilesetAtlas, biome.tilesetName, terrainIndex);
+                        pix.drawPixmap(smallPixmap, x * data.miniMapTileSize, y * data.miniMapTileSize);
+                    }
+                }
+            }
+        }
+        for (Map.Entry<String, Pair<Pixmap, HashMap<String, Pixmap>>> entry : pixmapHash.entrySet()) {
+            try {
+                entry.getValue().getLeft().dispose();
+            } catch (Exception e) {
+                //e.printStackTrace();
+            }
+            for (Map.Entry<String, Pixmap> pairEntry : entry.getValue().getRight().entrySet()) {
+                try {
+                    pairEntry.getValue().dispose();
+                } catch (Exception e) {
+                    //e.printStackTrace();
+                }
+            }
+        }
+        pixmapHash.clear();
+        biomeImage = pix;
+        try {
+            drawPixmapNow(pix);
+        } catch (Exception e) {
+            //e.printStackTrace();
+        }
     }
 
     HashMap<String, Pair<Pixmap, HashMap<String, Pixmap>>> pixmapHash = new HashMap<>();
@@ -1465,6 +1543,17 @@ public class World implements Disposable, SaveFileContent {
                 for (int cy = minChunkY; cy <= maxChunkY; cy++)
                     onChunkNeedsReload.accept(cx, cy);
         }
+
+        // The per-tile drawPixmap loop above can partially paint over a nearby POI's own marker
+        // icon on the minimap - markers are only ever baked in once (world-gen's own placement loop,
+        // or the one-time post-sweep redrawAllPoiMarkers() call in generateNew()), never refreshed
+        // for a live, mid-game repaint like this one until now. Confirmed via grep that
+        // redrawAllPoiMarkers() previously had exactly one caller (the world-gen-time sweep) -
+        // covering it here too fixes both an AI mage's capture (onMageArrived()) and the player's
+        // own, since both go through this same method. Guarded the same way the loop above already
+        // guards its own biomeImage use.
+        if (biomeImage != null)
+            redrawAllPoiMarkers();
     }
 
     /**
