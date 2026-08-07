@@ -298,6 +298,7 @@
     "fogOfWarEnabled": true,
     "dayNightCycleEnabled": true,
     "townReconstructionEnabled": true,
-    "territoryControlEnabled": true
+    "territoryControlEnabled": true,
+    "colorReputationEnabled": true
 }
 

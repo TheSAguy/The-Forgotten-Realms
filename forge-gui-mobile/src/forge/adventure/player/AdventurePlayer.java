@@ -65,6 +65,11 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
     private int shards = 0;
     private int wood = 0;
     private int stone = 0;
+    // Player reputation with the 5 AI colors (MOD_SCOPE.md #1), keyed "white"/"blue"/"black"/
+    // "red"/"green". Stored in INTERNAL HALF-POINTS (user-facing value x2) so that multicolor
+    // fights' half-strength effects stay exact integers and the 5 values always sum to exactly
+    // zero - see ColorReputation for the rules and the display conversion.
+    private final Map<String, Integer> colorReputationHalfPoints = new HashMap<>();
     private EffectData blessing; //Blessing to apply for next battle.
     private final PlayerStatistic statistic = new PlayerStatistic();
     private final Map<String, Byte> questFlags = new HashMap<>();
@@ -132,6 +137,7 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         shards = 0;
         wood = 0;
         stone = 0;
+        colorReputationHalfPoints.clear();
         maxDeckCount = 20;
         clearDecks();
         inventoryItems.clear();
@@ -197,6 +203,12 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         isFemale = !male;
 
         setColorIdentity(DeckProxy.getColorIdentity(deck));
+        // MOD_SCOPE.md #1: the chosen starter deck seeds the player's color reputation (+10 per
+        // deck color, +5 its allies, -10 its enemies - zero-sum, no-op when the feature's config
+        // flag is off or the deck is colorless). Deliberately here in create() only, NOT near the
+        // other setColorIdentity() call sites - identity can change later (custom decks, dialog
+        // actions), but the starting bonus is a one-time new-game seed.
+        ColorReputation.applyStartingDeckBonus(colorIdentity);
 
         life = maxLife = difficultyData.startingLife;
         shards = difficultyData.startingShards;
@@ -483,6 +495,12 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         shards = data.containsKey("shards") ? data.readInt("shards") : 0;
         wood = data.containsKey("wood") ? data.readInt("wood") : 0;
         stone = data.containsKey("stone") ? data.readInt("stone") : 0;
+        colorReputationHalfPoints.clear();
+        if (data.containsKey("colorReputationHalfPoints")) {
+            Object obj = data.readObject("colorReputationHalfPoints");
+            if (obj instanceof Map)
+                colorReputationHalfPoints.putAll((Map<String, Integer>) obj);
+        }
         worldPosX = data.readFloat("worldPosX");
         worldPosY = data.readFloat("worldPosY");
 
@@ -848,6 +866,7 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         data.store("shards", shards);
         data.store("wood", wood);
         data.store("stone", stone);
+        data.storeObject("colorReputationHalfPoints", new HashMap<>(colorReputationHalfPoints));
         data.store("deckName", deck.getName());
 
         data.storeObject("inventory", inventoryItems.toArray(new ItemData[0]));
@@ -1179,6 +1198,16 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
     public void takeStone(int number) {
         stone -= number;
         onStoneChangeList.emit();
+    }
+
+    // Color reputation (MOD_SCOPE.md #1) - values in INTERNAL HALF-POINTS, see the field's own
+    // comment and ColorReputation (which owns all the rules; these are dumb storage accessors).
+    public int getColorReputationHalfPoints(String color) {
+        return colorReputationHalfPoints.getOrDefault(color, 0);
+    }
+
+    public void addColorReputationHalfPoints(String color, int halfPoints) {
+        colorReputationHalfPoints.merge(color, halfPoints, Integer::sum);
     }
 
     public void addBlessing(EffectData bless) {

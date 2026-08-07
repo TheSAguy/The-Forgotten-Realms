@@ -40,13 +40,45 @@ Helping a color angers its two enemies, not its allies.
 
 ## Features
 
-### 1. Reputation System — `Not Started`
+### 1. Reputation System — `In Progress` (scoring built 2026-08-07, not yet playtested)
 - Player has a reputation score per color (5 tracks).
 - Helping/hurting one color affects reputation with it, and ripples to its allies/enemies
   per the table above (help Green → Blue & Black annoyed).
 - Rep ≥ 100 with a color: become a de facto ally — that color stops attacking the player.
 - Rep ≤ -100 with a color: locked out of entering that color's towns.
 - Rewards/penalties scale gradually with rep, not just at the ±100 thresholds.
+- **Scoring slice built (2026-08-07, home PC)** — the tracking/scoring half, per detailed user
+  design; consequences (the three bullets above) deliberately later, "let's first get the
+  scoring working":
+  - **Net-zero invariant**: the 5 values always sum to exactly 0 - every event is a zero-sum
+    redistribution across the wheel, never a plain gain/loss.
+  - **Winning an ordinary duel** vs a mono-color enemy: that color -2, its 2 allies -1 each, its
+    2 enemies +2 each. Multicolor enemy: HALF that pattern, applied once per enemy color (user's
+    pick among offered options; a large share of enemies are multicolor - 220ish mono vs 150ish
+    multi in common's enemies.json). Bosses (EnemyData.boss) count 3x. Losses, colorless
+    enemies, Arena brackets, and Inn tournaments: no effect. Every colored enemy counts (wolves
+    included, not just mages - user's pick).
+  - **Internal half-point storage**: halving -1 with rounding would break net-zero every
+    multicolor fight, so values are stored doubled (`AdventurePlayer.colorReputationHalfPoints`)
+    - every case stays an exact integer internally; only the display divides by 2
+    (`ColorReputation.displayValue()`, rare leftover halves - multicolor boss only - round for
+    display while storage stays exact).
+  - **Starting deck seeds reputation** (+10 per deck-identity color, +5 its allies, -10 its
+    enemies - applied per color for multicolor starters, nothing for colorless; user's pick).
+    Hook in `AdventurePlayer.create()` only - identity changes later in a run don't re-seed.
+  - **World Standings page**: new Reputation column after Town Count with real column headers,
+    green positive / red negative / plain 0 per the user's own mockup; blank for the Player and
+    Colorless rows. Rows stay in town-count order (headers are labels, not sort toggles - user
+    okay'd deferring sortability).
+  - **Uncapped for now** (user's pick) - capping breaks net-zero, so caps need their own design
+    when consequences arrive.
+  - Opt-in via `colorReputationEnabled` (ConfigData + the plane's config.json), independent of
+    `territoryControlEnabled` - reputation works even with territory control off.
+  - Files: `ColorReputation.java` (new - wheel, rules, half-point math), `AdventurePlayer.java`
+    (storage/save/load/create-hook), `DuelScene.java` (win hook in `afterGameEnd()`, the single
+    funnel where win/Arena/event status are all knowable), `WorldStandingsScene.java` +
+    `world_standings.json` (UI), `ConfigData.java` + plane `config.json` (flag). Engine-file
+    edits recorded in `CORE_ENGINE_CHANGES.md`.
 
 ### 2. Central Wasteland & Town Reconstruction — `In Progress`
 - First slice built: towns in the colorless "Wastes" biome (existing stand-in for "the middle

@@ -7,6 +7,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.github.tommyettinger.textra.TypingLabel;
+import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Config;
 import forge.adventure.util.Controls;
 import forge.adventure.util.Current;
@@ -59,6 +60,25 @@ public class WorldStandingsScene extends UIScene {
             return;
 
         Map<String, Integer> counts = TerritoryControl.getTownCounts(WorldSave.getCurrentSave().getWorld());
+
+        // Header row (per user mockup): blank cell over the icon column, then column titles.
+        // Rebuilt every refresh since clear() above wipes the whole table. Rows stay in
+        // getSortedStandingsRows()'s town-count order - per user decision, headers are labels
+        // only, not sort toggles, for now.
+        boolean showReputation = ColorReputation.isEnabled();
+        standingsList.add();
+        TypingLabel countHeader = Controls.newTypingLabel("[%75]Town Count");
+        countHeader.setColor(Color.BLACK);
+        countHeader.skipToTheEnd();
+        standingsList.add(countHeader).align(Align.left).padRight(14).padBottom(4);
+        if (showReputation) {
+            TypingLabel repHeader = Controls.newTypingLabel("[%75]Reputation");
+            repHeader.setColor(Color.BLACK);
+            repHeader.skipToTheEnd();
+            standingsList.add(repHeader).align(Align.left).padBottom(4);
+        }
+        standingsList.row();
+
         for (String row : TerritoryControl.getSortedStandingsRows(counts)) {
             Image icon = null;
             if ("Player".equals(row)) {
@@ -80,6 +100,26 @@ public class WorldStandingsScene extends UIScene {
             countLabel.setColor(Color.BLACK);
             countLabel.skipToTheEnd();
             standingsList.add(countLabel).align(Align.left).expandX().padBottom(6);
+
+            // Reputation column (MOD_SCOPE.md #1): only the 5 AI colors have a value - the
+            // Player and Colorless rows leave the cell blank (neutral has no reputation by
+            // design, and "reputation with yourself" is meaningless).
+            if (showReputation) {
+                String colorKey = row.toLowerCase();
+                boolean isAiColor = false;
+                for (String c : ColorReputation.COLORS)
+                    if (c.equals(colorKey)) { isAiColor = true; break; }
+                if (isAiColor) {
+                    int rep = ColorReputation.displayValue(Current.player().getColorReputationHalfPoints(colorKey));
+                    String text = rep > 0 ? "[GREEN]+" + rep : rep < 0 ? "[RED]" + rep : "0";
+                    TypingLabel repLabel = Controls.newTypingLabel("[%85]" + text);
+                    repLabel.setColor(Color.BLACK);
+                    repLabel.skipToTheEnd();
+                    standingsList.add(repLabel).align(Align.left).padBottom(6);
+                } else {
+                    standingsList.add();
+                }
+            }
             standingsList.row();
         }
     }

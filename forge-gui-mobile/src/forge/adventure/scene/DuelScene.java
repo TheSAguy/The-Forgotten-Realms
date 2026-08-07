@@ -17,6 +17,7 @@ import forge.adventure.player.AdventurePlayer;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.IAfterMatch;
 import forge.adventure.util.AdventureEventController;
+import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Config;
 import forge.adventure.util.Current;
 import forge.assets.FBufferedImage;
@@ -198,6 +199,15 @@ public class DuelScene extends ForgeScene {
     Runnable endRunnable = null;
 
     void afterGameEnd(String enemyName, boolean winner) {
+        // Color reputation (MOD_SCOPE.md #1): every ordinary duel WIN shifts the player's
+        // standing across the 5-color wheel. This is the single funnel every duel's end passes
+        // through, and the only place all three exclusions are cheaply knowable at once: losses
+        // (winner false), Arena brackets (isArena), and Inn tournaments (eventData != null).
+        // No-op unless the plane's config enables colorReputationEnabled; colorless enemies
+        // no-op inside the call. Deliberately outside the endRunnable below - that only runs
+        // once the transition screen finishes, and reputation has no rendering dependency.
+        if (winner && !isArena && eventData == null && enemy != null)
+            ColorReputation.onPlayerWonDuel(enemy.getData());
         Forge.advFreezePlayerControls = winner;
         endRunnable = () -> Gdx.app.postRunnable(() -> {
             GameHUD.getInstance().updateBGM();

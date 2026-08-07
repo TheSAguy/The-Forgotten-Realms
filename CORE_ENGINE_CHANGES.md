@@ -232,9 +232,19 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 ### Player / config
 - **`forge-gui-mobile/src/forge/adventure/player/AdventurePlayer.java`** — added Wood/Stone
   resource fields alongside existing Gold/Shards (#9), same pattern (get/add/take/onChange).
-- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 4 opt-in mod flags:
-  `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`
-  (all default `false` - see `CLAUDE.md`'s ground rules for why this pattern matters).
+  Color Reputation (#1) added `colorReputationHalfPoints` (Map<String,Integer>, save/load/clear
+  like the resources) with get/add accessors, plus one `ColorReputation.applyStartingDeckBonus()`
+  call in `create()` right after the starting deck's color identity is set.
+- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 5 opt-in mod flags:
+  `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`,
+  `colorReputationEnabled` (all default `false` - see `CLAUDE.md`'s ground rules for why this
+  pattern matters).
+- **`forge-gui-mobile/src/forge/adventure/scene/DuelScene.java`** — Color Reputation (#1): one
+  guarded hook at the top of `afterGameEnd()` (`winner && !isArena && eventData == null`) calling
+  `ColorReputation.onPlayerWonDuel()`. That method is the single funnel every duel's end passes
+  through, and the only spot where win/loss, Arena, and Inn-event status are all knowable at once
+  - if upstream restructures `GameEnd()`/`afterGameEnd()`, this hook needs to move with whatever
+  replaces that funnel.
 - **`forge-gui-mobile/src/forge/adventure/character/EnemySprite.java`** — added `territoryTarget`/
   `territoryColor` fields (#7, null for every ordinary enemy - only set on a Territory Control
   mage).
@@ -253,9 +263,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 Under `forge-gui-mobile/src/forge/adventure/util/` - upstream doesn't have these paths, so there's
 nothing to reconcile, but they're stock-adjacent code (not mod-plane assets) so they're listed here
 rather than assumed-safe by omission:
-`EconomyBuildings.java`, `ResourceDisplayActor.java`, `RubbleOverlay.java`, `TerritoryControl.java`,
-`TimeOfDayActor.java`, `TownRestoration.java`. (`TownCountActor.java` existed briefly, removed the
-same day - see `MOD_CHANGELOG.md`'s "World Standings page" entry.)
+`ColorReputation.java` (#1), `EconomyBuildings.java`, `ResourceDisplayActor.java`,
+`RubbleOverlay.java`, `TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`.
+(`TownCountActor.java` existed briefly, removed the same day - see `MOD_CHANGELOG.md`'s "World
+Standings page" entry.)
 
 Under `forge-gui-mobile/src/forge/adventure/scene/`, same reasoning:
 `WorldStandingsScene.java` (#7) - its own JSON layout lives in the mod's plane folder

@@ -2348,6 +2348,76 @@ edge now reads as a soft waste-into-color transition instead of a hard cut. Why 
 4. Regression watch: claimed territory should still read as the color on the map/standings
    (ownership is by highest bit, verified by biome order - but this is the assumption to watch).
 
+## Color Reputation - scoring slice (MOD_SCOPE.md #1), built 2026-08-07 (home PC)
+
+Files: `ColorReputation.java` (new, all rules), `AdventurePlayer.java` (storage + create() hook),
+`DuelScene.java` (win hook), `WorldStandingsScene.java` + plane `ui/world_standings.json` (UI),
+`ConfigData.java` + plane `config.json` (`colorReputationEnabled` flag). Consequences (ally/
+lockout thresholds etc.) deliberately NOT built - user: "let's first get the scoring working."
+**Compiled clean, not playtested.**
+
+### The rules (user-designed, decisions from an explicit Q&A round)
+
+- **Net-zero invariant**: the 5 color values always sum to exactly 0. Every event is a zero-sum
+  redistribution, by construction of the patterns below - there's no normalization step.
+- **Ordinary duel WIN vs a mono-color enemy**: that color -2, each of its 2 wheel-allies -1, each
+  of its 2 wheel-enemies +2 (sum 0). **Losses: nothing. Colorless enemies: nothing. Arena and Inn
+  tournaments: excluded.** Every colored enemy counts, not just mages (user's explicit pick -
+  wolves/zombies/etc included).
+- **Multicolor enemies** (large share of the roster - ~220 mono vs ~150 multi in common's
+  enemies.json): HALF the pattern, applied once per enemy color (user's pick). A 'GW' enemy =
+  green's half-pattern + white's half-pattern stacked; still sums to 0.
+- **Bosses ×3** (`EnemyData.boss`).
+- **Starting deck seeds reputation**: +10 per color of the chosen deck's identity, +5 to each of
+  that color's allies, -10 to each of its enemies - per color for multicolor starters (user's
+  pick), nothing for colorless. Hooked in `AdventurePlayer.create()` ONLY - `setColorIdentity()`
+  has other call sites (custom-deck selection, dialog actions) that deliberately don't re-seed.
+- **Uncapped** for now (user's pick) - a cap would silently break net-zero the moment any color
+  pinned, so caps need their own design when consequences arrive.
+
+### The half-point trick (why storage is doubled)
+
+The user picked "half effect, rounded" for multicolor - but literally halving the ally delta
+(-1 -> -0.5) and rounding would break net-zero on every multicolor fight (the roundings can't
+cancel: round-away gives -1/-1/-1/+1/+1 = -1 per color). So reputation is STORED IN HALF-POINTS
+(`AdventurePlayer.colorReputationHalfPoints`, every user-facing amount doubled): mono win =
+-4/-2/-2/+4/+4 internal, multicolor per color = -2/-1/-1/+2/+2 internal, boss x3 still integral -
+every case exact, invariant exact. Only the display divides by 2 (`ColorReputation.displayValue()`,
+`Math.round(hp / 2f)`) - the single case that can produce a leftover display half (multicolor
+BOSS, x3 on odd half-points) rounds for display while storage stays exact, so displayed values can
+transiently look off-by-a-half from summing to zero, but never drift.
+
+### Wiring
+
+- **Win detection**: one guarded call at the top of `DuelScene.afterGameEnd()` - the single funnel
+  every duel end passes through (verified: both the fast no-popup path and the ante/boss popup
+  chain reach it), and the one place `winner`/`isArena`/`eventData` are all in scope. Arena passes
+  `isArena=true` to `initDuels()`, Inn events pass `eventData != null`, ordinary fights neither -
+  so the guard is `winner && !isArena && eventData == null`. Multi-game matches resolve once, at
+  match end (same semantics as the existing `PlayerStatistic.setResult()` line next to it).
+- **Enemy color source**: `EnemyData.colors` (MTG letters, e.g. "B", "GW"), parsed
+  case-insensitively with duplicate guarding; empty/absent = colorless = no-op.
+- **The wheel** lives in `ColorReputation` (allies/enemies per color, standard color-pie
+  adjacency, same table as `MOD_SCOPE.md`'s header). It deliberately does NOT depend on
+  `TerritoryControl` - reputation works with territory control off (separate config flags).
+- **UI**: World Standings gained a header row ("Town Count" / "Reputation") and a reputation
+  column - green `+N` / red `-N` / plain `0`, matching the user's mockup; blank cells for the
+  Player and Colorless rows. Rows keep town-count order (user: headers as labels is fine,
+  sortability deferred). Table widened 240 -> 300 in `world_standings.json`. The reputation
+  column (and header) only render when `colorReputationEnabled` is on.
+- Save/load: map persisted like Wood/Stone; absent on older saves = all zeros. `clear()` resets it
+  on new game.
+
+### What to verify in-game
+
+1. New game with a mono-color starter: World Standings shows +10/+5/+5/-10/-10 spread matching
+   the chosen color's wheel, sum zero.
+2. Beat a mono-color enemy of a KNOWN color: -2/-1/-1/+2/+2 shift. Beat a multicolor enemy: half
+   per color. Beat a boss: tripled. Lose: no change.
+3. Arena and Inn tournament wins: no change.
+4. Reputation column absent on a plane without the flag (Shandalar etc. - stock planes' configs
+   don't have it, so the column shouldn't render there even if the World button existed).
+
 ## Toolchain (not part of the repo, but needed to build it)
 
 Maven 3.9.16 + Eclipse Temurin JDK 17.0.20+8, installed portably (zip, not system installers),
