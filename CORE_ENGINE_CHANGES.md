@@ -244,8 +244,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   pattern matters).
 - **`forge-gui-mobile/src/forge/adventure/stage/ConsoleCommandInterpreter.java`** — debug
   console additions: `count towns` (#7 - was missing from this doc until now, added when the
-  `give rep` change touched the same file) and `give rep <color> <amount>` (#1,
-  net-zero-preserving reputation shift for tier testing).
+  `give rep` change touched the same file), `give rep <color> <amount>` (#1,
+  net-zero-preserving reputation shift for tier testing), and `give wood`/`give lumber`
+  (alias)/`give stone` (#9).
 - **`forge-gui-mobile/src/forge/adventure/scene/DuelScene.java`** — Color Reputation (#1): one
   guarded hook at the top of `afterGameEnd()` (`winner && !isArena && eventData == null`) calling
   `ColorReputation.onPlayerWonDuel()`. That method is the single funnel every duel's end passes

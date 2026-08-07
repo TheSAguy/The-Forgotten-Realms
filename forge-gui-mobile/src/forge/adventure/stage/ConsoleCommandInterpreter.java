@@ -201,6 +201,33 @@ public class ConsoleCommandInterpreter {
                 sb.append(" ").append(c).append("=").append(ColorReputation.displayValue(Current.player().getColorReputationHalfPoints(c)));
             return sb.toString();
         });
+        // Wood/Stone testing (MOD_SCOPE.md #9). "lumber" is a deliberate alias for wood - the
+        // two words kept getting interchanged during design, and per user decision "wood" is the
+        // canonical resource name (the building stays "Lumber Mill"; it produces wood).
+        Function<String[], String> giveWood = s -> {
+            if (s.length < 1) return "Command needs 1 parameter: Amount.";
+            int amount;
+            try {
+                amount = Integer.parseInt(s[0]);
+            } catch (Exception e) {
+                return "Can not convert " + s[0] + " to number";
+            }
+            Current.player().addWood(amount);
+            return "Added " + amount + " wood";
+        };
+        registerCommand(new String[]{"give", "wood"}, giveWood);
+        registerCommand(new String[]{"give", "lumber"}, giveWood);
+        registerCommand(new String[]{"give", "stone"}, s -> {
+            if (s.length < 1) return "Command needs 1 parameter: Amount.";
+            int amount;
+            try {
+                amount = Integer.parseInt(s[0]);
+            } catch (Exception e) {
+                return "Can not convert " + s[0] + " to number";
+            }
+            Current.player().addStone(amount);
+            return "Added " + amount + " stone";
+        });
         registerCommand(new String[]{"give", "quest"}, s -> {
             if (s.length < 1) return "Command needs 1 parameter: QuestID";
             int ID;

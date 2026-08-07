@@ -2516,12 +2516,33 @@ the floating World button joins the top bar:
 Was: 3 nearest neutral towns measured from the castle alone - a color's attack range never grew
 with its territory. Now (user request): candidates are the **5** nearest neutral towns measured
 by distance to the color's NEAREST owned property (castle + every town/capital currently
-carrying its name), and the mage **launches from whichever owned property is closest to the
-chosen target** - attacks visually come from the frontier, not always the deep-interior castle.
-The reputation-based weighting for player-owned candidate towns (#1) carries over unchanged on
-top of the new candidate set. Dispatch also no longer hard-requires a castle - any owned
-property can originate an attack (castle-less colors were previously silently unable to attack).
-Notification/log now names the launch point: "White sends a mage from Plains Town toward ...".
+carrying its name). The reputation-based weighting for player-owned candidate towns (#1)
+carries over unchanged on top of the new candidate set.
+
+**Refined the same day, before any playtest** (user follow-up): the mage **launches from the
+castle only** - a brief intermediate version launched from whichever owned property was closest
+to the target, which would have let frontier towns spawn mages practically on top of their
+targets, removing the player's window to see an attack coming and intercept it. Target selection
+stays frontier-aware (the 5-candidate ranking above); only the physical origin is castle-locked.
+Consequently dispatch requires a castle again (no castle -> that color can't attack -
+deliberate), and the notification stays "White sends a mage toward ..." with no launch-point
+name (it's always the castle).
+
+## Wood is the canonical resource word + give wood/lumber/stone console commands (2026-08-08)
+
+Per user decision ("wood is actually probably the correct word") after the words kept getting
+interchanged: the resource is called **Wood** in every player-facing string. Only two strings
+actually said "Lumber" - the Lumber Mill's production-info dialog ("Produces 5 Wood per day"
+now) and the Exchange dialog's header ("Wood: N") - both in `EconomyBuildings.java`. **The
+building itself stays "Lumber Mill"** (a lumber mill producing wood is natural English), and
+internal names (the `resource_icons.atlas` "Lumber" region, `refreshLumber()` etc.) are
+deliberately untouched - display-only rename, same reasoning as the original save-key decision
+(`"wood"` was always the internal/save name, so no migration needed in either direction).
+
+Also added `give wood <amount>` and `give stone <amount>` console commands
+(`ConsoleCommandInterpreter.java`), mirroring `give gold`/`give shards` - **`give lumber` is a
+deliberate alias for `give wood`** so the interchanging habit can't produce a "command not
+found" mid-test.
 
 ## Toolchain (not part of the repo, but needed to build it)
 

@@ -130,7 +130,7 @@ public class EconomyBuildings {
         switch (type) {
             case SHARD_MINE: return "Shards";
             case GOLD_MINE: return "Gold";
-            case LUMBER_MILL: return "Lumber";
+            case LUMBER_MILL: return "Wood"; // canonical resource word per user decision 2026-08-08 (building name stays "Lumber Mill")
             case STONE_MINE: return "Stone";
             default: return "";
         }
@@ -422,7 +422,7 @@ public class EconomyBuildings {
 
         AdventurePlayer player = AdventurePlayer.current();
         TypingLabel label = Controls.newTypingLabel("Exchange\nGold: " + player.getGold() + "  Shards: " + player.getShards()
-                + "  Lumber: " + player.getWood() + "  Stone: " + player.getStone());
+                + "  Wood: " + player.getWood() + "  Stone: " + player.getStone());
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();

@@ -283,22 +283,22 @@ public class TerritoryControl {
     // notifications in dispatch()/onMageArrived() below - MOD_SCOPE.md #7 was reported as "ran a
     // week, saw zero mages" with no way to tell which stage of the pipeline that pointed at.
     private static void dispatch(World world, String color) {
-        // Every property this color currently owns can be an attack origin (user request
-        // 2026-08-08 - was castle-only): the castle plus every town/capital presently carrying
-        // this color's name. Candidate targets are ranked by distance to the NEAREST owned
-        // property, so the attack frontier widens as the color's holdings grow instead of
-        // forever radiating from the one castle.
-        List<PointOfInterest> ownedSources = new ArrayList<>();
+        // TARGET selection is frontier-aware, but the LAUNCH is castle-only (user refinement
+        // 2026-08-08, same day this briefly launched from the nearest owned property): candidates
+        // are ranked by distance to the color's NEAREST owned property (castle + its towns/
+        // capitals), so the attack frontier still widens as holdings grow - but the mage always
+        // physically sets out from the castle, deliberately, so it has real travel distance the
+        // player can see coming and intercept. No castle -> no attacks (also deliberate).
         PointOfInterest castle = findCastle(world, color);
-        if (castle != null)
-            ownedSources.add(castle);
+        if (castle == null) {
+            System.out.println("[TerritoryControl] " + color + ": no castle found, skipping dispatch");
+            return;
+        }
+        List<PointOfInterest> ownedSources = new ArrayList<>();
+        ownedSources.add(castle);
         for (PointOfInterest poi : world.getAllPointOfInterest()) {
             if (isColorTownOrCapital(poi.getData(), color))
                 ownedSources.add(poi);
-        }
-        if (ownedSources.isEmpty()) {
-            System.out.println("[TerritoryControl] " + color + ": no owned castle/town/capital found, skipping dispatch");
-            return;
         }
         List<PointOfInterest> towns = findNeutralTowns(world);
         if (towns.isEmpty())
@@ -341,17 +341,9 @@ public class TerritoryControl {
         EnemySprite mage = new EnemySprite(enemyData);
         mage.territoryTarget = target;
         mage.territoryColor = color;
-        // The mage launches from whichever owned property is closest to its target - visually,
-        // the attack comes from the frontier, not always the distant castle.
-        PointOfInterest launch = ownedSources.get(0);
-        for (PointOfInterest source : ownedSources) {
-            if (source.getPosition().dst2(target.getPosition()) < launch.getPosition().dst2(target.getPosition()))
-                launch = source;
-        }
-        WorldStage.getInstance().spawnAt(mage, new Vector2(launch.getPosition()));
+        WorldStage.getInstance().spawnAt(mage, new Vector2(castle.getPosition()));
 
-        String message = capitalize(color) + " sends a mage from " + launch.getDisplayName()
-                + " toward " + target.getDisplayName() + "!";
+        String message = capitalize(color) + " sends a mage toward " + target.getDisplayName() + "!";
         System.out.println("[TerritoryControl] " + message);
         GameHUD.getInstance().addNotification(message);
     }

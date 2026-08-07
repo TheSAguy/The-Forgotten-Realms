@@ -194,11 +194,14 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
 - Each color independently sends a real, visible, fightable mage (reusing the existing "Adept
   `<Color>` Wizard" enemies, now with their own colored minimap dot too) at a random 2-5 day
   interval toward one of its **5 nearest neutral towns, measured from ANY property it currently
-  owns** (castle + its towns/capitals; was 3-nearest-from-castle until 2026-08-08 - the frontier
-  now widens as a color grows, and the mage launches from whichever owned property is closest to
-  the target). Reaching the town transforms it into a genuine instance of that color's own town
-  (real map/shops/theme, not a reskin - see `PointOfInterest.transformInto()`), plus recolors the
-  surrounding terrain via the already-built repaint prototype.
+  owns** (castle + its towns/capitals; was 3-nearest-from-castle until 2026-08-08 - the target
+  frontier widens as a color grows). **The mage always LAUNCHES from the castle though** (user
+  refinement, same day, replacing a brief launch-from-nearest-property version): the long travel
+  distance is deliberate, it's what gives the player a real window to see the attack coming and
+  intercept it. No castle -> that color can't attack. Reaching the town transforms it into a
+  genuine instance of that color's own town (real map/shops/theme, not a reskin - see
+  `PointOfInterest.transformInto()`), plus recolors the surrounding terrain via the already-built
+  repaint prototype.
 - Only ever targets neutral towns (including player-restored ones, deliberately - confirmed with
   the user, eventually meant to be gated by a reputation scale once #1 exists, not built yet) - the
   ally/enemy color-wheel targeting and 50/50 recapture logic below are still unbuilt, only relevant
