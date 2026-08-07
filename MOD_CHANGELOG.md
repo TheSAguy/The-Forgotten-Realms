@@ -3638,3 +3638,74 @@ Compiled, deployed, byte-verified (`World.class`, `TerritoryControl.class`).
 **Not yet playtested** - needs a fresh capture to confirm the protected area now visually lines up
 with the recolored area, no gap.
 
+## Cross-machine review of the other PC's 8-commit push (2026-08-07, this PC)
+
+Pulled 8 commits (`1529c2be786..b3a9684f820`: mage save/load persistence + save-bloat fix, Player
+Capitol art #13, minimap-detail/blue-border fixes, the whole Color Reputation system #1 across 3
+commits, HUD tighten-up + targeting change, castle-only launches + give-resource commands + Wood
+rename), fast-forward, no conflicts with this machine's parallel work. Compiled clean; all 35
+changed classes deployed to the game jar byte-verified, plus the 4 changed plane resources synced.
+Ran a 5-dimension multi-agent review over the full range (Color Reputation correctness, mage
+persistence, the World.java fixes, HUD/UI wiring, cross-cutting flag/doc/save-compat checks), every
+finding adversarially verified against the actual code before being accepted: 12 raw findings, 8
+distinct confirmed, 2 refuted. **The bulk of the pulled work checked out clean** - reputation's
+zero-sum math, tier table consistency across all read sites, save/load symmetry and
+pre-reputation-save compatibility, mage territoryTarget serialization, the peek-vs-get-or-create
+read/write split, tmx/tileset gid validity, and shop price floors all verified correct by
+adversarial reviewers specifically hunting for problems.
+
+**Two real code bugs found in the pulled work, both fixed this round:**
+
+- **The minimap-detail fix decoded expansion-claimed tiles against the wrong structure table**
+  (`World.java`). `claimWastelandRing()` writes a claimed tile's `terrainMap` in COLORLESS index
+  space (colorless's terrain table, then the colorless-clone redirect structures) - but
+  `redrawMinimapTile()` resolved the value via `highestBiome()`, i.e. the claiming COLOR, whose
+  real `structures[]` tables are differently sized for every AI color (white 3+7 entries, blue 8+5,
+  black 7+6, red 6+5, green 11, vs colorless's 7+7). Result: wrong structure pixels for most
+  values, NO structure pixel for values past the color's shorter table - the exact "flat minimap
+  where it spreads" symptom the commit set out to fix, persisting for part of every AI color's
+  claims. Only "player" (whose table is coincidentally also 7+7) decoded correctly, so player-side
+  testing would have looked fixed. Fixed by giving `redrawMinimapTile()` an optional `decodeBiome`
+  parameter: `claimWastelandRing()` passes colorless, so the structure portion resolves against the
+  tables the value was actually encoded with, while the base ground pixel still draws from the
+  OWNING color's tileset (claimed territory keeps reading as the owner's color; the structure art
+  matches what the main map really renders there via the kept waste layer). The dual-bit ownership
+  write itself (`colorlessBit | colorBit`, the blue-border fix) verified correct and untouched.
+- **The relocated World standings button was click-dead on its left half** (`GameHUD.java`). The
+  2026-08-08 tighten-up moved it to bar height immediately left of the menu button - in the desktop
+  landscape layout (480x270 `common/ui/hud.json`) that position overlaps the minimap's top-right
+  corner by ~21px, and `touchDown()` intercepts every stage click inside the minimap's bounds on
+  the overworld, returning true WITHOUT forwarding to the stage - so the button's ClickListener
+  never fired for clicks on its left half. Fixed by checking whether the touch lands on the visible
+  standings button before the minimap claims it (buttons drawn over the minimap win). **The ~21px
+  VISUAL overlap remains** - the gap between the minimap's right edge and the menu button is 28px
+  but the button needs 49px, so it cannot fit at bar height without overlap in this layout; since
+  the position came from the user's own mockups, left as-is pending their call (shrink the button,
+  nudge the minimap, or accept the overlap). Android layouts put the bar at the bottom, unaffected.
+
+**One documented-design inconsistency fixed:** reputation is documented (three places) as working
+with `territoryControlEnabled` off, but the World Standings button - the ONLY surface showing the
+Reputation/Status columns - was gated solely on `isTerritoryControlEnabled()`. In the
+reputation-on/territory-off combination the docs bless, War-tier town bans and 500-gold capital
+tolls would fire with no way to view the standing causing them. Both visibility gates now check
+`isTerritoryControlEnabled() || ColorReputation.isEnabled()`. Latent in practice (the mod plane
+enables both flags), but the docs and the gate can now both be right.
+
+**Doc gaps closed** (the repo's own hard rule - every engine-file edit needs a same-round
+`CORE_ENGINE_CHANGES.md` entry): added the missing World.java ledger text for the
+minimap/blue-border round (`redrawMinimapTile()`, the dual-bit claim write, the
+post-ring `redrawAllPoiMarkers()` call) and the missing WorldSave.java text for
+`peekPointOfInterestChanges()`; fixed two stale `MOD_SCOPE.md` #1 bullets ("3 nearest" -> the
+5-from-any-property targeting, "pay-100-gold" -> the final 500-gold capital toll).
+
+**Flagged, deliberately not changed:** `give rep` (like `give wood`/`give stone`) works with its
+feature flag off and on any plane, silently persisting reputation into that save - one adversarial
+verifier called this a gating violation, another called it intended debug-command behavior, and the
+commit message documents it as a testing aid. Left as-is as a debug affordance; trivially hardened
+later (one `isEnabled()` check) if wanted.
+
+Compiled, deployed, byte-verified (`World.class` + inner, `GameHUD.class` + inner - 13 class files).
+**Not yet playtested**: the minimap decode fix needs expansion to run over a few days and the
+minimap compared against the main map's own detail; the button fix needs a click on the World
+button's left edge on desktop.
+

@@ -135,7 +135,19 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   used `CASTLE_KEEP_RADIUS_TILES` (20) at first, which didn't match the radius
   `repaintBiomeAroundTown()` actually repaints on capture (`TerritoryControl.RECOLOR_RADIUS`, 10) -
   changed to derive from `RECOLOR_RADIUS` instead, so protection never exceeds what's visibly
-  recolored.
+  recolored. Minimap-detail + blue-border round (2026-08-08, from the other machine - entry added
+  retroactively by the cross-machine review, the round itself missed the ledger): new private
+  `redrawMinimapTile(x, rawY[, decodeBiome])` (per-tile version of the full minimap bake, sits right
+  next to the stock bake code - upstream-collision-prone) replacing the flat index-0 stamp in all 3
+  live repaint paths; `claimWastelandRing()`'s ownership write changed from single-bit to
+  `existingRoadBit | colorlessBit | colorBit` (keeping waste underneath the color is the actual
+  blue-border fix - restores the neighbor-bit symmetry `generateBiomeSprite()`'s base-layer
+  promotion logic needs, so ocean stops getting promoted at claim edges); `claimWastelandRing()`
+  also now calls `redrawAllPoiMarkers()` after a claiming ring. The review also fixed a decode bug
+  in that round's own fix: an expansion-claimed tile's `terrainMap` is written in colorless index
+  space, so `redrawMinimapTile()` gained the optional `decodeBiome` parameter to resolve the
+  structure portion against colorless's tables instead of the claiming color's differently-sized
+  ones (which drew wrong-or-no structure pixels - the flat-minimap symptom persisting).
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -151,7 +163,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   any of that, so loading an earlier save mid-session while standing at the same spot could still show
   doodads left over from a later, abandoned session (confirmed, reported bug). Fixed by looping over
   every chunk coordinate right after a load succeeds and calling the existing (already safe/no-op for
-  an unloaded chunk) `WorldStage.reloadBackgroundChunkObjects(cx, cy)` for each.
+  an unloaded chunk) `WorldStage.reloadBackgroundChunkObjects(cx, cy)` for each. Also added
+  `peekPointOfInterestChanges(String id)` (2026-08-08, from the other machine - entry added
+  retroactively by the cross-machine review): a read-only lookup returning null when a POI has no
+  recorded changes, unlike the get-or-create accessor above - Territory Control's daily sweep and the
+  World Standings town count query every POI on the map, and pure reads materializing an empty
+  `PointOfInterestChanges` per scanned POI was permanently growing the save file.
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the

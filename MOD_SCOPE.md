@@ -61,19 +61,21 @@ Helping a color angers its two enemies, not its allies.
     duels: no adventure-console command exists - Forge's own Developer Mode in game settings has
     in-duel dev tools, e.g. set AI life to 0.)
   - **"Less/more likely to be attacked" = mage TARGETING odds** (user clarification): when a
-    color's castle picks among its 3 nearest capturable towns, a PLAYER-OWNED town's selection
-    weight scales by the tier - this is the reputation gate the Territory Control targeting
-    design explicitly deferred ("eventually meant to be gated by a reputation scale once #1
-    exists"). Non-player towns keep uniform odds.
+    color picks among its 5 nearest capturable towns (measured from any of its owned properties
+    since the 2026-08-08 targeting change - see #7), a PLAYER-OWNED town's selection weight
+    scales by the tier - this is the reputation gate the Territory Control targeting design
+    explicitly deferred ("eventually meant to be gated by a reputation scale once #1 exists").
+    Non-player towns keep uniform odds.
   - **Player-owned towns are exempt from ALL color effects** ("the player's towns should not
     match any color") - no price change, no entry bar, regardless of the town's color name.
   - **Prices: card shops only** for now (the existing `ShopActor.getPriceModifier()` hook -
     stacks multiplicatively with the pre-existing per-town haggling rep). Inn/spellsmith/trader
     pricing deliberately untouched.
   - **Entry bar**: ordinary towns of the severe-tier color bounce the player with a notification;
-    CAPITALS offer a pay-100-gold-to-enter dialog instead (user request - story bosses live in
-    capitals, a hard bar risks soft-locks). Quest targets inside barred ordinary towns stay
-    barred (accepted; raise rep or abandon).
+    CAPITALS offer a pay-500-gold-to-enter dialog instead (user request - story bosses live in
+    capitals, a hard bar risks soft-locks; toll raised 100 -> 500 in the same tier-tweak round
+    that finalized the table above). Quest targets inside barred ordinary towns stay barred
+    (accepted; raise rep or abandon).
   - Not yet built: "that color stops attacking the player" as a Partner perk in the
     roaming-monster sense - currently the attack-odds effect only covers mage town-targeting,
     per the user's clarified definition. Revisit if wanted later.

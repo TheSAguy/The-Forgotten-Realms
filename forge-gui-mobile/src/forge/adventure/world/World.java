@@ -1168,6 +1168,22 @@ public class World implements Disposable, SaveFileContent {
     // repaint since, by drawing the tile's REAL current content instead of a flat stamp. Reads
     // biomeMap/terrainMap directly, so callers must update those first, then call this.
     private void redrawMinimapTile(int x, int rawY) {
+        redrawMinimapTile(x, rawY, null);
+    }
+
+    // decodeBiome, when non-null, is the biome whose terrain/structures tables this tile's
+    // terrainMap value was ENCODED against, when that differs from the biome that owns the tile.
+    // Needed by claimWastelandRing(): an expansion-claimed tile's value is written in colorless
+    // index space (colorless's terrain table + the colorless-clone redirect structures), but
+    // highestBiome() names the claiming COLOR, whose real structures[] tables are differently
+    // sized for every AI color (e.g. white 3+7 entries vs colorless's 7+7) - decoding a
+    // colorless-space value against the color's table draws the wrong structure pixel for most
+    // values and NO structure pixel for values past the color's shorter table, which is exactly
+    // the "flat minimap where it spreads" symptom this method exists to fix. The base ground
+    // pixel still draws from the OWNING biome's tileset either way, so claimed territory keeps
+    // reading as the owner's color on the minimap - only the structure lookup switches tables,
+    // matching what the main map actually renders there (the kept waste layer's own art).
+    private void redrawMinimapTile(int x, int rawY, BiomeData decodeBiome) {
         if (biomeImage == null)
             return;
         int mm = data.miniMapTileSize;
@@ -1176,14 +1192,15 @@ public class World implements Disposable, SaveFileContent {
             return;
         }
         BiomeData biome = data.GetBiomes().get(highestBiome(biomeMap[x][rawY]));
-        int terrainLength = biome.terrain == null ? 0 : biome.terrain.length;
+        BiomeData decode = decodeBiome != null ? decodeBiome : biome;
+        int terrainLength = decode.terrain == null ? 0 : decode.terrain.length;
         int terrainIndex = terrainMap[x][rawY] & ~terrainMask;
         if (terrainIndex > terrainLength) {
             biomeImage.drawPixmap(createSmallPixmap(biome.tilesetAtlas, biome.tilesetName, 0), x * mm, rawY * mm);
             terrainIndex -= terrainLength;
             terrainIndex--;
-            if (biome.structures != null) {
-                for (BiomeStructureData structData : biome.structures) {
+            if (decode.structures != null) {
+                for (BiomeStructureData structData : decode.structures) {
                     if (terrainIndex >= structData.mappingInfo.length) {
                         terrainIndex -= structData.mappingInfo.length;
                         continue;
@@ -2034,7 +2051,11 @@ public class World implements Disposable, SaveFileContent {
                 tilesClaimed++;
                 claimedTiles.add(packTile(wx, wy));
 
-                redrawMinimapTile(wx, rawY); // real content, not a flat stamp - see its comment
+                // colorlessBiome as the decode table: this tile's terrainMap was just written in
+                // colorless index space above - see redrawMinimapTile()'s own comment for why
+                // decoding it against the claiming color's differently-sized tables instead drew
+                // wrong (or no) structure pixels, i.e. the flat-minimap symptom persisting.
+                redrawMinimapTile(wx, rawY, colorlessBiome); // real content, not a flat stamp
                 updateFogOfWarPixmap(wx, rawY);
 
                 if (onTileRepainted != null)

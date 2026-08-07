@@ -58,6 +58,7 @@ import forge.adventure.scene.Scene;
 import forge.adventure.scene.TileMapScene;
 import forge.adventure.scene.WorldStandingsScene;
 import forge.adventure.util.AdventureQuestController;
+import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Config;
 import forge.adventure.util.Controls;
 import forge.adventure.util.Current;
@@ -243,7 +244,12 @@ public class GameHUD extends Stage {
         // buttons' own height/row so it reads as part of the bar.
         worldStandingsActor.setSize(bookmarkActor.getWidth(), menuActor.getHeight());
         worldStandingsActor.setPosition(menuActor.getX() - worldStandingsActor.getWidth() - 4, menuActor.getY());
-        worldStandingsActor.setVisible(isTerritoryControlEnabled());
+        // Territory Control OR Color Reputation: the standings page is also the ONLY place the
+        // Reputation/Status columns render, and reputation is documented as working with
+        // territory control off (separate opt-in flags, MOD_SCOPE.md #1) - gating the sole way
+        // to see your tier on the OTHER feature's flag would leave War-tier town bans and
+        // capital tolls active with no way to view the standing causing them.
+        worldStandingsActor.setVisible(isTerritoryControlEnabled() || ColorReputation.isEnabled());
         lifePoints.setText("[%95][+Life]");
         enemyCounterText = Controls.newTypingLabel(Forge.getLocalizer().getMessage("lblRemainingEnemies", String.valueOf(0)));
         enemyCounterText.setColor(Color.BLACK);
@@ -419,6 +425,14 @@ public class GameHUD extends Stage {
             return true;
         }
         if (Controls.actorContainsVector(miniMap, c)) {
+            // The World standings button (2026-08-08 tighten-up: bar height, immediately left of
+            // the menu button) can overlap the minimap's top-right corner in the desktop
+            // landscape layout - a click there belongs to the button, not the map, and the
+            // "return true" below would otherwise swallow it before the button's own
+            // ClickListener ever sees it (its left half was reported click-dead for exactly
+            // this reason). Buttons drawn over the minimap win; the map keeps everything else.
+            if (worldStandingsActor.isVisible() && Controls.actorContainsVector(worldStandingsActor, c))
+                return super.touchDown(screenX, screenY, pointer, button);
             if (mapGroup.isVisible() && debugMap) {
                 WorldStage.getInstance().getPlayerSprite().setPosition(x * WorldSave.getCurrentSave().getWorld().getWidthInPixels(), y * WorldSave.getCurrentSave().getWorld().getHeightInPixels());
             } else if (!mapGroup.isVisible()) {
@@ -996,7 +1010,7 @@ public class GameHUD extends Stage {
 
         setDisabled(exitToWorldMapActor, !MapStage.getInstance().isInMap(), "[%120][+ExitToWorldMap]", "\u2613");
         setDisabled(bookmarkActor, !MapStage.getInstance().isInMap(), "[%120][+Bookmark]", "\u2613");
-        worldStandingsActor.setVisible(isTerritoryControlEnabled() && !MapStage.getInstance().isInMap());
+        worldStandingsActor.setVisible((isTerritoryControlEnabled() || ColorReputation.isEnabled()) && !MapStage.getInstance().isInMap());
 
         for (TextraButton button : abilityButtonMap) {
             setAlpha(button, visible);
