@@ -42,5 +42,6 @@ public class ConfigData {
     public boolean territoryControlEnabled = false;
     public boolean colorReputationEnabled = false;
     public boolean resourceSpawnsEnabled = false;
+    public boolean dungeonRotationEnabled = false;
 
 }

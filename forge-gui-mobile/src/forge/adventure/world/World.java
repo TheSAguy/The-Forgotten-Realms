@@ -126,6 +126,28 @@ public class World implements Disposable, SaveFileContent {
         townTerritoryRadius.put(poiId, radiusTiles);
     }
 
+    // Dungeon rotation (MOD_SCOPE.md, user request 2026-08-08): per-POI lifecycle state, all keyed
+    // by PointOfInterest.getID() and persisted like the Territory Control maps above. Logic lives
+    // in DungeonRotation (util); these are just the timers/counters. poiDespawnDay: the in-game
+    // day an eligible, currently-visible dungeon/cave disappears. poiRespawnDay: the day a
+    // currently-hidden one reappears. poiFailedAttempts: losses inside a side-quest-targeted
+    // dungeon so far (3 strikes and it despawns, per user spec).
+    private final java.util.Map<String, Integer> poiDespawnDay = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> poiRespawnDay = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> poiFailedAttempts = new java.util.HashMap<>();
+
+    public java.util.Map<String, Integer> getPoiDespawnDay() {
+        return poiDespawnDay;
+    }
+
+    public java.util.Map<String, Integer> getPoiRespawnDay() {
+        return poiRespawnDay;
+    }
+
+    public java.util.Map<String, Integer> getPoiFailedAttempts() {
+        return poiFailedAttempts;
+    }
+
     // Random resource spawns (MOD_SCOPE.md, user request 2026-08-08): up to
     // ResourceSpawns.MAX_SPAWNS pickups scattered on the overworld, each an int[] of
     // {tileX, tileY, type, value, expiryDay} in world tile space. All spawn/expiry/pickup LOGIC
@@ -256,6 +278,22 @@ public class World implements Disposable, SaveFileContent {
         }
         resourceSpawnsSeeded = saveFileData.containsKey("resourceSpawnsSeeded") && saveFileData.readInt("resourceSpawnsSeeded") != 0;
         ResourceSpawns.forceResync(); // actors on WorldStage must rebuild from this loaded state
+
+        poiDespawnDay.clear();
+        if (saveFileData.containsKey("poiDespawnDay")) {
+            //noinspection unchecked
+            poiDespawnDay.putAll((java.util.Map<String, Integer>) saveFileData.readObject("poiDespawnDay"));
+        }
+        poiRespawnDay.clear();
+        if (saveFileData.containsKey("poiRespawnDay")) {
+            //noinspection unchecked
+            poiRespawnDay.putAll((java.util.Map<String, Integer>) saveFileData.readObject("poiRespawnDay"));
+        }
+        poiFailedAttempts.clear();
+        if (saveFileData.containsKey("poiFailedAttempts")) {
+            //noinspection unchecked
+            poiFailedAttempts.putAll((java.util.Map<String, Integer>) saveFileData.readObject("poiFailedAttempts"));
+        }
         // rebuildPlayerTownVision() is deliberately NOT called here: WorldSave.load() loads this
         // World BEFORE pointOfInterestChanges, and the rebuild reads town-ownership flags from
         // pointOfInterestChanges - calling it now would cache the PREVIOUS session's ownership.
@@ -282,6 +320,9 @@ public class World implements Disposable, SaveFileContent {
         data.storeObject("townTerritoryRadius", townTerritoryRadius);
         data.storeObject("resourceSpawns", new ArrayList<>(resourceSpawns));
         data.store("resourceSpawnsSeeded", resourceSpawnsSeeded ? 1 : 0);
+        data.storeObject("poiDespawnDay", poiDespawnDay);
+        data.storeObject("poiRespawnDay", poiRespawnDay);
+        data.storeObject("poiFailedAttempts", poiFailedAttempts);
         data.storeObject("colorNextAttackDay", colorNextAttackDay);
         return data;
     }
@@ -498,6 +539,9 @@ public class World implements Disposable, SaveFileContent {
             resourceSpawns.clear();
             resourceSpawnsSeeded = false; // fresh world reseeds its 20 on the first tick
             ResourceSpawns.forceResync();
+            poiDespawnDay.clear();
+            poiRespawnDay.clear();
+            poiFailedAttempts.clear();
 
             for (int x = 0; x < width; x++) {
                 for (int y = 0; y < height; y++) {
@@ -1149,6 +1193,10 @@ public class World implements Disposable, SaveFileContent {
         Pixmap mapMarkerPixmap = markerTextureData.consumePixmap();
         int mm = data.miniMapTileSize;
         for (PointOfInterest poi : getAllPointOfInterest()) {
+            // Despawned/hidden POIs (dungeon rotation, quest-flag gates) get no minimap marker -
+            // without this, a vanished dungeon kept its baked icon until the next full rebake.
+            if (!poi.getActive())
+                continue;
             TextureAtlas.AtlasRegion marker = mapMarker.findRegion(poi.getData().type);
             if (marker == null)
                 continue;
@@ -1173,6 +1221,18 @@ public class World implements Disposable, SaveFileContent {
     // straightforward, self-contained re-bake. Explicitly sets biomeImage itself (unlike the
     // original inline bake, which relies on that later, separate assignment) - needed here since
     // there's no such later assignment to fall back on for this call.
+    // Full minimap refresh for runtime POI hide/show (dungeon rotation): a POI's marker is BAKED
+    // pixels, so hiding one requires repainting the ground over its icon - the ground rebake
+    // below does that wholesale, then the marker pass re-draws only still-active POIs (see the
+    // getActive() filter in redrawAllPoiMarkers()). Rare-event cost (a handful of despawns/
+    // respawns per in-game day at most), and the bake itself measures ~0.1s.
+    public void refreshWorldMapMarkers() {
+        if (biomeImage == null)
+            return;
+        rebakeMinimapAfterTerritoryControl();
+        redrawAllPoiMarkers();
+    }
+
     private void rebakeMinimapAfterTerritoryControl() {
         Pixmap pix = new Pixmap(width * data.miniMapTileSize, height * data.miniMapTileSize, Pixmap.Format.RGBA8888);
         pix.setColor(1, 0, 0, 1);

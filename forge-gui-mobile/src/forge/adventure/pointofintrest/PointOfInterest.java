@@ -141,12 +141,26 @@ public class PointOfInterest implements Serializable, SaveFileContent {
     }
 
     public boolean getActive() {
+        // The persisted `active` field was previously write-only (saved/loaded but never consulted
+        // - only the quest-flag gates below were). Dungeon rotation (MOD_SCOPE.md, 2026-08-08) now
+        // uses it as the despawn/respawn switch: honoring it here makes a hidden POI vanish
+        // everywhere getActive() is already checked - the overworld sprite draw
+        // (PointOfInterestMapSprite), world entry collision (WorldStage), and new-quest target
+        // selection (AdventureQuestStage's validPOIs filter) - with persistence already in place.
+        // No data entry ships with active=false (verified across plane + common), so stock
+        // behavior is unchanged until something calls setActive(false) at runtime.
+        if (!active)
+            return false;
         for (DialogData.ActionData.QuestFlag flag : questFlagsToActivate) {
             if (Current.player().getQuestFlag(flag.key) < flag.val){
                 return false;
             }
         }
         return true;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public Vector2 getNavigationVector(Vector2 origin){

@@ -880,6 +880,14 @@ public class MapStage extends GameStage {
     }
 
     public boolean exitDungeon(boolean defeated, boolean defeatedByBoss) {
+        // Dungeon rotation (MOD_SCOPE.md, 2026-08-08): a defeat inside a rotatable dungeon/cave
+        // despawns it (or burns one of the 3 side-quest attempts). BEFORE updateQuestsLeave()
+        // below, deliberately - the 3-attempts rule needs to see the quest still active to know
+        // this dungeon is a protected side-quest target. No-op for story dungeons, bosses, towns,
+        // and every non-rotatable POI (see DungeonRotation.isRotatable()) - their kick-out
+        // behavior is exactly as before.
+        if (defeated)
+            DungeonRotation.onDungeonDefeat(TileMapScene.instance().rootPoint);
         if (mustClearOnExit) {
             mustClearOnExit = false;
 

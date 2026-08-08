@@ -892,6 +892,24 @@ needs its own design pass before any of this gets built:**
   logic in new `ResourceSpawns.java`; rendered as lightweight per-pickup actors on `WorldStage`.
   Placement avoids water/mountains/structures and keeps 3+ tiles clear of POI icons. Full
   mechanism in `MOD_CHANGELOG.md`.
+
+### 15. Dungeon Rotation — `Built (2026-08-08), not yet playtested`
+- Generic hostile dungeons/caves appear and disappear across the map over time (hide/show in
+  place via the persisted `PointOfInterest.active` flag - despawned ones return after a cooldown).
+  Visible 20-60 days, hidden 10-30 (first-guess tunables). Opt-in `dungeonRotationEnabled`.
+- **POI taxonomy safety rules** (from the full 264-entry survey, see `MOD_CHANGELOG.md`):
+  rotation-eligible = type `dungeon`/`cave` + `Hostile` tag ONLY. Never rotated: the 5 color
+  castles + Emrakul, capitals (incl. Naktamun), all towns + Spawn, every `sideboss*` type
+  (Planeswalker/unique bosses), anything tagged `Story` (Temples of Chandra/Liliana), the 7
+  `Quest_*` quest-line dungeons, DEBUGZONE/Test, and friendly non-Hostile caves (Oasis, YuleTown).
+- **Active-quest protection**: a live story quest's target never despawns; a live side quest's
+  target gets +30 days whenever its timer comes due (user spec).
+- **Loss-despawn**: losing inside a rotatable dungeon despawns it immediately; an active
+  side-quest target instead grants 3 attempts, each loss warning "N attempts remaining", the third
+  despawning it. Story/non-rotatable POIs keep the plain kick-out.
+- Same round: the War entry bar became a real blocking dialog ("The guards... you are at War with
+  <Color>!") instead of a corner notification (user request - the silent bar read as walking
+  through nothing).
 - **Reference art provided by the user (2026-08-06), for whenever this gets built:**
   - **Player Capitol castle icon** - a distinct gray/white stone castle sprite (twin corner
     towers, arched entrance, red-roofed spires), meant to represent the player's own Capitol on

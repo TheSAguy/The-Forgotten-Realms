@@ -300,6 +300,7 @@
     "townReconstructionEnabled": true,
     "territoryControlEnabled": true,
     "colorReputationEnabled": true,
-    "resourceSpawnsEnabled": true
+    "resourceSpawnsEnabled": true,
+    "dungeonRotationEnabled": true
 }
 

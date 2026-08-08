@@ -3882,3 +3882,52 @@ Compiled, deployed, byte-verified (25 class files), plane `config.json` synced t
 resource spawns need a session started (20 icons should appear scattered), a walk-over pickup, and a
 few fast-forwarded days to see expiry/replacement.
 
+## Dungeon rotation, loss-despawn with 3 quest attempts, war entry popup (2026-08-08)
+
+Three-part user request, built on a full POI-taxonomy survey (the plane's `points_of_interest.json`
+has 264 entries; the breakdown and the safety rules derived from it are in `MOD_SCOPE.md` #15 and
+`DungeonRotation.java`'s own comments).
+
+**The despawn mechanism** (the key engineering find): `PointOfInterest.active` was already a
+persisted field, saved and loaded - but `getActive()` never consulted it (only quest-flag gates).
+Honoring it (one guard) makes hide/show work everywhere `getActive()` is already checked, all for
+free: the overworld sprite stops drawing (`PointOfInterestMapSprite`), entry collision skips it
+(`WorldStage`), and NEW quest target selection excludes it (`AdventureQuestStage`'s `validPOIs`
+filter, stock code). Verified no data entry ships `active:false`, so stock planes see zero change.
+`redrawAllPoiMarkers()` now also skips inactive POIs, and a new public
+`World.refreshWorldMapMarkers()` (ground rebake + marker redraw) repaints the minimap after a
+hide/show - markers are baked pixels, so hiding one means repainting the ground over its icon.
+
+**Rotation** (new `DungeonRotation.java`, flag `dungeonRotationEnabled`): eligible = type
+dungeon/cave AND tagged Hostile, minus anything tagged `Story`, named/tagged `Quest_*`, DEBUGZONE/
+Test - a whitelist shape, so anything unusual defaults to NOT rotating. Castles, capitals, towns,
+Spawn, and all `sideboss*` types (Planeswalker/unique bosses) are excluded structurally by the type
+check. Visible dungeons live 20-60 days (first-guess tunables) then vanish; vanished ones return in
+place after 10-30 days (true relocation isn't practical - POI positions are baked into the
+chunk-indexed registry at world-gen - and a reappearance after weeks reads the same). Protection
+for ACTIVE quests (live quest log targets, not the static `Sidequest` eligibility tag): a story
+quest's target never despawns (timer re-rolls); a side quest's target gets +30 days each time its
+timer comes due (user spec). Timers persist on `World` (`poiDespawnDay`/`poiRespawnDay`/
+`poiFailedAttempts`, missing-key tolerant like every other map).
+
+**Loss-despawn**: `MapStage.exitDungeon(defeated=true, ...)` is the exact "kicked out" moment; it
+now calls `DungeonRotation.onDungeonDefeat(rootPoint)` BEFORE `updateQuestsLeave()` (the 3-attempts
+rule needs the quest still visibly active). Rotatable non-quest dungeon -> despawns immediately
+with a notification. Active side-quest target -> 3 attempts, each loss warning "[RED]N attempts
+remaining" and the third despawning it. Story targets and all non-rotatable POIs keep the exact old
+kick-out behavior.
+
+**War entry popup**: the ordinary-town entry bar swapped its easy-to-miss corner notification for a
+real blocking dialog ("The guards of <town> bar you from entering - you are at [RED]War[] with
+<Color>!"), same styling as the capital-toll dialog, single Leave button - the reported experience
+was "you walk right through that area" with no explanation of why the town never opens.
+
+Compiled, deployed, byte-verified (18 class files: `World` + inner, `PointOfInterest`,
+`DungeonRotation` (new), `WorldStage` + inner, `MapStage` + inner, `ConfigData`), plane config
+synced.
+
+**Not yet playtested**: rotation needs several fast-forwarded weeks watching a known dungeon
+vanish (minimap icon gone too) and later return; loss-despawn needs a deliberate loss in a plain
+dungeon (should vanish) and in a side-quest target (should warn 2 remaining); the war popup needs
+one War-tier town touch.
+

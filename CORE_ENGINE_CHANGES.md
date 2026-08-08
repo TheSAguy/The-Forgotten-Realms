@@ -167,7 +167,16 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `claimWastelandRing()`'s fix - player's tables are exact colorless clones so the kept layer
   decodes coherently; AI captures deliberately stay single-bit). Resource spawns (new feature):
   persisted `resourceSpawns` list + `resourceSpawnsSeeded` flag, save/load/generateNew-reset like
-  the Territory Control maps, logic in the new `ResourceSpawns` util class.
+  the Territory Control maps, logic in the new `ResourceSpawns` util class. Dungeon rotation (#15):
+  three more persisted maps (`poiDespawnDay`/`poiRespawnDay`/`poiFailedAttempts`, keyed by POI id),
+  `redrawAllPoiMarkers()` now skips inactive POIs, and a new public `refreshWorldMapMarkers()`
+  (ground rebake + marker redraw) so a runtime POI hide/show can repaint its baked minimap icon
+  away.
+- **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterest.java`** — Dungeon
+  rotation (#15): `getActive()` now honors the persisted `active` field (previously write-only -
+  saved/loaded but never consulted; no data entry ships `active:false`, verified, so stock behavior
+  is unchanged), plus a `setActive(boolean)` setter. This is the whole despawn/respawn mechanism -
+  sprite draw, entry collision, and quest target selection all already consult `getActive()`.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -296,9 +305,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Color Reputation (#1) added `colorReputationHalfPoints` (Map<String,Integer>, save/load/clear
   like the resources) with get/add accessors, plus one `ColorReputation.applyStartingDeckBonus()`
   call in `create()` right after the starting deck's color identity is set.
-- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 6 opt-in mod flags:
+- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 7 opt-in mod flags:
   `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`,
-  `colorReputationEnabled`, `resourceSpawnsEnabled` (all default `false` - see `CLAUDE.md`'s ground
+  `colorReputationEnabled`, `resourceSpawnsEnabled`, `dungeonRotationEnabled` (all default `false` - see `CLAUDE.md`'s ground
   rules for why this pattern matters).
 - **`forge-gui-mobile/src/forge/adventure/stage/ConsoleCommandInterpreter.java`** — debug
   console additions: `count towns` (#7 - was missing from this doc until now, added when the
@@ -328,7 +337,14 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Resource spawns (new feature): `ResourceSpawnActor` (lightweight pickup actor in
   `foregroundSprites`), `refreshResourceSpawnActors()` (clear-and-rebuild sync from World's spawn
   list), a per-frame `ResourceSpawns.tick()` call in `onActing()`'s moving branch, and a
-  `ResourceSpawns.forceResync()` in `clearCache()`.
+  `ResourceSpawns.forceResync()` in `clearCache()`. Dungeon rotation (#15): a
+  `DungeonRotation.processDaysPassed()` call in the day-change block, and the ordinary-town entry
+  bar swapped its corner notification for a real blocking dialog (`showEntryBarredDialog()`, same
+  styling as the capital-toll dialog).
+- **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Dungeon rotation (#15):
+  `exitDungeon()` calls `DungeonRotation.onDungeonDefeat(rootPoint)` when the player was defeated,
+  BEFORE `updateQuestsLeave()` (the 3-attempts rule must see the quest still active). No-op for
+  story dungeons/bosses/towns and any non-rotatable POI.
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
@@ -339,7 +355,8 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 Under `forge-gui-mobile/src/forge/adventure/util/` - upstream doesn't have these paths, so there's
 nothing to reconcile, but they're stock-adjacent code (not mod-plane assets) so they're listed here
 rather than assumed-safe by omission:
-`ColorReputation.java` (#1), `EconomyBuildings.java`, `ResourceDisplayActor.java`,
+`ColorReputation.java` (#1), `DungeonRotation.java` (#15, rotating dungeons/caves),
+`EconomyBuildings.java`, `ResourceDisplayActor.java`,
 `ResourceSpawns.java` (random overworld resource pickups), `RubbleOverlay.java`,
 `TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`.
 (`TownCountActor.java` existed briefly, removed the same day - see `MOD_CHANGELOG.md`'s "World

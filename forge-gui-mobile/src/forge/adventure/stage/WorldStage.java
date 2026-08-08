@@ -177,6 +177,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
             if (dayAfter != dayBefore) {
                 EconomyBuildings.processDaysPassed(dayAfter - dayBefore, dayAfter);
                 TerritoryControl.processDaysPassed(dayAfter - dayBefore, dayAfter);
+                DungeonRotation.processDaysPassed(dayAfter);
             }
             // Per frame while moving, not just on day change - pickups are walk-over, so the
             // collection check has to track the player's live position (cheap; see its comment).
@@ -359,8 +360,11 @@ public class WorldStage extends GameStage implements SaveFileContent {
                         if ("capital".equals(point.getPointOfInterest().getData().type)) {
                             showCapitalTollDialog(point.getPointOfInterest(), point);
                         } else {
-                            GameHUD.getInstance().addNotification("The guards of " + point.getPointOfInterest().getDisplayName()
-                                    + " turn you away - your standing with " + capitalizeColor(barredColor) + " is too low.");
+                            // A real blocking dialog, not a passing notification (user request
+                            // 2026-08-08: the old corner notification was easy to miss, making the
+                            // barred town read as "I just walk through this area" with no
+                            // explanation of why it never opens).
+                            showEntryBarredDialog(point.getPointOfInterest(), barredColor);
                         }
                         continue;
                     }
@@ -405,6 +409,27 @@ public class WorldStage extends GameStage implements SaveFileContent {
 
     private static String capitalizeColor(String color) {
         return Character.toUpperCase(color.charAt(0)) + color.substring(1);
+    }
+
+    // Severe-tier ordinary towns show a real blocking dialog (user request 2026-08-08 - the old
+    // corner notification was easy to miss, so a barred town just read as "I walk right through
+    // this area" with no explanation of why it never opens). Same dialog styling as the capital
+    // toll below, single Leave button - there's nothing to pay here, ordinary towns bar outright.
+    private void showEntryBarredDialog(PointOfInterest poi, String barredColor) {
+        Dialog dialog = getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+
+        TypingLabel label = Controls.newTypingLabel("The guards of " + poi.getDisplayName()
+                + " bar you from entering - you are at [RED]War[] with " + capitalizeColor(barredColor) + "!");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+
+        dialog.getButtonTable().add(Controls.newTextButton("Leave", this::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog();
     }
 
     // Severe-tier capitals charge a toll instead of barring outright (user request - capitals
