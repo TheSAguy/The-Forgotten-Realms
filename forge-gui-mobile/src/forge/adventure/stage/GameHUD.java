@@ -516,7 +516,14 @@ public class GameHUD extends Stage {
             int xPosMini = (int) ((mob.getX() / WorldSave.getCurrentSave().getWorld().getTileSize() / WorldSave.getCurrentSave().getWorld().getWidthInTiles()) * miniMap.getWidth());
             int yPosMini = (int) ((mob.getY() / WorldSave.getCurrentSave().getWorld().getTileSize() / WorldSave.getCurrentSave().getWorld().getHeightInTiles()) * miniMap.getHeight());
             marker.setPosition(miniMap.getX() + xPosMini - marker.getWidth() / 2, miniMap.getY() + yPosMini - marker.getHeight() / 2);
-            marker.setVisible(miniMap.isVisible());
+            // Fog-of-war gate (user spec 2026-08-08): a mage's dot only shows while the mage is in
+            // REVEALED territory - the live vision circle around the player, or a player-owned
+            // town's own territory (isCurrentlyVisible() covers both, and returns true for
+            // everything when fog of war is off, preserving the old always-visible behavior).
+            int mageTileX = (int) (mob.getX() / WorldSave.getCurrentSave().getWorld().getTileSize());
+            int mageTileY = (int) (mob.getY() / WorldSave.getCurrentSave().getWorld().getTileSize());
+            marker.setVisible(miniMap.isVisible()
+                    && WorldSave.getCurrentSave().getWorld().isCurrentlyVisible(mageTileX, mageTileY));
         }
         mageMinimapMarkers.entrySet().removeIf(entry -> {
             if (stillActive.contains(entry.getKey()))
@@ -1284,8 +1291,13 @@ public class GameHUD extends Stage {
             @Override
             public boolean act(float delta) {
                 notificationText.setWrap(false);
-                notificationText.setText(text);
-                notificationText.setColor(Color.BLACK);
+                // Base color comes from a [BLACK] markup prefix, NOT setColor(BLACK): the actor
+                // tint MULTIPLIES each glyph's baked color at draw time, so black tint times an
+                // inline [RED] highlight = black - inline color markup (e.g. the "Player Owned!"
+                // dispatch warning) silently never showed. White tint is the multiplication
+                // identity, letting both the [BLACK] base and any inline colors through unchanged.
+                notificationText.setText("[BLACK]" + text);
+                notificationText.setColor(Color.WHITE);
                 notificationText.setWidth(Math.min(notificationText.getPrefWidth(), Forge.isLandscapeMode() ? getWidth() * 0.25f : getWidth() - 25));
                 notificationText.setWrap(true);
                 notificationText.layout();

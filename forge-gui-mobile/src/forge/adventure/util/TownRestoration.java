@@ -83,15 +83,33 @@ public class TownRestoration {
     // actually claimed), this is purely to validate that live terrain repainting works before
     // that system gets built. Called once, right after a town's Job Board is actually restored.
     private static final String TEST_RECOLOR_BIOME = "player";
-    private static final int RECOLOR_RADIUS = 10;
+    // Aliased to TerritoryControl's, not an independent 10 - a restored town's repaint radius,
+    // its seeded territory radius, and its AI-capture protection cap must all be the same number
+    // or they drift apart (the exact class of mismatch already caught once for the 20-vs-10 cap).
+    private static final int RECOLOR_RADIUS = TerritoryControl.RECOLOR_RADIUS;
 
     public static void recolorTerrainForTesting() {
         PointOfInterest point = TileMapScene.instance().rootPoint;
         if (point == null)
             return;
-        WorldSave.getCurrentSave().getWorld().repaintBiomeAroundTown(point, TEST_RECOLOR_BIOME, RECOLOR_RADIUS,
+        forge.adventure.world.World world = WorldSave.getCurrentSave().getWorld();
+        // The restored town now grows its own territory (RECOLOR_RADIUS ->
+        // TOWN_MAX_TERRITORY_RADIUS, see TerritoryControl.processTerritoryExpansion()) - a
+        // restored town keeps its id (restoration is a flag, not a transformInto()), so seeding
+        // here keys the same id every later lookup uses. Its area also counts as fog-of-war
+        // Revealed from now on (user spec 2026-08-08). Radius seed + vision-cache rebuild run
+        // BEFORE the repaint/reveal below, deliberately: their per-tile callbacks bake tiles into
+        // the cached chunk textures through isCurrentlyVisible(), and rebuilding after would bake
+        // the whole supposedly-Revealed circle HAZED using the stale cache (order bug found by the
+        // pre-commit review - only a ~4-tile trail around the player would have rendered bright).
+        world.setTownTerritoryRadius(point.getID(), TerritoryControl.RECOLOR_RADIUS);
+        world.rebuildPlayerTownVision();
+        world.repaintBiomeAroundTown(point, TEST_RECOLOR_BIOME, RECOLOR_RADIUS,
                 WorldStage.getInstance()::refreshBackgroundTile,
                 WorldStage.getInstance()::reloadBackgroundChunkObjects);
+        world.revealArea((int) (point.getPosition().x / world.getTileSize()),
+                (int) (point.getPosition().y / world.getTileSize()),
+                TerritoryControl.RECOLOR_RADIUS, WorldStage.getInstance()::refreshBackgroundTile);
     }
 
     /**

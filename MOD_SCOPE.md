@@ -479,6 +479,23 @@ color's own world-gen `width`/`height` biome parameters directly; reverted - see
       whether a stale `TOWN_RESTORED_FLAG` could be the cause - directly refuted by reading
       `PointOfInterest.transformInto()`, which gives a recaptured town a fresh id/state by design - the
       real explanation is still open). Full detail in `MOD_CHANGELOG.md`. **Not yet playtested.**
+    - **Five-request round (2026-08-07, "things are really progressing well")**: standings
+      Reputation/Status columns moved next to Town Count with aligned right-justified numbers and
+      matching font; `MAX_TERRITORY_RADIUS` 300 -> 450; captured towns now grow their own territory
+      (10 -> `TOWN_MAX_TERRITORY_RADIUS` 15, per-town persisted radius, protection cap follows the
+      current radius; a planned "outlook" building will later raise it further); mage dispatch
+      notification appends a bold red "Player Owned!" when the target is the player's; fog-of-war
+      three-tier rule - mage dots on both minimaps only show in REVEALED territory, and the area
+      around player-owned towns counts as Revealed at the town's current radius (also kept
+      explored); per-color simultaneous-mage cap scales with difficulty (Easy/Normal/Hard/Insane ->
+      2/3/4/5). Full detail in `MOD_CHANGELOG.md`. **Not yet playtested.** An adversarial
+      verification pass before commit caught 9 findings in this round (one high: an AI capturing a
+      GROWN player town would have stranded the grown ring in player color forever) - all fixed in
+      the same round, see `MOD_CHANGELOG.md`'s findings entry.
+    - **Blue border, last holdout fixed (2026-08-07)**: confirmed fixed on all AI territory, still
+      present around PLAYER captured towns - `repaintBiomeAroundTown()` now keeps the waste bit
+      underneath a player-over-former-waste repaint (safe for player specifically: its tables are
+      exact colorless clones), completing the dual-bit fix's coverage. **Not yet playtested.**
     - **Radius mismatch caught immediately after shipping**: asked directly whether the new 20-tile
       protection cap matched the actual terrain-recolor radius on capture - it didn't
       (`TerritoryControl.RECOLOR_RADIUS` is 10 tiles, half of `CASTLE_KEEP_RADIUS_TILES`), leaving an
@@ -864,6 +881,17 @@ needs its own design pass before any of this gets built:**
   buildings, not just new content - needs a decision on whether that's still wanted once #7
   (and thus "5 owned towns") actually exists, or whether Bank/Exchange stay town-buildable and
   only *new* Capitol-exclusive buildings (Archeologist, etc.) get the restriction.
+
+### 14. Random Resource Spawns — `Built (2026-08-08), not yet playtested`
+- Per user spec: up to **20** walk-over resource pickups on the overworld at any time (world map
+  only, never in towns/dungeons), the world starting with a full 20 scattered. Each spawn has its
+  own 2-10 day lifetime; expired ones are replaced by fresh random spawns on the daily tick
+  (pickups also replenish then). Types/values: **Gold 5-100**, **Shards/Wood/Stone 2-10**, awarded
+  directly on walk-over with a notification.
+- Opt-in via new `resourceSpawnsEnabled` flag (standard pattern). State persists on `World`;
+  logic in new `ResourceSpawns.java`; rendered as lightweight per-pickup actors on `WorldStage`.
+  Placement avoids water/mountains/structures and keeps 3+ tiles clear of POI icons. Full
+  mechanism in `MOD_CHANGELOG.md`.
 - **Reference art provided by the user (2026-08-06), for whenever this gets built:**
   - **Player Capitol castle icon** - a distinct gray/white stone castle sprite (twin corner
     towers, arched entrance, red-roofed spires), meant to represent the player's own Capitol on

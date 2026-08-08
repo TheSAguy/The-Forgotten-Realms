@@ -3749,3 +3749,136 @@ Compiled, deployed, byte-verified (`World.class`, `GameHUD.class`, `WorldStage.c
 WITHOUT walking over it first; the mage dots need the Zoom view opened while at least one mage is in
 flight, plus a zoom in/out to confirm the dots stay glued to the map.
 
+## Five-request round: standings layout, town expansion, player-owned warnings, FoW mage dots, mage caps (2026-08-07)
+
+All five from one playtest report ("things are really progressing well"), shipped together:
+
+**1. World Standings layout.** Reputation/Status now sit immediately right of Town Count instead of
+drifting to the table's far edge - the `expandX` slack that pushed them right lives on the LAST
+column now, so the data block packs left. Count and Reputation are both right-aligned (each color
+row's digits line up) and Reputation dropped its `[%85]` shrink to match the count font exactly.
+
+**2. Bigger territories.** `MAX_TERRITORY_RADIUS` 300 -> 450 (castles). NEW: captured towns grow
+their own territory - `RECOLOR_RADIUS` (10) at capture up to a new
+`TOWN_MAX_TERRITORY_RADIUS` (15), at the castles' own `EXPANSION_TILES_PER_DAY` rate. Per-town
+current radius is new persisted `World.townTerritoryRadius` state (keyed by POI id, missing-key
+tolerant on load like every other Territory Control map; a town with no entry never expands, which
+deliberately excludes world-gen originals inside their castle's circle). Seeded at capture:
+`onMageArrived()` for AI captures (AFTER `transformInto()`, so it keys the town's new id),
+`TownRestoration`'s restore path for the player's (id stable there); towns restored before this
+existed seed lazily at the first daily tick. Player towns claim as "player", AI-captured towns as
+their own color, both through the same `claimWastelandRing()` daily mechanism as castles. The
+protection cap for player towns (bounded rival anchors) now carries EACH town's current radius
+(`List<Pair<Vector2,Integer>>` - protection tracks actually-held ground as it grows) instead of one
+flat `RECOLOR_RADIUS` constant. `TownRestoration.RECOLOR_RADIUS` now aliases
+`TerritoryControl.RECOLOR_RADIUS` instead of being an independent 10 - same-number-drift
+prevention, the exact mismatch class already caught once with the 20-vs-10 cap.
+
+**3. "Player Owned!" attack warning.** The existing "<Color> sends a mage toward <town>!"
+notification appends a bold red `Player Owned!` (Textra `[*][RED]` markup - the notification label
+is a TextraLabel, which parses inline tags) when the dispatch target is one of the player's towns.
+The `forge.log` line gets a plain-text `(Player Owned!)` so the log stays readable.
+
+**4. Fog-of-war-aware mage dots + Revealed town areas.** Per the user's three-tier FoW spec
+(Undiscovered/Discovered/Revealed): mage dots on BOTH the corner minimap and the Zoom view now only
+show while the mage stands in REVEALED territory - the live vision circle around the player, or
+(new) the area around any player-owned town at that town's current territory radius.
+`World.isCurrentlyVisible()` gained the town-areas check, backed by a cached
+`playerTownVisionAreas` list (`{tileX, tileY, radiusSq}`) rebuilt only when ownership/radius can
+actually change: save load (in `WorldSave.load()` AFTER `pointOfInterestChanges` loads -
+`World.load()` alone runs too early and would cache the previous session's ownership), town
+restore, AI capture (also covers a player town being taken AWAY), and the daily growth tick. Town
+areas are additionally marked explored (`revealArea()`) on restore and each growth, so they never
+sit under black fog. Fog off -> `isCurrentlyVisible()` stays always-true -> dots behave exactly as
+before. Haze rendering picks the town areas up through the same `isCurrentlyVisible()` call
+`getBiomeSprite()` already makes.
+
+**5. Difficulty-scaled mage cap.** A color skips dispatch while it already has its cap of mages in
+flight: `2 + difficulty index` over the config's difficulties list (Easy/Normal/Hard/Insane ->
+2/3/4/5, exactly the requested spread; unknown/custom difficulty name falls back to the Easy cap).
+The skip logs to `forge.log` with the count and cap; the color's attack timer still resets, so it
+simply tries again on its next scheduled attack day.
+
+Compiled, deployed, byte-verified (20 class files: `World` + inner, `WorldSave`,
+`TerritoryControl`, `TownRestoration` + inner, `GameHUD` + inner, `MapViewScene` + inner,
+`WorldStandingsScene`). An adversarial verification workflow ran over the whole uncommitted round
+before commit - findings (if any) and their resolutions are noted below.
+
+**Not yet playtested.** Town expansion needs a captured/restored town watched across a few days
+(ground ring growth, protection following it, revealed area following it); the mage cap needs a
+color's attack day to arrive while it already has 2 in flight (Easy); the standings layout, the
+bold warning, and the dot gating are each a single glance.
+
+### Pre-commit verification findings, all fixed before the round shipped
+
+The adversarial pass over the round above confirmed 9 findings (several sharing roots); every one
+was fixed in the same round:
+
+- **(High) AI capture of a GROWN player town stranded the 10->15 annulus in player color forever** -
+  the capture repaint only covered `RECOLOR_RADIUS`, and nothing can ever reclaim a player-bit tile
+  (expansion only claims wasteland; player is the highest biome index). `onMageArrived()` now reads
+  the town's radius under its OLD id before `transformInto()` and repaints the full held radius,
+  seeding the new owner at that same radius - held ground changes hands completely.
+- **Vision-cache ordering, three paths** - every path that changes `playerTownVisionAreas` fired its
+  per-tile chunk re-bakes BEFORE rebuilding the cache, baking stale fog state into session-lifetime
+  chunk textures (a restored town's Revealed circle baked hazed; a captured-away town's circle baked
+  bright). All three (`TownRestoration` restore, `onMageArrived()`, the daily town-growth tick) now
+  update radius state and rebuild the cache before firing repaint/reveal callbacks.
+- **Same-day ordering let castles preempt town growth** - the castle loop ran first against
+  PRE-growth protection caps, eating the exact ring a town was about to grow into even where the
+  town was the nearer anchor. Towns now grow BEFORE castles each tick, and the castle loop's caps
+  refresh to the post-growth radii.
+- **Town radius advanced even when the ring claimed zero ground** - growing the protection cap and
+  Revealed circle over ground the town visibly doesn't hold (the documented 20-vs-10 mismatch class).
+  `claimWastelandRing()` now returns its claimed-tile count, and a town's radius reverts when a
+  growth ring takes nothing.
+- **Spawn blocked player-town growth** - Spawn's unconditional unbounded rival anchor cut a permanent
+  notch out of any player town growing near it, protecting nothing (the ground just stayed neutral).
+  Spawn is no longer a rival for the player's own claims.
+- **"[RED]Player Owned!" rendered black** - `addNotification()` set the label tint to BLACK, which
+  MULTIPLIES each glyph's baked color (black x red = black), silently erasing inline markup colors.
+  The base color now comes from a `[BLACK]` markup prefix with a WHITE tint (multiplication
+  identity), letting inline highlights through - fixes the same latent flaw for every future
+  markup-bearing notification.
+- **Player growth rings were permanently structureless with a forever-false "still building" log** -
+  the redirect-structure cache rejected "player" outright without ever starting a build. It now
+  accepts "player", building the pattern at COLORLESS's own extent (player towns live in the central
+  waste, which colorless's extent covers - the player biome's own small spawn-centered extent
+  wouldn't), with `claimWastelandRing()` using the matching geometry for its position formula.
+
+### Blue border, the last holdout: player town captures (2026-08-07)
+
+User confirmed the dual-bit blue-border fix works everywhere on AI territory but still shows around
+the PLAYER's captured towns - "only Wasteland to player conversion, or Player color / wasteland
+border." Exactly right: `repaintBiomeAroundTown()` (the town-capture repaint, the one path the
+other machine's fix deliberately excluded) still wrote single-bit ownership. Fixed for the reported
+case specifically: when the repaint target is "player" AND the tile's old dominant biome was
+colorless, the waste bit is kept underneath (`existingRoadBit | wasteBit | playerBit`) - safe for
+player only because player's terrain/structure table layout is an exact colorless clone (1+2+7+7
+regions, verified during the cross-machine review), so the kept waste layer decodes the translated
+player-space `terrainMap` value coherently; an AI color's differently-sized tables would
+misinterpret it, and AI captures never showed the border anyway (their color's own dual-bit
+expansion engulfs them).
+
+### Random resource spawns (2026-08-08, new feature)
+
+Per user spec: up to **20** walk-over resource pickups scattered across the overworld at any time
+(world map only - they exist solely as WorldStage actors, so towns/dungeons can never contain one),
+seeded at 20 for a new/first-run world, each with its own 2-10 day lifetime, expired ones replaced
+by fresh random spawns on the daily tick. Types and values: Gold 5-100, Shards/Wood/Stone 2-10,
+awarded directly on walk-over with a notification. New opt-in flag `resourceSpawnsEnabled`
+(ConfigData default false, true only in the plane config - standard pattern). State (spawn list +
+seeded flag) persists on `World` (missing-key tolerant, like every Territory Control map); logic
+lives in new `ResourceSpawns.java` (util), driven by a cheap per-frame tick from
+`WorldStage.onActing()`; rendering is one lightweight actor per pickup in `foregroundSprites`
+(y-sorted with everything else), clear-and-rebuilt only when the spawn list actually changes.
+Placement rules: walkable tiles only (`isColliding()` excludes water/mountains/structures), not on
+another spawn, 3+ tiles clear of any POI icon; 200 placement attempts per spawn before giving up
+with a log line. Sprites: items.atlas "Treasure"/"Shards", resource_icons.atlas "Lumber"/"Stone".
+
+Compiled, deployed, byte-verified (25 class files), plane `config.json` synced to the deploy dir.
+
+**Not yet playtested**: the blue border needs a fresh player town capture inspected at its edge; the
+resource spawns need a session started (20 icons should appear scattered), a walk-over pickup, and a
+few fast-forwarded days to see expiry/replacement.
+

@@ -91,6 +91,11 @@ public class WorldSave {
                 try {
                     currentSave.world.load(mainData.readSubData("world"));
                     currentSave.pointOfInterestChanges.load(mainData.readSubData("pointOfInterestChanges"));
+                    // After BOTH world and pointOfInterestChanges are loaded - the rebuild reads
+                    // town-ownership flags from the latter, and World.load() alone runs too early
+                    // (see its own comment). Caches which map areas count as fog-of-war Revealed
+                    // around player-owned towns.
+                    currentSave.world.rebuildPlayerTownVision();
                     WorldStage.getInstance().load(mainData.readSubData("worldStage"));
                     // generateNew() never runs for a loaded save, so nothing has pre-built Territory
                     // Control's per-color WFC structure patterns yet - kick that off now, in the

@@ -152,7 +152,22 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `onTileRepainted` chunk-patch callbacks AFTER their loops complete (claimed tiles + 1-tile border,
   deduped) instead of per tile mid-loop - a mid-loop patch blended each tile against
   not-yet-processed neighbors and never revisited it, leaving claims a grid of stale hard-edged
-  squares until the player walked over them.
+  squares until the player walked over them. Five-request round (same day): new persisted
+  `townTerritoryRadius` map (per-captured-town territory radius, save/load/generateNew-reset like
+  `colorTerritoryRadius`); `claimWastelandRing()`'s `boundedRivalAnchors` retyped to
+  `List<Pair<Vector2,Integer>>` (per-anchor protection cap = that town's current radius); new
+  fog-of-war Revealed-areas support - `playerTownVisionAreas` cache + public
+  `rebuildPlayerTownVision()`, and `isCurrentlyVisible()` now also returns true inside any
+  player-owned town's current territory radius (new `TownRestoration` import). Same-round
+  verification fixes: `claimWastelandRing()` returns its claimed-tile count (callers revert a
+  town's radius on zero-ground rings), skips the Spawn rival for the player's own claims, and
+  accepts "player" as a claiming color (redirect pattern built at COLORLESS's extent - see
+  `isClaimingColor()`). Blue-border completion: `repaintBiomeAroundTown()` keeps the waste bit
+  underneath a "player"-over-former-waste repaint (dual-bit, same mechanism as
+  `claimWastelandRing()`'s fix - player's tables are exact colorless clones so the kept layer
+  decodes coherently; AI captures deliberately stay single-bit). Resource spawns (new feature):
+  persisted `resourceSpawns` list + `resourceSpawnsSeeded` flag, save/load/generateNew-reset like
+  the Territory Control maps, logic in the new `ResourceSpawns` util class.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -173,7 +188,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   retroactively by the cross-machine review): a read-only lookup returning null when a POI has no
   recorded changes, unlike the get-or-create accessor above - Territory Control's daily sweep and the
   World Standings town count query every POI on the map, and pure reads materializing an empty
-  `PointOfInterestChanges` per scanned POI was permanently growing the save file.
+  `PointOfInterestChanges` per scanned POI was permanently growing the save file. Five-request round:
+  `load()` now calls `world.rebuildPlayerTownVision()` right after `pointOfInterestChanges` loads -
+  the fog-of-war Revealed-areas cache reads town-ownership flags from it, so `World.load()` alone
+  runs too early (see its own comment).
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the
@@ -242,7 +260,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `isTerritoryControlEnabled() || ColorReputation.isEnabled()` (the standings page is reputation's
   only UI, documented as working without territory control); `MAGE_MARKER_COLORS` exposed via a
   new public static `getMageMarkerColor()` so MapViewScene's zoomed-view mage dots share the exact
-  palette.
+  palette. Five-request round: `updateMageMinimapMarkers()` gates each dot on
+  `World.isCurrentlyVisible()` at the mage's tile (fog-of-war Revealed rule - always true with fog
+  off, preserving old behavior). Verification fix: `addNotification()` now sets the base color via
+  a `[BLACK]` markup prefix + WHITE actor tint instead of `setColor(BLACK)` - the actor tint
+  MULTIPLIES glyph colors at draw time, so black tint silently erased inline markup colors like the
+  dispatch warning's `[RED]`.
 - **`forge-gui-mobile/src/forge/adventure/scene/SettingsScene.java`** — fog-of-war on/off setting
   (#3, a real Settings-screen checkbox, not just the in-game HUD debug toggle).
 - **`forge-gui-mobile/src/forge/adventure/scene/MapViewScene.java`** — extracted the minimap
@@ -251,7 +274,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   request): one colored dot per in-flight capture mage on the zoomed map view, rebuilt from
   `WorldStage.getTerritoryMages()` on every `enter()`, tinted via `GameHUD.getMageMarkerColor()`
   (shared palette with the corner minimap's dots), riding the same zoom transform as the player
-  marker/quest labels, removed in `done()`.
+  marker/quest labels, removed in `done()`. Five-request round: the same
+  `World.isCurrentlyVisible()` fog-of-war gate as the corner minimap - a mage outside Revealed
+  territory gets no dot here either.
 - **`forge-gui-mobile/src/forge/adventure/data/SettingData.java`** — added the persisted
   `fogOfWarEnabled` setting field backing the above.
 - **`forge-gui/res/languages/en-US.properties`** — **the one shared (non-mod-plane) asset file
@@ -271,10 +296,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Color Reputation (#1) added `colorReputationHalfPoints` (Map<String,Integer>, save/load/clear
   like the resources) with get/add accessors, plus one `ColorReputation.applyStartingDeckBonus()`
   call in `create()` right after the starting deck's color identity is set.
-- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 5 opt-in mod flags:
+- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 6 opt-in mod flags:
   `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`,
-  `colorReputationEnabled` (all default `false` - see `CLAUDE.md`'s ground rules for why this
-  pattern matters).
+  `colorReputationEnabled`, `resourceSpawnsEnabled` (all default `false` - see `CLAUDE.md`'s ground
+  rules for why this pattern matters).
 - **`forge-gui-mobile/src/forge/adventure/stage/ConsoleCommandInterpreter.java`** — debug
   console additions: `count towns` (#7 - was missing from this doc until now, added when the
   `give rep` change touched the same file), `give rep <color> <amount>` (#1,
@@ -300,6 +325,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `showCapitalTollDialog()` helpers. New public `getTerritoryMages()` accessor (#7): filters the
   `protected` enemies list down to in-flight capture mages, for MapViewScene's zoomed-view mage
   dots (different package - can't read the list directly the way same-package GameHUD does).
+  Resource spawns (new feature): `ResourceSpawnActor` (lightweight pickup actor in
+  `foregroundSprites`), `refreshResourceSpawnActors()` (clear-and-rebuild sync from World's spawn
+  list), a per-frame `ResourceSpawns.tick()` call in `onActing()`'s moving branch, and a
+  `ResourceSpawns.forceResync()` in `clearCache()`.
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
@@ -311,7 +340,8 @@ Under `forge-gui-mobile/src/forge/adventure/util/` - upstream doesn't have these
 nothing to reconcile, but they're stock-adjacent code (not mod-plane assets) so they're listed here
 rather than assumed-safe by omission:
 `ColorReputation.java` (#1), `EconomyBuildings.java`, `ResourceDisplayActor.java`,
-`RubbleOverlay.java`, `TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`.
+`ResourceSpawns.java` (random overworld resource pickups), `RubbleOverlay.java`,
+`TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`.
 (`TownCountActor.java` existed briefly, removed the same day - see `MOD_CHANGELOG.md`'s "World
 Standings page" entry.)
 

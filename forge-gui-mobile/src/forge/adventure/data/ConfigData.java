@@ -41,5 +41,6 @@ public class ConfigData {
     public boolean townReconstructionEnabled = false;
     public boolean territoryControlEnabled = false;
     public boolean colorReputationEnabled = false;
+    public boolean resourceSpawnsEnabled = false;
 
 }

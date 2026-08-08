@@ -1,5 +1,7 @@
 package forge.adventure.stage;
 
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
@@ -104,6 +106,42 @@ public class WorldStage extends GameStage implements SaveFileContent {
         return mages;
     }
 
+    // Random resource spawns (see ResourceSpawns): one lightweight actor per active pickup,
+    // rendered inside foregroundSprites so it y-sorts with everything else on the map.
+    private static class ResourceSpawnActor extends Actor {
+        private final Sprite sprite;
+        ResourceSpawnActor(Sprite sprite) {
+            this.sprite = sprite;
+        }
+        @Override
+        public void draw(Batch batch, float parentAlpha) {
+            batch.draw(sprite, getX(), getY(), getWidth(), getHeight());
+        }
+    }
+
+    private final List<Actor> resourceSpawnActors = new ArrayList<>();
+
+    // Clear-and-rebuild sync from World's persisted spawn list (<= ResourceSpawns.MAX_SPAWNS
+    // entries, so this is cheap) - called by ResourceSpawns.tick() only when the list actually
+    // changed (pickup, expiry, reseed, load), not per frame.
+    public void refreshResourceSpawnActors() {
+        for (Actor actor : resourceSpawnActors)
+            foregroundSprites.removeActor(actor);
+        resourceSpawnActors.clear();
+        World world = WorldSave.getCurrentSave().getWorld();
+        int tileSize = world.getTileSize();
+        for (int[] spawn : world.getResourceSpawns()) {
+            Sprite sprite = ResourceSpawns.spriteFor(spawn[2]);
+            if (sprite == null)
+                continue;
+            ResourceSpawnActor actor = new ResourceSpawnActor(sprite);
+            actor.setSize(tileSize, tileSize);
+            actor.setPosition(spawn[0] * tileSize, spawn[1] * tileSize);
+            foregroundSprites.addActor(actor);
+            resourceSpawnActors.add(actor);
+        }
+    }
+
     // Bridge for World.repaintBiomeAroundTown()'s onTileRepainted callback - World lives in a
     // different package and shouldn't depend on WorldBackground directly (same reasoning as
     // revealArea's callback), but WorldStage and WorldBackground are the same package so this
@@ -140,6 +178,9 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 EconomyBuildings.processDaysPassed(dayAfter - dayBefore, dayAfter);
                 TerritoryControl.processDaysPassed(dayAfter - dayBefore, dayAfter);
             }
+            // Per frame while moving, not just on day change - pickups are walk-over, so the
+            // collection check has to track the player's live position (cheap; see its comment).
+            ResourceSpawns.tick(world, dayAfter);
             handleMonsterSpawn(delta);
             collided = collided || handlePointsOfInterestCollision();
             globalTimer += delta;
@@ -638,6 +679,12 @@ public class WorldStage extends GameStage implements SaveFileContent {
         for (Pair<Float, EnemySprite> enemy : enemies)
             foregroundSprites.removeActor(enemy.getValue());
         enemies.clear();
+        // Resource spawn actors are also stale now - drop them and let the next tick rebuild from
+        // whatever spawn list the incoming world state carries.
+        for (Actor actor : resourceSpawnActors)
+            foregroundSprites.removeActor(actor);
+        resourceSpawnActors.clear();
+        ResourceSpawns.forceResync();
         background.clear();
         player = null;
     }

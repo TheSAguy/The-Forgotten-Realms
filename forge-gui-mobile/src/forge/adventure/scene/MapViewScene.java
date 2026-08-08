@@ -350,6 +350,13 @@ public class MapViewScene extends UIScene {
             marker.remove();
         mageMarkers.clear();
         for (EnemySprite mage : WorldStage.getInstance().getTerritoryMages()) {
+            // Same fog-of-war gate as the corner minimap's dots (GameHUD.updateMageMinimapMarkers):
+            // only mages inside REVEALED territory - player vision or a player-owned town's own
+            // area - get a dot; isCurrentlyVisible() returns true for everything when fog is off.
+            int mageTileX = (int) (mage.getX() / WorldSave.getCurrentSave().getWorld().getTileSize());
+            int mageTileY = (int) (mage.getY() / WorldSave.getCurrentSave().getWorld().getTileSize());
+            if (!WorldSave.getCurrentSave().getWorld().isCurrentlyVisible(mageTileX, mageTileY))
+                continue;
             Image marker = new Image(Forge.getAssets().getTexture(Config.instance().getFile("ui/minimap_player.png")));
             marker.setColor(GameHUD.getMageMarkerColor(mage.territoryColor));
             table.addActor(marker);

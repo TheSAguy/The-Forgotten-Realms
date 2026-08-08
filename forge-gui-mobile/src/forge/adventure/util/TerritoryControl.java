@@ -2,6 +2,7 @@ package forge.adventure.util;
 
 import com.badlogic.gdx.math.Vector2;
 import forge.adventure.character.EnemySprite;
+import forge.adventure.data.DifficultyData;
 import forge.adventure.data.ConfigData;
 import forge.adventure.data.EnemyData;
 import forge.adventure.data.PointOfInterestData;
@@ -11,6 +12,8 @@ import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.world.World;
 import forge.adventure.world.WorldSave;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -62,7 +65,13 @@ public class TerritoryControl {
     // neutralizeTerritoryOutsideRadius() for why that's a real rendering bug, not just cosmetic.
     public static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
     private static final int EXPANSION_TILES_PER_DAY = 3; // first-guess constant, tune after testing
-    private static final int MAX_TERRITORY_RADIUS = 300; // generous cap - bounds the scan once a color has filled all reachable wasteland
+    private static final int MAX_TERRITORY_RADIUS = 450; // raised 300 -> 450 per user request 2026-08-08
+    // Captured towns grow their own small territory too (user request 2026-08-08: "for captured
+    // towns, let's have them expand to 15") - from RECOLOR_RADIUS at capture up to this, at the
+    // same per-day rate as castles. Per-town current radius lives in World.townTerritoryRadius,
+    // seeded at capture (onMageArrived() for AI, TownRestoration's restore path for the player).
+    // A planned "outlook" building will later raise this further per town.
+    public static final int TOWN_MAX_TERRITORY_RADIUS = 15;
 
     private TerritoryControl() {}
 
@@ -236,19 +245,104 @@ public class TerritoryControl {
         // player restores it (see TownRestoration.java), so this is the only reliable way to tell
         // "the player owns this one" apart from "this happens to still be a Waste Town" or "this
         // happens to already be some AI color's."
-        List<Vector2> playerTownPositions = new ArrayList<>();
+        // Player-owned towns, each paired with its CURRENT territory radius (protection cap and
+        // expansion state both) - seeded lazily at RECOLOR_RADIUS for towns restored before the
+        // per-town radius state existed.
+        List<PointOfInterest> playerTowns = new ArrayList<>();
+        List<Pair<Vector2, Integer>> playerTownAnchors = new ArrayList<>();
         for (PointOfInterest poi : world.getAllPointOfInterest()) {
             // peek, not get - this loop queries EVERY POI on the map once per in-game day, and the
             // get-or-create accessor would materialize an empty PointOfInterestChanges entry for
             // each one, permanently bloating the save file for a pure read.
-            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID())))
-                playerTownPositions.add(poi.getPosition());
+            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID()))) {
+                playerTowns.add(poi);
+                Integer radius = world.getTownTerritoryRadius(poi.getID());
+                playerTownAnchors.add(Pair.of(poi.getPosition(), radius != null ? radius : RECOLOR_RADIUS));
+            }
         }
         // Diagnostic only (MOD_SCOPE.md #7) - no way to otherwise tell from forge.log whether this
         // is finding the player's town(s) at all, given a report that AI expansion was still
         // visibly encroaching after this fix shipped.
-        if (!playerTownPositions.isEmpty())
-            System.out.println("[TerritoryControl] daily expansion: " + playerTownPositions.size() + " player-owned town(s) protected as rival anchors");
+        if (!playerTownAnchors.isEmpty())
+            System.out.println("[TerritoryControl] daily expansion: " + playerTownAnchors.size() + " player-owned town(s) protected as rival anchors");
+        // Captured towns grow their own small territory, RECOLOR_RADIUS -> TOWN_MAX_TERRITORY_RADIUS
+        // (user request 2026-08-08). Two kinds, same mechanism: player-restored towns claim as
+        // "player", AI-captured towns (seeded into townTerritoryRadius by onMageArrived()) claim as
+        // their own color. A town with no radius entry and no player owner never expands - that's a
+        // world-gen original inside its color's castle circle, covered by the castle's own growth.
+        // Towns grow BEFORE the castle loop below (pre-commit review finding): a castle sweeping
+        // past a still-growing town the same day used to preempt the town's growth band - the
+        // town's protection cap only covers its CURRENT radius, so the castle claimed the ring the
+        // town was about to grow into, even where the town was strictly the nearer anchor.
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            boolean playerOwned = playerTowns.contains(poi);
+            Integer townRadius = world.getTownTerritoryRadius(poi.getID());
+            if (townRadius == null) {
+                if (!playerOwned)
+                    continue;
+                townRadius = RECOLOR_RADIUS; // restored before per-town radius state existed - seed now
+                world.setTownTerritoryRadius(poi.getID(), townRadius);
+            }
+            if (townRadius >= TOWN_MAX_TERRITORY_RADIUS)
+                continue;
+            String ownerColor = null;
+            if (playerOwned) {
+                ownerColor = "player";
+            } else {
+                for (String color : COLORS) {
+                    if (isColorTownOrCapital(poi.getData(), color)) {
+                        ownerColor = color;
+                        break;
+                    }
+                }
+            }
+            if (ownerColor == null)
+                continue; // stale entry (e.g. the town was captured again under a new id) - skip
+            int newTownRadius = Math.min(townRadius + EXPANSION_TILES_PER_DAY * daysPassed, TOWN_MAX_TERRITORY_RADIUS);
+            // Rivals for a growing town: every castle (all of them - even its own color's castle
+            // simply wins ties on ground it already holds, which isn't wasteland anyway) and every
+            // OTHER player town at its own radius.
+            List<Vector2> castleAnchors = new ArrayList<>(castlePositions.values());
+            List<Pair<Vector2, Integer>> otherTownAnchors = new ArrayList<>();
+            for (Pair<Vector2, Integer> anchor : playerTownAnchors) {
+                if (!anchor.getLeft().equals(poi.getPosition()))
+                    otherTownAnchors.add(anchor);
+            }
+            // Radius + fog-of-war Revealed cache advance BEFORE the claim, so the claim's own
+            // per-tile chunk re-bakes see the grown vision area (order-bug finding)...
+            world.setTownTerritoryRadius(poi.getID(), newTownRadius);
+            if (playerOwned)
+                world.rebuildPlayerTownVision();
+            int claimed = world.claimWastelandRing(ownerColor, poi.getPosition(), castleAnchors, otherTownAnchors,
+                    townRadius, newTownRadius,
+                    WorldStage.getInstance()::refreshBackgroundTile,
+                    WorldStage.getInstance()::reloadBackgroundChunkObjects);
+            if (claimed == 0) {
+                // ...but REVERTED when the ring took no ground at all (fully blocked by an AI
+                // color / rivals): advancing anyway would grow the town's protection cap and its
+                // revealed circle over ground it visibly does not hold - the exact
+                // "protection wider than visible ground" mismatch class already caught once.
+                world.setTownTerritoryRadius(poi.getID(), townRadius);
+                if (playerOwned)
+                    world.rebuildPlayerTownVision();
+                continue;
+            }
+            if (playerOwned) {
+                // The grown ring is the player's own held ground now - mark it explored so it
+                // doesn't sit under black fog (revealArea() no-ops for already-explored tiles and
+                // when fog of war is off).
+                world.revealArea((int) (poi.getPosition().x / world.getTileSize()),
+                        (int) (poi.getPosition().y / world.getTileSize()),
+                        newTownRadius, WorldStage.getInstance()::refreshBackgroundTile);
+            }
+        }
+        // Refresh the castle loop's protection caps to the towns' POST-growth radii.
+        playerTownAnchors.clear();
+        for (PointOfInterest poi : playerTowns) {
+            Integer radius = world.getTownTerritoryRadius(poi.getID());
+            playerTownAnchors.add(Pair.of(poi.getPosition(), radius != null ? radius : RECOLOR_RADIUS));
+        }
+
         for (String color : COLORS) {
             Integer currentRadius = world.getColorTerritoryRadius(color);
             if (currentRadius == null || currentRadius >= MAX_TERRITORY_RADIUS)
@@ -264,13 +358,13 @@ public class TerritoryControl {
                 if (!entry.getKey().equals(color))
                     otherAnchors.add(entry.getValue());
             }
-            // Player-owned towns are a separate, BOUNDED rival list (capped to
-            // CASTLE_KEEP_RADIUS_TILES inside claimWastelandRing()) rather than folded into the
+            // Player-owned towns are a separate, BOUNDED rival list (each capped to its own
+            // current territory radius inside claimWastelandRing()) rather than folded into the
             // unbounded otherAnchors above - a captured town deep inside a color's growth area used
             // to get an unbounded Voronoi cell against that color's castle, which could grow into a
             // large, fully-enclosed hole once the color's own circle expanded past it on every side,
             // not the small protective pocket the design was meant to give a captured town.
-            world.claimWastelandRing(color, castlePosition, otherAnchors, playerTownPositions, currentRadius, newRadius,
+            world.claimWastelandRing(color, castlePosition, otherAnchors, playerTownAnchors, currentRadius, newRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
             world.setColorTerritoryRadius(color, newRadius);
@@ -292,6 +386,19 @@ public class TerritoryControl {
         PointOfInterest castle = findCastle(world, color);
         if (castle == null) {
             System.out.println("[TerritoryControl] " + color + ": no castle found, skipping dispatch");
+            return;
+        }
+        // Difficulty-scaled cap on simultaneous in-flight mages per color (user request
+        // 2026-08-08): 2 on Easy, +1 per difficulty step, 5 on Insane. A color at its cap skips
+        // this dispatch entirely - its attack timer still resets in processDaysPassed(), so it
+        // simply tries again on its next scheduled attack day.
+        int activeMages = 0;
+        for (EnemySprite mage : WorldStage.getInstance().getTerritoryMages())
+            if (color.equals(mage.territoryColor))
+                activeMages++;
+        int cap = maxActiveMagesPerColor();
+        if (activeMages >= cap) {
+            System.out.println("[TerritoryControl] " + color + ": " + activeMages + " mage(s) already in flight (cap " + cap + "), skipping dispatch");
             return;
         }
         List<PointOfInterest> ownedSources = new ArrayList<>();
@@ -344,8 +451,31 @@ public class TerritoryControl {
         WorldStage.getInstance().spawnAt(mage, new Vector2(castle.getPosition()));
 
         String message = capitalize(color) + " sends a mage toward " + target.getDisplayName() + "!";
-        System.out.println("[TerritoryControl] " + message);
-        GameHUD.getInstance().addNotification(message);
+        // Extra warning when the target is one of the PLAYER's towns (user request 2026-08-08) -
+        // bold red via Textra markup (the notification label is a TextraLabel, which parses [*]
+        // bold and [RED] inline tags; the plain println keeps the log readable without them).
+        boolean targetPlayerOwned = TownRestoration.isTownRestored(
+                WorldSave.getCurrentSave().peekPointOfInterestChanges(target.getID()));
+        System.out.println("[TerritoryControl] " + message + (targetPlayerOwned ? " (Player Owned!)" : ""));
+        GameHUD.getInstance().addNotification(targetPlayerOwned ? message + " [*][RED]Player Owned!" : message);
+    }
+
+    // 2 simultaneous mages per color on Easy, +1 per difficulty step up (Easy/Normal/Hard/Insane
+    // -> 2/3/4/5, matching the user's spec exactly for the shipped 4-difficulty list). Unknown or
+    // missing difficulty falls back to the Easy cap rather than guessing high.
+    private static int maxActiveMagesPerColor() {
+        DifficultyData playerDifficulty = Current.player().getDifficulty();
+        DifficultyData[] allDifficulties = Config.instance().getConfigData().difficulties;
+        int index = 0;
+        if (playerDifficulty != null && playerDifficulty.name != null && allDifficulties != null) {
+            for (int i = 0; i < allDifficulties.length; i++) {
+                if (playerDifficulty.name.equals(allDifficulties[i].name)) {
+                    index = i;
+                    break;
+                }
+            }
+        }
+        return 2 + index;
     }
 
     private static double distToNearestSource(PointOfInterest town, List<PointOfInterest> sources) {
@@ -454,8 +584,24 @@ public class TerritoryControl {
 
         World world = WorldSave.getCurrentSave().getWorld();
         String displayName = target.getDisplayName();
+        // The town's territory may have GROWN past RECOLOR_RADIUS (town expansion, up to
+        // TOWN_MAX_TERRITORY_RADIUS) - read its radius under the OLD id, before transformInto()
+        // changes it, and repaint the FULL held radius. Repainting only RECOLOR_RADIUS would
+        // strand the grown annulus in the previous owner's color forever (verified: expansion only
+        // ever claims wasteland, and a player-bit tile is never wasteland, so nothing could ever
+        // reclaim it - an orphaned ring around an enemy town, found by the pre-commit review).
+        Integer oldRadius = world.getTownTerritoryRadius(target.getID());
+        int repaintRadius = Math.max(RECOLOR_RADIUS, oldRadius != null ? oldRadius : RECOLOR_RADIUS);
         target.transformInto(newData, world.getRandom());
-        world.repaintBiomeAroundTown(target, mage.territoryColor, RECOLOR_RADIUS,
+        // Seed the captured town's territory at everything the repaint below actually paints
+        // (keyed on the NEW id - getID() derives from data.name, which the transform just
+        // changed), and refresh the fog-of-war Revealed cache BEFORE the repaint: if this capture
+        // took a town the PLAYER owned, the repaint's per-tile chunk re-bakes consult
+        // isCurrentlyVisible(), and the stale cache would bake the lost area as still-bright
+        // (order bug found by the pre-commit review).
+        world.setTownTerritoryRadius(target.getID(), repaintRadius);
+        world.rebuildPlayerTownVision();
+        world.repaintBiomeAroundTown(target, mage.territoryColor, repaintRadius,
                 WorldStage.getInstance()::refreshBackgroundTile,
                 WorldStage.getInstance()::reloadBackgroundChunkObjects);
 

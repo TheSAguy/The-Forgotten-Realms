@@ -19,9 +19,11 @@ import forge.adventure.scene.Scene;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.util.Config;
 import forge.adventure.util.Paths;
+import forge.adventure.util.ResourceSpawns;
 import forge.adventure.util.SaveFileContent;
 import forge.adventure.util.SaveFileData;
 import forge.adventure.util.TerritoryControl;
+import forge.adventure.util.TownRestoration;
 import forge.gui.GuiBase;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -100,6 +102,50 @@ public class World implements Disposable, SaveFileContent {
 
     public void setColorTerritoryRadius(String color, int radiusTiles) {
         colorTerritoryRadius.put(color, radiusTiles);
+    }
+
+    // Territory Control (MOD_SCOPE.md #7): per-CAPTURED-TOWN territory radius in tiles, keyed by
+    // PointOfInterest.getID() - the town-scale analogue of colorTerritoryRadius above. Seeded at
+    // RECOLOR_RADIUS when a town is captured (TerritoryControl.onMageArrived() for AI captures,
+    // TownRestoration's restore path for the player's), grown daily by
+    // TerritoryControl.processTerritoryExpansion() up to TOWN_MAX_TERRITORY_RADIUS (15, per user
+    // request 2026-08-08 - "for captured towns, let's have them expand to 15"). A town with no
+    // entry never expands - deliberately: world-gen original towns inside a castle's own kept
+    // circle were never "captured" and ride their color's castle radius instead. Lazily absent
+    // like colorNextAttackDay so saves predating this load as an empty map. NOTE: a captured
+    // town's id CHANGES when it's captured again (transformInto() derives getID() from the new
+    // data.name), so a recaptured town's old entry simply goes stale/unreachable - harmless, and
+    // the new owner seeds a fresh entry at capture.
+    private final java.util.Map<String, Integer> townTerritoryRadius = new java.util.HashMap<>();
+
+    public Integer getTownTerritoryRadius(String poiId) {
+        return townTerritoryRadius.get(poiId);
+    }
+
+    public void setTownTerritoryRadius(String poiId, int radiusTiles) {
+        townTerritoryRadius.put(poiId, radiusTiles);
+    }
+
+    // Random resource spawns (MOD_SCOPE.md, user request 2026-08-08): up to
+    // ResourceSpawns.MAX_SPAWNS pickups scattered on the overworld, each an int[] of
+    // {tileX, tileY, type, value, expiryDay} in world tile space. All spawn/expiry/pickup LOGIC
+    // lives in ResourceSpawns (util) - this is just the persisted state, same save/load pattern
+    // as the Territory Control maps above. The seeded flag distinguishes "never populated" (seed
+    // 20 on first tick) from "legitimately below 20 mid-game" (player picked some up; the daily
+    // tick tops the pool back up).
+    private final List<int[]> resourceSpawns = new ArrayList<>();
+    private boolean resourceSpawnsSeeded = false;
+
+    public List<int[]> getResourceSpawns() {
+        return resourceSpawns;
+    }
+
+    public boolean isResourceSpawnsSeeded() {
+        return resourceSpawnsSeeded;
+    }
+
+    public void setResourceSpawnsSeeded(boolean seeded) {
+        resourceSpawnsSeeded = seeded;
     }
 
     public Random getRandom() {
@@ -196,6 +242,24 @@ public class World implements Disposable, SaveFileContent {
             //noinspection unchecked
             colorTerritoryRadius.putAll((java.util.Map<String, Integer>) saveFileData.readObject("colorTerritoryRadius"));
         }
+
+        townTerritoryRadius.clear();
+        if (saveFileData.containsKey("townTerritoryRadius")) {
+            //noinspection unchecked
+            townTerritoryRadius.putAll((java.util.Map<String, Integer>) saveFileData.readObject("townTerritoryRadius"));
+        }
+
+        resourceSpawns.clear();
+        if (saveFileData.containsKey("resourceSpawns")) {
+            //noinspection unchecked
+            resourceSpawns.addAll((List<int[]>) saveFileData.readObject("resourceSpawns"));
+        }
+        resourceSpawnsSeeded = saveFileData.containsKey("resourceSpawnsSeeded") && saveFileData.readInt("resourceSpawnsSeeded") != 0;
+        ResourceSpawns.forceResync(); // actors on WorldStage must rebuild from this loaded state
+        // rebuildPlayerTownVision() is deliberately NOT called here: WorldSave.load() loads this
+        // World BEFORE pointOfInterestChanges, and the rebuild reads town-ownership flags from
+        // pointOfInterestChanges - calling it now would cache the PREVIOUS session's ownership.
+        // WorldSave.load() calls it once both halves are loaded.
     }
 
     @Override
@@ -215,6 +279,9 @@ public class World implements Disposable, SaveFileContent {
         data.store("dayProgress", dayProgress);
         data.store("dayCount", dayCount);
         data.storeObject("colorTerritoryRadius", colorTerritoryRadius);
+        data.storeObject("townTerritoryRadius", townTerritoryRadius);
+        data.storeObject("resourceSpawns", new ArrayList<>(resourceSpawns));
+        data.store("resourceSpawnsSeeded", resourceSpawnsSeeded ? 1 : 0);
         data.storeObject("colorNextAttackDay", colorNextAttackDay);
         return data;
     }
@@ -426,6 +493,11 @@ public class World implements Disposable, SaveFileContent {
             dayCount = 1;
             colorNextAttackDay.clear();
             colorTerritoryRadius.clear();
+            townTerritoryRadius.clear();
+            playerTownVisionAreas.clear(); // fresh world, no owned towns yet
+            resourceSpawns.clear();
+            resourceSpawnsSeeded = false; // fresh world reseeds its 20 on the first tick
+            ResourceSpawns.forceResync();
 
             for (int x = 0; x < width; x++) {
                 for (int y = 0; y < height; y++) {
@@ -1562,7 +1634,13 @@ public class World implements Disposable, SaveFileContent {
     // doesn't kick off 5 redundant builds racing each other for the same color.
     private final Set<String> colorlessRedirectStructureBuildInFlight = ConcurrentHashMap.newKeySet();
 
-    private boolean isAiColor(String color) {
+    // The colors whose expansion claims carry colorless-redirect structure content: the 5 AI
+    // colors AND "player" (town expansion, added 2026-08-08 - without it, player growth rings were
+    // permanently bare ground with a forever-false "still building" log, found by the pre-commit
+    // review).
+    private boolean isClaimingColor(String color) {
+        if ("player".equalsIgnoreCase(color))
+            return true;
         for (String c : TerritoryControl.COLORS)
             if (c.equalsIgnoreCase(color))
                 return true;
@@ -1578,7 +1656,7 @@ public class World implements Disposable, SaveFileContent {
     // callers (claimWastelandRing()) must use instead - calling this one from the game's main/render
     // thread mid-play is exactly what caused a real, reported freeze (see MOD_CHANGELOG.md).
     private BiomeStructureData[] buildColorlessRedirectStructuresBlocking(String color) {
-        if (!isTerritoryControlEnabled() || !isAiColor(color))
+        if (!isTerritoryControlEnabled() || !isClaimingColor(color))
             return null;
         BiomeStructureData[] cached = colorlessRedirectStructureCache.get(color);
         if (cached != null)
@@ -1589,17 +1667,24 @@ public class World implements Disposable, SaveFileContent {
             if ("waste".equalsIgnoreCase(b.name)) { colorlessBiomeRef = b; break; }
         if (colorlessBiomeRef == null || colorlessBiomeRef.structures == null)
             return null;
-        BiomeData colorBiome = null;
-        for (BiomeData b : data.GetBiomes())
-            if (color.equalsIgnoreCase(b.name)) { colorBiome = b; break; }
-        if (colorBiome == null)
+        // "player" builds at COLORLESS's own extent, not the player biome's - player claims (town
+        // expansion) happen in the central waste region, which colorless's extent covers; the
+        // player biome's own small spawn-centered extent wouldn't, and a pattern queried outside
+        // its build extent yields no structures. claimWastelandRing() uses the matching geometry
+        // for its position formula (see its playerClaim handling).
+        BiomeData scaleBiome = "player".equalsIgnoreCase(color) ? colorlessBiomeRef : null;
+        if (scaleBiome == null) {
+            for (BiomeData b : data.GetBiomes())
+                if (color.equalsIgnoreCase(b.name)) { scaleBiome = b; break; }
+        }
+        if (scaleBiome == null)
             return null;
 
-        int colorBiomeWidth = (int) Math.round(colorBiome.width * (double) width);
-        int colorBiomeHeight = (int) Math.round(colorBiome.height * (double) height);
+        int scaleWidth = (int) Math.round(scaleBiome.width * (double) width);
+        int scaleHeight = (int) Math.round(scaleBiome.height * (double) height);
         BiomeStructureData[] clone = cloneStructures(colorlessBiomeRef.structures);
         for (BiomeStructureData structureData : clone)
-            getOrBuildNativePattern(structureData, colorBiomeWidth, colorBiomeHeight);
+            getOrBuildNativePattern(structureData, scaleWidth, scaleHeight);
         colorlessRedirectStructureCache.putIfAbsent(color, clone);
         return colorlessRedirectStructureCache.get(color);
     }
@@ -1612,7 +1697,7 @@ public class World implements Disposable, SaveFileContent {
     // - the caller is expected to treat null as "not ready yet, try again later" (see
     // claimWastelandRing()'s own handling), never to block on it itself.
     private BiomeStructureData[] getColorlessRedirectStructuresIfReady(String color) {
-        if (!isTerritoryControlEnabled() || !isAiColor(color))
+        if (!isTerritoryControlEnabled() || !isClaimingColor(color))
             return null;
         BiomeStructureData[] cached = colorlessRedirectStructureCache.get(color);
         if (cached != null)
@@ -1697,6 +1782,21 @@ public class World implements Disposable, SaveFileContent {
         // that index - no shared-terrainMap misinterpretation risk the way ocean's multi-region
         // tileset had.
         long roadBit = 1L << data.GetBiomes().size();
+        // The blue-border fix, extended to PLAYER town captures (reported: the border was gone at
+        // every AI color's territory but still present around the player's own captured towns).
+        // Mechanism, same as claimWastelandRing()'s dual-bit write: a single-bit repainted tile
+        // breaks its NEIGHBORS' waste layers' full-coverage checks in generateBiomeSprite(), which
+        // promotes the first set bit - base/ocean, literal blue - to the base layer at the claim
+        // edge. Keeping the waste bit underneath restores the symmetry. Only safe for "player"
+        // over former waste specifically: player's terrain/structure table layout is an exact
+        // colorless clone (1+2+7+7 regions, verified), so the kept waste layer decodes the
+        // translated player-space terrainMap value coherently - an AI color's differently-sized
+        // tables would misinterpret it, and AI captures get engulfed by their color's own dual-bit
+        // expansion anyway (which is why the border never showed there).
+        int colorlessIdx = -1;
+        for (int i = 0; i < biomes.size(); i++)
+            if ("waste".equalsIgnoreCase(biomes.get(i).name)) { colorlessIdx = i; break; }
+        boolean keepWasteUnder = "player".equalsIgnoreCase(biomeName) && colorlessIdx >= 0;
         for (int wx = centerWorldX - radius; wx <= centerWorldX + radius; wx++) {
             if (wx < 0 || wx >= width)
                 continue;
@@ -1715,7 +1815,8 @@ public class World implements Disposable, SaveFileContent {
                 Integer newTerrain = translateStructure(oldBiomeIndex, biomeIndex, terrainMap[wx][rawY]);
                 if (newTerrain == null)
                     continue;
-                biomeMap[wx][rawY] = existingRoadBit | (1L << biomeIndex);
+                long wasteUnderBit = (keepWasteUnder && oldBiomeIndex == colorlessIdx) ? (1L << colorlessIdx) : 0L;
+                biomeMap[wx][rawY] = existingRoadBit | wasteUnderBit | (1L << biomeIndex);
                 terrainMap[wx][rawY] = newTerrain;
 
                 redrawMinimapTile(wx, rawY); // real content (variants/structures/roads), not a flat stamp - see its comment
@@ -1868,32 +1969,34 @@ public class World implements Disposable, SaveFileContent {
      * wins" resolution - no explicit tie-break needed.
      * <p>
      * boundedRivalAnchors is a second, separate rival list (currently: every player-owned captured
-     * town) whose protection is capped to TerritoryControl.RECOLOR_RADIUS instead of being unbounded
-     * like otherAnchors/Spawn - a tile beyond that radius from a bounded anchor simply doesn't
-     * consider that anchor at all (falls through to check every other rival normally). RECOLOR_RADIUS,
-     * not CASTLE_KEEP_RADIUS_TILES, deliberately - a captured town's protection must match the radius
-     * repaintBiomeAroundTown() actually repaints around it, or it would guard a wider ring of plain-
-     * looking, unrecolored ground than what's visibly the captor's own (a real, reported mismatch:
-     * this was briefly capped to CASTLE_KEEP_RADIUS_TILES, twice RECOLOR_RADIUS, before this fix).
-     * Fixed after a real, reported case: a captured town deep inside a color's growth area, protected
-     * by an *unbounded* Voronoi cell against that color's castle, let that color's own expanding
-     * circle grow around it from every direction until the town's cell became a fully-enclosed island
-     * - a far bigger, more surprising hole than "a small safe pocket around a town," which is what
-     * the unbounded design was actually meant to produce. Spawn and other AI castles stay unbounded -
-     * this cap only applies to ordinary captured towns.
+     * town) whose protection is capped to EACH ANCHOR'S OWN current territory radius (the paired
+     * Integer, in tiles - a captured town starts at TerritoryControl.RECOLOR_RADIUS and grows to
+     * TOWN_MAX_TERRITORY_RADIUS via townTerritoryRadius) instead of being unbounded like
+     * otherAnchors/Spawn - a tile beyond that radius from a bounded anchor simply doesn't consider
+     * that anchor at all (falls through to check every other rival normally). The cap tracks the
+     * town's actually-held ground, deliberately - protection must match what's visibly the town's
+     * own recolored territory, or it would guard a wider ring of plain-looking, unrecolored ground
+     * (a real, reported mismatch: this was briefly capped to CASTLE_KEEP_RADIUS_TILES, twice the
+     * visible radius, before becoming radius-accurate). Bounded at all after a real, reported case:
+     * a captured town deep inside a color's growth area, protected by an *unbounded* Voronoi cell
+     * against that color's castle, let that color's own expanding circle grow around it from every
+     * direction until the town's cell became a fully-enclosed island - a far bigger, more
+     * surprising hole than "a small safe pocket around a town," which is what the unbounded design
+     * was actually meant to produce. Spawn and other AI castles stay unbounded - this cap only
+     * applies to ordinary captured towns.
      * <p>
      * Called every in-game day a color's territory grows (unlike neutralizeTerritoryOutsideRadius(),
      * a one-time world-gen-time sweep) - scoped to a bounding box around center, not a full-map
      * scan, since this runs repeatedly rather than once. Also used once, non-incrementally, to give
      * the player a real starting circle around Spawn (see TerritoryControl.neutralizeAfterGeneration()).
      */
-    public void claimWastelandRing(String colorBiomeName, Vector2 center, List<Vector2> otherAnchors,
-                                    List<Vector2> boundedRivalAnchors,
+    public int claimWastelandRing(String colorBiomeName, Vector2 center, List<Vector2> otherAnchors,
+                                    List<Pair<Vector2, Integer>> boundedRivalAnchors,
                                     int innerRadiusTiles, int outerRadiusTiles,
                                     BiConsumer<Integer, Integer> onTileRepainted,
                                     BiConsumer<Integer, Integer> onChunkNeedsReload) {
         if (data == null || biomeMap == null || terrainMap == null)
-            return;
+            return 0;
         List<BiomeData> biomes = data.GetBiomes();
         int colorIndex = -1, colorlessIndex = -1;
         for (int i = 0; i < biomes.size(); i++) {
@@ -1903,17 +2006,21 @@ public class World implements Disposable, SaveFileContent {
                 colorlessIndex = i;
         }
         if (colorIndex < 0 || colorlessIndex < 0)
-            return;
+            return 0;
         BiomeData colorBiome = biomes.get(colorIndex);
         BiomeData colorlessBiome = biomes.get(colorlessIndex);
-        // This color's own real geometry (never touched by Territory Control's placement pass -
-        // no swap, no mutation - so this is always correct, same formula generateNew()'s own
-        // placement pass uses) - needed below to query colorBiome's own native WFC pattern using
-        // the same position formula that pattern was built against.
-        int colorBiomeXStart = (int) Math.round(colorBiome.startPointX * (double) width);
-        int colorBiomeYStart = (int) Math.round(colorBiome.startPointY * (double) height);
-        int colorBiomeWidth = (int) Math.round(colorBiome.width * (double) width);
-        int colorBiomeHeight = (int) Math.round(colorBiome.height * (double) height);
+        // The geometry the structure-position formula runs in must match the scale the redirect
+        // WFC pattern was BUILT at (getOrBuildColorlessRedirectStructures()): each AI color's
+        // pattern is built at that color's own biome extent, but "player" claims (town expansion)
+        // use COLORLESS's extent instead - player towns live in the central waste region, which
+        // colorless's own extent covers, while the player biome's own tiny spawn-centered extent
+        // wouldn't (a pattern queried outside its build extent returns no structures at all).
+        boolean playerClaim = "player".equalsIgnoreCase(colorBiomeName);
+        BiomeData structureGeometryBiome = playerClaim ? colorlessBiome : colorBiome;
+        int colorBiomeXStart = (int) Math.round(structureGeometryBiome.startPointX * (double) width);
+        int colorBiomeYStart = (int) Math.round(structureGeometryBiome.startPointY * (double) height);
+        int colorBiomeWidth = (int) Math.round(structureGeometryBiome.width * (double) width);
+        int colorBiomeHeight = (int) Math.round(structureGeometryBiome.height * (double) height);
         // Same per-color clone of colorless's structures[] that generateNew()'s Pass B redirects
         // outside-castle-radius tiles to (MOD_SCOPE.md #7) - every tile this method claims starts
         // out wasteland by definition (the claim condition below requires highestBiome == colorless),
@@ -1941,26 +2048,29 @@ public class World implements Disposable, SaveFileContent {
         int mm = data.miniMapTileSize;
 
         // Every rival anchor this claim must be at least as near to, in world tile coordinates -
-        // Spawn is always included so the player's home base participates in the same nearest-
-        // anchor comparison as every AI castle (replaces the old flat SPAWN_PROTECTION_RADIUS_TILES
-        // hard block with "closest anchor wins" like everything else, including when colorBiomeName
-        // itself is "player" - center then equals the Spawn rival tile, which ties rather than
-        // disqualifies, see the "< distSq" check below). Each entry is {x, y, capRadiusSq} - capRadiusSq
-        // -1 means unbounded (Spawn, other AI castles); a positive value (boundedRivalAnchors, below)
-        // means that rival only blocks a claim within that radius of itself.
+        // Spawn is included for every AI color's claim so the player's home base participates in
+        // the same nearest-anchor comparison as every castle (replaces the old flat
+        // SPAWN_PROTECTION_RADIUS_TILES hard block with "closest anchor wins" like everything
+        // else). NOT for the player's own claims (town expansion) - Spawn blocking the player's
+        // own growth serves no one: the "protected" ground just stays neutral wasteland, cutting a
+        // permanent straight notch out of any player town that happens to sit near Spawn (found by
+        // the pre-commit review). Each entry is {x, y, capRadiusSq} - capRadiusSq -1 means
+        // unbounded (Spawn, other AI castles); a positive value (boundedRivalAnchors, below) means
+        // that rival only blocks a claim within that radius of itself.
         List<int[]> rivalTiles = new ArrayList<>();
-        rivalTiles.add(new int[]{(int) (width * data.playerStartPosX), (int) (height * data.playerStartPosY), -1});
+        if (!playerClaim)
+            rivalTiles.add(new int[]{(int) (width * data.playerStartPosX), (int) (height * data.playerStartPosY), -1});
         if (otherAnchors != null) {
             for (Vector2 anchor : otherAnchors)
                 rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize), -1});
         }
-        // RECOLOR_RADIUS, not CASTLE_KEEP_RADIUS_TILES - a captured town's protection must match the
-        // radius repaintBiomeAroundTown() actually repaints (see RECOLOR_RADIUS's own comment), or
-        // it would protect a wider ring of plain-looking ground than what's visibly the captor's own.
-        int boundedCapSq = TerritoryControl.RECOLOR_RADIUS * TerritoryControl.RECOLOR_RADIUS;
+        // Each bounded anchor carries its own protection radius (the town's CURRENT territory
+        // radius) - protection must match the ground the town actually visibly holds, no more.
         if (boundedRivalAnchors != null) {
-            for (Vector2 anchor : boundedRivalAnchors)
-                rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize), boundedCapSq});
+            for (Pair<Vector2, Integer> anchor : boundedRivalAnchors) {
+                int capTiles = anchor.getRight() != null ? anchor.getRight() : TerritoryControl.RECOLOR_RADIUS;
+                rivalTiles.add(new int[]{(int) (anchor.getLeft().x / data.tileSize), (int) (anchor.getLeft().y / data.tileSize), capTiles * capTiles});
+            }
         }
 
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
@@ -2125,6 +2235,7 @@ public class World implements Disposable, SaveFileContent {
                 for (int cy = minChunkY; cy <= maxChunkY; cy++)
                     onChunkNeedsReload.accept(cx, cy);
         }
+        return tilesClaimed;
     }
 
     /**
@@ -2402,12 +2513,47 @@ public class World implements Disposable, SaveFileContent {
         visiblePlayerTileY = tileY;
     }
 
+    // Fog of war, third tier (per user spec 2026-08-08): the area around every PLAYER-OWNED town
+    // counts as REVEALED - fully visible, not just explored/hazed - at that town's current
+    // territory radius (townTerritoryRadius, RECOLOR_RADIUS at capture, growing to
+    // TOWN_MAX_TERRITORY_RADIUS), "same radius as first captured... this will also expand as the
+    // town grows its borders." Cached as {tileX, tileY, radiusSq} triples rather than re-derived
+    // per call - isCurrentlyVisible() runs per tile during chunk builds/haze patching, and
+    // scanning every POI + save-flag there would be far too hot. Rebuilt only when ownership or a
+    // radius can actually have changed: save load, a town restore, an AI capture, and the daily
+    // expansion tick.
+    private final List<int[]> playerTownVisionAreas = new ArrayList<>();
+
+    public void rebuildPlayerTownVision() {
+        playerTownVisionAreas.clear();
+        if (data == null)
+            return;
+        for (PointOfInterest poi : getAllPointOfInterest()) {
+            if (!TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID())))
+                continue;
+            Integer radius = townTerritoryRadius.get(poi.getID());
+            int r = radius != null ? radius : TerritoryControl.RECOLOR_RADIUS;
+            playerTownVisionAreas.add(new int[]{
+                    (int) (poi.getPosition().x / data.tileSize),
+                    (int) (poi.getPosition().y / data.tileSize),
+                    r * r});
+        }
+    }
+
     public boolean isCurrentlyVisible(int x, int y) {
         if (!isFogOfWarEnabled())
             return true;
         int dx = x - visiblePlayerTileX;
         int dy = y - visiblePlayerTileY;
-        return dx * dx + dy * dy <= visionRadius * visionRadius;
+        if (dx * dx + dy * dy <= visionRadius * visionRadius)
+            return true;
+        for (int[] area : playerTownVisionAreas) {
+            int tx = x - area[0];
+            int ty = y - area[1];
+            if (tx * tx + ty * ty <= area[2])
+                return true;
+        }
+        return false;
     }
 
     private Pixmap getFogTile() {

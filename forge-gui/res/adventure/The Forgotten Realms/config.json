@@ -299,6 +299,7 @@
     "dayNightCycleEnabled": true,
     "townReconstructionEnabled": true,
     "territoryControlEnabled": true,
-    "colorReputationEnabled": true
+    "colorReputationEnabled": true,
+    "resourceSpawnsEnabled": true
 }
 
