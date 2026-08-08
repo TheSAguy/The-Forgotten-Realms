@@ -910,6 +910,17 @@ needs its own design pass before any of this gets built:**
 - Same round: the War entry bar became a real blocking dialog ("The guards... you are at War with
   <Color>!") instead of a corner notification (user request - the silent bar read as walking
   through nothing).
+- **Pool rotation (user redesign, 2026-08-08)**: world-gen overprovisions rotatable dungeons/caves
+  5x, keeps 1/5 visible, and a despawn activates a RESERVE location elsewhere instead of the same
+  spot returning - dungeons genuinely move. Loss-despawn hook moved to the real match-loss handler
+  (the old exitDungeon hook never fired for concedes/ordinary losses). NEW-WORLD-ONLY for the 5x
+  pool; old saves rotate within their existing instances.
+
+### 16. Side-Quest Timers - `Built (2026-08-08), not yet playtested`
+- Every non-story quest fails 30 in-game days after acceptance (notification on failure); the
+  quest log shows "(N days left)" per quest. Opt-in `sideQuestTimerEnabled`. Accepted days persist
+  on World keyed by quest id (not on AdventureQuestData - serialization compat, see
+  `MOD_CHANGELOG.md`). Timer starts at the first daily tick after accepting (<=1 day slack).
 - **Reference art provided by the user (2026-08-06), for whenever this gets built:**
   - **Player Capitol castle icon** - a distinct gray/white stone castle sprite (twin corner
     towers, arched entrance, red-roofed spires), meant to represent the player's own Capitol on

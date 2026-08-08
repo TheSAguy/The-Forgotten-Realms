@@ -3931,3 +3931,62 @@ vanish (minimap icon gone too) and later return; loss-despawn needs a deliberate
 dungeon (should vanish) and in a side-quest target (should warn 2 remaining); the war popup needs
 one War-tier town touch.
 
+
+## Playtest fix round + pool rotation + side-quest timers (2026-08-08)
+
+Five reports from the rotation round's playtest, plus one new feature:
+
+**1. Black-to-white text regression - fixed by reverting.** The notification label's tint-BLACK
+was replaced last round with a [BLACK]-markup-prefix + WHITE tint (to let the warning's inline
+[RED] through). Real notification payloads (quest objective texts) carry their own style/reset
+tokens, and any reset mid-string snapped the remainder to white - the reported "text changed from
+black to white." Reverted to plain tint-BLACK; inline COLOR in notifications is therefore
+impossible by construction (black tint multiplies glyph colors), and emphasis uses bold instead.
+
+**2. "Player Owned" warning - logic verified firing, presentation fixed.** forge.log showed 3
+"(Player Owned!)" dispatch lines, so the detection works; the on-screen warning was the victim of
+the color problem above. Now "[*]PLAYER OWNED TOWN!" - bold caps, which survives the black tint.
+
+**3. Loss-despawn never fired - hook was on the wrong path.** exitDungeon()'s `defeated` parameter
+is only true when life actually hit ZERO; an ordinary match loss (life remaining) routes through
+dungeonFailedDialog() -> exitDungeon(false, ...), and conceding likewise - so the hook keyed on it
+never ran ("I entered several dungeons and they remained after I conceded/lost"). Moved to the
+match-loss handler itself in MapStage (the branch that runs updateQuestsLose()), which every way
+of losing funnels through, still BEFORE quest updates so the 3-attempts rule sees its quest.
+
+**4. Fog-of-war leak: enemy areas visible on a fresh minimap.** updateFogOfWarPixmap()
+unconditionally painted the hazed "discovered" look - correct for its original sole caller
+(revealArea(), which marks the tile explored first) but wrong for Territory Control's repaint
+paths, which call it for EVERY tile they touch: a new fog-of-war game showed the AI castles and
+each day's creep as if discovered. Unexplored tiles now paint solid black instead.
+
+**5. "Radius still looks like 300" - math, not a bug (probably).** At 3 tiles/day from a 20-tile
+start, even the OLD 300 cap isn't reached until day ~93 and 450 needs day ~143 - mid-game the two
+caps are indistinguishable. The expansion tick now logs "<color>: territory radius now N/450" so
+the live number is checkable in forge.log.
+
+**Pool rotation (user redesign, replaces same-spot reappearance).** World-gen now places
+POOL_MULTIPLIER (5) times the normal count of every rotatable dungeon/cave;
+DungeonRotation.initializeNewWorld() (right after POI placement, before markers/quests see
+anything) hides all but 1/5 - visible density matches a non-rotation world exactly, and the hidden
+4/5 form a reserve pool. A despawn (timed or loss) now activates a RESERVE location instead of the
+same spot returning later - dungeons genuinely move around the map. A just-hidden location gets a
+10-30 day cooldown so it can't bounce straight back. The visible-count target persists on World
+(poiActiveTarget); a pre-pool save locks its target to its current visible count on first tick and
+swaps within the instances it has. NOTE: 5x instances (~1250 rotatable POIs) meaningfully raises
+world-gen placement density - if a new world hangs at "poi placement" with "Can not place POI ...
+Rerunning", POOL_MULTIPLIER is the knob to lower.
+
+**Side-quest timers (new, `sideQuestTimerEnabled`).** Every non-story quest fails 30 in-game days
+after acceptance, with a bold notification; the quest log shows "(N days left)" on both the list
+and detail views. Accepted-day state lives on World keyed by quest id (deliberately NOT a field on
+AdventureQuestData - it is Java-serialized into saves without a serialVersionUID, so a new field
+would break every existing save's quest list), stamped lazily by the daily tick: at most a day of
+slack after accepting, and pre-feature quests get a full fresh 30-day window. New QuestExpiry.java.
+
+Compiled, deployed, byte-verified (34 class files), plane config synced (two new flags).
+
+**Not yet playtested.** The pool rotation needs a NEW world (watch the "N of M rotatable... active"
+line in forge.log and world-gen time - see the placement-density note); loss-despawn needs one
+concede in a plain dungeon; the fog fix needs a fresh fog-of-war game's minimap checked; quest
+timers need the log window opened and a quest fast-forwarded past 30 days.

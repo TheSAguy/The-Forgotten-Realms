@@ -368,6 +368,10 @@ public class TerritoryControl {
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
             world.setColorTerritoryRadius(color, newRadius);
+            // Radius in the log (user doubted the 300->450 cap raise was live - at 3 tiles/day
+            // from a 20-tile start, even the OLD 300 cap isn't reached until day ~93, so "still
+            // looks like 300" mid-game is expected; this line makes the actual number checkable).
+            System.out.println("[TerritoryControl] " + color + ": territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS);
         }
     }
 
@@ -452,12 +456,13 @@ public class TerritoryControl {
 
         String message = capitalize(color) + " sends a mage toward " + target.getDisplayName() + "!";
         // Extra warning when the target is one of the PLAYER's towns (user request 2026-08-08) -
-        // bold red via Textra markup (the notification label is a TextraLabel, which parses [*]
-        // bold and [RED] inline tags; the plain println keeps the log readable without them).
+        // bold + caps only, NO color markup: the notification label's black tint multiplies inline
+        // colors away, and the white-tint workaround regressed quest-text rendering (see
+        // addNotification()'s comment). Bold survives the tint.
         boolean targetPlayerOwned = TownRestoration.isTownRestored(
                 WorldSave.getCurrentSave().peekPointOfInterestChanges(target.getID()));
         System.out.println("[TerritoryControl] " + message + (targetPlayerOwned ? " (Player Owned!)" : ""));
-        GameHUD.getInstance().addNotification(targetPlayerOwned ? message + " [*][RED]Player Owned!" : message);
+        GameHUD.getInstance().addNotification(targetPlayerOwned ? message + " [*]PLAYER OWNED TOWN!" : message);
     }
 
     // 2 simultaneous mages per color on Easy, +1 per difficulty step up (Easy/Normal/Hard/Insane

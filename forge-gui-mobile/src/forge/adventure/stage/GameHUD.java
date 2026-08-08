@@ -1291,13 +1291,15 @@ public class GameHUD extends Stage {
             @Override
             public boolean act(float delta) {
                 notificationText.setWrap(false);
-                // Base color comes from a [BLACK] markup prefix, NOT setColor(BLACK): the actor
-                // tint MULTIPLIES each glyph's baked color at draw time, so black tint times an
-                // inline [RED] highlight = black - inline color markup (e.g. the "Player Owned!"
-                // dispatch warning) silently never showed. White tint is the multiplication
-                // identity, letting both the [BLACK] base and any inline colors through unchanged.
-                notificationText.setText("[BLACK]" + text);
-                notificationText.setColor(Color.WHITE);
+                // Deliberately the plain tint-BLACK approach: a [BLACK]-markup-prefix + WHITE-tint
+                // variant was tried (to let inline color tags like [RED] through - black tint
+                // MULTIPLIES glyph colors, erasing them) and REVERTED: real notification payloads
+                // (quest objective texts) carry their own style/reset tokens, and any reset mid-
+                // string snapped the remainder back to white - a reported regression ("some of the
+                // text colors changed... from black to white"). Inline COLOR therefore cannot work
+                // in notifications; use bold/caps for emphasis instead (bold survives the tint).
+                notificationText.setText(text);
+                notificationText.setColor(Color.BLACK);
                 notificationText.setWidth(Math.min(notificationText.getPrefWidth(), Forge.isLandscapeMode() ? getWidth() * 0.25f : getWidth() - 25));
                 notificationText.setWrap(true);
                 notificationText.layout();

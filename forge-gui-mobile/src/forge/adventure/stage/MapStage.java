@@ -880,14 +880,11 @@ public class MapStage extends GameStage {
     }
 
     public boolean exitDungeon(boolean defeated, boolean defeatedByBoss) {
-        // Dungeon rotation (MOD_SCOPE.md, 2026-08-08): a defeat inside a rotatable dungeon/cave
-        // despawns it (or burns one of the 3 side-quest attempts). BEFORE updateQuestsLeave()
-        // below, deliberately - the 3-attempts rule needs to see the quest still active to know
-        // this dungeon is a protected side-quest target. No-op for story dungeons, bosses, towns,
-        // and every non-rotatable POI (see DungeonRotation.isRotatable()) - their kick-out
-        // behavior is exactly as before.
-        if (defeated)
-            DungeonRotation.onDungeonDefeat(TileMapScene.instance().rootPoint);
+        // Dungeon rotation's defeat hook is NOT here (an earlier version was, keyed on the
+        // `defeated` parameter - it never fired in practice: a match loss with life remaining
+        // routes through dungeonFailedDialog() -> exitDungeon(false, ...), and conceding likewise,
+        // so `defeated` is only true when life actually hit zero). The hook lives at the match-loss
+        // handler itself - see the loss branch below (the one that calls updateQuestsLose()).
         if (mustClearOnExit) {
             mustClearOnExit = false;
 
@@ -986,6 +983,15 @@ public class MapStage extends GameStage {
                     player.setPosition(positions.peek());
                 }
                 currentMob.freezeMovement();
+                // Dungeon rotation (MOD_SCOPE.md #15): THE match-loss moment - every way to lose
+                // inside a dungeon funnels here (life hitting zero, losing with life remaining,
+                // conceding), unlike exitDungeon()'s `defeated` parameter, which is only true when
+                // life actually reached zero (an earlier hook keyed on it missed concedes/ordinary
+                // losses entirely - real, reported: "I entered several dungeons and they remained
+                // after I conceded/lost"). BEFORE updateQuestsLose() so the 3-attempts rule still
+                // sees the protecting quest active. No-op for towns/story dungeons/bosses and any
+                // non-rotatable POI.
+                DungeonRotation.onDungeonDefeat(TileMapScene.instance().rootPoint);
                 AdventureQuestController.instance().updateQuestsLose(currentMob);
                 AdventureQuestController.instance().showQuestDialogs(MapStage.this);
                 boolean defeated = Current.player().defeated();

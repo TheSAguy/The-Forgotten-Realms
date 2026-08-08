@@ -15,6 +15,7 @@ import forge.adventure.stage.MapStage;
 import forge.adventure.util.AdventureQuestController;
 import forge.adventure.util.Controls;
 import forge.adventure.util.Current;
+import forge.adventure.util.QuestExpiry;
 
 public class QuestLogScene extends UIScene {
     private Table scrollContainer, detailScrollContainer;
@@ -104,7 +105,8 @@ public class QuestLogScene extends UIScene {
         scrollContainer.clear();
 
         for (AdventureQuestData quest : Current.player().getQuests()) {
-            TypingLabel nameLabel = Controls.newTypingLabel(quest.getName());
+            // Side-quest timer countdown (QuestExpiry, opt-in) - empty suffix when no timer applies.
+            TypingLabel nameLabel = Controls.newTypingLabel(quest.getName() + QuestExpiry.questLogSuffix(quest));
             nameLabel.skipToTheEnd();
             nameLabel.setWrap(true);
             nameLabel.setColor(Color.BLACK);
@@ -154,7 +156,7 @@ public class QuestLogScene extends UIScene {
             }
         });
 
-        TypingLabel dNameLabel = Controls.newTypingLabel(quest.getName());
+        TypingLabel dNameLabel = Controls.newTypingLabel(quest.getName() + QuestExpiry.questLogSuffix(quest));
         dNameLabel.skipToTheEnd();
         dNameLabel.setWrap(true);
         dNameLabel.setColor(Color.BLACK);

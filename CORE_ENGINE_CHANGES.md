@@ -171,7 +171,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   three more persisted maps (`poiDespawnDay`/`poiRespawnDay`/`poiFailedAttempts`, keyed by POI id),
   `redrawAllPoiMarkers()` now skips inactive POIs, and a new public `refreshWorldMapMarkers()`
   (ground rebake + marker redraw) so a runtime POI hide/show can repaint its baked minimap icon
-  away.
+  away. Playtest-fix round: `updateFogOfWarPixmap()` paints solid black for UNEXPLORED tiles
+  (it unconditionally painted the hazed "discovered" look, which leaked AI territory onto a fresh
+  fog-of-war minimap via Territory Control's per-tile calls); the POI placement loop multiplies
+  rotatable dungeon/cave counts by `DungeonRotation.POOL_MULTIPLIER` (pool rotation, new worlds
+  only) and calls `DungeonRotation.initializeNewWorld()` right after placement; new persisted
+  `poiActiveTarget` int and `questAcceptedDay` map (side-quest timers, kept off AdventureQuestData
+  for serialization compat).
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterest.java`** — Dungeon
   rotation (#15): `getActive()` now honors the persisted `active` field (previously write-only -
   saved/loaded but never consulted; no data entry ships `active:false`, verified, so stock behavior
@@ -271,10 +277,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   new public static `getMageMarkerColor()` so MapViewScene's zoomed-view mage dots share the exact
   palette. Five-request round: `updateMageMinimapMarkers()` gates each dot on
   `World.isCurrentlyVisible()` at the mage's tile (fog-of-war Revealed rule - always true with fog
-  off, preserving old behavior). Verification fix: `addNotification()` now sets the base color via
-  a `[BLACK]` markup prefix + WHITE actor tint instead of `setColor(BLACK)` - the actor tint
-  MULTIPLIES glyph colors at draw time, so black tint silently erased inline markup colors like the
-  dispatch warning's `[RED]`.
+  off, preserving old behavior). `addNotification()` briefly used a `[BLACK]`-markup-prefix + WHITE tint
+  (to let inline colors through the multiplying black tint) and was REVERTED to plain tint-BLACK:
+  quest texts carry their own style/reset tokens, and any reset snapped the remainder white (a
+  reported regression) - notification emphasis is bold-only now.
+- **`forge-gui-mobile/src/forge/adventure/scene/QuestLogScene.java`** — Side-quest timers (#16):
+  both quest-name labels (list + detail) append `QuestExpiry.questLogSuffix()` - "(N days left)",
+  empty when no timer applies.
 - **`forge-gui-mobile/src/forge/adventure/scene/SettingsScene.java`** — fog-of-war on/off setting
   (#3, a real Settings-screen checkbox, not just the in-game HUD debug toggle).
 - **`forge-gui-mobile/src/forge/adventure/scene/MapViewScene.java`** — extracted the minimap
@@ -305,9 +314,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Color Reputation (#1) added `colorReputationHalfPoints` (Map<String,Integer>, save/load/clear
   like the resources) with get/add accessors, plus one `ColorReputation.applyStartingDeckBonus()`
   call in `create()` right after the starting deck's color identity is set.
-- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 7 opt-in mod flags:
+- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 8 opt-in mod flags:
   `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`,
-  `colorReputationEnabled`, `resourceSpawnsEnabled`, `dungeonRotationEnabled` (all default `false` - see `CLAUDE.md`'s ground
+  `colorReputationEnabled`, `resourceSpawnsEnabled`, `dungeonRotationEnabled`, `sideQuestTimerEnabled` (all default `false` - see `CLAUDE.md`'s ground
   rules for why this pattern matters).
 - **`forge-gui-mobile/src/forge/adventure/stage/ConsoleCommandInterpreter.java`** — debug
   console additions: `count towns` (#7 - was missing from this doc until now, added when the
@@ -341,10 +350,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `DungeonRotation.processDaysPassed()` call in the day-change block, and the ordinary-town entry
   bar swapped its corner notification for a real blocking dialog (`showEntryBarredDialog()`, same
   styling as the capital-toll dialog).
-- **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Dungeon rotation (#15):
-  `exitDungeon()` calls `DungeonRotation.onDungeonDefeat(rootPoint)` when the player was defeated,
-  BEFORE `updateQuestsLeave()` (the 3-attempts rule must see the quest still active). No-op for
-  story dungeons/bosses/towns and any non-rotatable POI.
+- **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Dungeon rotation (#15): the
+  defeat hook lives at the match-loss handler (the branch calling `updateQuestsLose()`) - an
+  earlier `exitDungeon()` hook keyed on its `defeated` parameter never fired for concedes or
+  ordinary losses with life remaining (only life-hit-zero sets it). Still BEFORE quest updates so
+  the 3-attempts rule sees its protecting quest. No-op for story dungeons/bosses/towns and any
+  non-rotatable POI.
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
@@ -356,6 +367,7 @@ Under `forge-gui-mobile/src/forge/adventure/util/` - upstream doesn't have these
 nothing to reconcile, but they're stock-adjacent code (not mod-plane assets) so they're listed here
 rather than assumed-safe by omission:
 `ColorReputation.java` (#1), `DungeonRotation.java` (#15, rotating dungeons/caves),
+`QuestExpiry.java` (#16, side-quest timers),
 `EconomyBuildings.java`, `ResourceDisplayActor.java`,
 `ResourceSpawns.java` (random overworld resource pickups), `RubbleOverlay.java`,
 `TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`.

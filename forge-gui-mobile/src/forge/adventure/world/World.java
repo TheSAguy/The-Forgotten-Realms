@@ -18,6 +18,7 @@ import forge.adventure.pointofintrest.PointOfInterestMap;
 import forge.adventure.scene.Scene;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.util.Config;
+import forge.adventure.util.DungeonRotation;
 import forge.adventure.util.Paths;
 import forge.adventure.util.ResourceSpawns;
 import forge.adventure.util.SaveFileContent;
@@ -146,6 +147,37 @@ public class World implements Disposable, SaveFileContent {
 
     public java.util.Map<String, Integer> getPoiFailedAttempts() {
         return poiFailedAttempts;
+    }
+
+    // How many rotatable dungeons/caves should be visible at once (pool rotation) - set to
+    // 1/POOL_MULTIPLIER of the overprovisioned pool for a new world by
+    // DungeonRotation.initializeNewWorld(), or locked to the current visible count on first tick
+    // for a save predating the pool. 0 = not yet initialized.
+    private int poiActiveTarget = 0;
+
+    public int getPoiActiveTarget() {
+        return poiActiveTarget;
+    }
+
+    public void setPoiActiveTarget(int target) {
+        poiActiveTarget = target;
+    }
+
+    public boolean isDungeonRotationEnabled() {
+        ConfigData configData = Config.instance().getConfigData();
+        return configData != null && configData.dungeonRotationEnabled;
+    }
+
+    // Side-quest timers (user request 2026-08-08, QuestExpiry.java): the in-game day each active
+    // quest's 30-day clock started, keyed by String.valueOf(quest.getID()). Kept OUTSIDE
+    // AdventureQuestData deliberately - that class is Java-serialized into saves WITHOUT a
+    // serialVersionUID, so adding a field there would break every existing save's quest list.
+    // Stamped lazily by QuestExpiry's daily tick (a quest first seen by the tick starts its clock
+    // then - at most one day of slack, and pre-feature saves' quests get a full fresh window).
+    private final java.util.Map<String, Integer> questAcceptedDay = new java.util.HashMap<>();
+
+    public java.util.Map<String, Integer> getQuestAcceptedDay() {
+        return questAcceptedDay;
     }
 
     // Random resource spawns (MOD_SCOPE.md, user request 2026-08-08): up to
@@ -294,6 +326,12 @@ public class World implements Disposable, SaveFileContent {
             //noinspection unchecked
             poiFailedAttempts.putAll((java.util.Map<String, Integer>) saveFileData.readObject("poiFailedAttempts"));
         }
+        poiActiveTarget = saveFileData.containsKey("poiActiveTarget") ? saveFileData.readInt("poiActiveTarget") : 0;
+        questAcceptedDay.clear();
+        if (saveFileData.containsKey("questAcceptedDay")) {
+            //noinspection unchecked
+            questAcceptedDay.putAll((java.util.Map<String, Integer>) saveFileData.readObject("questAcceptedDay"));
+        }
         // rebuildPlayerTownVision() is deliberately NOT called here: WorldSave.load() loads this
         // World BEFORE pointOfInterestChanges, and the rebuild reads town-ownership flags from
         // pointOfInterestChanges - calling it now would cache the PREVIOUS session's ownership.
@@ -323,6 +361,8 @@ public class World implements Disposable, SaveFileContent {
         data.storeObject("poiDespawnDay", poiDespawnDay);
         data.storeObject("poiRespawnDay", poiRespawnDay);
         data.storeObject("poiFailedAttempts", poiFailedAttempts);
+        data.store("poiActiveTarget", poiActiveTarget);
+        data.storeObject("questAcceptedDay", questAcceptedDay);
         data.storeObject("colorNextAttackDay", colorNextAttackDay);
         return data;
     }
@@ -542,6 +582,8 @@ public class World implements Disposable, SaveFileContent {
             poiDespawnDay.clear();
             poiRespawnDay.clear();
             poiFailedAttempts.clear();
+            poiActiveTarget = 0; // initializeNewWorld() sets it once the pool is placed
+            questAcceptedDay.clear();
 
             for (int x = 0; x < width; x++) {
                 for (int y = 0; y < height; y++) {
@@ -669,7 +711,17 @@ public class World implements Disposable, SaveFileContent {
                 for (BiomeData biome : data.GetBiomes()) {
                     biomeIndex2++;
                     for (PointOfInterestData poi : biome.getPointsOfInterest()) {
-                        for (int i = 0; i < poi.count; i++) {
+                        // Dungeon rotation pool (MOD_SCOPE.md #15, user redesign): rotatable
+                        // dungeons/caves are overprovisioned POOL_MULTIPLIER-fold at placement;
+                        // DungeonRotation.initializeNewWorld() (called right after this loop)
+                        // hides all but 1/POOL_MULTIPLIER of them, and rotation later swaps
+                        // despawned ones for reserve locations - dungeons genuinely move around
+                        // the map instead of returning in place. Non-rotatable POIs and planes
+                        // without the flag place exactly as stock.
+                        int placeCount = poi.count;
+                        if (isDungeonRotationEnabled() && DungeonRotation.isRotatableData(poi))
+                            placeCount *= DungeonRotation.POOL_MULTIPLIER;
+                        for (int i = 0; i < placeCount; i++) {
                             for (int counter = 0; counter < 500; counter++)//tries 500 times to find a free point
                             {
                                 float radius = (float) Math.sqrt(((random.nextDouble()) / 2 * poi.radiusFactor));
@@ -769,6 +821,10 @@ public class World implements Disposable, SaveFileContent {
                 }
             }
             currentTime[0] = measureGenerationTime("poi placement", currentTime[0]);
+
+            // Hide the reserve 4/5 of the rotation pool BEFORE anything bakes markers or picks
+            // quest targets - see the placement loop's POOL_MULTIPLIER comment above.
+            DungeonRotation.initializeNewWorld(this);
 
 //////////////////
 ///////// assign terrain/structure content per tile (Territory Control: spatially-aware, #7)
@@ -2650,6 +2706,19 @@ public class World implements Disposable, SaveFileContent {
         if (fogOfWarPixmap == null || biomeImage == null || data == null)
             return;
         int mm = data.miniMapTileSize;
+        // UNEXPLORED tiles stay solid black - this method used to unconditionally paint the hazed
+        // "discovered" look (biome copy + translucent veil), which was correct for its original
+        // sole caller (revealArea(), which marks a tile explored first) but wrong for Territory
+        // Control's repaint paths, which call this for EVERY tile they touch: a fresh fog-of-war
+        // game showed the AI castles' areas and every day's expansion creep on the minimap as if
+        // the player had discovered them (real, reported bug).
+        if (explored == null || !explored[rawX][rawY]) {
+            fogOfWarPixmap.setBlending(Pixmap.Blending.None);
+            fogOfWarPixmap.setColor(0, 0, 0, 1);
+            fogOfWarPixmap.fillRectangle(rawX * mm, rawY * mm, mm, mm);
+            fogOfWarPixmap.setBlending(Pixmap.Blending.SourceOver);
+            return;
+        }
         fogOfWarPixmap.setBlending(Pixmap.Blending.None);
         fogOfWarPixmap.drawPixmap(biomeImage, rawX * mm, rawY * mm, mm, mm, rawX * mm, rawY * mm, mm, mm);
         fogOfWarPixmap.setBlending(Pixmap.Blending.SourceOver);

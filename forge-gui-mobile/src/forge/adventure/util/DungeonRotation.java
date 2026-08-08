@@ -37,8 +37,14 @@ import forge.adventure.world.WorldSave;
  * poiRespawnDay/poiFailedAttempts), keyed by PointOfInterest.getID().
  */
 public class DungeonRotation {
+    // Pool-based rotation (user redesign 2026-08-08): world-gen places POOL_MULTIPLIER times the
+    // normal count of every rotatable dungeon/cave, only 1/POOL_MULTIPLIER start visible, and a
+    // despawn activates a RESERVE location instead of the same spot returning later - dungeons
+    // genuinely appear somewhere else. World.generateNew()'s placement loop reads this multiplier.
+    public static final int POOL_MULTIPLIER = 5;
     // First-guess constants, tune after testing - a visible dungeon lives 20-60 days before
-    // vanishing; a vanished one stays gone 10-30 days before returning.
+    // vanishing; a just-hidden location can't be re-picked as a fresh spawn for 10-30 days (so a
+    // vanished dungeon doesn't pop straight back where it was).
     private static final int DESPAWN_MIN_DAYS = 20;
     private static final int DESPAWN_MAX_DAYS = 60;
     private static final int RESPAWN_MIN_DAYS = 10;
@@ -57,11 +63,11 @@ public class DungeonRotation {
 
     // The despawn-eligibility gate. Deliberately a whitelist shape (must be dungeon/cave AND
     // Hostile) with explicit story exclusions, so anything new/unusual added later defaults to
-    // NOT rotating rather than vanishing by surprise.
-    static boolean isRotatable(PointOfInterest poi) {
-        if (poi == null || poi.getData() == null)
+    // NOT rotating rather than vanishing by surprise. Public data-level variant so World's POI
+    // placement loop can apply POOL_MULTIPLIER to exactly the same set.
+    public static boolean isRotatableData(PointOfInterestData data) {
+        if (data == null)
             return false;
-        PointOfInterestData data = poi.getData();
         if (!"dungeon".equalsIgnoreCase(data.type) && !"cave".equalsIgnoreCase(data.type))
             return false;
         if (data.name == null || data.name.startsWith("Quest_") || "DEBUGZONE".equals(data.name) || "Test".equals(data.name))
@@ -78,6 +84,37 @@ public class DungeonRotation {
             }
         }
         return hostile;
+    }
+
+    static boolean isRotatable(PointOfInterest poi) {
+        return poi != null && isRotatableData(poi.getData());
+    }
+
+    /**
+     * Called once from World.generateNew() right after POI placement, BEFORE the minimap/marker
+     * bake - the placement loop placed POOL_MULTIPLIER x the normal count of every rotatable
+     * dungeon/cave, and this hides all but 1/POOL_MULTIPLIER of them (the rest become the reserve
+     * pool despawning dungeons swap into). The visible density therefore matches a non-rotation
+     * world exactly. The active target persists on World so the daily tick can keep the visible
+     * count level for the whole game.
+     */
+    public static void initializeNewWorld(World world) {
+        if (!isEnabled())
+            return;
+        java.util.List<PointOfInterest> rotatable = new java.util.ArrayList<>();
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (isRotatable(poi))
+                rotatable.add(poi);
+        }
+        if (rotatable.isEmpty())
+            return;
+        int activeTarget = Math.max(1, Math.round(rotatable.size() / (float) POOL_MULTIPLIER));
+        java.util.Collections.shuffle(rotatable, world.getRandom());
+        for (int i = activeTarget; i < rotatable.size(); i++)
+            rotatable.get(i).setActive(false); // reserve pool - no cooldown, immediately swappable
+        world.setPoiActiveTarget(activeTarget);
+        System.out.println("[DungeonRotation] new world: " + activeTarget + " of " + rotatable.size()
+                + " rotatable dungeons/caves active, the rest held in reserve");
     }
 
     private static final int QUEST_NONE = 0, QUEST_SIDE = 1, QUEST_STORY = 2;
@@ -104,27 +141,22 @@ public class DungeonRotation {
             return;
         World world = WorldSave.getCurrentSave().getWorld();
         boolean changed = false;
+        java.util.List<PointOfInterest> activeRotatable = new java.util.ArrayList<>();
         for (PointOfInterest poi : world.getAllPointOfInterest()) {
-            if (!isRotatable(poi))
-                continue;
+            if (isRotatable(poi) && poi.getActive())
+                activeRotatable.add(poi);
+        }
+        // Old save / pre-pool world: lock the target to whatever's currently visible, preserving
+        // that world's density (a NEW world's target was set by initializeNewWorld() instead, to
+        // 1/POOL_MULTIPLIER of its deliberately-overprovisioned pool).
+        if (world.getPoiActiveTarget() <= 0 && !activeRotatable.isEmpty())
+            world.setPoiActiveTarget(activeRotatable.size());
+        for (PointOfInterest poi : activeRotatable) {
             String id = poi.getID();
-            Integer respawnDay = world.getPoiRespawnDay().get(id);
-            if (respawnDay != null) {
-                // Currently hidden - bring it back once its cooldown lapses.
-                if (newDayCount >= respawnDay) {
-                    world.getPoiRespawnDay().remove(id);
-                    world.getPoiFailedAttempts().remove(id);
-                    poi.setActive(true);
-                    world.getPoiDespawnDay().put(id, newDayCount + rollDays(world, DESPAWN_MIN_DAYS, DESPAWN_MAX_DAYS));
-                    System.out.println("[DungeonRotation] " + poi.getDisplayName() + " has reappeared");
-                    changed = true;
-                }
-                continue;
-            }
             Integer despawnDay = world.getPoiDespawnDay().get(id);
             if (despawnDay == null) {
-                // First sight of this POI (fresh world or a save predating the feature) - seed a
-                // lifetime rather than despawning anything on day one.
+                // First sight of this POI (fresh world, newly activated, or a save predating the
+                // feature) - seed a lifetime rather than despawning anything on day one.
                 world.getPoiDespawnDay().put(id, newDayCount + rollDays(world, DESPAWN_MIN_DAYS, DESPAWN_MAX_DAYS));
                 continue;
             }
@@ -145,8 +177,43 @@ public class DungeonRotation {
                 changed = true;
             }
         }
+        changed |= activateFromReserve(world, newDayCount);
         if (changed)
             world.refreshWorldMapMarkers();
+    }
+
+    // Pool-swap: bring RESERVE locations into play until the visible count is back at the
+    // target - a despawned dungeon is thereby replaced by one appearing somewhere ELSE on the
+    // map (user redesign 2026-08-08), not by the same spot returning later. A just-hidden
+    // location's cooldown (poiRespawnDay) keeps it out of the draw for 10-30 days so despawns
+    // don't bounce straight back.
+    private static boolean activateFromReserve(World world, int currentDay) {
+        int activeCount = 0;
+        java.util.List<PointOfInterest> eligibleReserve = new java.util.ArrayList<>();
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (!isRotatable(poi))
+                continue;
+            if (poi.getActive()) {
+                activeCount++;
+                continue;
+            }
+            Integer cooldownUntil = world.getPoiRespawnDay().get(poi.getID());
+            if (cooldownUntil == null || currentDay >= cooldownUntil)
+                eligibleReserve.add(poi);
+        }
+        int target = world.getPoiActiveTarget();
+        boolean changed = false;
+        while (activeCount < target && !eligibleReserve.isEmpty()) {
+            PointOfInterest pick = eligibleReserve.remove(world.getRandom().nextInt(eligibleReserve.size()));
+            pick.setActive(true);
+            world.getPoiRespawnDay().remove(pick.getID());
+            world.getPoiFailedAttempts().remove(pick.getID());
+            world.getPoiDespawnDay().put(pick.getID(), currentDay + rollDays(world, DESPAWN_MIN_DAYS, DESPAWN_MAX_DAYS));
+            System.out.println("[DungeonRotation] " + pick.getDisplayName() + " has appeared on the map");
+            activeCount++;
+            changed = true;
+        }
+        return changed;
     }
 
     /**
@@ -167,8 +234,10 @@ public class DungeonRotation {
             world.getPoiFailedAttempts().put(poi.getID(), attempts);
             int remaining = MAX_QUEST_ATTEMPTS - attempts;
             if (remaining > 0) {
-                GameHUD.getInstance().addNotification("Defeated at " + poi.getDisplayName() + " - [RED]"
-                        + remaining + " attempt" + (remaining == 1 ? "" : "s") + " remaining[] before it is lost!");
+                // Bold, not color markup - notifications render tint-black, which erases inline
+                // colors (see GameHUD.addNotification()'s comment).
+                GameHUD.getInstance().addNotification("Defeated at " + poi.getDisplayName() + " - [*]"
+                        + remaining + " attempt" + (remaining == 1 ? "" : "s") + " remaining[*] before it is lost!");
                 System.out.println("[DungeonRotation] defeat at side-quest target " + poi.getDisplayName() + ", " + remaining + " attempt(s) remaining");
                 return;
             }
@@ -176,6 +245,7 @@ public class DungeonRotation {
         } else {
             hidePoi(world, poi, currentDay, poi.getDisplayName() + " has fallen - it fades from your maps.");
         }
+        activateFromReserve(world, currentDay); // a replacement appears elsewhere - density stays level
         world.refreshWorldMapMarkers();
     }
 

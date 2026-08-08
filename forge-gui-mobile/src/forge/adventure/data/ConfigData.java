@@ -43,5 +43,6 @@ public class ConfigData {
     public boolean colorReputationEnabled = false;
     public boolean resourceSpawnsEnabled = false;
     public boolean dungeonRotationEnabled = false;
+    public boolean sideQuestTimerEnabled = false;
 
 }

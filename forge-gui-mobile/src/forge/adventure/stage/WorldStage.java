@@ -178,6 +178,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 EconomyBuildings.processDaysPassed(dayAfter - dayBefore, dayAfter);
                 TerritoryControl.processDaysPassed(dayAfter - dayBefore, dayAfter);
                 DungeonRotation.processDaysPassed(dayAfter);
+                QuestExpiry.processDaysPassed(dayAfter);
             }
             // Per frame while moving, not just on day change - pickups are walk-over, so the
             // collection check has to track the player's live position (cheap; see its comment).

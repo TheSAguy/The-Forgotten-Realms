@@ -301,6 +301,7 @@
     "territoryControlEnabled": true,
     "colorReputationEnabled": true,
     "resourceSpawnsEnabled": true,
-    "dungeonRotationEnabled": true
+    "dungeonRotationEnabled": true,
+    "sideQuestTimerEnabled": true
 }
 
