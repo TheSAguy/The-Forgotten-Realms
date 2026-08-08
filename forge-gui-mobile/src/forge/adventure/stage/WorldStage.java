@@ -1,8 +1,10 @@
 package forge.adventure.stage;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.math.GridPoint2;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
@@ -110,12 +112,27 @@ public class WorldStage extends GameStage implements SaveFileContent {
     // rendered inside foregroundSprites so it y-sorts with everything else on the map.
     private static class ResourceSpawnActor extends Actor {
         private final Sprite sprite;
+        // Per-actor random phase so pickups don't all twinkle in lockstep.
+        private final float twinklePhase = MathUtils.random(MathUtils.PI2);
+        private float twinkleTime;
         ResourceSpawnActor(Sprite sprite) {
             this.sprite = sprite;
         }
         @Override
+        public void act(float delta) {
+            super.act(delta);
+            twinkleTime += delta;
+        }
+        @Override
         public void draw(Batch batch, float parentAlpha) {
+            // Gentle alpha twinkle to catch the eye on the overworld - the shared, cached Sprite
+            // (Config.getAtlasSprite) is never mutated; only the batch's transient draw color is,
+            // and it's restored immediately after so other actors sharing that Sprite are unaffected.
+            float alpha = parentAlpha * (0.55f + 0.45f * MathUtils.sin(twinkleTime * 3f + twinklePhase));
+            Color prev = batch.getColor();
+            batch.setColor(prev.r, prev.g, prev.b, alpha);
             batch.draw(sprite, getX(), getY(), getWidth(), getHeight());
+            batch.setColor(prev);
         }
     }
 

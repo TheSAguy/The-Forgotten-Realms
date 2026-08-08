@@ -346,7 +346,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Resource spawns (new feature): `ResourceSpawnActor` (lightweight pickup actor in
   `foregroundSprites`), `refreshResourceSpawnActors()` (clear-and-rebuild sync from World's spawn
   list), a per-frame `ResourceSpawns.tick()` call in `onActing()`'s moving branch, and a
-  `ResourceSpawns.forceResync()` in `clearCache()`. Dungeon rotation (#15): a
+  `ResourceSpawns.forceResync()` in `clearCache()`. Resource-spawn twinkle (2026-08-08 polish):
+  `ResourceSpawnActor.draw()` now oscillates the `Batch`'s transient draw color's alpha instead of
+  drawing at a flat alpha - doesn't touch the shared, cached `Sprite` any actor's `sprite` field
+  points to. Dungeon rotation (#15): a
   `DungeonRotation.processDaysPassed()` call in the day-change block, and the ordinary-town entry
   bar swapped its corner notification for a real blocking dialog (`showEntryBarredDialog()`, same
   styling as the capital-toll dialog).

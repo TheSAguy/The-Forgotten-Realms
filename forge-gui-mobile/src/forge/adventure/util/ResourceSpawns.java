@@ -181,7 +181,7 @@ public class ResourceSpawns {
             default:
                 return;
         }
-        String message = "Found " + value + " " + what + "!";
+        String message = "You receive " + value + " " + what + "!";
         System.out.println("[ResourceSpawns] " + message);
         GameHUD.getInstance().addNotification(message);
     }

@@ -3882,6 +3882,29 @@ Compiled, deployed, byte-verified (25 class files), plane `config.json` synced t
 resource spawns need a session started (20 icons should appear scattered), a walk-over pickup, and a
 few fast-forwarded days to see expiry/replacement.
 
+## Resource spawn polish: twinkle + pickup wording (2026-08-08)
+
+Two small user-requested touches to the random resource spawns above:
+
+- **Twinkle**: `WorldStage.ResourceSpawnActor` now oscillates its own alpha (`0.55-1.0`, `sin(time*3
+  + perActorRandomPhase)`) each frame before drawing. The per-actor random phase keeps pickups from
+  pulsing in lockstep. Implementation note: the sprite each actor draws is a *shared, cached*
+  `Sprite` (`Config.getAtlasSprite()` caches one instance per atlas+name - all Gold spawns share the
+  same object), so the twinkle never mutates the Sprite itself; it sets the `Batch`'s transient draw
+  color immediately before the draw call and restores the batch's prior color right after, so other
+  actors sharing that Sprite (or drawn later in the same frame) are unaffected.
+- **Pickup wording**: `ResourceSpawns.award()`'s notification changed from `"Found N Type!"` to
+  `"You receive N Type!"` per user's requested phrasing. Uses the existing `GameHUD.addNotification`
+  toast (slides in, holds ~10s, fades) - no new UI mechanism needed, it was already the "pop-up" the
+  user was picturing.
+
+No new config flag - both are refinements to the existing `resourceSpawnsEnabled`-gated feature, not
+a new opt-in surface. Compiled, deployed, byte-verified (`WorldStage.class`,
+`WorldStage$ResourceSpawnActor.class`, `ResourceSpawns.class`).
+
+**Not yet playtested**: needs eyes on an actual overworld session to confirm the twinkle reads as
+subtle rather than distracting, and that the new pickup message displays correctly.
+
 ## Dungeon rotation, loss-despawn with 3 quest attempts, war entry popup (2026-08-08)
 
 Three-part user request, built on a full POI-taxonomy survey (the plane's `points_of_interest.json`
