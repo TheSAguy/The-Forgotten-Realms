@@ -147,7 +147,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   in that round's own fix: an expansion-claimed tile's `terrainMap` is written in colorless index
   space, so `redrawMinimapTile()` gained the optional `decodeBiome` parameter to resolve the
   structure portion against colorless's tables instead of the claiming color's differently-sized
-  ones (which drew wrong-or-no structure pixels - the flat-minimap symptom persisting).
+  ones (which drew wrong-or-no structure pixels - the flat-minimap symptom persisting). Blocky-creep
+  fix (same day): both `claimWastelandRing()` and `repaintBiomeAroundTown()` now fire their
+  `onTileRepainted` chunk-patch callbacks AFTER their loops complete (claimed tiles + 1-tile border,
+  deduped) instead of per tile mid-loop - a mid-loop patch blended each tile against
+  not-yet-processed neighbors and never revisited it, leaving claims a grid of stale hard-edged
+  squares until the player walked over them.
 - **`forge-gui-mobile/src/forge/adventure/world/BiomeStructure.java`** — **bug fix**: guards
   against a wave-function-collapse chunk smaller than the pattern size (`N`), which used to throw
   `ArrayIndexOutOfBoundsException`; also fixed a pre-existing typo (`my < targetWidth` should've
@@ -230,12 +235,23 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   screen, so the displayed minimap silently went stale ("map details wiped out by the expansion
   creep"). `draw()` (already runs every frame) now compares `World.getCurrentDay()` against a new
   `lastMiniMapRefreshDayCount` field and calls `refreshMiniMap()` whenever it changes - once per
-  in-game day, not per frame.
+  in-game day, not per frame. Cross-machine review round (2026-08-07): `touchDown()` now forwards
+  clicks landing on the visible World standings button before the minimap-bounds interception
+  swallows them (the relocated button overlaps the minimap's corner in desktop landscape - its
+  left half was click-dead); both standings-button visibility gates accept
+  `isTerritoryControlEnabled() || ColorReputation.isEnabled()` (the standings page is reputation's
+  only UI, documented as working without territory control); `MAGE_MARKER_COLORS` exposed via a
+  new public static `getMageMarkerColor()` so MapViewScene's zoomed-view mage dots share the exact
+  palette.
 - **`forge-gui-mobile/src/forge/adventure/scene/SettingsScene.java`** — fog-of-war on/off setting
   (#3, a real Settings-screen checkbox, not just the in-game HUD debug toggle).
 - **`forge-gui-mobile/src/forge/adventure/scene/MapViewScene.java`** — extracted the minimap
   texture refresh into its own `refreshMap()` method so the fog-of-war debug toggle can force an
-  immediate update instead of waiting for the next scene entry.
+  immediate update instead of waiting for the next scene entry. Territory Control (#7, per direct
+  request): one colored dot per in-flight capture mage on the zoomed map view, rebuilt from
+  `WorldStage.getTerritoryMages()` on every `enter()`, tinted via `GameHUD.getMageMarkerColor()`
+  (shared palette with the corner minimap's dots), riding the same zoom transform as the player
+  marker/quest labels, removed in `done()`.
 - **`forge-gui-mobile/src/forge/adventure/data/SettingData.java`** — added the persisted
   `fogOfWarEnabled` setting field backing the above.
 - **`forge-gui/res/languages/en-US.properties`** — **the one shared (non-mod-plane) asset file
@@ -281,7 +297,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `load()` now carry `territoryColors`/`territoryTargetIds` so a mid-flight mage survives a
   save/load (#7, cross-machine review fix). Color Reputation (#1): severe-tier entry
   interception in `handlePointsOfInterestCollision()` plus `entryBarredColor()`/
-  `showCapitalTollDialog()` helpers.
+  `showCapitalTollDialog()` helpers. New public `getTerritoryMages()` accessor (#7): filters the
+  `protected` enemies list down to in-flight capture mages, for MapViewScene's zoomed-view mage
+  dots (different package - can't read the list directly the way same-package GameHUD does).
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with

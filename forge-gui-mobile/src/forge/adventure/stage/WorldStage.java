@@ -91,6 +91,19 @@ public class WorldStage extends GameStage implements SaveFileContent {
         return fastTimeEnabled;
     }
 
+    // Territory Control (MOD_SCOPE.md #7): the capture mages currently in flight, for map marker
+    // overlays. GameHUD's corner minimap reads the protected `enemies` list directly (same
+    // package); MapViewScene's zoomed map view lives in the scene package and can't, so this
+    // exposes the same territory-mage subset behind a public accessor instead of widening the
+    // whole list's visibility.
+    public List<EnemySprite> getTerritoryMages() {
+        List<EnemySprite> mages = new ArrayList<>();
+        for (Pair<Float, EnemySprite> pair : enemies)
+            if (pair.getValue().territoryTarget != null)
+                mages.add(pair.getValue());
+        return mages;
+    }
+
     // Bridge for World.repaintBiomeAroundTown()'s onTileRepainted callback - World lives in a
     // different package and shouldn't depend on WorldBackground directly (same reasoning as
     // revealArea's callback), but WorldStage and WorldBackground are the same package so this

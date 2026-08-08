@@ -1720,9 +1720,27 @@ public class World implements Disposable, SaveFileContent {
 
                 redrawMinimapTile(wx, rawY); // real content (variants/structures/roads), not a flat stamp - see its comment
                 updateFogOfWarPixmap(wx, rawY);
-
-                if (onTileRepainted != null)
+            }
+        }
+        // Chunk-texture patches deferred to after the loop, radius+2 to also catch every border
+        // tile whose neighborhood changed - same neighbor-blend staleness fix as
+        // claimWastelandRing()'s own post-loop repaint (see its comment): patching per tile
+        // mid-loop drew each tile against half-repainted neighbors and never revisited it,
+        // leaving the recolored disc visibly blocky until the player walked over it.
+        if (onTileRepainted != null) {
+            int repaintRadiusSq = (radius + 2) * (radius + 2);
+            for (int wx = centerWorldX - radius - 2; wx <= centerWorldX + radius + 2; wx++) {
+                if (wx < 0 || wx >= width)
+                    continue;
+                int dx = wx - centerWorldX;
+                for (int wy = centerWorldY - radius - 2; wy <= centerWorldY + radius + 2; wy++) {
+                    if (wy < 0 || wy >= height)
+                        continue;
+                    int dy = wy - centerWorldY;
+                    if (dx * dx + dy * dy > repaintRadiusSq)
+                        continue;
                     onTileRepainted.accept(wx, wy);
+                }
             }
         }
 
@@ -2058,11 +2076,31 @@ public class World implements Disposable, SaveFileContent {
                 redrawMinimapTile(wx, rawY, colorlessBiome); // real content, not a flat stamp
                 updateFogOfWarPixmap(wx, rawY);
 
-                if (onTileRepainted != null)
-                    onTileRepainted.accept(wx, wy);
                 minX = Math.min(minX, wx); maxX = Math.max(maxX, wx);
                 minY = Math.min(minY, wy); maxY = Math.max(maxY, wy);
             }
+        }
+        // Repaint the live chunk textures only AFTER every tile's biomeMap/terrainMap write is
+        // final - NOT per tile inside the loop above (the old behavior). generateBiomeSprite()
+        // blends each tile against its 8 neighbors' current bits, so a mid-loop patch drew each
+        // tile as if its not-yet-claimed east/south neighbors were still wasteland (edge pieces on
+        // those sides), and a tile already patched never got re-patched when the loop then claimed
+        // its neighbors - leaving the whole ring a grid of stale, hard-edged "islands" (reported:
+        // "blocky/chunky creep... resolves when you walk over it" - walking re-patches the local
+        // neighborhood with final state, which is exactly why it self-healed). Each claimed tile
+        // AND its 8 neighbors get patched (deduped) - border tiles just OUTSIDE the claim also
+        // re-blend, since their neighborhoods changed too.
+        if (onTileRepainted != null && !claimedTiles.isEmpty()) {
+            Set<Long> tilesToRepaint = new HashSet<>();
+            for (long packed : claimedTiles) {
+                int tx = (int) (packed >> 32);
+                int ty = (int) packed;
+                for (int nx = -1; nx <= 1; nx++)
+                    for (int ny = -1; ny <= 1; ny++)
+                        tilesToRepaint.add(packTile(tx + nx, ty + ny));
+            }
+            for (long packed : tilesToRepaint)
+                onTileRepainted.accept((int) (packed >> 32), (int) packed);
         }
         if (tilesClaimed > 0) {
             System.out.println("[TerritoryControl] " + colorBiomeName + ": daily expansion claimed "

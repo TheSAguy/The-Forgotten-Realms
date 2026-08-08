@@ -15,12 +15,14 @@ import com.github.tommyettinger.textra.TypingLabel;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import forge.Forge;
+import forge.adventure.character.EnemySprite;
 import forge.adventure.data.AdventureEventData;
 import forge.adventure.data.AdventureQuestData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.WorldStage;
+import forge.adventure.util.Config;
 import forge.adventure.util.Controls;
 import forge.adventure.util.Current;
 import forge.adventure.world.WorldSave;
@@ -47,6 +49,13 @@ public class MapViewScene extends UIScene {
     private final float minZoom = 0.25f;
     private Set<PointOfInterest> bookmark;
     private int lastOverlayMode = 0; // 0=none, 1=details, 2=events, 3=reputation
+    // Territory Control (MOD_SCOPE.md #7): one colored dot per in-flight capture mage, same
+    // palette as the corner minimap's own dots (GameHUD.getMageMarkerColor()) - requested
+    // directly: "I see the mages on the small mini-map... but I don't see them on the
+    // mini-map when I look at the Zoom view." Rebuilt on every enter() from live WorldStage
+    // state - this whole scene is a static snapshot (the player marker is positioned once on
+    // enter the same way), so no per-frame tracking is needed here.
+    private final List<Image> mageMarkers = Lists.newArrayList();
 
     public static MapViewScene instance() {
         if (object == null)
@@ -131,6 +140,11 @@ public class MapViewScene extends UIScene {
         labels.clear();
         positions.clear();
         details.clear();
+        // The TypingLabel sweep above doesn't catch the mage marker Images - remove them
+        // explicitly (they're rebuilt from live state on every enter() anyway).
+        for (Image marker : mageMarkers)
+            marker.remove();
+        mageMarkers.clear();
         miniMapPlayer.setScale(1);
         img.setScale(1);
         img.setPosition(0,0);
@@ -266,7 +280,9 @@ public class MapViewScene extends UIScene {
             miniMapPlayer.setPosition((scroll.getScrollX() + scroll.getWidth()/2) * 0.1f + 0.9f * miniMapPlayer.getX(), (scroll.getMaxY() - scroll.getScrollY() + scroll.getHeight()/2) * 0.1f + 0.9f * miniMapPlayer.getY());
             miniMapPlayer.setScale(miniMapPlayer.getScaleX() * 0.9f);
             for (Actor actor : table.getChildren()) {
-                if (actor instanceof TypingLabel) {
+                // Mage markers ride the same transform as the player marker/labels, or they'd
+                // visibly detach from the map the first time the view is zoomed.
+                if (actor instanceof TypingLabel || mageMarkers.contains(actor)) {
                     actor.setPosition((scroll.getScrollX() + scroll.getWidth()/2) * 0.1f + 0.9f * actor.getX(), (scroll.getMaxY() - scroll.getScrollY() + scroll.getHeight()/2) * 0.1f + 0.9f * actor.getY());
                 }
             }
@@ -279,7 +295,8 @@ public class MapViewScene extends UIScene {
             miniMapPlayer.setPosition(-(scroll.getScrollX() + scroll.getWidth()/2) * 0.1f + 1.1f * miniMapPlayer.getX(), -(scroll.getMaxY() - scroll.getScrollY() + scroll.getHeight()/2) * 0.1f + 1.1f * miniMapPlayer.getY());
             miniMapPlayer.setScale(miniMapPlayer.getScaleX() * 1.1f);
             for (Actor actor : table.getChildren()) {
-                if (actor instanceof TypingLabel) {
+                // Same reasoning as zoomOut()'s marker handling above.
+                if (actor instanceof TypingLabel || mageMarkers.contains(actor)) {
                     actor.setPosition(-(scroll.getScrollX() + scroll.getWidth()/2) * 0.1f + 1.1f * actor.getX(), -(scroll.getMaxY() - scroll.getScrollY() + scroll.getHeight()/2) * 0.1f + 1.1f * actor.getY());
                 }
             }
@@ -325,6 +342,19 @@ public class MapViewScene extends UIScene {
             table.addActor(label);
             label.setPosition(getMapX(poi.getPosition().x) - label.getWidth() / 2, getMapY(poi.getPosition().y) - label.getHeight() / 2);
             label.skipToTheEnd();
+        }
+
+        // Clear-then-rebuild rather than diffing: re-entering without a done() in between (or
+        // after a mage arrived/died) must never stack or strand stale dots.
+        for (Image marker : mageMarkers)
+            marker.remove();
+        mageMarkers.clear();
+        for (EnemySprite mage : WorldStage.getInstance().getTerritoryMages()) {
+            Image marker = new Image(Forge.getAssets().getTexture(Config.instance().getFile("ui/minimap_player.png")));
+            marker.setColor(GameHUD.getMageMarkerColor(mage.territoryColor));
+            table.addActor(marker);
+            marker.setPosition(getMapX(mage.getX()) - marker.getWidth() / 2, getMapY(mage.getY()) - marker.getHeight() / 2);
+            mageMarkers.add(marker);
         }
 
         setOverlayButtonStates(0);

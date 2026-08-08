@@ -3709,3 +3709,43 @@ Compiled, deployed, byte-verified (`World.class` + inner, `GameHUD.class` + inne
 minimap compared against the main map's own detail; the button fix needs a click on the World
 button's left edge on desktop.
 
+## Blocky expansion creep fixed + mage dots on the Zoom map view (2026-08-07)
+
+Two reports from the same playtest session as the cross-machine review, both fixed:
+
+**"The expansion/creep seems blocky or chunky... it resolves when you walk over it, but looks
+horrible"** (screenshots: red and black claims rendering as a hard grid of stale, hard-edged tile
+squares on the game map). Root cause confirmed by reading the repaint flow: both
+`claimWastelandRing()` and `repaintBiomeAroundTown()` fired their `onTileRepainted` chunk-texture
+patch callback PER TILE, INSIDE the claiming/repainting loop. `generateBiomeSprite()` blends every
+tile against its 8 neighbors' current `biomeMap` bits - so a mid-loop patch drew each tile as if its
+not-yet-processed east/south neighbors were still wasteland (edge transition pieces on those sides),
+and a tile already patched never got RE-patched when the loop then claimed its neighbors moments
+later. The whole claim came out as a grid of isolated "islands," each blended against a
+half-finished neighborhood. "Resolves when you walk over it" was the tell: `WorldBackground`'s
+per-move visibility pass re-patches the local neighborhood with FINAL state as the player walks,
+which is exactly why it self-healed. Fixed by deferring the chunk patches until after each method's
+loop completes (every `biomeMap`/`terrainMap` write final): `claimWastelandRing()` patches each
+claimed tile plus its 8 neighbors, deduped via the already-collected `claimedTiles` set (border
+tiles just OUTSIDE the claim re-blend too - their neighborhoods also changed);
+`repaintBiomeAroundTown()` patches its disc at radius+2 for the same reason. Same per-tile patch
+cost as before (~1.5x tiles for the border), just moved after the writes.
+
+**"I see the mages on the small mini-map... but I don't see them on the mini-map when I look at the
+Zoom view. Can we show dots for them there also."** Added: `MapViewScene` now draws one colored dot
+per in-flight capture mage, same `minimap_player.png`-tinted style and the exact same per-color
+palette as the corner minimap's dots (`GameHUD.getMageMarkerColor()`, made public - one source of
+truth, the two views can never disagree on a mage's color). Markers are rebuilt from live
+`WorldStage` state on every scene enter (the scene is a static snapshot - the player's own marker is
+positioned once on enter the same way), ride the same zoom-in/zoom-out transform as the player
+marker and quest labels (or they'd detach from the map when zooming), and are cleaned up on exit.
+New `WorldStage.getTerritoryMages()` accessor (the `enemies` list is `protected`, readable by
+GameHUD in the same package but not by MapViewScene in the scene package).
+
+Compiled, deployed, byte-verified (`World.class`, `GameHUD.class`, `WorldStage.class`,
+`MapViewScene.class` + inner classes - 18 class files).
+
+**Not yet playtested**: the creep fix needs expansion to claim a fresh ring and the result compared
+WITHOUT walking over it first; the mage dots need the Zoom view opened while at least one mage is in
+flight, plus a zoom in/out to confirm the dots stay glued to the map.
+

@@ -96,6 +96,13 @@ public class GameHUD extends Stage {
         MAGE_MARKER_COLORS.put("red", Color.RED);
         MAGE_MARKER_COLORS.put("green", Color.GREEN);
     }
+
+    // Public so MapViewScene's zoomed map view can tint its own mage markers with the exact same
+    // per-color palette as the corner minimap's dots - one source of truth, the two views must
+    // never disagree about which color a mage's dot is.
+    public static Color getMageMarkerColor(String territoryColor) {
+        return MAGE_MARKER_COLORS.getOrDefault(territoryColor, Color.ORANGE);
+    }
     private final TypingLabel keyCollection;
     private final TypingLabel lifePoints;
     private final TypingLabel money;
