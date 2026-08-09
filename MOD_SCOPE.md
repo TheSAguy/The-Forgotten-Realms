@@ -1008,3 +1008,18 @@ pattern/assets, not literal copy-paste, unless noted otherwise.
   into `The Forgotten Realms`. Pure data/asset copy, no new art or code - see `MOD_CHANGELOG.md`.
   Items are loadable/obtainable via the `give item <name>` cheat console command now; wiring
   them into actual shop inventories or reward tables is a separate follow-up, not done yet.
+
+### 17. Territory Effects — `Not Started` (idea logged 2026-08-08)
+- **There needs to be a REASON for the player to want to spread their territory** - right now the
+  Capitol's castle-style expansion (#13) paints the map but changes nothing about how the game
+  plays. Owned land should be mechanically meaningful.
+- Direction (user's framing): the player's own land should be **"friendlier"** to travel/exist
+  in, and **AI land harsher - scaling with how bad the relationship is** (Color Reputation, #1,
+  is the natural input: Neutral tier ≈ mild, War tier ≈ most hostile).
+- Candidate effects to design from (none committed): movement speed on own land vs slowed in
+  hostile land; enemy spawn rate/difficulty lower on own land, higher in hostile territory;
+  regeneration/healing only on friendly ground; resource pickups richer on own land; vision
+  penalties in hostile land; toll/ambush risk crossing War-tier borders (extends the existing
+  entry-bar/toll mechanics from towns out to the terrain itself).
+- Depends on: #7 (territory ownership per tile - exists), #1 (reputation tiers - exists),
+  #13 (player territory - exists). This item is the payoff layer on top of all three.
