@@ -300,7 +300,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — largest diff after World.java:
   shop overhead-tile detection/hide (`findOverheadTiles`/`setShopOverheadTilesHidden`), sign
   visibility live-updates. Capitol-polish round (2026-08-09): the "shop" case reads the new
-  `fixedShop` tmx property onto `ShopActor.setFixedShop()`.
+  `fixedShop` tmx property onto `ShopActor.setFixedShop()`. **Bug fix, same round**:
+  `showDialog()` fully duplicated `GameStage.showDialog()`'s body instead of calling it, which
+  meant the 2026-08-08 "stop player movement on dialog open" fix (added only to the base class)
+  never ran for any shop/building/quest interaction - every one of those goes through THIS
+  override, not the base class. Reduced to `super.showDialog()` + the one line MapStage actually
+  adds (`freezeAllEnemyBehaviors = true`), so any future base-class dialog fix reaches MapStage
+  automatically. Dropped the now-unused `Actions` import.
 
 ### HUD & UI
 - **`forge-gui-mobile/src/forge/adventure/stage/GameHUD.java`** — clock readout (#6), resource

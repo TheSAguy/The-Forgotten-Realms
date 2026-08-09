@@ -4499,3 +4499,41 @@ blocks movement.
 
 No Java changes (data/tileset-only). Deployed (new `main-nocollide.tsx` + updated `player_town.tmx`
 copied to the installed game, GID swaps byte-verified). **Not yet playtested.**
+
+## Full 4-layer collision audit (both town maps) + real fix for "player walks through dialogs" (2026-08-09)
+
+Two follow-up user reports on the previous round.
+
+### 1. Requested full audit: Overlay/Ground/Ground2/Background, both `player_town.tmx` and `player_capital.tmx`
+Extended the previous round's decode-and-cross-reference script to all 4 layers of both files (and
+handled `player_capital.tmx`'s quirk of embedding `main.tsx`'s full tile data inline at `firstgid=1`
+*in addition to* an external `../common/maps/tileset/main.tsx` reference at `firstgid=13697` -
+both resolve to the same underlying art/collision, so the script treats a hit against either as
+the same case). `player_town.tmx` came back **fully clean** (the earlier fix already covered it -
+that map has no `Ground2` layer at all). `player_capital.tmx` had **24 colliding cells**: `Ground`
+(8: 5 buildings.tsx, 3 main.tsx), `Ground2` (12: 5 buildings.tsx, 7 main.tsx across 5 unique local
+ids), `Overlay` (4, all buildings.tsx). Same two-track fix as before: buildings.tsx tiles swapped
+GID+1792 to the existing `buildings-nocollide.tsx`; main.tsx tiles (whichever of the two "main"
+tileset entries they resolved through) swapped to the `main-nocollide.tsx` sibling added last
+round - reused as-is, just referenced from a new `<tileset firstgid="23809" .../>` entry in
+`player_capital.tmx` (23809 = 13697 + 10112, right after the external main.tsx range). Re-ran the
+audit after patching: **0 colliding cells across both files, all 4 layers.**
+
+### 2. "Player still moves while interacting with a shop" - the earlier fix never actually applied
+Root cause: `MapStage.showDialog()` is a **full override** of `GameStage.showDialog()` that
+duplicates nearly its entire body by hand - and was written *before* the 2026-08-08 "Player kept
+walking behind dialogs" fix, which only touched the base class. `ShopActor`, `OnCollide`, and
+`QuestActor` all hold a `MapStage` reference and call `stage.showDialog()` - which dispatches to
+MapStage's override, not the base class - so the `getPlayerSprite().stop()` call the earlier fix
+added was silently dead code for every town/dungeon interaction (shops, buildings, quest boards).
+It only ever ran for whatever called `showDialog()` on a stage type with no override of its own
+(`WorldStage` has none, confirmed - that path was fine). This is exactly why the user's playtest
+showed the fix "did not take": it landed in a method nothing shop-related ever calls.
+
+Fixed by collapsing the duplication instead of just patching the symptom: `MapStage.showDialog()`
+now calls `super.showDialog()` (inheriting the stop-movement fix, and any future one) and adds
+only its own extra behavior (`freezeAllEnemyBehaviors = true`) on top. Removed the now-unused
+`Actions` import this left behind (caught by the checkstyle build gate).
+
+Compiled clean. Deployed: `MapStage.class` + inner classes spliced into the installed jar,
+`player_capital.tmx` copied over. **Not yet playtested.**

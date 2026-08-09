@@ -14,7 +14,6 @@ import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.*;
@@ -1326,22 +1325,14 @@ public class MapStage extends GameStage {
 
     @Override
     public void showDialog() {
-        if (dialogStage == null){
-            setDialogStage(GameHUD.getInstance());
-        }
-        GameHUD.getInstance().playerIdle();
-        dialogButtonMap.clear();
-        for (int i = 0; i < dialog.getButtonTable().getCells().size; i++) {
-            dialogButtonMap.add((TextraButton) dialog.getButtonTable().getCells().get(i).getActor());
-        }
+        // Used to fully duplicate GameStage.showDialog()'s body instead of calling it - which
+        // meant the "halt in-flight movement" fix added there (2026-08-08, "Player kept walking
+        // behind dialogs") silently never ran for ANY shop/building/quest interaction, since
+        // those all go through MapStage's override, not the base class directly (user report
+        // 2026-08-09: fix "did not take" - this override is why). Delegating to super() means any
+        // future GameStage.showDialog() fix automatically reaches MapStage too.
+        super.showDialog();
         freezeAllEnemyBehaviors = true;
-        dialog.show(dialogStage, Actions.show());
-        dialog.setPosition((dialogStage.getWidth() - dialog.getWidth()) / 2, (dialogStage.getHeight() - dialog.getHeight()) / 2);
-        dialogOnlyInput = true;
-
-        if (Forge.hasExternalInput() && !dialogButtonMap.isEmpty()) {
-            dialogStage.setKeyboardFocus(dialogButtonMap.first());
-        }
     }
 
 
