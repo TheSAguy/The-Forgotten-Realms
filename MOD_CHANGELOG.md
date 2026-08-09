@@ -4092,3 +4092,57 @@ needs a quest fast-forwarded past its timer.
 testing pace ("once we are happy with everything, we will actually reduce this to 1 tile a day,
 if not slower"). The same constant also drives player-town territory growth, so both speed up
 together, as before. Compiled, deployed, byte-verified.
+
+
+## Pentagon-stall root cause, placement safeguards, resource pickup round 2 (2026-08-08 late)
+
+**1. Territory "upside down pentagon" stall - REAL BUG, user was right (twice).** The previous
+round's "it's just pacing math" explanation was wrong. `claimWastelandRing()` includes the
+player's Spawn as an UNBOUNDED nearest-anchor rival for every AI claim - and Spawn sits at exact
+map center (world.json playerStartPos 0.5/0.5), so every central-wasteland tile is nearer to
+Spawn than to any castle (castles sit ~200 tiles out). No AI color could EVER claim into the
+center; the visible creep boundary was precisely the Voronoi bisector polygon between the five
+castles and Spawn - the reported pentagon. The radius counter happily grew (pure bookkeeping)
+while claims silently no-opped, which is why the log looked healthy. Two-part fix:
+(a) Spawn's protection is now bounded (`SPAWN_PROTECTION_RADIUS_TILES` = 30 - AI still can't
+pave the player's doorstep); (b) the daily claim scans the FULL disc (inner radius =
+CASTLE_KEEP_RADIUS_TILES, not yesterday's radius) so every ring that passed while the bug was
+live gets claimed on existing saves - first post-fix day tick may claim tens of thousands of
+tiles at once (one-time; possible brief hitch, watch for "claimed N tile(s) this tick" in the
+log, which now prints the claim count precisely so a silent stall can never hide again).
+
+**2. Missing White Capital + Emrakul castle - placement had a silent-drop path.** The
+500-attempt placement loop's rerun only triggers from the collision branch; attempts failing the
+out-of-bounds/wrong-biome check just `continue` - a POI whose 500 attempts all failed THAT way
+was dropped with no log and no rerun. Pool rotation's 5x density made this likely enough to
+actually happen. Fixes: (a) essentials (castles/capitals/Spawn/Quest_*/Story-tagged) place FIRST
+(priority-sorted template list), towns second, bulk last; (b) exhausting all 500 attempts now
+reruns placement for essentials (budget of 10, then CRITICAL log) and logs non-essential drops;
+(c) `ensureCapital()` fallback: if no town survived in the keep radius to promote, a brand-new
+capital POI is physically placed near the castle (`World.addPointOfInterestNear()`, new).
+NOTE: these are world-GEN fixes - the current world's missing White Capital / Emrakul need a
+fresh world (fits the planned regeneration for slow-pacing testing anyway).
+
+**3. Resource pickups round 2** (`ResourceSpawns`): every pickup now makes a sound - gold/shards
+already did via giveGold/addShards; Wood/Stone now play CoinsDrop explicitly. Gold's map icon
+changed from the diamond ("Treasure", items.atlas) to the real gold pile - cropped from the same
+buildings.png resource-pile row Lumber/Stone came from ((336,272), pixel-match-verified against
+the existing crops) into `resource_icons.png`/`.atlas` as new region "GoldPile" (sheet now
+48x16). NEW fifth type TYPE_MYSTERY, marked by the freed-up diamond icon: contents roll at
+pickup - 5% ambush (the "Adept <Color> Wizard" of whichever color the player's reputation is
+WORST with spawns on the player -> immediate normal fight, not a boss), else an even split
+across the four resources at normal value ranges. Spawn rolls are now uniform across all 5
+types. Ambush falls back to a resource if the enemy data is missing - never a dud pickup.
+
+**Item-rarity note (user question, answered not implemented):** adventure items have NO rarity
+field - `ItemData` carries only `cost` (default 1000). Any future "1% chance of a common item"
+drop would need either a cost-threshold proxy (e.g. cost <= some cutoff ~ "common") or a new
+opt-in rarity field on ItemData.
+
+Compiled, deployed, byte-verified (World + inners, TerritoryControl, ResourceSpawns), res synced
+(resource_icons.png/.atlas -> installed game).
+
+**Not yet playtested**: pentagon backfill needs one day tick on the existing save (watch claimed
+counts + the map visibly filling the center); placement safeguards + capital fallback need a
+fresh world (check every color has Capital + castle, Emrakul present); mystery pickup needs a
+few pickups (diamond icon), ideally forcing the ambush via repeated `spawn resource`.

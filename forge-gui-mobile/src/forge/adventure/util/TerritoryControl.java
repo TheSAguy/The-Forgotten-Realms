@@ -64,6 +64,10 @@ public class TerritoryControl {
     // would disagree at the boundary - see World.java's placement pass and
     // neutralizeTerritoryOutsideRadius() for why that's a real rendering bug, not just cosmetic.
     public static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
+    // How far around Spawn AI expansion may never claim (World.claimWastelandRing's bounded rival
+    // cap for Spawn). Spawn used to be an UNBOUNDED rival, which - sitting at map center - made
+    // the entire central wasteland unclaimable ("upside down pentagon" stall, 2026-08-08).
+    public static final int SPAWN_PROTECTION_RADIUS_TILES = 30;
     // 3 -> 9 per user (2026-08-08): TEMPORARY testing pace so the full spread is watchable in a
     // session or two. Once the systems around it are settled the user intends to drop this to 1
     // tile/day or slower for the real slow-burn pacing - don't treat 9 as the design value.
@@ -185,7 +189,16 @@ public class TerritoryControl {
             }
         }
         if (nearestTown == null) {
-            System.out.println("[TerritoryControl] " + color + ": no in-radius town to promote to " + capitalName);
+            // Fallback (2026-08-08, after a generated world shipped with no White capital at
+            // all): no town survived inside the keep radius, so there is nothing to promote -
+            // place a brand-new capital POI near the castle instead. Every color's starting
+            // area gets a capital, unconditionally.
+            PointOfInterest placed = world.addPointOfInterestNear(capitalData, castle.getPosition(),
+                    5, CASTLE_KEEP_RADIUS_TILES - 2);
+            if (placed != null)
+                System.out.println("[TerritoryControl] " + color + ": no in-radius town to promote - placed a fresh " + capitalName);
+            else
+                System.out.println("[TerritoryControl] CRITICAL: " + color + ": could not promote OR place a " + capitalName);
             return;
         }
         nearestTown.transformInto(capitalData, world.getRandom());
@@ -348,14 +361,12 @@ public class TerritoryControl {
 
         for (String color : COLORS) {
             Integer currentRadius = world.getColorTerritoryRadius(color);
-            if (currentRadius == null || currentRadius >= MAX_TERRITORY_RADIUS)
+            if (currentRadius == null)
                 continue;
             Vector2 castlePosition = castlePositions.get(color);
             if (castlePosition == null)
                 continue;
             int newRadius = Math.min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
-            if (newRadius <= currentRadius)
-                continue;
             List<Vector2> otherAnchors = new ArrayList<>();
             for (Map.Entry<String, Vector2> entry : castlePositions.entrySet()) {
                 if (!entry.getKey().equals(color))
@@ -367,14 +378,22 @@ public class TerritoryControl {
             // to get an unbounded Voronoi cell against that color's castle, which could grow into a
             // large, fully-enclosed hole once the color's own circle expanded past it on every side,
             // not the small protective pocket the design was meant to give a captured town.
-            world.claimWastelandRing(color, castlePosition, otherAnchors, playerTownAnchors, currentRadius, newRadius,
+            //
+            // Inner radius is the KEEP radius, not yesterday's radius (2026-08-08 pentagon-stall
+            // fix): the daily claim re-scans the whole disc, so tiles that were skipped when their
+            // ring passed (historically: everything inside Spawn's then-unbounded Voronoi cell, on
+            // every pre-fix save) get claimed now instead of being lost forever. Cheap in steady
+            // state - an already-claimed tile fails the highestBiome==colorless check immediately.
+            int claimed = world.claimWastelandRing(color, castlePosition, otherAnchors, playerTownAnchors,
+                    CASTLE_KEEP_RADIUS_TILES, newRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
-            world.setColorTerritoryRadius(color, newRadius);
-            // Radius in the log (user doubted the 300->450 cap raise was live - at 3 tiles/day
-            // from a 20-tile start, even the OLD 300 cap isn't reached until day ~93, so "still
-            // looks like 300" mid-game is expected; this line makes the actual number checkable).
-            System.out.println("[TerritoryControl] " + color + ": territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS);
+            if (newRadius > currentRadius)
+                world.setColorTerritoryRadius(color, newRadius);
+            // Radius AND claimed-count in the log - "radius grows but the map never changes" is
+            // exactly how the pentagon stall stayed invisible; a claimed-tile count can't hide.
+            System.out.println("[TerritoryControl] " + color + ": territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS
+                    + ", claimed " + claimed + " tile(s) this tick");
         }
     }
 

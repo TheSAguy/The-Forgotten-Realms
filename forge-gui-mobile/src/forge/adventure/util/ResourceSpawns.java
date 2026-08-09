@@ -1,12 +1,18 @@
 package forge.adventure.util;
 
 import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.math.Vector2;
+import forge.adventure.character.EnemySprite;
 import forge.adventure.data.ConfigData;
+import forge.adventure.data.EnemyData;
+import forge.adventure.data.WorldData;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.world.World;
 import forge.adventure.world.WorldSave;
+import forge.sound.SoundEffectType;
+import forge.sound.SoundSystem;
 
 import java.util.Iterator;
 
@@ -36,7 +42,11 @@ public class ResourceSpawns {
     private static final int NEAR_START_RADIUS_TILES = 12; // the guaranteed new-game spawn lands within this of the start
 
     // Spawn entry layout: {tileX, tileY, type, value, expiryDay} in world tile space.
-    public static final int TYPE_GOLD = 0, TYPE_SHARDS = 1, TYPE_WOOD = 2, TYPE_STONE = 3;
+    // TYPE_MYSTERY (the diamond icon, user request 2026-08-08): contents decided at PICKUP, not
+    // spawn - 5% an ambush by the mage of whichever color the player's reputation is worst with,
+    // 95% an even split across the four ordinary resources.
+    public static final int TYPE_GOLD = 0, TYPE_SHARDS = 1, TYPE_WOOD = 2, TYPE_STONE = 3, TYPE_MYSTERY = 4;
+    private static final float MYSTERY_AMBUSH_CHANCE = 0.05f;
 
     private static final String ITEMS_ATLAS = "sprites/items.atlas";
     private static final String RESOURCE_ICONS_ATLAS = "maps/tileset/resource_icons.atlas";
@@ -162,8 +172,11 @@ public class ResourceSpawns {
             }
             if (blocked)
                 continue;
-            int type = world.getRandom().nextInt(4);
-            int value = type == TYPE_GOLD
+            int type = world.getRandom().nextInt(5);
+            // A mystery spawn's value is rolled at pickup (award() decides what it even IS);
+            // 0 here just keeps the entry layout uniform.
+            int value = type == TYPE_MYSTERY ? 0
+                    : type == TYPE_GOLD
                     ? GOLD_MIN + world.getRandom().nextInt(GOLD_MAX - GOLD_MIN + 1)
                     : OTHER_MIN + world.getRandom().nextInt(OTHER_MAX - OTHER_MIN + 1);
             int expiry = currentDay + MIN_LIFETIME_DAYS + world.getRandom().nextInt(MAX_LIFETIME_DAYS - MIN_LIFETIME_DAYS + 1);
@@ -215,30 +228,41 @@ public class ResourceSpawns {
             int[] spawn = it.next();
             if (spawn[0] != playerTileX || spawn[1] != playerTileY)
                 continue;
-            award(spawn[2], spawn[3]);
+            award(world, spawn[2], spawn[3]);
             it.remove();
             changed = true;
         }
         return changed;
     }
 
-    private static void award(int type, int value) {
+    private static void award(World world, int type, int value) {
+        if (type == TYPE_MYSTERY) {
+            if (world.getRandom().nextFloat() < MYSTERY_AMBUSH_CHANCE && spawnAmbush())
+                return;
+            // Otherwise it resolves into one of the four ordinary resources, value rolled now.
+            type = world.getRandom().nextInt(4);
+            value = type == TYPE_GOLD
+                    ? GOLD_MIN + world.getRandom().nextInt(GOLD_MAX - GOLD_MIN + 1)
+                    : OTHER_MIN + world.getRandom().nextInt(OTHER_MAX - OTHER_MIN + 1);
+        }
         String what;
         switch (type) {
             case TYPE_GOLD:
-                Current.player().giveGold(value);
+                Current.player().giveGold(value); // plays CoinsDrop itself
                 what = "Gold";
                 break;
             case TYPE_SHARDS:
-                Current.player().addShards(value);
+                Current.player().addShards(value); // plays TakeShard itself
                 what = "Shards";
                 break;
             case TYPE_WOOD:
                 Current.player().addWood(value);
+                SoundSystem.instance.play(SoundEffectType.CoinsDrop, false); // addWood is silent (user request: every pickup makes a sound)
                 what = "Wood";
                 break;
             case TYPE_STONE:
                 Current.player().addStone(value);
+                SoundSystem.instance.play(SoundEffectType.CoinsDrop, false); // addStone is silent, same as wood
                 what = "Stone";
                 break;
             default:
@@ -249,17 +273,57 @@ public class ResourceSpawns {
         GameHUD.getInstance().addNotification(message);
     }
 
+    // The mystery pickup's 5% outcome: the mage of whichever color the player's reputation is
+    // worst with (ties: first in COLORS order) spawns right on top of the player - the ordinary
+    // enemy-collision path takes it from there, so this IS an immediate fight, with the normal
+    // flee/battle flow. "Adept <Color> Wizard" deliberately - a regular mage, not a boss (user
+    // spec). Returns false (no ambush, caller falls through to a resource) if the enemy data or
+    // the player sprite can't be found - never a dud pickup.
+    private static boolean spawnAmbush() {
+        WorldStage stage = WorldStage.getInstance();
+        if (stage.getPlayerSprite() == null)
+            return false;
+        String worstColor = null;
+        int worstScore = Integer.MAX_VALUE;
+        for (String color : ColorReputation.COLORS) {
+            int score = Current.player().getColorReputationHalfPoints(color);
+            if (score < worstScore) {
+                worstScore = score;
+                worstColor = color;
+            }
+        }
+        if (worstColor == null)
+            return false;
+        String enemyName = "Adept " + Character.toUpperCase(worstColor.charAt(0)) + worstColor.substring(1) + " Wizard";
+        EnemyData enemyData = WorldData.getEnemy(enemyName);
+        if (enemyData == null) {
+            System.out.println("[ResourceSpawns] ambush enemy \"" + enemyName + "\" not found, awarding a resource instead");
+            return false;
+        }
+        EnemySprite ambusher = new EnemySprite(enemyData);
+        stage.spawnAt(ambusher, new Vector2(stage.getPlayerSprite().getX(), stage.getPlayerSprite().getY()));
+        SoundSystem.instance.play(SoundEffectType.Damage, false);
+        String message = "Ambush! A " + enemyName + " was lurking under the treasure!";
+        System.out.println("[ResourceSpawns] " + message);
+        GameHUD.getInstance().addNotification("[*]" + message);
+        return true;
+    }
+
     /** The overworld sprite for a spawn type - used by WorldStage's actor sync. */
     public static Sprite spriteFor(int type) {
         switch (type) {
             case TYPE_GOLD:
-                return Config.instance().getAtlasSprite(ITEMS_ATLAS, "Treasure");
+                // The gold-pile icon from the same buildings.png resource row Lumber/Stone came
+                // from (336,272) - the diamond "Treasure" icon it used before now marks MYSTERY.
+                return Config.instance().getAtlasSprite(RESOURCE_ICONS_ATLAS, "GoldPile");
             case TYPE_SHARDS:
                 return Config.instance().getAtlasSprite(ITEMS_ATLAS, "Shards");
             case TYPE_WOOD:
                 return Config.instance().getAtlasSprite(RESOURCE_ICONS_ATLAS, "Lumber");
             case TYPE_STONE:
                 return Config.instance().getAtlasSprite(RESOURCE_ICONS_ATLAS, "Stone");
+            case TYPE_MYSTERY:
+                return Config.instance().getAtlasSprite(ITEMS_ATLAS, "Treasure");
             default:
                 return null;
         }

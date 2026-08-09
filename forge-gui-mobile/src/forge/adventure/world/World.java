@@ -520,6 +520,34 @@ public class World implements Disposable, SaveFileContent {
         return data;
     }
 
+    // Placement priority for generateNew()'s POI loop: lower places earlier. Essentials (one-of
+    // buildings the world is broken without) get first pick of the map, towns next (capitals are
+    // promoted from them - see TerritoryControl.ensureCapital()), the bulk (5x-overprovisioned
+    // rotatable dungeons included) last.
+    private static int poiPlacementPriority(PointOfInterestData poi) {
+        if (isEssentialPoi(poi))
+            return 0;
+        if (poi.type != null && poi.type.equals("town"))
+            return 1;
+        return 2;
+    }
+
+    // A POI the world must not generate without: castles/capitals (Territory Control anchors -
+    // a color with no castle never expands or attacks; ensureCapital() needs the capital data),
+    // Spawn, and story/quest-scripted locations. Used both for placement ordering and for the
+    // no-silent-drop rerun below.
+    private static boolean isEssentialPoi(PointOfInterestData poi) {
+        if (poi.type != null && (poi.type.equals("castle") || poi.type.equals("capital")))
+            return true;
+        if (poi.name != null && (poi.name.equals("Spawn") || poi.name.startsWith("Quest_")))
+            return true;
+        if (poi.questTags != null)
+            for (String tag : poi.questTags)
+                if ("Story".equals(tag))
+                    return true;
+        return false;
+    }
+
     private void clearTerrain(int x, int y, int size) {
 
         for (int xclear = -size; xclear < size; xclear++)
@@ -707,6 +735,9 @@ public class World implements Disposable, SaveFileContent {
             clearTerrain((int) (data.width * data.playerStartPosX), (int) (data.height * data.playerStartPosY), 10);
             //otherPoints.add(new Rectangle(((float) data.width * data.playerStartPosX * (float) data.tileSize) - data.tileSize * 3, ((float) data.height * data.playerStartPosY * data.tileSize) - data.tileSize * 3, data.tileSize * 6, data.tileSize * 6));
             boolean running = true;
+            // Rerun budget for the essential-POI no-silent-drop check below - array so the
+            // count survives the labeled `continue here` restarts.
+            final int[] essentialPlacementReruns = {0};
             here:
             while (running) {
                 mapPoiIds = new PointOfInterestMap(getChunkSize(), data.tileSize, data.width / getChunkSize(), data.height / getChunkSize());
@@ -714,7 +745,15 @@ public class World implements Disposable, SaveFileContent {
                 running = false;
                 for (BiomeData biome : data.GetBiomes()) {
                     biomeIndex2++;
-                    for (PointOfInterestData poi : biome.getPointsOfInterest()) {
+                    // Essentials place FIRST while the map is still empty (2026-08-08, after a
+                    // generated world came out missing White's Capital and the Emrakul castle):
+                    // with pool rotation overprovisioning dungeons 5x, placement runs crowded, and
+                    // a one-of POI whose 500 attempts all landed on occupied/wrong-biome spots was
+                    // silently dropped (see the not-placed check after the attempt loop below).
+                    // Order: castles/capitals/Spawn/story-quest POIs, then towns, then the rest.
+                    List<PointOfInterestData> orderedPois = new ArrayList<>(biome.getPointsOfInterest());
+                    orderedPois.sort(Comparator.comparingInt(World::poiPlacementPriority));
+                    for (PointOfInterestData poi : orderedPois) {
                         // Dungeon rotation pool (MOD_SCOPE.md #15, user redesign): rotatable
                         // dungeons/caves are overprovisioned POOL_MULTIPLIER-fold at placement;
                         // DungeonRotation.initializeNewWorld() (called right after this loop)
@@ -726,6 +765,7 @@ public class World implements Disposable, SaveFileContent {
                         if (isDungeonRotationEnabled() && DungeonRotation.isRotatableData(poi))
                             placeCount *= DungeonRotation.POOL_MULTIPLIER;
                         for (int i = 0; i < placeCount; i++) {
+                            boolean placedThisInstance = false;
                             for (int counter = 0; counter < 500; counter++)//tries 500 times to find a free point
                             {
                                 float radius = (float) Math.sqrt(((random.nextDouble()) / 2 * poi.radiusFactor));
@@ -826,7 +866,35 @@ public class World implements Disposable, SaveFileContent {
                                 } else {
                                     notTowns.add(newPoint);
                                 }
+                                placedThisInstance = true;
                                 break;
+                            }
+                            // No-silent-drop check (2026-08-08): the attempt loop can also exhaust
+                            // through the out-of-bounds/wrong-biome `continue` above, which never
+                            // reaches the counter==499 rerun branch - a generated world shipped
+                            // MISSING White's Capital and the Emrakul castle this way. An essential
+                            // POI that failed all 500 attempts restarts placement like the
+                            // collision path does (bounded by essentialPlacementReruns so a
+                            // genuinely impossible layout can't hang world-gen forever); a
+                            // non-essential drop is at least logged now instead of vanishing.
+                            if (!placedThisInstance) {
+                                if (isEssentialPoi(poi) && essentialPlacementReruns[0] < 10) {
+                                    essentialPlacementReruns[0]++;
+                                    System.err.print("Essential POI " + poi.name + " could not be placed (attempt "
+                                            + essentialPlacementReruns[0] + "/10)...Rerunning..\n");
+                                    running = true;
+                                    towns.clear();
+                                    notTowns.clear();
+                                    otherPoints.clear();
+                                    clearTerrain((int) (data.width * data.playerStartPosX), (int) (data.height * data.playerStartPosY), 10);
+                                    storedInfo.clear();
+                                    for (BiomeData biomeToReset : data.GetBiomes())
+                                        biomeToReset.resetTownNamePool();
+                                    continue here;
+                                }
+                                System.err.print((isEssentialPoi(poi) ? "CRITICAL: essential " : "")
+                                        + "POI " + poi.name + " instance " + (i + 1) + "/" + placeCount
+                                        + " not placed after 500 attempts, skipping\n");
                             }
                         }
                     }
@@ -1294,6 +1362,50 @@ public class World implements Disposable, SaveFileContent {
     // below does that wholesale, then the marker pass re-draws only still-active POIs (see the
     // getActive() filter in redrawAllPoiMarkers()). Rare-event cost (a handful of despawns/
     // respawns per in-game day at most), and the bake itself measures ~0.1s.
+    /**
+     * Places a brand-new POI at a free walkable tile within [minTiles, maxTiles] of centerPos
+     * (world/pixel coordinates), registers it, and repaints the minimap. Returns the new POI or
+     * null when no free spot was found. Built for TerritoryControl.ensureCapital()'s fallback
+     * (2026-08-08: a world generated with NO town inside White's keep radius, so promotion had
+     * nothing to promote and the color simply had no capital) - but written generically.
+     */
+    public PointOfInterest addPointOfInterestNear(PointOfInterestData poiData, Vector2 centerPos, int minTiles, int maxTiles) {
+        if (poiData == null || mapPoiIds == null)
+            return null;
+        int centerTileX = (int) (centerPos.x / data.tileSize);
+        int centerTileY = (int) (centerPos.y / data.tileSize);
+        for (int attempt = 0; attempt < 300; attempt++) {
+            int wx = centerTileX - maxTiles + random.nextInt(maxTiles * 2 + 1);
+            int wy = centerTileY - maxTiles + random.nextInt(maxTiles * 2 + 1);
+            int dx = wx - centerTileX, dy = wy - centerTileY;
+            int distSq = dx * dx + dy * dy;
+            if (distSq < minTiles * minTiles || distSq > maxTiles * maxTiles)
+                continue;
+            if (wx < 2 || wy < 2 || wx >= width - 2 || wy >= height - 2)
+                continue;
+            boolean tooClose = false;
+            for (PointOfInterest other : getAllPointOfInterest()) {
+                int px = (int) (other.getPosition().x / data.tileSize);
+                int py = (int) (other.getPosition().y / data.tileSize);
+                if (Math.abs(px - wx) <= 5 && Math.abs(py - wy) <= 5) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (tooClose)
+                continue;
+            PointOfInterest newPoint = new PointOfInterest(poiData, new Vector2(wx * data.tileSize, wy * data.tileSize), random);
+            clearTerrain(wx, wy, 3);
+            mapPoiIds.add(newPoint);
+            refreshWorldMapMarkers();
+            System.out.println("[World] placed " + poiData.name + " at tile " + wx + "," + wy
+                    + " (" + (int) Math.sqrt(distSq) + " tiles from requested center)");
+            return newPoint;
+        }
+        System.out.println("[World] no free spot for " + poiData.name + " within " + maxTiles + " tiles");
+        return null;
+    }
+
     public void refreshWorldMapMarkers() {
         if (biomeImage == null)
             return;
@@ -2186,8 +2298,15 @@ public class World implements Disposable, SaveFileContent {
         // unbounded (Spawn, other AI castles); a positive value (boundedRivalAnchors, below) means
         // that rival only blocks a claim within that radius of itself.
         List<int[]> rivalTiles = new ArrayList<>();
+        // Spawn's protection is BOUNDED (2026-08-08 fix): as an unbounded Voronoi anchor sitting
+        // at map center (playerStartPos 0.5/0.5), Spawn was closer than any castle to EVERY
+        // central-wasteland tile, so no AI color could ever claim into the center - the reported
+        // "perfect upside down pentagon" stall was exactly the bisector polygon between the five
+        // castles and Spawn. A radius cap keeps the original intent (AI can't pave over the
+        // player's doorstep) without walling off a third of the map.
         if (!playerClaim)
-            rivalTiles.add(new int[]{(int) (width * data.playerStartPosX), (int) (height * data.playerStartPosY), -1});
+            rivalTiles.add(new int[]{(int) (width * data.playerStartPosX), (int) (height * data.playerStartPosY),
+                    TerritoryControl.SPAWN_PROTECTION_RADIUS_TILES * TerritoryControl.SPAWN_PROTECTION_RADIUS_TILES});
         if (otherAnchors != null) {
             for (Vector2 anchor : otherAnchors)
                 rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize), -1});

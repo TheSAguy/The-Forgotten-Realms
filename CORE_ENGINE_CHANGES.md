@@ -212,7 +212,19 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   enough reruns (frequent since pool rotation's 5x density) drained the pool dry and every later
   town fell back to its template's generic name. `load()` also calls
   `TownRestoration.migrateGenericTownNames(this)` to repair saves generated while the bug was
-  live (inert on stock planes via the `townReconstructionEnabled` gate).
+  live (inert on stock planes via the `townReconstructionEnabled` gate). Pentagon-stall round
+  (2026-08-08 late): `claimWastelandRing()`'s Spawn rival anchor is now BOUNDED
+  (`TerritoryControl.SPAWN_PROTECTION_RADIUS_TILES` cap) - unbounded, Spawn at map center
+  (playerStartPos 0.5/0.5) out-Voronoi'd every castle for the entire central wasteland, so AI
+  expansion visibly stalled along the castle-vs-Spawn bisector polygon (the user's "perfect
+  upside down pentagon"). POI placement: each biome's template list is placement-priority sorted
+  (essentials -> towns -> bulk, `poiPlacementPriority()`/`isEssentialPoi()`), and the attempt
+  loop no longer SILENTLY drops a POI whose 500 attempts all failed the out-of-bounds/wrong-biome
+  check (that path never reached the counter==499 rerun; a world shipped missing White's Capital
+  and the Emrakul castle) - an essential drop reruns placement (10-rerun budget guards against an
+  impossible-layout hang), a non-essential drop at least logs. New public
+  `addPointOfInterestNear()` (places + registers a brand-new POI at a free tile near a position,
+  with minimap repaint) for `TerritoryControl.ensureCapital()`'s no-town-to-promote fallback.
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the
