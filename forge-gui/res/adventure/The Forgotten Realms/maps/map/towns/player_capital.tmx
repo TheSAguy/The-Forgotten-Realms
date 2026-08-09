@@ -17764,6 +17764,7 @@
   <object id="55" template="../../../../common/maps/obj/shop.tx" x="465" y="515">
    <properties>
     <property name="commonShopList" value="Plains" />
+    <property name="fixedShop" type="bool" value="true" />
     <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="-2" />
    </properties>
@@ -17875,6 +17876,7 @@
   <object id="77" template="../../../../common/maps/obj/shop.tx" x="416.182" y="480">
    <properties>
     <property name="commonShopList" value="Forest" />
+    <property name="fixedShop" type="bool" value="true" />
     <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="-2" />
    </properties>
@@ -17882,6 +17884,7 @@
   <object id="78" template="../../../../common/maps/obj/shop.tx" x="432.25" y="416.875">
    <properties>
     <property name="commonShopList" value="Mountain" />
+    <property name="fixedShop" type="bool" value="true" />
     <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="-2" />
    </properties>
@@ -17889,6 +17892,7 @@
   <object id="79" template="../../../../common/maps/obj/shop.tx" x="544" y="384.875">
    <properties>
     <property name="commonShopList" value="Swamp" />
+    <property name="fixedShop" type="bool" value="true" />
     <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="-2" />
    </properties>
@@ -17896,6 +17900,7 @@
   <object id="80" template="../../../../common/maps/obj/shop.tx" x="528.25" y="464.625">
    <properties>
     <property name="commonShopList" value="Island" />
+    <property name="fixedShop" type="bool" value="true" />
     <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="-2" />
    </properties>
@@ -17903,6 +17908,7 @@
   <object id="81" template="../../../../common/maps/obj/shop.tx" x="463.75" y="463.625">
    <properties>
     <property name="commonShopList" value="Land" />
+    <property name="fixedShop" type="bool" value="true" />
     <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="-2" />
    </properties>

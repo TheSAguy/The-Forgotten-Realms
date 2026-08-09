@@ -4385,3 +4385,72 @@ Compiled: no Java changes this round (only tmx/json data + 2 comment references 
 points_of_interest.json).
 
 **Not yet playtested.**
+
+## Capitol polish + town-count life bonus + capture roads (2026-08-09)
+
+Four user requests in one round:
+
+### 1. Capitol fixed land shops (the 6 bottom-right shops: 55=Plains, 77=Forest, 78=Mountain, 79=Swamp, 80=Island, 81=Land)
+- Marked `fixedShop` (bool, true) in `player_capital.tmx`. Their single-entry `commonShopList`s
+  already made the pick deterministic; the new property is what the CODE keys off:
+  - `MapStage` passes it to `ShopActor.setFixedShop()`.
+  - A destroyed fixed shop repairs via the **simple repair dialog only** - never the
+    Bank/Exchange/Industry conversion menu (a land shop must stay what it is).
+  - Once rebuilt, a fixed shop draws **no overlay icon at all** - its hut art is baked into the
+    capital map's own tile layers (the overhead-tile hide/show machinery already handles
+    showing it only when rebuilt). Broken-shop art still shows while it's rubble.
+  - `TownRestoration.readCapitolShopObjectIds()` (the migration slot list) now **excludes**
+    fixedShop-marked objects - an upgrade can never park a migrated economy building or plain
+    rebuilt-shop flag on a land shop. (Previously id 55 sorted FIRST, so the old town's first
+    economy building landed exactly there.)
+- **Load-time repair** (`TownRestoration.repairCapitolState()`, called from `WorldSave.load()`
+  AFTER pointOfInterestChanges loads - World.load() runs too early for changes-reading repairs,
+  see the existing rebuildPlayerTownVision() comment): any economy building the pre-fix
+  migration parked on a fixed slot is relocated to the first free regular slot (type->objectId
+  entry updated, shopRebuilt flag moved); the land shop reverts to rubble, rebuildable as
+  itself. Idempotent; plain shopRebuilt flags on fixed slots are deliberately left alone (could
+  be a legitimate in-game repair - benign either way).
+
+### 2. Capitol Arena + Spellsmith rubble art; Inn starts repaired
+- A destroyed gated building (`OnCollide` with the 3-arg constructor) **in the Capitol** now
+  draws the real 32x32 broken-shop art (same variant pick + over-footprint placement as
+  `ShopActor`) instead of the translucent `RubbleOverlay`. Regular towns keep the overlay.
+- The Inn starts repaired in the Capitol, always - the upgrade requires a restored town, whose
+  inn was already functioning ("it came from the town"). Set at upgrade time
+  (`upgradeToCapitol()` parses the capital tmx for the `inn.tx` object id) AND backfilled at
+  load by `repairCapitolState()` for the user's existing Capitol save. The old town's inn
+  rebuilt-flag is now also excluded from the migration's plain-shop count (it migrates by type,
+  not as an anonymous slot).
+
+### 3. Town-count life bonus (first #17 Territory Effect shipped)
+- **+1 max life per 5 owned towns, +1 more for the Capitol.** `TownRestoration.
+  updateTownLifeBonus()` computes the target; `AdventurePlayer.applyTownLifeBonus()` tracks the
+  currently-applied bonus in a new persisted `townLifeBonus` field and applies only the DELTA -
+  recomputing is idempotent. Gaining heals by the gain (matches `addMaxLife()`); losing clamps
+  life to the new max, never below 1.
+- Recomputed at: town restore, Capitol upgrade, an AI mage capturing a player-owned town
+  (read `wasPlayerOwned` BEFORE `transformInto()` re-keys the changes lookup), and once
+  quietly at save load (covers saves predating the feature).
+- HUD notification on change ("Your realm prospers! Max life +1." / "Your realm shrinks...").
+
+### 4. Capture roads - a taken town connects to its owner's network via in-between towns
+- On ANY capture (AI mage arrival, player town restore), `TerritoryControl.
+  connectCapturedTownByRoad()` runs Dijkstra over the complete graph of all town/capital POIs
+  (any allegiance - neutral/rival towns are valid waypoints) with **edge cost = distance
+  squared**, targeting the cheapest-to-reach holding of the capturing owner. Squared cost is
+  the whole trick: a chain of short hops through intermediate towns always beats one long
+  straight line (any stop-over inside the circle whose diameter is the direct segment wins),
+  which is exactly the requested "connect via the towns in-between" look. No same-color holding
+  yet -> no road (a player's first town, a color's first capture connect to their
+  capital/castle-promoted towns since those count as owned).
+- `World.buildRoad(waypoints, onTileRepainted)` draws each consecutive pair with the exact same
+  Bresenham + `roadBit` + `terrainMap=0` treatment - and the same `[x][height - y]` raw index
+  convention - as `generateNew()`'s road pass, so runtime roads line up with the generated
+  network at shared towns. Already-road tiles are skipped (re-tracing existing roads is nearly
+  free); minimap + fog pixmap update per tile; chunk textures refresh for each changed tile
+  plus a 2-tile blend ring. Doodads that happen to sit on a new road tile are left in place
+  (structures clear via terrainMap=0; roadside bushes are acceptable) - noted simplification.
+- Runs AFTER `repaintBiomeAroundTown()` on mage captures (the repaint preserves road bits, and
+  endpoints key off the town's post-transform identity).
+
+Compiled clean (`mvn -pl forge-gui-mobile -am compile -o`). **Not yet playtested.**

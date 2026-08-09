@@ -864,7 +864,7 @@ needs its own design pass before any of this gets built:**
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
 
-### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; game-over-on-loss and Capitol-exclusive buildings still open)
+### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops (5 colors + Land, hardcoded, simple-repair-only, no icon once rebuilt), Arena/Spellsmith broken-shop rubble art, Inn starts repaired; game-over-on-loss and Capitol-exclusive buildings still open)
 - Once the player owns 5 towns, they can upgrade **one** of them into their Capitol - only 1
   allowed at a time. Needs a "which 5 towns count as owned" definition, which depends on #7
   (Dynamic Territory Control) existing first - "owns a town" isn't a concept the game has yet
@@ -1009,7 +1009,10 @@ pattern/assets, not literal copy-paste, unless noted otherwise.
   Items are loadable/obtainable via the `give item <name>` cheat console command now; wiring
   them into actual shop inventories or reward tables is a separate follow-up, not done yet.
 
-### 17. Territory Effects — `Not Started` (idea logged 2026-08-08)
+### 17. Territory Effects — `In Progress` (idea logged 2026-08-08; first effect shipped 2026-08-09)
+- **SHIPPED (2026-08-09): town-count life bonus** - +1 max life per 5 owned towns, +1 more for
+  the Capitol, recomputed on restore/upgrade/capture-loss and at load
+  (`TownRestoration.updateTownLifeBonus()` / `AdventurePlayer.applyTownLifeBonus()`).
 - **There needs to be a REASON for the player to want to spread their territory** - right now the
   Capitol's castle-style expansion (#13) paints the map but changes nothing about how the game
   plays. Owned land should be mechanically meaningful.

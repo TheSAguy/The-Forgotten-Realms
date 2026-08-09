@@ -813,6 +813,10 @@ public class MapStage extends GameStage {
                             ret.addAll(rdata.generate(false, false));
                         }
                         ShopActor actor = new ShopActor(this, id, ret, data);
+                        // Capitol land shops: fixed identity, simple repair, no overlay icon once
+                        // rebuilt (hut art baked into the map) - see ShopActor.fixedShop.
+                        if (prop.containsKey("fixedShop") && (boolean) prop.get("fixedShop"))
+                            actor.setFixedShop(true);
                         addMapActor(obj, actor);
                         // Locate the real building art baked above this shop's own footprint (see
                         // findOverheadTiles()'s own doc comment) once, right after the actor's

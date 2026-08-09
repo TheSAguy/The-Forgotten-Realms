@@ -65,6 +65,10 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
     private int shards = 0;
     private int wood = 0;
     private int stone = 0;
+    // Currently-applied town-count max-life bonus (mod feature, see TownRestoration.
+    // updateTownLifeBonus(): +1 per 5 owned towns, +1 for the Capitol). Tracked so ownership
+    // changes apply only the DELTA to maxLife - recomputing is always safe/idempotent.
+    private int townLifeBonus = 0;
     // Player reputation with the 5 AI colors (MOD_SCOPE.md #1), keyed "white"/"blue"/"black"/
     // "red"/"green". Stored in INTERNAL HALF-POINTS (user-facing value x2) so that multicolor
     // fights' half-strength effects stay exact integers and the 5 values always sum to exactly
@@ -137,6 +141,7 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         shards = 0;
         wood = 0;
         stone = 0;
+        townLifeBonus = 0;
         colorReputationHalfPoints.clear();
         maxDeckCount = 20;
         clearDecks();
@@ -495,6 +500,7 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         shards = data.containsKey("shards") ? data.readInt("shards") : 0;
         wood = data.containsKey("wood") ? data.readInt("wood") : 0;
         stone = data.containsKey("stone") ? data.readInt("stone") : 0;
+        townLifeBonus = data.containsKey("townLifeBonus") ? data.readInt("townLifeBonus") : 0;
         colorReputationHalfPoints.clear();
         if (data.containsKey("colorReputationHalfPoints")) {
             Object obj = data.readObject("colorReputationHalfPoints");
@@ -866,6 +872,7 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         data.store("shards", shards);
         data.store("wood", wood);
         data.store("stone", stone);
+        data.store("townLifeBonus", townLifeBonus);
         data.storeObject("colorReputationHalfPoints", new HashMap<>(colorReputationHalfPoints));
         data.store("deckName", deck.getName());
 
@@ -1150,6 +1157,27 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         maxLife += count;
         life += count;
         onLifeTotalChangeList.emit();
+    }
+
+    /**
+     * Sets the town-count max-life bonus (mod feature, see TownRestoration.updateTownLifeBonus())
+     * to the given target, applying only the difference from what's already applied. Gaining
+     * bonus life also heals by the gain (same behavior as addMaxLife()); losing it clamps current
+     * life down to the new max but never below 1. Returns the delta actually applied (0 = no
+     * change).
+     */
+    public int applyTownLifeBonus(int target) {
+        int delta = target - townLifeBonus;
+        if (delta == 0)
+            return 0;
+        townLifeBonus = target;
+        maxLife += delta;
+        if (delta > 0)
+            life += delta;
+        else
+            life = Math.max(1, Math.min(life, maxLife));
+        onLifeTotalChangeList.emit();
+        return delta;
     }
 
     public void giveGold(int price) {

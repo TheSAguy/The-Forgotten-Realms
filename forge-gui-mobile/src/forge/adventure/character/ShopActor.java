@@ -25,6 +25,11 @@ public class ShopActor extends MapActor {
     private final MapStage stage;
     private ShopData shopData;
     Array<Reward> rewardData;
+    // Capitol land shops (user spec 2026-08-09): the 6 bottom-right shops in player_capital.tmx
+    // (the 5 basic-land colors + Land) are marked "fixedShop" in the tmx. They never randomize,
+    // always repair as exactly what they are (no Bank/Mine conversion menu), and once repaired
+    // draw NO overlay icon - their hut art is already baked into the map's own tile layers.
+    private boolean fixedShop = false;
 
     public ShopActor(MapStage stage, int id, Array<Reward> rewardData, ShopData data) {
         super(id);
@@ -77,7 +82,7 @@ public class ShopActor extends MapActor {
             MapDialog dialog;
             if (!TownRestoration.isTownRestored(stage)) {
                 dialog = TownRestoration.buildShopLockedDialog(stage, objectId);
-            } else if (EconomyBuildings.isSpecialShop(shopData)) {
+            } else if (fixedShop || EconomyBuildings.isSpecialShop(shopData)) {
                 // Booster/Armory shops skip the Bank/Exchange/Industry conversion choice
                 // entirely - see EconomyBuildings.buildSimpleRepairDialog().
                 dialog = EconomyBuildings.buildSimpleRepairDialog(stage, objectId, shopData);
@@ -140,7 +145,7 @@ public class ShopActor extends MapActor {
             // unaffected by this gate.
             int economyType = EconomyBuildings.getBuildingType(stage.getChanges(), objectId);
             TextureRegion buildingSprite = EconomyBuildings.getBuildingSprite(economyType);
-            if (buildingSprite == null && TownRestoration.isWastelandTown()) {
+            if (buildingSprite == null && TownRestoration.isWastelandTown() && !fixedShop) {
                 if (EconomyBuildings.isArmoryShop(shopData))
                     buildingSprite = EconomyBuildings.getArmoryShopSprite();
                 else if (EconomyBuildings.isSpecialShop(shopData))
@@ -173,6 +178,10 @@ public class ShopActor extends MapActor {
         batch.draw(region, x, y, w, h);
     }
 
+
+    public void setFixedShop(boolean fixedShop) {
+        this.fixedShop = fixedShop;
+    }
 
     public boolean isUnlimited() {
         return shopData.unlimited;

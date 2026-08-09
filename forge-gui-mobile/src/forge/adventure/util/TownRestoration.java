@@ -170,6 +170,10 @@ public class TownRestoration {
         world.revealArea((int) (point.getPosition().x / world.getTileSize()),
                 (int) (point.getPosition().y / world.getTileSize()),
                 TerritoryControl.RECOLOR_RADIUS, WorldStage.getInstance()::refreshBackgroundTile);
+        // Every 5th owned town is +1 max life (user spec 2026-08-09), and the new holding gets a
+        // road to the player's nearest other town, routed through any towns between.
+        updateTownLifeBonus(true);
+        TerritoryControl.connectCapturedTownByRoad(world, point, "player");
     }
 
     /**
@@ -414,9 +418,12 @@ public class TownRestoration {
         int plainRebuiltShops = 0;
         java.util.List<Integer> economyTypes = new java.util.ArrayList<>(oldChanges.getEconomyBuildingObjectIds().keySet());
         java.util.Set<Integer> economyObjectIds = new java.util.HashSet<>(oldChanges.getEconomyBuildingObjectIds().values());
+        Integer oldInnId = readInnObjectId(point.getData().map); // the OLD town layout's inn
         for (String flagKey : oldChanges.getMapFlags().keySet()) {
             if (flagKey.startsWith("shopRebuilt_")) {
                 int objectId = Integer.parseInt(flagKey.substring("shopRebuilt_".length()));
+                if (oldInnId != null && objectId == oldInnId)
+                    continue; // the inn migrates by type (auto-repaired below), not as a plain shop slot
                 if (!economyObjectIds.contains(objectId))
                     plainRebuiltShops++; // economy buildings set the same flag - don't double-count them
             }
@@ -442,6 +449,11 @@ public class TownRestoration {
             int slot = capitolShopSlots.get(slotIndex++);
             newChanges.getMapFlags().put("shopRebuilt_" + slot, (byte) 1);
         }
+        // The Inn came with the town (a restored town's inn was already working) - it starts
+        // repaired in the Capitol, always (user spec 2026-08-09).
+        Integer capitolInnId = readInnObjectId(capitolData.map);
+        if (capitolInnId != null)
+            newChanges.getMapFlags().put("shopRebuilt_" + capitolInnId, (byte) 1);
         System.out.println("[TownRestoration] Capitol migration: " + economyTypes.size() + " economy building(s) + "
                 + plainRebuiltShops + " rebuilt shop(s) mapped onto " + capitolShopSlots.size() + " capital slots");
 
@@ -449,6 +461,7 @@ public class TownRestoration {
         world.setTownTerritoryRadius(point.getID(), oldRadius != null ? oldRadius : RECOLOR_RADIUS);
         world.rebuildPlayerTownVision();
         world.refreshWorldMapMarkers(); // the icon changed to the castle-sized capitol art
+        updateTownLifeBonus(true); // the Capitol itself is worth +1 max life (user spec 2026-08-09)
 
         // Plain text - the bold [*] markup renders as smeared double-struck glyphs at this
         // pixel-font size (same issue as the old PLAYER OWNED TOWN warning, reported again here).
@@ -462,24 +475,148 @@ public class TownRestoration {
      * The capital layout's shop slot ids, ascending, parsed straight from the tmx (root-level
      * object group only - the file also embeds a tileset whose tiles carry their own tiny
      * objectgroups, which must not be scanned). Parsing the real file instead of hardcoding ids
-     * keeps this correct if the user re-edits the map in Tiled.
+     * keeps this correct if the user re-edits the map in Tiled. Shops marked "fixedShop" (the 6
+     * hardcoded land shops, user spec 2026-08-09) are NOT migration slots - they must stay
+     * exactly what the tmx says they are, so they're excluded here.
      */
     private static java.util.List<Integer> readCapitolShopObjectIds(String mapPath) {
         java.util.List<Integer> shopIds = new java.util.ArrayList<>();
+        for (com.badlogic.gdx.utils.XmlReader.Element object : readMapObjects(mapPath)) {
+            String template = object.getAttribute("template", "");
+            if (template.endsWith("shop.tx") && !hasTrueProperty(object, "fixedShop"))
+                shopIds.add(object.getIntAttribute("id"));
+        }
+        java.util.Collections.sort(shopIds);
+        return shopIds;
+    }
+
+    /** The capital layout's fixedShop-marked shop ids (the 6 hardcoded land shops), ascending. */
+    private static java.util.List<Integer> readCapitolFixedShopObjectIds(String mapPath) {
+        java.util.List<Integer> shopIds = new java.util.ArrayList<>();
+        for (com.badlogic.gdx.utils.XmlReader.Element object : readMapObjects(mapPath)) {
+            String template = object.getAttribute("template", "");
+            if (template.endsWith("shop.tx") && hasTrueProperty(object, "fixedShop"))
+                shopIds.add(object.getIntAttribute("id"));
+        }
+        java.util.Collections.sort(shopIds);
+        return shopIds;
+    }
+
+    /** The capital layout's inn object id, or null if the map has none. */
+    private static Integer readInnObjectId(String mapPath) {
+        for (com.badlogic.gdx.utils.XmlReader.Element object : readMapObjects(mapPath)) {
+            if (object.getAttribute("template", "").endsWith("inn.tx"))
+                return object.getIntAttribute("id");
+        }
+        return null;
+    }
+
+    private static java.util.List<com.badlogic.gdx.utils.XmlReader.Element> readMapObjects(String mapPath) {
+        java.util.List<com.badlogic.gdx.utils.XmlReader.Element> objects = new java.util.ArrayList<>();
         try {
             com.badlogic.gdx.utils.XmlReader.Element root = new com.badlogic.gdx.utils.XmlReader()
                     .parse(Config.instance().getFile(mapPath));
             for (com.badlogic.gdx.utils.XmlReader.Element group : root.getChildrenByName("objectgroup")) {
-                for (com.badlogic.gdx.utils.XmlReader.Element object : group.getChildrenByName("object")) {
-                    String template = object.getAttribute("template", "");
-                    if (template.endsWith("shop.tx"))
-                        shopIds.add(object.getIntAttribute("id"));
-                }
+                for (com.badlogic.gdx.utils.XmlReader.Element object : group.getChildrenByName("object"))
+                    objects.add(object);
             }
         } catch (Exception e) {
-            System.out.println("[TownRestoration] could not parse capital map for shop slots: " + e);
+            System.out.println("[TownRestoration] could not parse capital map objects: " + e);
         }
-        java.util.Collections.sort(shopIds);
-        return shopIds;
+        return objects;
+    }
+
+    private static boolean hasTrueProperty(com.badlogic.gdx.utils.XmlReader.Element object, String propertyName) {
+        com.badlogic.gdx.utils.XmlReader.Element properties = object.getChildByName("properties");
+        if (properties == null)
+            return false;
+        for (com.badlogic.gdx.utils.XmlReader.Element property : properties.getChildrenByName("property")) {
+            if (propertyName.equals(property.getAttribute("name", "")))
+                return Boolean.parseBoolean(property.getAttribute("value", "false"));
+        }
+        return false;
+    }
+
+    /**
+     * Load-time repair for the Capitol's per-building state (2026-08-09 user spec). Called from
+     * WorldSave.load() AFTER pointOfInterestChanges has loaded (World.load() itself runs too
+     * early - the changes it would see are the previous session's). Idempotent, inert without a
+     * Capitol. Two repairs:
+     * <ul>
+     * <li>The Inn always starts repaired - it "came with the town" (the upgrade requires a
+     * restored, functioning town, whose inn the player already had working).</li>
+     * <li>Any economy building the pre-fixedShop migration parked on one of the 6 hardcoded land
+     * shops is relocated to the first free regular slot - a land shop must never be a Bank/Mine.
+     * Its shopRebuilt flag moves with it; the land shop reverts to rubble, rebuildable as
+     * itself.</li>
+     * </ul>
+     */
+    public static void repairCapitolState(forge.adventure.world.World world) {
+        ConfigData configData = Config.instance().getConfigData();
+        if (configData == null || !configData.townReconstructionEnabled)
+            return;
+        PointOfInterest capitol = null;
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (CAPITOL_POI_NAME.equals(poi.getData().name)) {
+                capitol = poi;
+                break;
+            }
+        }
+        if (capitol == null)
+            return;
+        String mapPath = capitol.getData().map;
+        PointOfInterestChanges changes = WorldSave.getCurrentSave().getPointOfInterestChanges(capitol.getID());
+
+        Integer innId = readInnObjectId(mapPath);
+        if (innId != null && changes.getMapFlags().putIfAbsent("shopRebuilt_" + innId, (byte) 1) == null)
+            System.out.println("[TownRestoration] Capitol repair: inn (object " + innId + ") marked repaired");
+
+        java.util.List<Integer> fixedSlots = readCapitolFixedShopObjectIds(mapPath);
+        if (fixedSlots.isEmpty())
+            return;
+        java.util.List<Integer> regularSlots = readCapitolShopObjectIds(mapPath);
+        for (java.util.Map.Entry<Integer, Integer> entry : changes.getEconomyBuildingObjectIds().entrySet()) {
+            int objectId = entry.getValue();
+            if (!fixedSlots.contains(objectId))
+                continue;
+            Integer freeSlot = null;
+            for (int slot : regularSlots) {
+                if (!changes.getEconomyBuildingObjectIds().containsValue(slot)
+                        && changes.getMapFlags().get("shopRebuilt_" + slot) == null) {
+                    freeSlot = slot;
+                    break;
+                }
+            }
+            if (freeSlot == null) {
+                System.out.println("[TownRestoration] Capitol repair: no free slot to move economy building type "
+                        + entry.getKey() + " off land shop " + objectId);
+                continue;
+            }
+            entry.setValue(freeSlot);
+            changes.getMapFlags().remove("shopRebuilt_" + objectId);
+            changes.getMapFlags().put("shopRebuilt_" + freeSlot, (byte) 1);
+            System.out.println("[TownRestoration] Capitol repair: moved economy building type " + entry.getKey()
+                    + " off land shop " + objectId + " to slot " + freeSlot);
+        }
+    }
+
+    // Town-count life bonus (user spec 2026-08-09): +1 max life per 5 owned towns, +1 more for
+    // the Capitol. Recomputed whenever ownership changes (restore, capture loss, Capitol upgrade)
+    // and once at load; AdventurePlayer tracks the currently-applied bonus so only the DELTA is
+    // ever added/removed - re-running this is always safe.
+    private static final int TOWNS_PER_LIFE = 5;
+
+    public static void updateTownLifeBonus(boolean notify) {
+        int target = countPlayerTowns() / TOWNS_PER_LIFE + (capitolExists() ? 1 : 0);
+        int delta = Current.player().applyTownLifeBonus(target);
+        if (delta == 0)
+            return;
+        System.out.println("[TownRestoration] town life bonus now " + target + " (" + (delta > 0 ? "+" : "") + delta + ")");
+        if (notify) {
+            if (delta > 0)
+                forge.adventure.stage.GameHUD.getInstance().addNotification("Your realm prospers! Max life +" + delta + ".");
+            else
+                forge.adventure.stage.GameHUD.getInstance().addNotification("Your realm shrinks... Max life " + delta + ".");
+        }
     }
 }

@@ -1992,6 +1992,82 @@ public class World implements Disposable, SaveFileContent {
      * onTileRepainted (which fires per-tile, for the ground texture patch) - doodad Actors are
      * cached per-chunk and only refresh on a full chunk reload, not a per-tile patch.
      */
+    /**
+     * Draws a road along a chain of POI waypoints, live, mid-game (Territory Control follow-up,
+     * user spec 2026-08-09: a freshly-captured town gets a road to its color's nearest holding,
+     * routed through whatever towns lie between - see TerritoryControl.connectCapturedTownByRoad()).
+     * Each consecutive waypoint pair gets the exact same Bresenham line + biomeMap roadBit +
+     * terrainMap=0 treatment as generateNew()'s own road pass, INCLUDING its [x][height - y] raw
+     * index convention (one off from the height-y-1 convention the repaint methods use) - so a
+     * runtime road overlaps pixel-for-pixel with the generated road network at shared towns.
+     * Already-road tiles are skipped (no redundant redraws), which makes re-running a path over
+     * existing roads nearly free. Doodads happening to sit on a new road tile are left alone
+     * (structures clear via terrainMap=0; a stray bush on the roadside is acceptable).
+     * Returns the number of tiles actually converted to road.
+     */
+    public int buildRoad(List<PointOfInterest> waypoints, BiConsumer<Integer, Integer> onTileRepainted) {
+        if (data == null || biomeMap == null || terrainMap == null || waypoints == null || waypoints.size() < 2)
+            return 0;
+        long roadBit = 1L << data.GetBiomes().size();
+        java.util.HashSet<Long> touched = new java.util.HashSet<>();
+        for (int seg = 0; seg + 1 < waypoints.size(); seg++) {
+            int startX = (int) waypoints.get(seg).getTilePosition(data.tileSize).x;
+            int startY = (int) waypoints.get(seg).getTilePosition(data.tileSize).y;
+            int x1 = (int) waypoints.get(seg + 1).getTilePosition(data.tileSize).x;
+            int y1 = (int) waypoints.get(seg + 1).getTilePosition(data.tileSize).y;
+            int dx = Math.abs(x1 - startX);
+            int dy = Math.abs(y1 - startY);
+            int sx = startX < x1 ? 1 : -1;
+            int sy = startY < y1 ? 1 : -1;
+            int err = dx - dy;
+            int e2;
+            for (int i = 0; i < 1000; i++) {
+                if (!(startX < 0 || startY <= 0 || startX >= width || startY > height)) {
+                    int rawY = height - startY;
+                    if ((biomeMap[startX][rawY] & roadBit) == 0 || terrainMap[startX][rawY] != 0) {
+                        biomeMap[startX][rawY] |= roadBit;
+                        terrainMap[startX][rawY] = 0;
+                        redrawMinimapTile(startX, rawY);
+                        updateFogOfWarPixmap(startX, rawY);
+                        touched.add((long) startX << 32 | (rawY & 0xffffffffL));
+                    }
+                }
+                if (startX == x1 && startY == y1)
+                    break;
+                e2 = 2 * err;
+                if (e2 > -dy) {
+                    err = err - dy;
+                    startX = startX + sx;
+                } else if (e2 < dx) {
+                    err = err + dx;
+                    startY = startY + sy;
+                }
+            }
+        }
+        // Chunk-texture patches for every changed tile plus a 2-tile ring around it - a road
+        // tile's neighbors blend against it, same neighbor-staleness reasoning as
+        // repaintBiomeAroundTown()'s post-loop repaint.
+        if (onTileRepainted != null && !touched.isEmpty()) {
+            java.util.HashSet<Long> refreshed = new java.util.HashSet<>();
+            for (long key : touched) {
+                int tx = (int) (key >> 32);
+                int rawY = (int) (key & 0xffffffffL);
+                int wy = height - rawY - 1;
+                for (int nx = tx - 2; nx <= tx + 2; nx++) {
+                    if (nx < 0 || nx >= width)
+                        continue;
+                    for (int ny = wy - 2; ny <= wy + 2; ny++) {
+                        if (ny < 0 || ny >= height)
+                            continue;
+                        if (refreshed.add((long) nx << 32 | (ny & 0xffffffffL)))
+                            onTileRepainted.accept(nx, ny);
+                    }
+                }
+            }
+        }
+        return touched.size();
+    }
+
     public void repaintBiomeAroundTown(PointOfInterest point, String biomeName, int radius,
                                         BiConsumer<Integer, Integer> onTileRepainted,
                                         BiConsumer<Integer, Integer> onChunkNeedsReload) {

@@ -733,6 +733,100 @@ public class TerritoryControl {
         return counts;
     }
 
+    /**
+     * Road follow-up to any capture (user spec 2026-08-09): connect the newly-taken town to its
+     * owner's nearest existing holding by road - routed THROUGH whatever towns lie roughly
+     * between the two rather than as one long straight line, so a road taken between two distant
+     * holdings still reads as a natural chain of settlements. Mechanism: Dijkstra over the
+     * complete graph of every town/capital POI (any allegiance - neutral and rival towns are
+     * perfectly good waypoints), with edge cost = distance SQUARED. Squared cost makes a chain of
+     * short hops always beat one long jump wherever a stop-over town exists roughly between the
+     * endpoints (any B inside the circle whose diameter is AC satisfies |AB|²+|BC|² < |AC|²), and
+     * the "closest" target holding falls out of the same search (cheapest-to-reach by path cost).
+     * Re-drawing over segments the world-gen road network already built is nearly free -
+     * World.buildRoad() skips already-road tiles. Owner is an AI color name, or "player" (owned =
+     * restored towns, same isTownRestored() rule as everywhere else).
+     */
+    public static void connectCapturedTownByRoad(World world, PointOfInterest newTown, String owner) {
+        if (!isEnabled() || newTown == null || owner == null)
+            return;
+        List<PointOfInterest> nodes = new ArrayList<>();
+        int source = -1;
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            String type = poi.getData().type;
+            if (!"town".equals(type) && !"capital".equals(type))
+                continue;
+            if (source < 0 && poi.getID().equals(newTown.getID()))
+                source = nodes.size();
+            nodes.add(poi);
+        }
+        if (source < 0)
+            return;
+        int n = nodes.size();
+        boolean[] isTarget = new boolean[n];
+        boolean anyTarget = false;
+        for (int i = 0; i < n; i++) {
+            if (i == source)
+                continue;
+            PointOfInterest poi = nodes.get(i);
+            if ("player".equals(owner))
+                isTarget[i] = TownRestoration.isTownRestored(
+                        WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID()));
+            else
+                isTarget[i] = isColorTownOrCapital(poi.getData(), owner);
+            anyTarget |= isTarget[i];
+        }
+        if (!anyTarget)
+            return; // first holding of this owner - nothing to connect to yet
+        double[] best = new double[n];
+        int[] prev = new int[n];
+        boolean[] done = new boolean[n];
+        java.util.Arrays.fill(best, Double.MAX_VALUE);
+        java.util.Arrays.fill(prev, -1);
+        best[source] = 0;
+        int reached = -1;
+        for (int iter = 0; iter < n; iter++) {
+            int u = -1;
+            double uBest = Double.MAX_VALUE;
+            for (int i = 0; i < n; i++) {
+                if (!done[i] && best[i] < uBest) {
+                    uBest = best[i];
+                    u = i;
+                }
+            }
+            if (u < 0)
+                break;
+            done[u] = true;
+            if (isTarget[u]) {
+                reached = u;
+                break;
+            }
+            for (int v = 0; v < n; v++) {
+                if (done[v])
+                    continue;
+                double cost = best[u] + nodes.get(u).getPosition().dst2(nodes.get(v).getPosition());
+                if (cost < best[v]) {
+                    best[v] = cost;
+                    prev[v] = u;
+                }
+            }
+        }
+        if (reached < 0)
+            return;
+        List<PointOfInterest> waypoints = new ArrayList<>();
+        for (int i = reached; i >= 0; i = prev[i])
+            waypoints.add(nodes.get(i));
+        java.util.Collections.reverse(waypoints); // source -> ... -> reached (cosmetic; roads are undirected)
+        int tiles = world.buildRoad(waypoints, WorldStage.getInstance()::refreshBackgroundTile);
+        StringBuilder route = new StringBuilder();
+        for (PointOfInterest poi : waypoints) {
+            if (route.length() > 0)
+                route.append(" -> ");
+            route.append(poi.getDisplayName());
+        }
+        System.out.println("[TerritoryControl] road (" + owner + "): " + route + " (" + tiles + " new tile(s))");
+    }
+
     /** Called by WorldStage when a mage's territoryTarget position has been reached. */
     public static void onMageArrived(EnemySprite mage) {
         PointOfInterest target = mage.territoryTarget;
@@ -750,6 +844,10 @@ public class TerritoryControl {
 
         World world = WorldSave.getCurrentSave().getWorld();
         String displayName = target.getDisplayName();
+        // Read while the OLD id is still valid (transformInto() re-keys the changes lookup) -
+        // losing a restored town costs the player its share of the town-count life bonus.
+        boolean wasPlayerOwned = TownRestoration.isTownRestored(
+                WorldSave.getCurrentSave().peekPointOfInterestChanges(target.getID()));
         // The town's territory may have GROWN past RECOLOR_RADIUS (town expansion, up to
         // TOWN_MAX_TERRITORY_RADIUS) - read its radius under the OLD id, before transformInto()
         // changes it, and repaint the FULL held radius. Repainting only RECOLOR_RADIUS would
@@ -770,6 +868,11 @@ public class TerritoryControl {
         world.repaintBiomeAroundTown(target, mage.territoryColor, repaintRadius,
                 WorldStage.getInstance()::refreshBackgroundTile,
                 WorldStage.getInstance()::reloadBackgroundChunkObjects);
+        // AFTER the repaint - repaint preserves road bits, and the road endpoints key off the
+        // town's post-transform identity.
+        connectCapturedTownByRoad(world, target, mage.territoryColor);
+        if (wasPlayerOwned)
+            TownRestoration.updateTownLifeBonus(true);
 
         String message = displayName + " has fallen to " + capitalize(mage.territoryColor) + "!";
         System.out.println("[TerritoryControl] " + message);

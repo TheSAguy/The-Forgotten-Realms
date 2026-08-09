@@ -96,6 +96,12 @@ public class WorldSave {
                     // (see its own comment). Caches which map areas count as fog-of-war Revealed
                     // around player-owned towns.
                     currentSave.world.rebuildPlayerTownVision();
+                    // Same both-halves-loaded requirement: Capitol per-building state repair
+                    // (inn auto-repaired, economy buildings moved off the fixed land shops) and
+                    // the town-count life bonus both read pointOfInterestChanges flags. Both are
+                    // idempotent, both inert unless the mod plane's config flags are on.
+                    forge.adventure.util.TownRestoration.repairCapitolState(currentSave.world);
+                    forge.adventure.util.TownRestoration.updateTownLifeBonus(false);
                     WorldStage.getInstance().load(mainData.readSubData("worldStage"));
                     // generateNew() never runs for a loaded save, so nothing has pre-built Territory
                     // Control's per-color WFC structure patterns yet - kick that off now, in the

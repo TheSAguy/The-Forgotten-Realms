@@ -55,7 +55,21 @@ public class OnCollide extends MapActor {
     @Override
     public void draw(Batch batch, float alpha) {
         super.draw(batch, alpha);
-        if (isDestroyed())
-            RubbleOverlay.draw(batch, getX(), getY(), getWidth(), getHeight(), alpha);
+        if (!isDestroyed())
+            return;
+        // In the Capitol, a destroyed gated building (Arena, Spellsmith) shows the real
+        // broken-shop art instead of the translucent rubble overlay (user spec 2026-08-09,
+        // "use the broken shop art for now") - same 32x32-over-footprint placement as
+        // ShopActor.drawOverFootprint(). Regular towns keep the rubble overlay.
+        if (TownRestoration.isCurrentTownCapitol()) {
+            com.badlogic.gdx.graphics.g2d.TextureRegion broken = TownRestoration.getBrokenShopSprite(objectId);
+            if (broken != null) {
+                float w = broken.getRegionWidth();
+                float h = broken.getRegionHeight();
+                batch.draw(broken, getX() + (getWidth() - w) / 2f, getY() + getHeight() - 16f, w, h);
+                return;
+            }
+        }
+        RubbleOverlay.draw(batch, getX(), getY(), getWidth(), getHeight(), alpha);
     }
 }

@@ -177,7 +177,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   rotatable dungeon/cave counts by `DungeonRotation.POOL_MULTIPLIER` (pool rotation, new worlds
   only) and calls `DungeonRotation.initializeNewWorld()` right after placement; new persisted
   `poiActiveTarget` int and `questAcceptedDay` map (side-quest timers, kept off AdventureQuestData
-  for serialization compat).
+  for serialization compat). Capture-roads round (2026-08-09): new public
+  `buildRoad(List<PointOfInterest> waypoints, onTileRepainted)` - runtime version of
+  `generateNew()`'s town-road pass (same Bresenham/`roadBit`/`terrainMap=0` treatment AND its
+  `[x][height - y]` raw index convention, so runtime roads line up with the generated network),
+  skips already-road tiles, updates minimap + fog pixmap per changed tile, chunk-patches changed
+  tiles + a 2-tile blend ring; called from `TerritoryControl.connectCapturedTownByRoad()`.
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterest.java`** — Dungeon
   rotation (#15): `getActive()` now honors the persisted `active` field (previously write-only -
   saved/loaded but never consulted; no data entry ships `active:false`, verified, so stock behavior
@@ -232,6 +237,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   ownership converges), castle keeps + every town's inner half-radius are hard floors, and
   Spawn projects nothing at all anymore (its leftover central bubble was the user-reported
   unclaimed circle). `load()` additionally calls `TerritoryControl.repairMissingCapitals()`.
+  Capitol-polish round (2026-08-09): `load()` calls `TownRestoration.repairCapitolState()` and
+  `TownRestoration.updateTownLifeBonus(false)` right after `rebuildPlayerTownVision()` - both
+  read pointOfInterestChanges flags, so they share its both-halves-loaded requirement; both
+  idempotent and inert without the mod plane's config flags.
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the
@@ -272,9 +281,15 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   file after World.java: ruin/rebuilt-building icon rendering, special/armory shop dialogs, shop
   overhead-tile hide/restore. Color Reputation (#1) added a third factor to `getPriceModifier()`
   (`colorReputationModifier()` - tier-based card price scaling in a color's towns).
+  Capitol-polish round (2026-08-09): new `fixedShop` flag (set by MapStage from the tmx
+  property) - a fixed shop repairs via the simple dialog only (never the economy-building
+  conversion menu) and draws no overlay icon once rebuilt (its hut art is baked into the map).
 - **`forge-gui-mobile/src/forge/adventure/character/OnCollide.java`** — added an optional
   town-restoration-gated constructor overload (Job Board building specifically) - the original
-  single-arg constructor is unchanged/still used everywhere else unmodified.
+  single-arg constructor is unchanged/still used everywhere else unmodified. Capitol-polish
+  round (2026-08-09): a destroyed gated building in the Capitol draws the 32x32 broken-shop art
+  (same placement as ShopActor's) instead of the translucent RubbleOverlay; regular towns keep
+  the overlay.
 - **`forge-gui-mobile/src/forge/adventure/character/QuestActor.java`** — same gating pattern as
   `OnCollide.java` for the Job Board's own quest-giver interaction, plus triggers the terrain
   recolor prototype (#7) once a town's restored. Night round (2026-08-08): a RESTORED wasteland
@@ -284,7 +299,8 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   exists, straight to quests.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — largest diff after World.java:
   shop overhead-tile detection/hide (`findOverheadTiles`/`setShopOverheadTilesHidden`), sign
-  visibility live-updates.
+  visibility live-updates. Capitol-polish round (2026-08-09): the "shop" case reads the new
+  `fixedShop` tmx property onto `ShopActor.setFixedShop()`.
 
 ### HUD & UI
 - **`forge-gui-mobile/src/forge/adventure/stage/GameHUD.java`** — clock readout (#6), resource
@@ -361,7 +377,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   resource fields alongside existing Gold/Shards (#9), same pattern (get/add/take/onChange).
   Color Reputation (#1) added `colorReputationHalfPoints` (Map<String,Integer>, save/load/clear
   like the resources) with get/add accessors, plus one `ColorReputation.applyStartingDeckBonus()`
-  call in `create()` right after the starting deck's color identity is set.
+  call in `create()` right after the starting deck's color identity is set. Territory Effects
+  (#17, 2026-08-09): persisted `townLifeBonus` field + `applyTownLifeBonus(target)` (applies
+  only the delta to maxLife; gain heals by the gain, loss clamps life to new max, never below
+  1) - driven by `TownRestoration.updateTownLifeBonus()`.
 - **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 8 opt-in mod flags:
   `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`,
   `colorReputationEnabled`, `resourceSpawnsEnabled`, `dungeonRotationEnabled`, `sideQuestTimerEnabled` (all default `false` - see `CLAUDE.md`'s ground
