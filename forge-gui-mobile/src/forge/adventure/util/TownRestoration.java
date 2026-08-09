@@ -353,12 +353,27 @@ public class TownRestoration {
         stage.showDialog();
     }
 
-    private static boolean capitolExists() {
+    public static boolean capitolExists() {
         for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
             if (CAPITOL_POI_NAME.equals(poi.getData().name))
                 return true;
         }
         return false;
+    }
+
+    /** Is the town the player is currently inside the Capitol itself? */
+    public static boolean isCurrentTownCapitol() {
+        PointOfInterest point = TileMapScene.instance().rootPoint;
+        return point != null && CAPITOL_POI_NAME.equals(point.getData().name);
+    }
+
+    /**
+     * The Job Board menu only exists to offer the Capitol upgrade (user decision 2026-08-08 late:
+     * rename was dropped, and once a Capitol exists - or you're standing in it - a
+     * Browse-quests-or-Leave menu is a pointless extra click). Straight to quests otherwise.
+     */
+    public static boolean shouldShowJobBoardMenu() {
+        return !isCurrentTownCapitol() && !capitolExists();
     }
 
     private static int countPlayerTowns() {
@@ -419,8 +434,9 @@ public class TownRestoration {
             if (slotIndex >= capitolShopSlots.size())
                 break;
             int slot = capitolShopSlots.get(slotIndex++);
-            newChanges.setEconomyBuildingObjectId(economyType, slot);
-            newChanges.getMapFlags().put("shopRebuilt_" + slot, (byte) 1);
+            // Sets the one-per-type economyBuilt flag too - without it the Capitol's build menu
+            // offered a second mine of a type that had just migrated in (user-reported).
+            EconomyBuildings.registerMigratedBuilding(newChanges, economyType, slot);
         }
         for (int i = 0; i < plainRebuiltShops && slotIndex < capitolShopSlots.size(); i++) {
             int slot = capitolShopSlots.get(slotIndex++);
@@ -434,7 +450,9 @@ public class TownRestoration {
         world.rebuildPlayerTownVision();
         world.refreshWorldMapMarkers(); // the icon changed to the castle-sized capitol art
 
-        forge.adventure.stage.GameHUD.getInstance().addNotification("[*]Camelot rises! Return to your new Capitol to see it rebuilt.");
+        // Plain text - the bold [*] markup renders as smeared double-struck glyphs at this
+        // pixel-font size (same issue as the old PLAYER OWNED TOWN warning, reported again here).
+        forge.adventure.stage.GameHUD.getInstance().addNotification("Camelot rises! Return to your new Capitol to see it rebuilt.");
         System.out.println("[TownRestoration] town upgraded to Capitol \"Camelot\"");
         // Kick to the world map so re-entry loads the capital layout.
         stage.exitDungeon(false, false);

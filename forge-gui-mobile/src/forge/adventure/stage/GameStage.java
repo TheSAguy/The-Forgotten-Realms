@@ -101,6 +101,12 @@ public abstract class GameStage extends Stage {
             setDialogStage(GameHUD.getInstance());
         }
         GameHUD.getInstance().playerIdle();
+        // Halt any in-flight movement too, not just the animation - without this the player kept
+        // walking toward their last destination behind the dialog (reported while rebuilding
+        // buildings in towns, 2026-08-08 late; OnCollide's rebuild path already did its own
+        // stop(), this generalizes it to every dialog on any stage).
+        if (getPlayerSprite() != null)
+            getPlayerSprite().stop();
         dialogButtonMap.clear();
         for (int i = 0; i < dialog.getButtonTable().getCells().size; i++) {
             dialogButtonMap.add((TextraButton) dialog.getButtonTable().getCells().get(i).getActor());

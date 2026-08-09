@@ -181,6 +181,18 @@ public class TerritoryControl {
                 continue; // no castle at all - nothing sane to anchor a capital to
             ensureCapital(world, color, castle, keepRadiusWorld);
         }
+        // A Capitol upgraded before the migration set economyBuilt_<type> flags could offer
+        // duplicate economy buildings - backfill the flags from the type->objectId map.
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (!TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name))
+                continue;
+            forge.adventure.pointofintrest.PointOfInterestChanges changes =
+                    WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+            if (changes == null)
+                continue;
+            for (int type : changes.getEconomyBuildingObjectIds().keySet())
+                changes.getMapFlags().putIfAbsent("economyBuilt_" + type, (byte) 1);
+        }
     }
 
     // A color's own "<Noun> Capital" is placed by ordinary world-gen (same as any other town)
@@ -307,6 +319,14 @@ public class TerritoryControl {
         }
         List<float[]> playerList = new ArrayList<>();
         for (PointOfInterest poi : playerTowns) {
+            // The Capitol is the player's castle: castle-grade pull and a full inviolable keep,
+            // exactly like the five AI castles (2026-08-08 late, "his terrain should also
+            // spread, just like the AI's").
+            if (TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name)) {
+                playerList.add(new float[]{poi.getPosition().x / tileSize, poi.getPosition().y / tileSize,
+                        CASTLE_PULL_WEIGHT, CASTLE_KEEP_RADIUS_TILES});
+                continue;
+            }
             Integer radius = world.getTownTerritoryRadius(poi.getID());
             int protect = Math.max(1, (radius != null ? radius : RECOLOR_RADIUS) / 2);
             playerList.add(new float[]{poi.getPosition().x / tileSize, poi.getPosition().y / tileSize,
@@ -364,6 +384,8 @@ public class TerritoryControl {
         // town's protection cap only covers its CURRENT radius, so the castle claimed the ring the
         // town was about to grow into, even where the town was strictly the nearer anchor.
         for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name))
+                continue; // the Capitol expands castle-style below, not through town growth
             boolean playerOwned = playerTowns.contains(poi);
             Integer townRadius = world.getTownTerritoryRadius(poi.getID());
             if (townRadius == null) {
@@ -459,6 +481,55 @@ public class TerritoryControl {
             // exactly how the pentagon stall stayed invisible; a claimed-tile count can't hide.
             System.out.println("[TerritoryControl] " + color + ": territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS
                     + ", claimed " + claimed + " tile(s) this tick" + (sourcesChanged ? " (full re-contest)" : ""));
+        }
+
+        // Capitol expansion (2026-08-08 late, user: "once the player builds a Capitol, his
+        // terrain should also spread, just like the AI's"): the player's territory grows from
+        // Camelot at the same daily rate toward the same cap, painted as the "player" biome,
+        // contested by the same pull rules. Radius state rides colorTerritoryRadius under the
+        // "player" key; it's also mirrored onto the Capitol's own town-radius entry so the
+        // fog-of-war Revealed cache tracks the full held disc.
+        PointOfInterest capitol = null;
+        for (PointOfInterest poi : playerTowns) {
+            if (TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name)) {
+                capitol = poi;
+                break;
+            }
+        }
+        if (capitol != null) {
+            Integer currentRadius = world.getColorTerritoryRadius("player");
+            if (currentRadius == null) {
+                currentRadius = CASTLE_KEEP_RADIUS_TILES; // first tick after the upgrade
+                world.setColorTerritoryRadius("player", currentRadius);
+            }
+            int newRadius = Math.min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
+            int innerRadius;
+            if (sourcesChanged) {
+                // Inner radius 1, not the keep: unlike an AI castle (whose keep was generated as
+                // its own real content), the ground under the Capitol's keep is ordinary
+                // player-painted-or-wasteland tiles - claiming from 1 outward fills any of it
+                // still neutral (already-player tiles skip on the ownership check immediately).
+                innerRadius = 1;
+            } else if (newRadius > currentRadius) {
+                innerRadius = Math.max(1, currentRadius - 1);
+            } else {
+                innerRadius = -1; // at cap, landscape unchanged - nothing to do
+            }
+            if (innerRadius >= 0) {
+                int claimed = world.claimWastelandRing("player", capitol.getPosition(), pullSources,
+                        innerRadius, newRadius,
+                        WorldStage.getInstance()::refreshBackgroundTile,
+                        WorldStage.getInstance()::reloadBackgroundChunkObjects);
+                if (newRadius > currentRadius)
+                    world.setColorTerritoryRadius("player", newRadius);
+                world.setTownTerritoryRadius(capitol.getID(), newRadius);
+                world.rebuildPlayerTownVision();
+                world.revealArea((int) (capitol.getPosition().x / world.getTileSize()),
+                        (int) (capitol.getPosition().y / world.getTileSize()),
+                        newRadius, WorldStage.getInstance()::refreshBackgroundTile);
+                System.out.println("[TerritoryControl] player: Capitol territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS
+                        + ", claimed " + claimed + " tile(s) this tick" + (sourcesChanged ? " (full re-contest)" : ""));
+            }
         }
     }
 

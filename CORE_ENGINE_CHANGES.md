@@ -278,9 +278,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/character/QuestActor.java`** — same gating pattern as
   `OnCollide.java` for the Job Board's own quest-giver interaction, plus triggers the terrain
   recolor prototype (#7) once a town's restored. Night round (2026-08-08): a RESTORED wasteland
-  town's Job Board now opens `TownRestoration.openJobBoardMenu()` (Browse quests / Rename town /
-  Leave) before the quest offer - quest flow extracted to `showQuestBoard()`, stock towns
-  unchanged.
+  town's Job Board now opens `TownRestoration.openJobBoardMenu()` before the quest offer - quest
+  flow extracted to `showQuestBoard()`, stock towns unchanged. Night round 2: the menu only
+  shows while the Capitol upgrade offer is live (`shouldShowJobBoardMenu()`) - once a Capitol
+  exists, straight to quests.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — largest diff after World.java:
   shop overhead-tile detection/hide (`findOverheadTiles`/`setShopOverheadTilesHidden`), sign
   visibility live-updates.
@@ -408,6 +409,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `DungeonRotation.processDaysPassed()` call in the day-change block, and the ordinary-town entry
   bar swapped its corner notification for a real blocking dialog (`showEntryBarredDialog()`, same
   styling as the capital-toll dialog).
+- **`forge-gui-mobile/src/forge/adventure/stage/GameStage.java`** — `showDialog()` now stops the
+  player sprite's in-flight movement (2026-08-08 night 2) - the player kept walking behind every
+  dialog; OnCollide's rebuild path had its own stop(), this generalizes it to all dialogs.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Player Capitol round
   (2026-08-08 late night): the "arena" object case switched to the gated 3-arg OnCollide
   constructor (inn/spellsmith already used it) so an arena in a wasteland town/capital starts as

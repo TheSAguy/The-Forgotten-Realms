@@ -199,6 +199,20 @@ public class EconomyBuildings {
         return action;
     }
 
+    /**
+     * Registers an economy building on a town's changes entry as if it had been built there:
+     * type->objectId mapping, the shop's rebuilt flag, AND the one-per-type economyBuilt flag.
+     * Built for the Capitol migration (2026-08-08 late) - its first version only set the former
+     * two, so the Capitol's build menu happily offered a second Gold Mine even though the town's
+     * mine had just migrated in (the menu's exclusion reads the economyBuilt_<type> flag, nothing
+     * else - user-reported).
+     */
+    public static void registerMigratedBuilding(PointOfInterestChanges changes, int type, int objectId) {
+        changes.setEconomyBuildingObjectId(type, objectId);
+        changes.getMapFlags().put("shopRebuilt_" + objectId, (byte) 1);
+        changes.getMapFlags().put(builtFlag(type), (byte) 1);
+    }
+
     // Always shown (rather than hidden via a condition) so the player can see the cost even when
     // short on gold - just greyed out via isDisabled, same pattern already used by the Bank/
     // Exchange dialogs' addButtonRow(). "Already have one of this type" is still a hard hide via
@@ -228,33 +242,48 @@ public class EconomyBuildings {
         DialogData root = new DialogData();
         root.text = "This shop is buried in rubble. What would you like to rebuild it as?";
 
-        DialogData industryBack = new DialogData();
-        industryBack.name = "Back";
-
-        DialogData industry = new DialogData();
-        industry.name = "Industry";
-        industry.text = "Which industry building?";
-        industry.options = new DialogData[]{
-                buildOption(SHARD_MINE, objectId),
-                buildOption(GOLD_MINE, objectId),
-                buildOption(LUMBER_MILL, objectId),
-                buildOption(STONE_MINE, objectId),
-                industryBack
-        };
-
         DialogData notNow = new DialogData();
         notNow.name = "Not now";
 
-        root.options = new DialogData[]{
-                buildOption(NONE, objectId),
-                buildOption(BANK, objectId),
-                buildOption(EXCHANGE, objectId),
-                industry,
-                notNow
-        };
-        // "Back" just re-shows the top-level menu - same content, not a true navigation stack.
-        industryBack.text = root.text;
-        industryBack.options = root.options;
+        if (TownRestoration.isCurrentTownCapitol()) {
+            // The Capitol keeps the full menu: Bank/Exchange (Capitol-exclusive per user
+            // 2026-08-08 late) plus the Industry submenu.
+            DialogData industryBack = new DialogData();
+            industryBack.name = "Back";
+
+            DialogData industry = new DialogData();
+            industry.name = "Industry";
+            industry.text = "Which industry building?";
+            industry.options = new DialogData[]{
+                    buildOption(SHARD_MINE, objectId),
+                    buildOption(GOLD_MINE, objectId),
+                    buildOption(LUMBER_MILL, objectId),
+                    buildOption(STONE_MINE, objectId),
+                    industryBack
+            };
+
+            root.options = new DialogData[]{
+                    buildOption(NONE, objectId),
+                    buildOption(BANK, objectId),
+                    buildOption(EXCHANGE, objectId),
+                    industry,
+                    notNow
+            };
+            // "Back" just re-shows the top-level menu - same content, not a true navigation stack.
+            industryBack.text = root.text;
+            industryBack.options = root.options;
+        } else {
+            // Ordinary towns: no Bank/Exchange (Capitol-only), which leaves few enough options
+            // that the Industry submenu collapsed onto the single page (user 2026-08-08 late).
+            root.options = new DialogData[]{
+                    buildOption(NONE, objectId),
+                    buildOption(SHARD_MINE, objectId),
+                    buildOption(GOLD_MINE, objectId),
+                    buildOption(LUMBER_MILL, objectId),
+                    buildOption(STONE_MINE, objectId),
+                    notNow
+            };
+        }
 
         MapDialog dialog = new MapDialog(root, stage, objectId, null);
         dialog.addDialogCompleteListener(new ChangeListener() {

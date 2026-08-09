@@ -4270,3 +4270,58 @@ synced (2 tmx, icon png + atlas, points_of_interest.json).
 capital layout needs entry after upgrade (watch for tmx load errors - see embedded-tileset
 note); the perf cache needs a feel-check at 100x plus one capture (should log "full re-contest"
 that day only).
+
+
+## Capitol playtest round 1 fixes + user's final layouts (2026-08-08 night 2)
+
+User's first Capitol upgrade went end-to-end (no crashes, layout loaded - the embedded tileset
+in player_capital.tmx is confirmed harmless). Fix round from the playtest, plus their updated
+player_town.tmx / player_capital.tmx imported (vicwaver-machine paths rewritten again, 16+32):
+
+**1. "Camelot rises" notification unreadable** - the [*] bold prefix again; now plain text.
+
+**2. Job Board menu only while it has a point**: once any Capitol exists (or standing in it),
+the board goes STRAIGHT to quests - the menu only appears while the upgrade offer is live
+(`shouldShowJobBoardMenu()`).
+
+**3. Player kept walking behind dialogs** - `GameStage.showDialog()` now stops the player
+sprite outright (generalizes the stop() OnCollide's rebuild path already did).
+
+**4. Duplicate mines in the Capitol** - the one-per-type gate is the `economyBuilt_<type>` MAP
+FLAG, which the migration didn't set (it only wrote the type->objectId map + shopRebuilt).
+New `EconomyBuildings.registerMigratedBuilding()` sets all three; `repairMissingCapitals()`
+backfills the flags on load for the already-upgraded Capitol. (The extra mine already built on
+the test save stays as a paid-for oddity - its slot has no economy mapping, so it acts as a
+plain card shop.)
+
+**5. Bank/Exchange are Capitol-only now**: `buildChooseBuildingDialog()` branches - ordinary
+towns get ONE flat page (Card Shop / 4 industry types / Not now, no Bank, no Exchange, no
+submenu); the Capitol keeps the full menu with Bank/Exchange/Industry.
+
+**6. Shop lists rewired (in the tmx data)**: town's special booster shop (id 58) is now a
+regular generic shop - the booster shop lives ONLY in the Capitol (id 68). Capital's 9 plain
+shops swapped from the copied White-capital lists to the generic random lists; armory restored
+at id 63 (Equipment, noRestock); six land shops set: 73=Plains, 74=Island, 75=Swamp,
+76=Mountain, 62=Forest, 55=Land (generic land IS a real list - colorless/utility lands, so the
+user's 6th shop works); job board questtype plains_capital -> waste_town_generic; the White
+capital's IntroChar story NPC (id 64) removed.
+
+**7. "Missing item" spam / empty Armory** - the plane's items.json full-copy override was
+missing 138 items that common's has (Iron/Steel/Gold equipment, the whole armory stock among
+them; `RewardData` prints "Missing item" per failed lookup). Merged all 138 common-only items
+into the plane file (525 -> 664 items).
+
+**8. Capitol territory spread**: with a Capitol built, the player's territory now grows
+castle-style - same EXPANSION_TILES_PER_DAY, same 450 cap, painted as the player biome,
+contested by the same pull rules (the Capitol is a castle-grade source with a full inviolable
+keep). Radius state on colorTerritoryRadius["player"], mirrored onto the Capitol's town-radius
+entry so fog-of-war vision tracks the disc; grown ground auto-revealed. The Capitol is excluded
+from ordinary town growth.
+
+Compiled, deployed, byte-verified (TownRestoration, TerritoryControl, EconomyBuildings,
+QuestActor, GameStage), res synced (2 tmx, items.json).
+
+**Not yet playtested**: flat town build menu + Capitol full menu; no more duplicate-mine offers
+on the existing save; armory stocking equipment (Missing item spam gone); land shops selling
+their lands; booster shop in Capitol only; straight-to-quests boards; player spread visible on
+the map ("player: Capitol territory radius now N/450" in the log).

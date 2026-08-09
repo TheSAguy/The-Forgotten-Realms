@@ -51,9 +51,12 @@ public class QuestActor extends DialogActor {
                 stage.showDialog();
             return;
         }
-        // Restored wasteland towns get the Job Board menu (browse quests / rename town / leave)
-        // before the quest offer - mod-gated, stock towns keep the direct-to-quest behavior.
-        if (TownRestoration.isWastelandTown() && TownRestoration.isTownRestored(stage)) {
+        // Restored wasteland towns get the Job Board menu before the quest offer - but ONLY while
+        // there's a Capitol upgrade to offer; once the Capitol exists (or you're inside it) the
+        // board goes straight to quests (user feedback 2026-08-08 late). Mod-gated; stock towns
+        // keep the direct-to-quest behavior always.
+        if (TownRestoration.isWastelandTown() && TownRestoration.isTownRestored(stage)
+                && TownRestoration.shouldShowJobBoardMenu()) {
             TownRestoration.openJobBoardMenu(stage, this::showQuestBoard);
             return;
         }
