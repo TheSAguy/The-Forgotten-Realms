@@ -98,20 +98,33 @@ public class ShopActor extends MapActor {
         int economyType = EconomyBuildings.getBuildingType(changes, objectId);
         switch (economyType) {
             case EconomyBuildings.BANK:
-                EconomyBuildings.openBankDialog(stage, changes);
+                EconomyBuildings.openBankDialog(stage, changes, objectId);
                 return;
             case EconomyBuildings.EXCHANGE:
-                EconomyBuildings.openExchangeDialog(stage);
+                EconomyBuildings.openExchangeDialog(stage, objectId);
                 return;
             case EconomyBuildings.SHARD_MINE:
             case EconomyBuildings.GOLD_MINE:
             case EconomyBuildings.LUMBER_MILL:
             case EconomyBuildings.STONE_MINE:
-                EconomyBuildings.openProductionInfoDialog(stage, economyType);
+                EconomyBuildings.openProductionInfoDialog(stage, economyType, objectId);
+                return;
+            case EconomyBuildings.OUTLOOK:
+                EconomyBuildings.openOutlookInfoDialog(stage, objectId);
+                return;
+            case EconomyBuildings.TELEPORTER:
+                EconomyBuildings.openTeleporterDialog(stage, objectId);
                 return;
             default:
-                RewardScene.instance().loadRewards(rewardData, RewardScene.Type.Shop, this);
-                Forge.switchScene(RewardScene.instance());
+                // Every other rebuilt shop gets an Enter/Destroy/Leave gate EXCEPT Armory and
+                // fixedShop (Capitol land shops) - both excluded from destroy per user spec
+                // 2026-08-09, so they keep the original direct-to-RewardScene behavior unchanged.
+                if (fixedShop || EconomyBuildings.isArmoryShop(shopData)) {
+                    RewardScene.instance().loadRewards(rewardData, RewardScene.Type.Shop, this);
+                    Forge.switchScene(RewardScene.instance());
+                } else {
+                    EconomyBuildings.openShopEntryMenu(stage, objectId, this);
+                }
         }
     }
 

@@ -2,6 +2,7 @@ package forge.adventure.util;
 
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
@@ -9,12 +10,22 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.github.tommyettinger.textra.TextraButton;
 import com.github.tommyettinger.textra.TypingLabel;
+import forge.Forge;
+import forge.adventure.character.ShopActor;
 import forge.adventure.data.DialogData;
 import forge.adventure.data.ShopData;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
+import forge.adventure.scene.RewardScene;
 import forge.adventure.stage.MapStage;
+import forge.adventure.stage.WorldStage;
 import forge.adventure.world.WorldSave;
+import forge.gui.FThreads;
+import forge.screens.CoverScreen;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Economy buildings (MOD_SCOPE.md #9): wasteland shops can optionally be rebuilt as one of six
@@ -30,6 +41,10 @@ public class EconomyBuildings {
     public static final int STONE_MINE = 4;
     public static final int BANK = 5;
     public static final int EXCHANGE = 6;
+    // Outlook (vision) + Teleporter (fast travel), added 2026-08-09. Same one-per-town machinery
+    // as the original 6 - see buildOption()/builtFlag() - just two more type ids.
+    public static final int OUTLOOK = 7;
+    public static final int TELEPORTER = 8;
 
     // Byte-safe map flag (0-6) used only to gate "one economy building per town" declaratively
     // and to discriminate which option the player picked in buildChooseBuildingDialog(). The
@@ -54,6 +69,8 @@ public class EconomyBuildings {
             case STONE_MINE: return "Stone Mine";
             case BANK: return "Bank";
             case EXCHANGE: return "Exchange";
+            case OUTLOOK: return "Outlook";
+            case TELEPORTER: return "Teleporter";
             default: return "Card Shop";
         }
     }
@@ -74,8 +91,16 @@ public class EconomyBuildings {
      * Icon to draw over a rebuilt shop's normal footprint when it's the town's registered economy
      * building, or null if it isn't one (a plain or special shop - see getPlainShopSprite()/
      * getSpecialShopSprite()).
+     * <p>
+     * TEMPORARY (2026-08-09): Outlook/Teleporter have no dedicated icon art yet - falls back to
+     * the generic PlainShop silhouette so they're at least visible/distinguishable from rubble,
+     * same reasoning as every other "needs SOME icon" case in this file. Needs real art picked
+     * from buildings.tsx via Tiled's tile inspector, same workflow used for the original 6 (see
+     * MOD_SCOPE.md #10) - swap atlasRegion()'s two new cases in once available.
      */
     public static TextureRegion getBuildingSprite(int type) {
+        if (type == OUTLOOK || type == TELEPORTER)
+            return getPlainShopSprite();
         String region = atlasRegion(type);
         if (region == null)
             return null;
@@ -136,7 +161,12 @@ public class EconomyBuildings {
         }
     }
 
-    public static void openProductionInfoDialog(MapStage stage, int type) {
+    public static void openProductionInfoDialog(MapStage stage, int type, int objectId) {
+        refreshProductionInfoDialog(stage, type, objectId);
+        stage.showDialog();
+    }
+
+    private static void refreshProductionInfoDialog(MapStage stage, int type, int objectId) {
         Dialog dialog = stage.getDialog();
         dialog.getContentTable().clear();
         dialog.getButtonTable().clear();
@@ -146,9 +176,202 @@ public class EconomyBuildings {
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();
+        addButtonRow(dialog, "Destroy Building", true, () ->
+                openDestroyConfirmDialog(stage, objectId, () -> refreshProductionInfoDialog(stage, type, objectId)));
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
+    }
+
+    /**
+     * Outlook (2026-08-09): passive vision building - doubles a town's fog-of-war reveal radius
+     * (World.rebuildPlayerTownVision(), vision only - the town's actual owned/claimable territory
+     * radius is untouched, per user spec). No further interaction beyond info + destroy.
+     */
+    public static void openOutlookInfoDialog(MapStage stage, int objectId) {
+        refreshOutlookInfoDialog(stage, objectId);
         stage.showDialog();
+    }
+
+    private static void refreshOutlookInfoDialog(MapStage stage, int objectId) {
+        Dialog dialog = stage.getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+        TypingLabel label = Controls.newTypingLabel("Outlook\nDoubles this town's fog-of-war vision radius.");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+        addButtonRow(dialog, "Destroy Building", true, () ->
+                openDestroyConfirmDialog(stage, objectId, () -> refreshOutlookInfoDialog(stage, objectId)));
+        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+    }
+
+    /**
+     * Teleporter (2026-08-09): fast travel between the Capitol and any town that's also built one
+     * (max 5 total - see capitolHasTeleporter()/countTownTeleporters(), 4 in towns + 1 Capitol).
+     * From a town, the only destination is the Capitol; from the Capitol, every town with a
+     * Teleporter is offered. Travel moves the player's overworld position near the destination
+     * (NOT straight inside it - user's explicit choice, "walk in through the entrance normally") -
+     * same CoverScreen-fade mechanism GameStage.resetPlayerLocation() and the debug "teleport to
+     * poi" command already use, just without their loadPOI() call.
+     */
+    public static void openTeleporterDialog(MapStage stage, int objectId) {
+        refreshTeleporterDialog(stage, objectId);
+        stage.showDialog();
+    }
+
+    private static void refreshTeleporterDialog(MapStage stage, int objectId) {
+        Dialog dialog = stage.getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+        TypingLabel label = Controls.newTypingLabel("Teleporter\nWhere would you like to travel?");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+
+        List<PointOfInterest> destinations = teleporterDestinations();
+        if (destinations.isEmpty()) {
+            addContentRow(dialog, "No linked Teleporters yet - build one elsewhere first.");
+        }
+        for (PointOfInterest destination : destinations) {
+            addButtonRow(dialog, "Travel to " + destination.getDisplayName(), true,
+                    () -> travelTo(stage, destination));
+        }
+        addButtonRow(dialog, "Destroy Building", true, () ->
+                openDestroyConfirmDialog(stage, objectId, () -> refreshTeleporterDialog(stage, objectId)));
+        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+    }
+
+    // From the Capitol: every OTHER town that has built a Teleporter. From a town: the Capitol
+    // only (a town Teleporter can't even be built until the Capitol has one - see
+    // capitolHasTeleporter() - so this is never empty from a town in practice).
+    private static List<PointOfInterest> teleporterDestinations() {
+        List<PointOfInterest> destinations = new ArrayList<>();
+        boolean inCapitol = TownRestoration.isCurrentTownCapitol();
+        for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
+            boolean isCapitol = TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name);
+            if (inCapitol == isCapitol)
+                continue; // skip the Capitol from the Capitol's own list, skip every non-Capitol from a town's list
+            PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+            if (changes != null && changes.hasEconomyBuildingOfType(TELEPORTER))
+                destinations.add(poi);
+        }
+        return destinations;
+    }
+
+    private static void travelTo(MapStage stage, PointOfInterest destination) {
+        stage.hideDialog();
+        stage.exitDungeon(false, false);
+        Forge.advFreezePlayerControls = true;
+        FThreads.invokeInEdtNowOrLater(() -> Forge.setTransitionScreen(new CoverScreen(() -> {
+            Forge.advFreezePlayerControls = false;
+            WorldStage.getInstance().setPosition(new Vector2(destination.getPosition().x - 16f, destination.getPosition().y + 16f));
+            Forge.clearTransitionScreen();
+        }, Forge.takeScreenshot())));
+    }
+
+    /** Is the Capitol's own Teleporter built? Towns can't offer the option until this is true. */
+    public static boolean capitolHasTeleporter() {
+        for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
+            if (TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name)) {
+                PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+                return changes != null && changes.hasEconomyBuildingOfType(TELEPORTER);
+            }
+        }
+        return false;
+    }
+
+    /** How many ordinary (non-Capitol) towns currently have a Teleporter - capped at 4. */
+    public static int countTownTeleporters() {
+        int count = 0;
+        for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
+            if (TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name))
+                continue;
+            PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+            if (changes != null && changes.hasEconomyBuildingOfType(TELEPORTER))
+                count++;
+        }
+        return count;
+    }
+
+    private static final int MAX_TOWN_TELEPORTERS = 4;
+
+    /** Should a regular (non-Capitol) town's build menu offer the Teleporter option right now? */
+    public static boolean townTeleporterAvailable() {
+        return capitolHasTeleporter() && countTownTeleporters() < MAX_TOWN_TELEPORTERS;
+    }
+
+    /**
+     * Undoes a rebuilt/converted shop back to rubble - no gold refunded. Clears the economy-
+     * building type registration (map flag + type->objectId entry) if it had one, freeing that
+     * type up to be built again (here or elsewhere in the same town). Outlook needs one extra
+     * step: the town's fog-of-war vision cache is keyed off which towns currently have one, so
+     * destroying it has to trigger an immediate rebuild or the doubled vision would linger.
+     */
+    private static void destroyBuilding(MapStage stage, int objectId) {
+        PointOfInterestChanges changes = stage.getChanges();
+        if (changes == null)
+            return;
+        int type = getBuildingType(changes, objectId);
+        if (type != NONE) {
+            changes.getEconomyBuildingObjectIds().values().removeIf(v -> v == objectId);
+            changes.getMapFlags().remove(builtFlag(type));
+        }
+        changes.getMapFlags().remove("shopRebuilt_" + objectId);
+        if (type == OUTLOOK)
+            WorldSave.getCurrentSave().getWorld().rebuildPlayerTownVision();
+    }
+
+    /**
+     * Confirmation gate for destroyBuilding() - "You will not get any resources back" per user
+     * spec. onCancel re-renders whatever dialog was showing before (the calling building's own
+     * info/interaction view); onDestroyed callers all just want the dialog closed outright, since
+     * there's nothing left to show once the shop reverts to rubble.
+     */
+    public static void openDestroyConfirmDialog(MapStage stage, int objectId, Runnable onCancel) {
+        Dialog dialog = stage.getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+        addContentRow(dialog, "Destroy this building?\nYou will not get any resources back.");
+        addButtonRow(dialog, "Destroy", true, () -> {
+            destroyBuilding(stage, objectId);
+            stage.hideDialog();
+        });
+        addButtonRow(dialog, "Cancel", true, onCancel);
+        dialog.setKeepWithinStage(true);
+    }
+
+    /**
+     * Pre-entry gate for a rebuilt plain Card Shop or Booster shop (2026-08-09): these two never
+     * had any MapStage dialog at all before now (straight into RewardScene on collision), so
+     * offering Destroy means inserting one - Armory and every fixedShop (Capitol land shop) skip
+     * this entirely and keep direct entry, per user's exclusion list (ShopActor decides which
+     * shops route here, not this method).
+     */
+    public static void openShopEntryMenu(MapStage stage, int objectId, ShopActor actor) {
+        refreshShopEntryMenu(stage, objectId, actor);
+        stage.showDialog();
+    }
+
+    private static void refreshShopEntryMenu(MapStage stage, int objectId, ShopActor actor) {
+        Dialog dialog = stage.getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+        addContentRow(dialog, actor.getName());
+        addButtonRow(dialog, "Enter Shop", true, () -> {
+            stage.hideDialog();
+            RewardScene.instance().loadRewards(actor.getRewardData(), RewardScene.Type.Shop, actor);
+            Forge.switchScene(RewardScene.instance());
+        });
+        addButtonRow(dialog, "Destroy Building", true, () ->
+                openDestroyConfirmDialog(stage, objectId, () -> refreshShopEntryMenu(stage, objectId, actor)));
+        dialog.getButtonTable().add(Controls.newTextButton("Leave", stage::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
     }
 
     private static DialogData.ActionData spendGoldAction() {
@@ -231,12 +454,14 @@ public class EconomyBuildings {
     }
 
     /**
-     * Build-choice dialog shown the first time a wasteland shop is rebuilt: Card Shop / Bank /
-     * Exchange / Industry (a submenu of the four production types) / Not now. Reads back
-     * ECONOMY_TYPE_FLAG once the dialog closes and, if the player just chose one of the six
-     * special buildings, imperatively records this shop under that type
-     * (economyBuildingObjectId can't fit through the byte-limited map-flag system - see
-     * PointOfInterestChanges).
+     * Build-choice dialog shown the first time a wasteland shop is rebuilt: Card Shop / Industry
+     * (submenu: 4 production types) / Financial (Capitol-only submenu: Bank, Exchange) / Utility
+     * (submenu: Outlook, Teleporter once unlocked) / Not now. Nested into submenus (2026-08-09,
+     * user request) now that the option count outgrew a single flat page - was Card Shop/Bank/
+     * Exchange/Industry-submenu for the Capitol, Card Shop/4-mines-flat for towns. Reads back
+     * ECONOMY_TYPE_FLAG once the dialog closes and, if the player just chose one of the special
+     * buildings, imperatively records this shop under that type (economyBuildingObjectId can't
+     * fit through the byte-limited map-flag system - see PointOfInterestChanges).
      */
     public static MapDialog buildChooseBuildingDialog(MapStage stage, int objectId) {
         DialogData root = new DialogData();
@@ -245,45 +470,72 @@ public class EconomyBuildings {
         DialogData notNow = new DialogData();
         notNow.name = "Not now";
 
-        if (TownRestoration.isCurrentTownCapitol()) {
-            // The Capitol keeps the full menu: Bank/Exchange (Capitol-exclusive per user
-            // 2026-08-08 late) plus the Industry submenu.
-            DialogData industryBack = new DialogData();
-            industryBack.name = "Back";
+        DialogData industryBack = new DialogData();
+        industryBack.name = "Back";
+        DialogData industry = new DialogData();
+        industry.name = "Industry";
+        industry.text = "Which industry building?";
+        industry.options = new DialogData[]{
+                buildOption(SHARD_MINE, objectId),
+                buildOption(GOLD_MINE, objectId),
+                buildOption(LUMBER_MILL, objectId),
+                buildOption(STONE_MINE, objectId),
+                industryBack
+        };
 
-            DialogData industry = new DialogData();
-            industry.name = "Industry";
-            industry.text = "Which industry building?";
-            industry.options = new DialogData[]{
-                    buildOption(SHARD_MINE, objectId),
-                    buildOption(GOLD_MINE, objectId),
-                    buildOption(LUMBER_MILL, objectId),
-                    buildOption(STONE_MINE, objectId),
-                    industryBack
+        // Teleporter unlock (user spec 2026-08-09): the Capitol's own build menu always offers it
+        // (auto-hidden once built, same one-per-type condition every other type already uses) -
+        // an ordinary town only offers it once the Capitol has built one AND fewer than 4 towns
+        // already have (townTeleporterAvailable() - a cross-POI check the declarative condition
+        // system below can't express, so it's gated imperatively here instead).
+        boolean isCapitol = TownRestoration.isCurrentTownCapitol();
+        DialogData utilityBack = new DialogData();
+        utilityBack.name = "Back";
+        DialogData utility = new DialogData();
+        utility.name = "Utility";
+        utility.text = "Which utility building?";
+        List<DialogData> utilityOptions = new ArrayList<>();
+        utilityOptions.add(buildOption(OUTLOOK, objectId));
+        if (isCapitol || townTeleporterAvailable())
+            utilityOptions.add(buildOption(TELEPORTER, objectId));
+        utilityOptions.add(utilityBack);
+        utility.options = utilityOptions.toArray(new DialogData[0]);
+
+        if (isCapitol) {
+            // Financial (Bank/Exchange) stays Capitol-exclusive per the earlier 2026-08-08 decision.
+            DialogData financialBack = new DialogData();
+            financialBack.name = "Back";
+            DialogData financial = new DialogData();
+            financial.name = "Financial";
+            financial.text = "Which financial building?";
+            financial.options = new DialogData[]{
+                    buildOption(BANK, objectId),
+                    buildOption(EXCHANGE, objectId),
+                    financialBack
             };
 
             root.options = new DialogData[]{
                     buildOption(NONE, objectId),
-                    buildOption(BANK, objectId),
-                    buildOption(EXCHANGE, objectId),
+                    financial,
                     industry,
+                    utility,
                     notNow
             };
             // "Back" just re-shows the top-level menu - same content, not a true navigation stack.
-            industryBack.text = root.text;
-            industryBack.options = root.options;
+            financialBack.text = root.text;
+            financialBack.options = root.options;
         } else {
-            // Ordinary towns: no Bank/Exchange (Capitol-only), which leaves few enough options
-            // that the Industry submenu collapsed onto the single page (user 2026-08-08 late).
             root.options = new DialogData[]{
                     buildOption(NONE, objectId),
-                    buildOption(SHARD_MINE, objectId),
-                    buildOption(GOLD_MINE, objectId),
-                    buildOption(LUMBER_MILL, objectId),
-                    buildOption(STONE_MINE, objectId),
+                    industry,
+                    utility,
                     notNow
             };
         }
+        industryBack.text = root.text;
+        industryBack.options = root.options;
+        utilityBack.text = root.text;
+        utilityBack.options = root.options;
 
         MapDialog dialog = new MapDialog(root, stage, objectId, null);
         dialog.addDialogCompleteListener(new ChangeListener() {
@@ -293,8 +545,11 @@ public class EconomyBuildings {
                 if (changes == null)
                     return;
                 int chosenType = stage.getQuestFlag(ECONOMY_TYPE_FLAG);
-                if (chosenType != NONE && !changes.hasEconomyBuildingOfType(chosenType))
+                if (chosenType != NONE && !changes.hasEconomyBuildingOfType(chosenType)) {
                     changes.setEconomyBuildingObjectId(chosenType, objectId);
+                    if (chosenType == OUTLOOK)
+                        WorldSave.getCurrentSave().getWorld().rebuildPlayerTownVision();
+                }
             }
         });
         return dialog;
@@ -331,14 +586,14 @@ public class EconomyBuildings {
 
     private static final int BANK_DENOMINATION = 100;
 
-    public static void openBankDialog(MapStage stage, PointOfInterestChanges changes) {
-        refreshBankDialog(stage, changes);
+    public static void openBankDialog(MapStage stage, PointOfInterestChanges changes, int objectId) {
+        refreshBankDialog(stage, changes, objectId);
         stage.showDialog();
     }
 
     // Separate labels per line (rather than one \n-joined string) so the balance/gold lines can't
     // get lost to any single label's own width/wrap sizing - each row gets its own Table cell.
-    private static void refreshBankDialog(MapStage stage, PointOfInterestChanges changes) {
+    private static void refreshBankDialog(MapStage stage, PointOfInterestChanges changes, int objectId) {
         Dialog dialog = stage.getDialog();
         dialog.getContentTable().clear();
         dialog.getButtonTable().clear();
@@ -353,25 +608,27 @@ public class EconomyBuildings {
         addButtonRow(dialog, "Deposit " + BANK_DENOMINATION, player.getGold() >= BANK_DENOMINATION, () -> {
             player.takeGold(BANK_DENOMINATION);
             changes.addBankBalance(BANK_DENOMINATION);
-            refreshBankDialog(stage, changes);
+            refreshBankDialog(stage, changes, objectId);
         });
         addButtonRow(dialog, "Deposit All", player.getGold() > 0, () -> {
             int all = player.getGold();
             player.takeGold(all);
             changes.addBankBalance(all);
-            refreshBankDialog(stage, changes);
+            refreshBankDialog(stage, changes, objectId);
         });
         addButtonRow(dialog, "Withdraw " + BANK_DENOMINATION, changes.getBankBalance() >= BANK_DENOMINATION, () -> {
             changes.addBankBalance(-BANK_DENOMINATION);
             player.giveGold(BANK_DENOMINATION);
-            refreshBankDialog(stage, changes);
+            refreshBankDialog(stage, changes, objectId);
         });
         addButtonRow(dialog, "Withdraw All", changes.getBankBalance() > 0, () -> {
             int all = changes.getBankBalance();
             changes.addBankBalance(-all);
             player.giveGold(all);
-            refreshBankDialog(stage, changes);
+            refreshBankDialog(stage, changes, objectId);
         });
+        addButtonRow(dialog, "Destroy Building", true, () ->
+                openDestroyConfirmDialog(stage, objectId, () -> refreshBankDialog(stage, changes, objectId)));
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
     }
@@ -438,12 +695,12 @@ public class EconomyBuildings {
             new Trade("Sell", RESOURCE_ICON_ATLAS, "Stone", 0, 0, 0, TRADE_UNITS, TRADE_SELL_PRICE, 0, 0, 0),
     };
 
-    public static void openExchangeDialog(MapStage stage) {
-        refreshExchangeDialog(stage);
+    public static void openExchangeDialog(MapStage stage, int objectId) {
+        refreshExchangeDialog(stage, objectId);
         stage.showDialog();
     }
 
-    private static void refreshExchangeDialog(MapStage stage) {
+    private static void refreshExchangeDialog(MapStage stage, int objectId) {
         Dialog dialog = stage.getDialog();
         dialog.getContentTable().clear();
         dialog.getButtonTable().clear();
@@ -462,9 +719,11 @@ public class EconomyBuildings {
             dialog.getButtonTable().add(buildTradeRow(trade.verb, TRADE_UNITS, trade.resourceAtlas, trade.resourceIcon,
                     price, enabled, () -> {
                         trade.apply(player);
-                        refreshExchangeDialog(stage);
+                        refreshExchangeDialog(stage, objectId);
                     })).width(240f).row();
         }
+        addButtonRow(dialog, "Destroy Building", true, () ->
+                openDestroyConfirmDialog(stage, objectId, () -> refreshExchangeDialog(stage, objectId)));
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
     }

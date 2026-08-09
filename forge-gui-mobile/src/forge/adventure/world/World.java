@@ -19,6 +19,7 @@ import forge.adventure.scene.Scene;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.util.Config;
 import forge.adventure.util.DungeonRotation;
+import forge.adventure.util.EconomyBuildings;
 import forge.adventure.util.Paths;
 import forge.adventure.util.ResourceSpawns;
 import forge.adventure.util.SaveFileContent;
@@ -2868,10 +2869,17 @@ public class World implements Disposable, SaveFileContent {
         if (data == null)
             return;
         for (PointOfInterest poi : getAllPointOfInterest()) {
-            if (!TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID())))
+            forge.adventure.pointofintrest.PointOfInterestChanges changes =
+                    WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+            if (!TownRestoration.isTownRestored(changes))
                 continue;
             Integer radius = townTerritoryRadius.get(poi.getID());
             int r = radius != null ? radius : TerritoryControl.RECOLOR_RADIUS;
+            // Outlook (2026-08-09): doubles VISION only, per user spec - the town's actual owned/
+            // claimable territory radius (townTerritoryRadius, read above) is left untouched, so
+            // this only widens what fog-of-war reveals, not what claimWastelandRing() can contest.
+            if (changes.hasEconomyBuildingOfType(EconomyBuildings.OUTLOOK))
+                r *= 2;
             playerTownVisionAreas.add(new int[]{
                     (int) (poi.getPosition().x / data.tileSize),
                     (int) (poi.getPosition().y / data.tileSize),

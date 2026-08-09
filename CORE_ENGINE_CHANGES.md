@@ -240,7 +240,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Capitol-polish round (2026-08-09): `load()` calls `TownRestoration.repairCapitolState()` and
   `TownRestoration.updateTownLifeBonus(false)` right after `rebuildPlayerTownVision()` - both
   read pointOfInterestChanges flags, so they share its both-halves-loaded requirement; both
-  idempotent and inert without the mod plane's config flags.
+  idempotent and inert without the mod plane's config flags. Outlook round (2026-08-09, same
+  day): `rebuildPlayerTownVision()` doubles a town's cached vision radius if
+  `EconomyBuildings.OUTLOOK` is registered there - vision only, `townTerritoryRadius` (ownership/
+  expansion) itself is untouched, so a town can see twice as far without claiming twice as much
+  ground.
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the
@@ -284,6 +288,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Capitol-polish round (2026-08-09): new `fixedShop` flag (set by MapStage from the tmx
   property) - a fixed shop repairs via the simple dialog only (never the economy-building
   conversion menu) and draws no overlay icon once rebuilt (its hut art is baked into the map).
+  Outlook/Teleporter/Destroy round (2026-08-09, same day): `onPlayerCollide()`'s economy-type
+  switch gained OUTLOOK and TELEPORTER cases; the plain `default:` case now routes to
+  `EconomyBuildings.openShopEntryMenu()` (a new Enter/Destroy/Leave gate) instead of jumping
+  straight into `RewardScene` - EXCEPT Armory and `fixedShop` shops, which keep the original
+  direct-entry behavior (excluded from Destroy per user spec).
 - **`forge-gui-mobile/src/forge/adventure/character/OnCollide.java`** — added an optional
   town-restoration-gated constructor overload (Job Board building specifically) - the original
   single-arg constructor is unchanged/still used everywhere else unmodified. Capitol-polish

@@ -760,7 +760,31 @@ needs its own design pass before any of this gets built:**
 - Earned via Economy Buildings (#10) below - no other source yet (not obtainable via shops,
   rewards, or the `give item` console command).
 
-### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day)
+### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09, not yet playtested)
+- **Outlook (2026-08-09):** doubles a town's fog-of-war vision radius - vision only, not the
+  town's actual owned/claimable territory radius (deliberate per user spec: a scouting building,
+  not a land-grab one). 100 gold, one per town, same rebuild-menu mechanism as the other 6.
+- **Teleporter (2026-08-09):** fast travel between the Capitol and any town that's also built
+  one. Gated in two stages: the option doesn't even appear in a town's build menu until the
+  Capitol has built its own; then max 4 more across all towns (5 total). From a town, the only
+  destination is the Capitol; from the Capitol, every linked town is offered. Travel drops the
+  player on the overworld near the destination (not straight inside it) - same fade-transition
+  mechanism as the existing defeat-respawn/debug-teleport code, just without their "enter the
+  building automatically" step. 100 gold, one per town/Capitol.
+- **Destroy building (2026-08-09):** every buildable/rebuildable building now offers a "Destroy"
+  option - no resources refunded, reverts to the broken-shop rubble art, free to rebuild as
+  something else afterward. Excluded (can't be destroyed): Arena, Inn, Armory, Land Shops (the
+  Capitol's 6 fixed shops), Job Board, Spellsmith. Plain Card Shops and Booster shops previously
+  had no interaction dialog at all (straight into the card-browsing screen) - they now show a
+  small Enter Shop / Destroy / Leave gate first so Destroy has somewhere to live; Armory and Land
+  Shops keep the old direct-entry behavior unchanged since they're excluded anyway.
+- **Build menu nested into submenus (2026-08-09):** now Card Shop / Industry (4 mines) /
+  Financial (Capitol-only: Bank, Exchange) / Utility (Outlook, Teleporter once unlocked) / Not
+  now - was a flatter Card Shop/Bank/Exchange/Industry-submenu (Capitol) or Card Shop/4-mines-flat
+  (towns) page; nested once Outlook/Teleporter pushed the option count too high for one screen.
+- **TEMPORARY placeholder art:** Outlook and Teleporter both render with the generic PlainShop
+  icon for now - no dedicated art exists yet. Needs the same Tiled-tile-inspector pick the
+  original 6 building icons got (see this section's earlier entries) before shipping for real.
 - Wasteland shops (#2) can now be rebuilt as one of 6 special buildings instead of a plain Card
   Shop: Shard Mine, Gold Mine, Lumber Mill, Stone Mine, Bank, Exchange - offered via a submenu on
   the existing rebuild-shop dialog (top level: Card Shop / Bank / Exchange / Industry / Not now;
@@ -864,7 +888,7 @@ needs its own design pass before any of this gets built:**
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
 
-### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops (5 colors + Land, hardcoded, simple-repair-only, no icon once rebuilt), Arena/Spellsmith broken-shop rubble art, Inn starts repaired; game-over-on-loss and Capitol-exclusive buildings still open)
+### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; game-over-on-loss still open)
 - Once the player owns 5 towns, they can upgrade **one** of them into their Capitol - only 1
   allowed at a time. Needs a "which 5 towns count as owned" definition, which depends on #7
   (Dynamic Territory Control) existing first - "owns a town" isn't a concept the game has yet
@@ -945,8 +969,10 @@ needs its own design pass before any of this gets built:**
     - **Science Lab** (ID 805, x336 y448) - new, not previously listed; purpose/effect not yet
       described.
 - **Other Capitol-flavored buildings to consider** (none started):
-  - **Teleporter** - already on the wishlist as an unscoped to-do under #10; this may be its
-    natural home (Capitol-exclusive fast travel) rather than a plain per-town building.
+  - **Teleporter** - **Built (2026-08-09), not yet playtested** - see #10. Unlocks once the
+    Capitol has built its own, then up to 4 more towns; placeholder icon art, real Tiled-picked
+    art still open (the "Teleporter (ID 528, x384 y288)" reference above is from an unidentified
+    source file - not directly usable, still needs its own real pick).
   - **Barracks** - hire a garrison that patrols around the city and fights off incoming threats.
     Ties into #7's attack-unit mechanic (something for the garrison to intercept). Same idea as
     the "hireable AI guard mages" entry under #8 (Town Fortifications) - see that entry for
@@ -954,9 +980,9 @@ needs its own design pass before any of this gets built:**
     Capitol-only vs. any-town before either gets built.
   - **Upgrade to Fortification** - likely the same system as #8, not a separate one; worth
     merging into that item's design rather than tracking twice once #8 gets scoped.
-  - **Outlook** - expands the town's visible radius. Natural pairing with #3 (Fog of War) - could
-    plausibly be implemented as a local, permanent boost to the existing vision-radius mechanic
-    rather than new systems.
+  - **Outlook** - **Built (2026-08-09), not yet playtested** - see #10. Doubles the town's
+    fog-of-war vision radius, implemented as a boost to the existing vision-radius mechanic per
+    the plan noted here; placeholder icon art, real Tiled-picked art still open.
 
 ## Backlog: Ideas Borrowed From Other Planes
 

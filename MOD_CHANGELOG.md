@@ -4537,3 +4537,63 @@ only its own extra behavior (`freezeAllEnemyBehaviors = true`) on top. Removed t
 
 Compiled clean. Deployed: `MapStage.class` + inner classes spliced into the installed jar,
 `player_capital.tmx` copied over. **Not yet playtested.**
+
+## Outlook + Teleporter buildings, universal Destroy option, nested build menu (2026-08-09)
+
+Four connected user requests, all landing in `EconomyBuildings.java` (types `OUTLOOK=7`,
+`TELEPORTER=8`) plus supporting hooks in `World.java`/`ShopActor.java`.
+
+**Outlook** - doubles a town's fog-of-war vision radius. Deliberately vision-ONLY (user's explicit
+choice among 3 options offered): `World.rebuildPlayerTownVision()` doubles the radius it feeds into
+`playerTownVisionAreas` when the town has an `OUTLOOK` building registered, but reads
+`townTerritoryRadius` (ownership/claimable ground, what `claimWastelandRing()` contests) completely
+unchanged - a town can SEE twice as far without OWNING twice as much. Triggered on build (the
+existing `buildChooseBuildingDialog()` dialog-complete listener) and on destroy (see below).
+
+**Teleporter** - fast travel between the Capitol and towns. Two-stage unlock: the option is always
+offered in the Capitol's own build menu (auto-hidden once built, the same one-per-type condition
+every other building type already uses); an ordinary town's menu only offers it once
+`EconomyBuildings.capitolHasTeleporter()` is true AND `countTownTeleporters() < 4` - both computed
+live by scanning every POI's `PointOfInterestChanges` for a registered `TELEPORTER`, not a separate
+counter, so destroying one anywhere immediately frees a slot elsewhere. Walking into a built one
+opens a destination list: from the Capitol, every OTHER town with a Teleporter; from a town, the
+Capitol only. **Travel mechanic was a real open question, resolved by explicit user choice**: two
+existing precedents in this codebase both call `WorldStage.loadPOI()` after repositioning (the
+debug `teleport to poi` command, and `GameStage.resetPlayerLocation()`'s defeat-respawn-at-Spawn
+flow) - that drops the player straight inside the destination. The user chose the OTHER option
+("walk in through the entrance normally") instead, so `travelTo()` deliberately omits that call:
+`stage.exitDungeon(false, false)` (proper MapStage cleanup, returns to the world map) then the same
+`CoverScreen`-fade + `WorldStage.setPosition()` pattern those two precedents use, stopping short of
+`loadPOI()`.
+
+**Destroy building** - every buildable/rebuildable building now offers it, except Arena, Inn,
+Armory, Land Shops, Job Board, and Spellsmith (explicit user exclusion list - none of those go
+through `ShopActor`'s economy-type switch at all except Armory/Land Shops, which are skipped by an
+explicit `fixedShop || isArmoryShop()` check in `ShopActor`'s new `default:` branch). No refund;
+`EconomyBuildings.destroyBuilding()` clears the shop's `shopRebuilt_<id>` flag (reverts to rubble,
+rebuildable as something new via the existing flow) and, if it had a registered economy type, the
+type->objectId mapping and the one-per-type `economyBuilt_<type>` flag - freeing that type up
+again. Outlook gets one extra step: destroying it calls `rebuildPlayerTownVision()` immediately so
+the doubled radius doesn't linger. Plain Card Shops and Booster shops previously had NO interaction
+dialog at all (straight into `RewardScene` on collision) - inserting Destroy meant giving them one:
+`EconomyBuildings.openShopEntryMenu()` is a new small Enter Shop / Destroy Building / Leave gate,
+reached by `ShopActor`'s `default:` case for anything that isn't Armory or a fixed land shop.
+
+**Build menu nested into submenus** - now Card Shop / Industry (4 mines) / Financial (Capitol-only:
+Bank, Exchange) / Utility (Outlook, Teleporter once unlocked) / Not now, replacing the flatter
+layout from the last Capitol round (which itself only worked because the option count was small).
+Same "Back re-shows the same root DialogData, not a real navigation stack" trick the existing
+Industry submenu already used, just applied to two more submenus.
+
+**Known gap, flagged not fixed**: Outlook and Teleporter both render with the generic `PlainShop`
+icon (`getBuildingSprite()` special-cases both types to fall back to it) - no dedicated art exists
+yet. Needs the same Tiled tile-inspector pick the original 6 economy-building icons got (see this
+file's 2026-08-05 entries) before shipping for real; a scope note in `MOD_SCOPE.md`'s backlog once
+mentioned tile coordinates for a "Teleporter" and "Look-out" icon, but that reference was from an
+unidentified source file, not directly usable.
+
+Compiled clean (`mvn -pl forge-gui-mobile -am compile -o`). Deployed: `EconomyBuildings.class` +
+`Trade` inner class, `ShopActor.class`, `World.class` + inner classes spliced into the installed
+jar. **Not yet playtested** - this is a large, multi-path feature (2 new building types, a new
+cross-POI unlock/count system, a new fast-travel flow, and a UI change to every plain/booster
+shop's collision behavior); expect a real playtest round before calling it done.
