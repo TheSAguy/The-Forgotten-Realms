@@ -2199,42 +2199,38 @@ public class World implements Disposable, SaveFileContent {
     }
 
     /**
-     * Territory Control (MOD_SCOPE.md #7) expansion: claims every WASTELAND tile in the annulus
-     * between innerRadiusTiles and outerRadiusTiles of center for the named color, but only where
-     * center is the *nearest* anchor point among otherAnchors and the player's own Spawn (always
-     * included automatically) - a Voronoi-style assignment. Without this, independently growing
-     * circles from different centers (or the player's home base) can produce odd wedge/seam
-     * boundaries wherever three or more anchors get close together, since a plain "am I within my
-     * own radius" check has no awareness of any other color's circle. otherAnchors should be every
-     * OTHER anchor's own position (not including center's) - see
-     * TerritoryControl.processTerritoryExpansion() for how these get gathered daily. Ties (exactly
-     * equal distance) fall back to today's existing "whichever color's claim runs first each tick
-     * wins" resolution - no explicit tie-break needed.
+     * Territory Control (MOD_SCOPE.md #7) expansion, weighted-pull model (2026-08-08 redesign per
+     * user: "if two borders meet, the one closer to that color's capitol overrides the other...
+     * take into account distance from Castle, Capitol and nearby towns"). Claims tiles in the
+     * annulus [innerRadiusTiles, outerRadiusTiles] around center for the named color.
      * <p>
-     * boundedRivalAnchors is a second, separate rival list (currently: every player-owned captured
-     * town) whose protection is capped to EACH ANCHOR'S OWN current territory radius (the paired
-     * Integer, in tiles - a captured town starts at TerritoryControl.RECOLOR_RADIUS and grows to
-     * TOWN_MAX_TERRITORY_RADIUS via townTerritoryRadius) instead of being unbounded like
-     * otherAnchors/Spawn - a tile beyond that radius from a bounded anchor simply doesn't consider
-     * that anchor at all (falls through to check every other rival normally). The cap tracks the
-     * town's actually-held ground, deliberately - protection must match what's visibly the town's
-     * own recolored territory, or it would guard a wider ring of plain-looking, unrecolored ground
-     * (a real, reported mismatch: this was briefly capped to CASTLE_KEEP_RADIUS_TILES, twice the
-     * visible radius, before becoming radius-accurate). Bounded at all after a real, reported case:
-     * a captured town deep inside a color's growth area, protected by an *unbounded* Voronoi cell
-     * against that color's castle, let that color's own expanding circle grow around it from every
-     * direction until the town's cell became a fully-enclosed island - a far bigger, more
-     * surprising hole than "a small safe pocket around a town," which is what the unbounded design
-     * was actually meant to produce. Spawn and other AI castles stay unbounded - this cap only
-     * applies to ordinary captured towns.
+     * allPullSources: every faction's influence sources, keyed by color name plus "player". Each
+     * source is {tileX, tileY, weightMultiplier, hardProtectRadiusTiles}. A faction's PULL on a
+     * tile is min over its sources of dist*weight - lower is stronger, so a castle (weight 1.0)
+     * projects further than a captured town (1.3), and a forward capital/town bends the border
+     * outward around itself. Rules per tile:
+     * <ul>
+     * <li>WASTELAND tile: claimed if no rival's pull is strictly stronger than mine (ties: first
+     * claimer this tick keeps it, same as the old Voronoi).</li>
+     * <li>Tile owned by another faction (an AI color or the player): TAKEN OVER only if my pull is
+     * strictly stronger than the owner's - borders are contested, not first-come-forever. Both
+     * sides compute identical pulls, so ownership converges (no daily flip-flop): the stronger
+     * side takes the tile once and the weaker side can never take it back unless the sources
+     * themselves change (a town changes hands, a capital falls...).</li>
+     * <li>Hard protection: a tile within ANY rival source's hardProtectRadius is never touched -
+     * castle keeps stay whole, and every town (AI or player) keeps at least the inner HALF of its
+     * current territory radius (the "towns can lose up to 50% of their ground" user rule).</li>
+     * <li>base/ocean and anything not in allPullSources stays untouchable, as ever.</li>
+     * </ul>
+     * The player's old special-cases are gone: Spawn no longer projects any protection (the
+     * central-teleporter bubble is deliberately claimable now, per user), and player towns follow
+     * the exact same pull + 50%-hard-protection rules as AI towns.
      * <p>
      * Called every in-game day a color's territory grows (unlike neutralizeTerritoryOutsideRadius(),
-     * a one-time world-gen-time sweep) - scoped to a bounding box around center, not a full-map
-     * scan, since this runs repeatedly rather than once. Also used once, non-incrementally, to give
-     * the player a real starting circle around Spawn (see TerritoryControl.neutralizeAfterGeneration()).
+     * a one-time world-gen-time sweep) - scoped to a bounding box around center, not a full-map scan.
      */
-    public int claimWastelandRing(String colorBiomeName, Vector2 center, List<Vector2> otherAnchors,
-                                    List<Pair<Vector2, Integer>> boundedRivalAnchors,
+    public int claimWastelandRing(String colorBiomeName, Vector2 center,
+                                    Map<String, List<float[]>> allPullSources,
                                     int innerRadiusTiles, int outerRadiusTiles,
                                     BiConsumer<Integer, Integer> onTileRepainted,
                                     BiConsumer<Integer, Integer> onChunkNeedsReload) {
@@ -2242,14 +2238,24 @@ public class World implements Disposable, SaveFileContent {
             return 0;
         List<BiomeData> biomes = data.GetBiomes();
         int colorIndex = -1, colorlessIndex = -1;
+        // Every biome index that can appear as a CONTESTABLE owner, mapped to its pull-source key
+        // in allPullSources ("white".."green" plus "player"). Anything else (base/ocean) stays
+        // untouchable.
+        Map<Integer, String> contestableOwners = new HashMap<>();
         for (int i = 0; i < biomes.size(); i++) {
-            if (colorBiomeName.equalsIgnoreCase(biomes.get(i).name))
+            String biomeName = biomes.get(i).name;
+            if (colorBiomeName.equalsIgnoreCase(biomeName))
                 colorIndex = i;
-            if ("waste".equalsIgnoreCase(biomes.get(i).name))
+            if ("waste".equalsIgnoreCase(biomeName))
                 colorlessIndex = i;
+            if (biomeName != null && allPullSources.containsKey(biomeName.toLowerCase()))
+                contestableOwners.put(i, biomeName.toLowerCase());
         }
         if (colorIndex < 0 || colorlessIndex < 0)
             return 0;
+        List<float[]> mySources = allPullSources.get(colorBiomeName.toLowerCase());
+        if (mySources == null || mySources.isEmpty())
+            return 0; // no sources -> no pull -> nothing to claim with
         BiomeData colorBiome = biomes.get(colorIndex);
         BiomeData colorlessBiome = biomes.get(colorlessIndex);
         // The geometry the structure-position formula runs in must match the scale the redirect
@@ -2290,37 +2296,19 @@ public class World implements Disposable, SaveFileContent {
         long roadBit = 1L << biomes.size();
         int mm = data.miniMapTileSize;
 
-        // Every rival anchor this claim must be at least as near to, in world tile coordinates -
-        // Spawn is included for every AI color's claim so the player's home base participates in
-        // the same nearest-anchor comparison as every castle (replaces the old flat
-        // SPAWN_PROTECTION_RADIUS_TILES hard block with "closest anchor wins" like everything
-        // else). NOT for the player's own claims (town expansion) - Spawn blocking the player's
-        // own growth serves no one: the "protected" ground just stays neutral wasteland, cutting a
-        // permanent straight notch out of any player town that happens to sit near Spawn (found by
-        // the pre-commit review). Each entry is {x, y, capRadiusSq} - capRadiusSq -1 means
-        // unbounded (Spawn, other AI castles); a positive value (boundedRivalAnchors, below) means
-        // that rival only blocks a claim within that radius of itself.
-        List<int[]> rivalTiles = new ArrayList<>();
-        // Spawn's protection is BOUNDED (2026-08-08 fix): as an unbounded Voronoi anchor sitting
-        // at map center (playerStartPos 0.5/0.5), Spawn was closer than any castle to EVERY
-        // central-wasteland tile, so no AI color could ever claim into the center - the reported
-        // "perfect upside down pentagon" stall was exactly the bisector polygon between the five
-        // castles and Spawn. A radius cap keeps the original intent (AI can't pave over the
-        // player's doorstep) without walling off a third of the map.
-        if (!playerClaim)
-            rivalTiles.add(new int[]{(int) (width * data.playerStartPosX), (int) (height * data.playerStartPosY),
-                    TerritoryControl.SPAWN_PROTECTION_RADIUS_TILES * TerritoryControl.SPAWN_PROTECTION_RADIUS_TILES});
-        if (otherAnchors != null) {
-            for (Vector2 anchor : otherAnchors)
-                rivalTiles.add(new int[]{(int) (anchor.x / data.tileSize), (int) (anchor.y / data.tileSize), -1});
-        }
-        // Each bounded anchor carries its own protection radius (the town's CURRENT territory
-        // radius) - protection must match the ground the town actually visibly holds, no more.
-        if (boundedRivalAnchors != null) {
-            for (Pair<Vector2, Integer> anchor : boundedRivalAnchors) {
-                int capTiles = anchor.getRight() != null ? anchor.getRight() : TerritoryControl.RECOLOR_RADIUS;
-                rivalTiles.add(new int[]{(int) (anchor.getLeft().x / data.tileSize), (int) (anchor.getLeft().y / data.tileSize), capTiles * capTiles});
-            }
+        // Flatten the rival sources once (skipping my own color's list - those are mySources).
+        // Each becomes {tileX, tileY, weightSquared, hardProtectRadiusSquared, ownerOrdinal} with
+        // ownerOrdinal indexing rivalKeys, so the per-tile loop below can track the owner's pull
+        // and the best rival pull in a single pass.
+        List<String> rivalKeys = new ArrayList<>();
+        List<float[]> rivalFlat = new ArrayList<>();
+        for (Map.Entry<String, List<float[]>> entry : allPullSources.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(colorBiomeName))
+                continue;
+            int ordinal = rivalKeys.size();
+            rivalKeys.add(entry.getKey());
+            for (float[] source : entry.getValue())
+                rivalFlat.add(new float[]{source[0], source[1], source[2] * source[2], source[3] * source[3], ordinal});
         }
 
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
@@ -2342,23 +2330,48 @@ public class World implements Disposable, SaveFileContent {
                 int distSq = dx * dx + dy * dy;
                 if (distSq > outerRadiusSq || distSq < innerRadiusSq)
                     continue;
-                if (highestBiome(getBiome(wx, wy)) != colorlessIndex)
-                    continue; // not wasteland - already someone else's (or ocean/base) - leave it
+                int ownerIndex = highestBiome(getBiome(wx, wy));
+                if (ownerIndex == colorIndex)
+                    continue; // already mine
+                boolean isWasteland = ownerIndex == colorlessIndex;
+                String ownerKey = isWasteland ? null : contestableOwners.get(ownerIndex);
+                if (!isWasteland && ownerKey == null)
+                    continue; // base/ocean or some non-faction biome - untouchable
 
-                boolean nearest = true;
-                for (int[] rival : rivalTiles) {
-                    int rdx = wx - rival[0], rdy = wy - rival[1];
-                    int rDistSq = rdx * rdx + rdy * rdy;
-                    int capSq = rival[2];
-                    if (capSq >= 0 && rDistSq > capSq)
-                        continue; // a bounded rival (a captured town) outside its own protection radius doesn't apply to this tile at all
-                    if (rDistSq < distSq) {
-                        nearest = false;
+                // My pull: min over my sources of distSq*weightSq (monotonic in dist*weight).
+                float myPullSq = Float.MAX_VALUE;
+                for (float[] source : mySources) {
+                    float sdx = wx - source[0], sdy = wy - source[1];
+                    float pull = (sdx * sdx + sdy * sdy) * source[2] * source[2];
+                    if (pull < myPullSq)
+                        myPullSq = pull;
+                }
+                // Rivals: hard protection, the owner's pull, and the best rival pull, one pass.
+                boolean hardProtected = false;
+                float ownerPullSq = Float.MAX_VALUE, bestRivalPullSq = Float.MAX_VALUE;
+                int ownerOrdinal = ownerKey == null ? -1 : rivalKeys.indexOf(ownerKey);
+                for (float[] rival : rivalFlat) {
+                    float rdx = wx - rival[0], rdy = wy - rival[1];
+                    float rDistSq = rdx * rdx + rdy * rdy;
+                    if (rival[3] > 0 && rDistSq <= rival[3]) {
+                        hardProtected = true; // inside a castle keep or a town's inner-half - inviolable
                         break;
                     }
+                    float pull = rDistSq * rival[2];
+                    if (pull < bestRivalPullSq)
+                        bestRivalPullSq = pull;
+                    if ((int) rival[4] == ownerOrdinal && pull < ownerPullSq)
+                        ownerPullSq = pull;
                 }
-                if (!nearest)
-                    continue; // some other anchor (an AI castle, the player's Spawn, or a captured town within its own radius) is closer
+                if (hardProtected)
+                    continue;
+                if (isWasteland) {
+                    if (bestRivalPullSq < myPullSq)
+                        continue; // a strictly stronger rival will claim this on its own tick
+                } else {
+                    if (myPullSq >= ownerPullSq)
+                        continue; // takeover needs a STRICTLY stronger pull than the current owner
+                }
 
                 int rawY = height - wy - 1;
                 long existingRoadBit = biomeMap[wx][rawY] & roadBit; // preserve roads, same as repaintBiomeAroundTown()

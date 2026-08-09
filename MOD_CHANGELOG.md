@@ -4160,3 +4160,53 @@ carries `questFlagsToActivate: mainQuest >= 2`, i.e. placed but hidden until mai
 the stone pile ((368,272) is a jar/cauldron) - resource_icons.png cell x=32 re-cropped, atlas
 unchanged. The pentagon backfill itself needs no world regen either - first day tick with the
 new jar claims everything the stall skipped.
+
+
+## Town-name persistence + rename, map name labels, weighted-pull contested borders (2026-08-08 night)
+
+**1. "Towns have names but the messages say Waste Town Generic" - transformInto() was the wipe.**
+Every ownership change ran `PointOfInterest.transformInto()`, which unconditionally nulled
+`displayName` - so the gen-time color-town-to-wasteland sweep (66+58+59+70+64 towns in the
+current world, per forge.log) and every mage capture reverted a uniquely-named town to its
+template's generic name. The native colorless-biome waste towns never transform, which is why
+SOME towns had real names. Fix: `transformInto(newData, random, preserveDisplayName)` - the
+sweep and mage captures preserve the name (ownership changes hands, the town keeps its name; the
+"has fallen to X!" message now names the actual town), capital promotion still takes the
+template name ("Plains Capital" IS the identity). The existing load-time
+`migrateGenericTownNames()` retro-names the current world's generic towns on next load.
+
+**2. Town names in the UI.** (a) The zoomed map's Details overlay now labels every VISITED
+town/capital with its display name (visited-only: flavor + keeps 400 labels from smothering the
+map). (b) Town entry already toasts "name + reputation" (stock-mod behavior from the reputation
+round) - now it shows the real name. (c) NEW rename flow: a restored wasteland town's Job Board
+now opens a menu - Browse quests / Rename town / Leave - where Rename opens the on-screen
+keyboard (`KeyBoardDialog`) pre-filled with the current name; empty input keeps the old name.
+Mod-gated in QuestActor (isWastelandTown + isTownRestored), stock towns unaffected.
+
+**3. Weighted-pull contested borders (user redesign of expansion).** `claimWastelandRing()`
+dropped the old binary Voronoi-of-castles + unbounded protections for an influence model:
+- Every faction (5 colors + player) has SOURCES: castle (weight 1.0, whole keep hard-protected),
+  capital (1.15), captured towns (1.3), player towns (1.0) - pull on a tile = min over sources
+  of dist*weight, lower wins. A forward capital/town bends the border outward around itself -
+  the "more organic" borders the user asked for.
+- Wasteland: claimed by the strongest pull (ties: first claimer).
+- OWNED tiles are now CONTESTED: a strictly stronger pull takes a tile from its current owner
+  (both sides compute identical pulls, so ownership converges - no flip-flop; borders only move
+  again when the sources change, e.g. a town falls).
+- Hard floors: castle keeps are inviolable; every town (AI and player alike) keeps the inner
+  HALF of its current territory radius - "a town can lose up to 50% of the territory around
+  them", never more.
+- Spawn's protection is GONE entirely (the leftover circle around the central teleporter the
+  user flagged was its 30-tile bubble; user: "should be okay to cover") -
+  SPAWN_PROTECTION_RADIUS_TILES deleted.
+The full-disc daily rescan (pentagon fix) doubles as the contested-border engine: lost ground
+gets re-evaluated every tick, so fronts genuinely move. Takeover tiles re-run the same
+native-content computation as any claim, so decor re-skins to the new owner automatically.
+
+Compiled, deployed, byte-verified (World + inners, TerritoryControl, TownRestoration,
+PointOfInterest, QuestActor + inners, MapViewScene + inners). No res changes.
+
+**Not yet playtested**: name persistence needs one capture message naming a real town; the
+Details overlay needs a look at the zoomed map after visiting a couple of towns; rename needs a
+restored town's Job Board; contested borders need a few fast-forwarded days watching two
+adjacent colors' front (and the central circle filling in).

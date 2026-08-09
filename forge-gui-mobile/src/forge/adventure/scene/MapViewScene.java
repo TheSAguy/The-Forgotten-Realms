@@ -202,6 +202,18 @@ public class MapViewScene extends UIScene {
         setOverlayButtonStates(1);
         List<PointOfInterest> allPois = Current.world().getAllPointOfInterest();
         for (PointOfInterest poi : allPois) {
+            // Town names on the Details overlay (user request 2026-08-08): every VISITED town/
+            // capital shows its display name - visited-only both for flavor (you learn a town's
+            // name by going there) and to keep 400+ labels from smothering the map.
+            String poiType = poi.getData().type;
+            if (("town".equalsIgnoreCase(poiType) || "capital".equalsIgnoreCase(poiType))
+                    && WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID()).isVisited()) {
+                TypingLabel nameLabel = Controls.newTypingLabel("[%?BLACKEN] " + poi.getDisplayName());
+                table.addActor(nameLabel);
+                details.add(nameLabel);
+                nameLabel.setPosition(img.getScaleX()*(getMapX(poi.getPosition().x) - nameLabel.getWidth() / 2) + img.getX(), img.getScaleY()*(getMapY(poi.getPosition().y) - nameLabel.getHeight() / 2) + img.getY());
+                nameLabel.skipToTheEnd();
+            }
             for (AdventureEventData data : AdventurePlayer.current().getEvents()) {
                 if (data.sourceID.equals(poi.getID())) {
                     StringBuilder sb = new StringBuilder();

@@ -51,6 +51,16 @@ public class QuestActor extends DialogActor {
                 stage.showDialog();
             return;
         }
+        // Restored wasteland towns get the Job Board menu (browse quests / rename town / leave)
+        // before the quest offer - mod-gated, stock towns keep the direct-to-quest behavior.
+        if (TownRestoration.isWastelandTown() && TownRestoration.isTownRestored(stage)) {
+            TownRestoration.openJobBoardMenu(stage, this::showQuestBoard);
+            return;
+        }
+        showQuestBoard();
+    }
+
+    private void showQuestBoard() {
         questData = AdventureQuestController.instance().getQuestNPCResponse(POI_ID, changes, questOrigin);
 
         dialog = new MapDialog(questData.offerDialog, stage, objectId, questData);

@@ -123,12 +123,25 @@ public class PointOfInterest implements Serializable, SaveFileContent {
     // doesn't inherit the old town's shop-rebuild/Job-Board state, which is intentional: it's a
     // genuinely different town now, not a reskinned wasteland one.
     public void transformInto(PointOfInterestData newData, Random random) {
+        transformInto(newData, random, false);
+    }
+
+    /**
+     * preserveDisplayName=true keeps the town's given name across the transformation (2026-08-08:
+     * the unconditional null wipe here was why every gen-time color-town-to-wasteland sweep and
+     * every mage capture reverted a uniquely-named town to its template's generic name - "sends a
+     * mage toward Waste Town Generic!"). Ownership changes hands; the town keeps its name.
+     * Callers that WANT the template name (capital promotion - "Plains Capital" is the identity)
+     * pass false / use the 2-arg overload.
+     */
+    public void transformInto(PointOfInterestData newData, Random random, boolean preserveDisplayName) {
         Array<Sprite> textureAtlas = Config.instance().getPOISprites(newData);
         spriteIndex = random.nextInt(Integer.SIZE - 1) % textureAtlas.size;
         sprite = textureAtlas.get(spriteIndex);
         data = newData;
         active = newData.active;
-        displayName = null; // falls back to newData.getDisplayName() on next access
+        if (!preserveDisplayName)
+            displayName = null; // falls back to newData.getDisplayName() on next access
         rectangle.set(position.x, position.y, sprite.getWidth(), sprite.getHeight());
     }
 

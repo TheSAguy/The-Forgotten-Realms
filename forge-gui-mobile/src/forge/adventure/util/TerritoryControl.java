@@ -13,7 +13,6 @@ import forge.adventure.stage.WorldStage;
 import forge.adventure.world.World;
 import forge.adventure.world.WorldSave;
 
-import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -64,10 +63,16 @@ public class TerritoryControl {
     // would disagree at the boundary - see World.java's placement pass and
     // neutralizeTerritoryOutsideRadius() for why that's a real rendering bug, not just cosmetic.
     public static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
-    // How far around Spawn AI expansion may never claim (World.claimWastelandRing's bounded rival
-    // cap for Spawn). Spawn used to be an UNBOUNDED rival, which - sitting at map center - made
-    // the entire central wasteland unclaimable ("upside down pentagon" stall, 2026-08-08).
-    public static final int SPAWN_PROTECTION_RADIUS_TILES = 30;
+    // Weighted-pull expansion model (2026-08-08 user redesign): a faction's pull on a tile is
+    // min over its sources of dist*weight - lower weight projects further. A castle out-pulls a
+    // capital, a capital out-pulls a captured town, and any forward holding bends the border
+    // outward around itself. Spawn projects nothing at all anymore (its old protection bubble -
+    // even the bounded one - left an unclaimable circle around the central teleporter; user:
+    // "should be okay to cover").
+    private static final float CASTLE_PULL_WEIGHT = 1.0f;
+    private static final float CAPITAL_PULL_WEIGHT = 1.15f;
+    private static final float TOWN_PULL_WEIGHT = 1.3f;
+    private static final float PLAYER_TOWN_PULL_WEIGHT = 1.0f; // the player's few towns hold their ground like castles
     // 3 -> 9 per user (2026-08-08): TEMPORARY testing pace so the full spread is watchable in a
     // session or two. Once the systems around it are settled the user intends to drop this to 1
     // tile/day or slower for the real slow-burn pacing - don't treat 9 as the design value.
@@ -132,7 +137,7 @@ public class TerritoryControl {
                 PointOfInterestData wasteData = matchingWasteData(poi.getData(), color);
                 if (wasteData == null)
                     continue;
-                poi.transformInto(wasteData, world.getRandom());
+                poi.transformInto(wasteData, world.getRandom(), true); // keep the town's given name through the sweep
                 converted++;
             }
             System.out.println("[TerritoryControl] " + color + ": neutralized territory outside castle, converted " + converted + " town(s) to neutral");
@@ -257,6 +262,45 @@ public class TerritoryControl {
         return MIN_ATTACK_DAYS + world.getRandom().nextInt(MAX_ATTACK_DAYS - MIN_ATTACK_DAYS + 1);
     }
 
+    /**
+     * Every faction's influence sources for World.claimWastelandRing()'s weighted-pull model,
+     * keyed by color name plus "player". Each source: {tileX, tileY, weightMultiplier,
+     * hardProtectRadiusTiles}. Castles pull strongest and keep their whole keep inviolable;
+     * capitals and captured towns pull progressively weaker but bend the border outward around
+     * themselves; every town's hard protection is HALF its current territory radius (user rule:
+     * "a town can lose up to 50% of the territory around them" - never more).
+     */
+    private static Map<String, List<float[]>> buildPullSources(World world, Map<String, Vector2> castlePositions,
+                                                               List<PointOfInterest> playerTowns) {
+        float tileSize = world.getTileSize();
+        Map<String, List<float[]>> sources = new LinkedHashMap<>();
+        for (String color : COLORS) {
+            List<float[]> list = new ArrayList<>();
+            Vector2 castle = castlePositions.get(color);
+            if (castle != null)
+                list.add(new float[]{castle.x / tileSize, castle.y / tileSize, CASTLE_PULL_WEIGHT, CASTLE_KEEP_RADIUS_TILES});
+            for (PointOfInterest poi : world.getAllPointOfInterest()) {
+                if (!isColorTownOrCapital(poi.getData(), color) || playerTowns.contains(poi))
+                    continue;
+                Integer radius = world.getTownTerritoryRadius(poi.getID());
+                int protect = Math.max(1, (radius != null ? radius : RECOLOR_RADIUS) / 2);
+                boolean isCapital = poi.getData().name != null && poi.getData().name.endsWith("Capital");
+                list.add(new float[]{poi.getPosition().x / tileSize, poi.getPosition().y / tileSize,
+                        isCapital ? CAPITAL_PULL_WEIGHT : TOWN_PULL_WEIGHT, protect});
+            }
+            sources.put(color, list);
+        }
+        List<float[]> playerList = new ArrayList<>();
+        for (PointOfInterest poi : playerTowns) {
+            Integer radius = world.getTownTerritoryRadius(poi.getID());
+            int protect = Math.max(1, (radius != null ? radius : RECOLOR_RADIUS) / 2);
+            playerList.add(new float[]{poi.getPosition().x / tileSize, poi.getPosition().y / tileSize,
+                    PLAYER_TOWN_PULL_WEIGHT, protect});
+        }
+        sources.put("player", playerList);
+        return sources;
+    }
+
     // Each color's circle slowly grows from its castle, claiming only currently-neutral wasteland
     // where its own castle is the *nearest* anchor among every other color's castle, the player's
     // Spawn, and every town the player currently owns (World.claimWastelandRing()'s nearest-anchor
@@ -281,26 +325,20 @@ public class TerritoryControl {
         // player restores it (see TownRestoration.java), so this is the only reliable way to tell
         // "the player owns this one" apart from "this happens to still be a Waste Town" or "this
         // happens to already be some AI color's."
-        // Player-owned towns, each paired with its CURRENT territory radius (protection cap and
-        // expansion state both) - seeded lazily at RECOLOR_RADIUS for towns restored before the
-        // per-town radius state existed.
         List<PointOfInterest> playerTowns = new ArrayList<>();
-        List<Pair<Vector2, Integer>> playerTownAnchors = new ArrayList<>();
         for (PointOfInterest poi : world.getAllPointOfInterest()) {
             // peek, not get - this loop queries EVERY POI on the map once per in-game day, and the
             // get-or-create accessor would materialize an empty PointOfInterestChanges entry for
             // each one, permanently bloating the save file for a pure read.
-            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID()))) {
+            if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID())))
                 playerTowns.add(poi);
-                Integer radius = world.getTownTerritoryRadius(poi.getID());
-                playerTownAnchors.add(Pair.of(poi.getPosition(), radius != null ? radius : RECOLOR_RADIUS));
-            }
         }
         // Diagnostic only (MOD_SCOPE.md #7) - no way to otherwise tell from forge.log whether this
         // is finding the player's town(s) at all, given a report that AI expansion was still
         // visibly encroaching after this fix shipped.
-        if (!playerTownAnchors.isEmpty())
-            System.out.println("[TerritoryControl] daily expansion: " + playerTownAnchors.size() + " player-owned town(s) protected as rival anchors");
+        if (!playerTowns.isEmpty())
+            System.out.println("[TerritoryControl] daily expansion: " + playerTowns.size() + " player-owned town(s) projecting pull");
+        Map<String, List<float[]>> pullSources = buildPullSources(world, castlePositions, playerTowns);
         // Captured towns grow their own small territory, RECOLOR_RADIUS -> TOWN_MAX_TERRITORY_RADIUS
         // (user request 2026-08-08). Two kinds, same mechanism: player-restored towns claim as
         // "player", AI-captured towns (seeded into townTerritoryRadius by onMageArrived()) claim as
@@ -335,21 +373,12 @@ public class TerritoryControl {
             if (ownerColor == null)
                 continue; // stale entry (e.g. the town was captured again under a new id) - skip
             int newTownRadius = Math.min(townRadius + EXPANSION_TILES_PER_DAY * daysPassed, TOWN_MAX_TERRITORY_RADIUS);
-            // Rivals for a growing town: every castle (all of them - even its own color's castle
-            // simply wins ties on ground it already holds, which isn't wasteland anyway) and every
-            // OTHER player town at its own radius.
-            List<Vector2> castleAnchors = new ArrayList<>(castlePositions.values());
-            List<Pair<Vector2, Integer>> otherTownAnchors = new ArrayList<>();
-            for (Pair<Vector2, Integer> anchor : playerTownAnchors) {
-                if (!anchor.getLeft().equals(poi.getPosition()))
-                    otherTownAnchors.add(anchor);
-            }
             // Radius + fog-of-war Revealed cache advance BEFORE the claim, so the claim's own
             // per-tile chunk re-bakes see the grown vision area (order-bug finding)...
             world.setTownTerritoryRadius(poi.getID(), newTownRadius);
             if (playerOwned)
                 world.rebuildPlayerTownVision();
-            int claimed = world.claimWastelandRing(ownerColor, poi.getPosition(), castleAnchors, otherTownAnchors,
+            int claimed = world.claimWastelandRing(ownerColor, poi.getPosition(), pullSources,
                     townRadius, newTownRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
@@ -372,12 +401,8 @@ public class TerritoryControl {
                         newTownRadius, WorldStage.getInstance()::refreshBackgroundTile);
             }
         }
-        // Refresh the castle loop's protection caps to the towns' POST-growth radii.
-        playerTownAnchors.clear();
-        for (PointOfInterest poi : playerTowns) {
-            Integer radius = world.getTownTerritoryRadius(poi.getID());
-            playerTownAnchors.add(Pair.of(poi.getPosition(), radius != null ? radius : RECOLOR_RADIUS));
-        }
+        // Rebuild sources with the towns' POST-growth radii (their 50% hard-protection tracks it).
+        pullSources = buildPullSources(world, castlePositions, playerTowns);
 
         for (String color : COLORS) {
             Integer currentRadius = world.getColorTerritoryRadius(color);
@@ -387,24 +412,12 @@ public class TerritoryControl {
             if (castlePosition == null)
                 continue;
             int newRadius = Math.min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
-            List<Vector2> otherAnchors = new ArrayList<>();
-            for (Map.Entry<String, Vector2> entry : castlePositions.entrySet()) {
-                if (!entry.getKey().equals(color))
-                    otherAnchors.add(entry.getValue());
-            }
-            // Player-owned towns are a separate, BOUNDED rival list (each capped to its own
-            // current territory radius inside claimWastelandRing()) rather than folded into the
-            // unbounded otherAnchors above - a captured town deep inside a color's growth area used
-            // to get an unbounded Voronoi cell against that color's castle, which could grow into a
-            // large, fully-enclosed hole once the color's own circle expanded past it on every side,
-            // not the small protective pocket the design was meant to give a captured town.
-            //
             // Inner radius is the KEEP radius, not yesterday's radius (2026-08-08 pentagon-stall
             // fix): the daily claim re-scans the whole disc, so tiles that were skipped when their
-            // ring passed (historically: everything inside Spawn's then-unbounded Voronoi cell, on
-            // every pre-fix save) get claimed now instead of being lost forever. Cheap in steady
-            // state - an already-claimed tile fails the highestBiome==colorless check immediately.
-            int claimed = world.claimWastelandRing(color, castlePosition, otherAnchors, playerTownAnchors,
+            // ring passed - or LOST to a rival whose pull has since weakened (their forward town
+            // fell, say) - get (re)claimed instead of being gone forever. Cheap in steady state:
+            // an already-mine tile short-circuits on the ownership check immediately.
+            int claimed = world.claimWastelandRing(color, castlePosition, pullSources,
                     CASTLE_KEEP_RADIUS_TILES, newRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
@@ -642,7 +655,7 @@ public class TerritoryControl {
         // reclaim it - an orphaned ring around an enemy town, found by the pre-commit review).
         Integer oldRadius = world.getTownTerritoryRadius(target.getID());
         int repaintRadius = Math.max(RECOLOR_RADIUS, oldRadius != null ? oldRadius : RECOLOR_RADIUS);
-        target.transformInto(newData, world.getRandom());
+        target.transformInto(newData, world.getRandom(), true); // ownership changes, the town keeps its name
         // Seed the captured town's territory at everything the repaint below actually paints
         // (keyed on the NEW id - getID() derives from data.name, which the transform just
         // changed), and refresh the fog-of-war Revealed cache BEFORE the repaint: if this capture

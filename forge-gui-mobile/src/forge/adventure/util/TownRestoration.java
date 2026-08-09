@@ -296,4 +296,52 @@ public class TownRestoration {
         root.options = new DialogData[]{ok};
         return new MapDialog(root, stage, objectId, null);
     }
+
+    /**
+     * Restored-town Job Board menu (user request 2026-08-08): instead of jumping straight into
+     * the quest offer, the board first offers Browse quests / Rename town / Leave. Only reachable
+     * for restored wasteland towns (QuestActor gates on isWastelandTown() + isTownRestored()), so
+     * stock planes and stock towns keep the direct-to-quest behavior.
+     */
+    public static void openJobBoardMenu(MapStage stage, Runnable openQuestBoard) {
+        PointOfInterest point = TileMapScene.instance().rootPoint;
+        com.badlogic.gdx.scenes.scene2d.ui.Dialog dialog = stage.getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+        com.github.tommyettinger.textra.TypingLabel label = Controls.newTypingLabel(
+                "The " + (point != null ? point.getDisplayName() : "town") + " Job Board.");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+        dialog.getButtonTable().add(Controls.newTextButton("Browse quests", () -> {
+            stage.hideDialog();
+            openQuestBoard.run();
+        })).width(240f).row();
+        dialog.getButtonTable().add(Controls.newTextButton("Rename town", () -> {
+            stage.hideDialog();
+            openRenameDialog(stage);
+        })).width(240f).row();
+        dialog.getButtonTable().add(Controls.newTextButton("Leave", stage::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        stage.showDialog();
+    }
+
+    // On-screen keyboard for the new town name; empty/blank input (or Exit) keeps the old name.
+    private static void openRenameDialog(MapStage stage) {
+        PointOfInterest point = TileMapScene.instance().rootPoint;
+        if (point == null)
+            return;
+        KeyBoardDialog keyboard = new KeyBoardDialog();
+        keyboard.setText(point.getDisplayName());
+        keyboard.setOnFinish(newName -> {
+            String trimmed = newName == null ? "" : newName.trim();
+            if (!trimmed.isEmpty() && !trimmed.equals(point.getDisplayName())) {
+                point.setDisplayName(trimmed); // persists via PointOfInterest.save()
+                forge.adventure.stage.GameHUD.getInstance().addNotification("Town renamed to " + trimmed + "!");
+                System.out.println("[TownRestoration] town renamed to \"" + trimmed + "\"");
+            }
+        });
+        keyboard.show(stage);
+    }
 }
