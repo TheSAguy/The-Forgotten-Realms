@@ -4087,3 +4087,8 @@ this round (no new flags).
 (watch for "[TownRestoration] renamed N generic-named wasteland town(s)" in forge.log, then check
 a few towns); the red warning needs a mage dispatch at a player town; the Quest Failed dialog
 needs a quest fast-forwarded past its timer.
+
+**Follow-up (same round)**: `EXPANSION_TILES_PER_DAY` 3 -> 9 per user - explicitly a TEMPORARY
+testing pace ("once we are happy with everything, we will actually reduce this to 1 tile a day,
+if not slower"). The same constant also drives player-town territory growth, so both speed up
+together, as before. Compiled, deployed, byte-verified.

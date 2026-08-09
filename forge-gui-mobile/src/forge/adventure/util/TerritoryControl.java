@@ -64,7 +64,10 @@ public class TerritoryControl {
     // would disagree at the boundary - see World.java's placement pass and
     // neutralizeTerritoryOutsideRadius() for why that's a real rendering bug, not just cosmetic.
     public static final int CASTLE_KEEP_RADIUS_TILES = 20; // first-guess constant, tune after testing - also the starting radius territory expansion grows from
-    private static final int EXPANSION_TILES_PER_DAY = 3; // first-guess constant, tune after testing
+    // 3 -> 9 per user (2026-08-08): TEMPORARY testing pace so the full spread is watchable in a
+    // session or two. Once the systems around it are settled the user intends to drop this to 1
+    // tile/day or slower for the real slow-burn pacing - don't treat 9 as the design value.
+    private static final int EXPANSION_TILES_PER_DAY = 9;
     private static final int MAX_TERRITORY_RADIUS = 450; // raised 300 -> 450 per user request 2026-08-08
     // Captured towns grow their own small territory too (user request 2026-08-08: "for captured
     // towns, let's have them expand to 15") - from RECOLOR_RADIUS at capture up to this, at the
