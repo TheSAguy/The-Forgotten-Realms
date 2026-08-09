@@ -225,6 +225,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   impossible-layout hang), a non-essential drop at least logs. New public
   `addPointOfInterestNear()` (places + registers a brand-new POI at a free tile near a position,
   with minimap repaint) for `TerritoryControl.ensureCapital()`'s no-town-to-promote fallback.
+  Night round (2026-08-08): `claimWastelandRing()` redesigned to the weighted-pull contested
+  model - signature now takes `Map<String, List<float[]>> allPullSources` (built by
+  `TerritoryControl.buildPullSources()`) instead of otherAnchors/boundedRivalAnchors; owned
+  tiles are contested (strictly stronger pull takes over, both sides compute identical pulls so
+  ownership converges), castle keeps + every town's inner half-radius are hard floors, and
+  Spawn projects nothing at all anymore (its leftover central bubble was the user-reported
+  unclaimed circle). `load()` additionally calls `TerritoryControl.repairMissingCapitals()`.
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the
@@ -253,7 +260,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterest.java`** — added
   `transformInto(PointOfInterestData, Random)` (#7): rebuilds a POI's sprite/rectangle/active-state
   from a *different* data definition in place, used when a captured neutral town becomes a real
-  instance of the capturing color's own town.
+  instance of the capturing color's own town. Night round (2026-08-08): new
+  `transformInto(..., preserveDisplayName)` overload - the unconditional `displayName = null`
+  wipe was why the gen-time sweep and every mage capture reverted uniquely-named towns to their
+  template's generic name; the sweep and captures now preserve, capital promotion still resets.
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterestChanges.java`** — added
   persisted per-town fields: `bankBalance`, `economyBuildingObjectIds` (#10).
 
@@ -267,7 +277,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   single-arg constructor is unchanged/still used everywhere else unmodified.
 - **`forge-gui-mobile/src/forge/adventure/character/QuestActor.java`** — same gating pattern as
   `OnCollide.java` for the Job Board's own quest-giver interaction, plus triggers the terrain
-  recolor prototype (#7) once a town's restored.
+  recolor prototype (#7) once a town's restored. Night round (2026-08-08): a RESTORED wasteland
+  town's Job Board now opens `TownRestoration.openJobBoardMenu()` (Browse quests / Rename town /
+  Leave) before the quest offer - quest flow extracted to `showQuestBoard()`, stock towns
+  unchanged.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — largest diff after World.java:
   shop overhead-tile detection/hide (`findOverheadTiles`/`setShopOverheadTilesHidden`), sign
   visibility live-updates.
@@ -326,7 +339,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   (shared palette with the corner minimap's dots), riding the same zoom transform as the player
   marker/quest labels, removed in `done()`. Five-request round: the same
   `World.isCurrentlyVisible()` fog-of-war gate as the corner minimap - a mage outside Revealed
-  territory gets no dot here either.
+  territory gets no dot here either. Night round (2026-08-08): the Details overlay additionally
+  labels every VISITED town/capital with its display name (visited-only to keep 400+ labels off
+  the map at once).
 - **`forge-gui-mobile/src/forge/adventure/data/SettingData.java`** — added the persisted
   `fogOfWarEnabled` setting field backing the above.
 - **`forge-gui/res/languages/en-US.properties`** — **the one shared (non-mod-plane) asset file
