@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="77">
+<?xml version='1.0' encoding='UTF-8'?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="102">
  <editorsettings>
   <export format="tmx" />
  </editorsettings>
@@ -17732,17 +17732,17 @@
  <tileset firstgid="13697" source="../../../../common/maps/tileset/main.tsx" />
  <layer id="1" name="Background" width="40" height="40">
   <data encoding="base64" compression="zlib">
-   eJzt0LEJACAQBEERwbosxO4txBYMHn1wgo1vuNlKmQpp9Rzx8fHx8fHx8fHx8fHx8fG9j4/vdnXk9mX/78QX2a0dPr6ffRv4u6uR
+   eJztzrENACAMwLAOSFzZ7zmEJ6qCwEPmOEdEqqQ174iPj4+Pj4+Pj4+Pj4+Pj+98fHx87/kq6/rw8f3s21DxrDk=
   </data>
  </layer>
  <layer id="2" name="Ground" width="40" height="40">
   <data encoding="base64" compression="zlib">
-   eJztmF1OwkAQgPfJ7pZL6BsJilyBGMV76EXEZ9BwharHwKso6jMgHMCdlEknQ7s/3a3UxEkmbEu7/To/O7MVon2ylEIMUiGm6tAk5TJROVuTfJeJEFc1dJQUtmuS70M/57OGfiUF27dsLx+wnaVuzxp3Cq3LN+oKcd3Nx1w4Xxkb5My5PrfSv2u5z8XVl+9Gs9068pXZjebMA4lL5MmUnw0535G+PynRF7XPVyY2vmEa5t8qhXk3PSG2PTNfT1+3lTlfn/jZN+7q8LnYD2RGbMjt+M/39/lojvisj4fgewysfbH5aE+TWXybKfMx8mVkbasau/JR28E9Jr5haj5GPvps2xh/Xfhi+fctLerEe8X4YjdeePLBGr0O6G9ixx/nC7Whb/zhuTI+mhsx+WLFH9TejWY8JTU4xvocM/5Q0M9tWJ+XLP6pn2kPcyi+CfMfz5EQG8bmA9uZ9oSQXz77xGMVxoe+RIHexfTOfJ5YWsU3I/tLZG0bXz8txtMW2W/Fvr9MdrZsCx/NUeTrW/xL11oXfXa8bmHgw/jD+gF8r/r83DH3fOxC9alT/R/l4/UL+E6U+9pg44N3HctcXd4Zrr+X1fX/Thbzheh81+PStdZlbsoWWl9Ngr2LrdaD8D0Z9ieh/XEsPrqnBSbMhaZs58tX9d2nSanD12S8cfHhA39CX/xbbCA+fDb5AV5mcmA=
+   eJzlmMFOwzAMQHOiSfcTcOAwDQZnxGVCwBdwQOJnGOdtaL9Q4DPGr8CA8za2DyDWZtVLkzRp0lGBJWtp16avtmM7Zax5MuOMnaaMDcVvk+hlINZsdfJdJoxdVdDrJLddnXwf8jmfFfQrydm+eXP5gO04dXtWv5VrVT4UOqbnKJ+ODdbMiTw3l78LXuRStU4+nd3omhmRuESeTPjZUOXbk/cnGn0RRT6dlPH10jD/mhTmXXYYW3XsfB153Yqv+brEz75xV4XPxX4gY2JD1Y7/hQ/lL/LRNeKTH334QvxL+R4Da19sPtrTZCW+zYT9GPkykttMY1c+aju4x8bXS+3HyEefXTbGXxe+WP59S/M68W4YX2zGU08+yNGLgP4mdvypfKE29I0/PKfjo2sjJl+s+IPau5SMR6QGx8jPMeMPBf3chPw8U+Kf+pn2MLvgu2kX+QaK/9Q1EmLDGPajfGA7254Q1pfPPnFfFFnOzt350Jco0LvY3lmdJ5aa+MZkf4msTePrpvl4uEP7Hfa2571rb/PNle8vg40t6+S7bbvNS78fUL5uiX9prnXRZ8frphY+jD+sH8D3Ks9PNGsvNK6oPrXM/1E+tX4B34HQ54YqfPCufb5Wl3eG6x+4uf7f83y+EJ1selyaa13mpmyh9dUm2LuU1XoQdU+G/UlofxyLj+5pgQnXQl228+UzffepU6rw1RlvqvjwgT+hL94VG4gPX5n8AK5Yaog=
   </data>
  </layer>
  <layer id="6" name="Ground2" width="40" height="40">
   <data encoding="base64" compression="zlib">
-   eJxjYBgF1AJN3NTDw8F9PkaD232kAnq6zwsadn4khCEuu4I1GBhCgDhUgzT3kRp/5LpvJMbvYHJfAtPgdh824ElG2hzI+E0nIozp4T5dLQYGPS3S3U8v9+EC3kTE90jNv6PuG3XfqPtG3TfqPgRAry+IacsO9vCT52FgUABiLk4IDcMyAhBaTgAhB6LR2chi2EAAUhglUqlNSC/gReW+CjmAmDbKYAAeaO70HwTuRncTOp/afdGRBNDDkpaggZ9+dg1XACrPQUBOYGDdMQpGwXAHAKA+/g8=
+   eJxjYBgF1AJN3NTDw8F9PkaD232kAnq6zwsadn4khCEuu4I1GBhCgDhUgzT3kRp/5LpvJMYvNrDObmDcl8BEnnvp5T5swJOMtDmQ8ZtORBjTw326WgwMelqku59e7sMFvImI74HOv6PuG3XfqPtG3TfqvoF3HzH1xUC6jxwgz8PAoADEXJwQGoZlBCC0nABCDkSjs5HFCIFEKrUJ6QW8qNxXIQeQk+ZGAXbggRaW1O6LjiSAHpa0BA389LNruAJQeQ4CcgID645RMAqGOwAAFj/8hg==
   </data>
  </layer>
  <layer id="3" name="Walls" width="40" height="40">
@@ -17750,61 +17750,23 @@
    <property name="spriteLayer" type="bool" value="true" />
   </properties>
   <data encoding="base64" compression="zlib">
-   eJztmNsOgjAMhndhYiCBByHRW/FwofEtUbnxndA7D08iC5BM6A6sG25xf9IoW9p+NtKkJcQPFQkhJ0fsnAz58pSQdWu72m4I22rE2DL5N6mYD7ofo1wjhix/zvzm+w/4KqaOPD5s3UzE4vn6zneN8DkwvrKYhxifA+Mb+HC+PvE9a5Z51Nir/X4Ezjp7x2o5qBYZIcsMxwfJpfpB8omP7YWrbNgbbfNBtWLP+vf95ynfj85MvR8m+CD59P/TzYHx9YnPZn82wQfJpfpBcoGvFMx7lE91Br0kdvh4MyGdlyhfxbnn+Zjmg873s+bzEX8/29IU8xFGgQ8nn/lKwf5IpgLYP0FnMn9eb8LuhyD/MTFV9kPdPa9Py3qyiE8WE/JnNab3qvZm3ZjY/VlQ0L/oAwlg02M=
+   eJztmM0OgjAMx3cwMZDA86B40PiWoFx8J/Tmx5MIgSV1ttuggFvcP2lkXdr+HKPJJoQfKhIhSkfslHzzZakQm952jV0Zlo/IkYP621TPh80PUTYih6l+Bv7z7Qd8NVhHio+7blPkomJ957tE/BqcWFPOQ8yvwYkNfLxY6Id7TT5DPnUvquO5+R4Nyzrq7Nk/HxGftFdsV2MqPkwuvV9MLvFhvc6l/YetFfSp8+p4ye9DWvg+9LE+8YX+zOPD5NL7xeQCX6U577V8tmfQczIPH3UmbM9LLV9NzFMxU/Nh/v2q+73Hn+O5tMT5iKPAx5PPfJXm/sikArl/wnymeKo3ce+HsPghOW3uh+Q81adNPVnHZ8qJxUMN6b22vXlsTu79WVDQv+gNauPYXw==
   </data>
  </layer>
  <layer id="5" name="Overlay" width="40" height="40">
   <data encoding="base64" compression="zlib">
-   eJzt1k0KglAUxfEDLUByWlBDvwaBgxRdlCuoZrmOak85aDHdoSEIEXqudH5w4b3Zn3dBBETkF8cIKGzKiF0yvWsOtDm74jvPFOhSdsWnNmYXyBTWCRAm7IqhewY8MnYF3852s+/tZ2PnraN9VdZS27x6uyoc9YmI/JNTAJxtLgG7ZOi2Gr8vTXMYv3tROv1/X8r7ibB4/p6LyHzeNXoSNQ==
+   eJzt1jEKgzAYxfEHPUCOYMdUHQSHNtRDeQJ1q+fQ3qkdephmFakgRV+C7wff8G1/EggBROQfVwvc/DjLLtneowT6kl2xzisD3hm7Yqq/sAvkSMYceObsCr4kBc4pu+K3u2+r/Hx0VyIidI0BWj+dYZfMDaflPTZ1sbyHwgX6f4/l/ERYQn7PRWQ/X2zzENE=
   </data>
  </layer>
  <objectgroup id="4" name="Objects">
-  <object id="41" template="../../../../common/maps/obj/shop.tx" x="465" y="260">
-   <properties>
-    <property name="signYOffset" type="float" value="-8" />
-    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
-  </object>
-  <object id="56" template="../../../../common/maps/obj/shop.tx" x="416" y="260">
-   <properties>
-    <property name="signYOffset" type="float" value="-8" />
-    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
-  </object>
-  <object id="57" template="../../../../common/maps/obj/shop.tx" x="545" y="259">
-   <properties>
-    <property name="signYOffset" type="float" value="-8" />
-    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
-  </object>
-  <object id="43" template="../../../../common/maps/obj/shop.tx" x="370" y="325">
-   <properties>
-    <property name="signYOffset" type="float" value="-8" />
-    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
-  </object>
   <object id="47" template="../../../../common/maps/obj/inn.tx" x="536" y="144" />
-  <object id="49" template="../../../../common/maps/obj/shop.tx" x="417" y="324">
-   <properties>
-    <property name="signYOffset" type="float" value="-8" />
-    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
-  </object>
-  <object id="50" template="../../../../common/maps/obj/shop.tx" x="465" y="323">
-   <properties>
-    <property name="signYOffset" type="float" value="-8" />
-    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
-  </object>
-  <object id="51" template="../../../../common/maps/obj/shop.tx" x="545" y="325">
-   <properties>
-    <property name="signYOffset" type="float" value="-8" />
-    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
-  </object>
-  <object id="52" template="../../../../common/maps/obj/shop.tx" x="369" y="261">
-   <properties>
-    <property name="signYOffset" type="float" value="-8" />
-    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
-  </object>
   <object id="53" template="../../../../common/maps/obj/spellsmith.tx" x="452" y="212" />
   <object id="55" template="../../../../common/maps/obj/shop.tx" x="465" y="515">
    <properties>
+    <property name="commonShopList" value="Plains" />
+    <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="-2" />
-   <property name="commonShopList" value="Land" /><property name="noRestock" type="bool" value="true" /></properties>
+   </properties>
   </object>
   <object id="58" template="../../../../common/maps/obj/entry_up.tx" x="320" y="644" width="80" height="20">
    <properties>
@@ -17898,72 +17860,153 @@
 }</property>
    </properties>
   </object>
-  <object id="62" template="../../../../common/maps/obj/shop.tx" x="80" y="338">
+  <object id="63" template="../../../../common/maps/obj/shop.tx" x="80" y="253">
    <properties>
+    <property name="commonShopList" value="Equipment" />
+    <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Forest" /><property name="noRestock" type="bool" value="true" /></properties>
-  </object>
-  <object id="63" template="../../../../common/maps/obj/shop.tx" x="82" y="257">
-   <properties>
-    <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Equipment" /><property name="noRestock" type="bool" value="true" /></properties>
+   </properties>
   </object>
   <object id="66" template="../../../../common/maps/obj/quest.tx" x="200" y="257">
    <properties>
-    <property name="questtype" value="waste_town_generic" /></properties>
+    <property name="questtype" value="waste_town_generic" />
+   </properties>
   </object>
-  <object id="67" template="../../../../common/maps/obj/shop.tx" x="208" y="338">
+  <object id="77" template="../../../../common/maps/obj/shop.tx" x="416.182" y="480">
+   <properties>
+    <property name="commonShopList" value="Forest" />
+    <property name="noRestock" type="bool" value="true" />
+    <property name="signYOffset" type="float" value="-2" />
+   </properties>
+  </object>
+  <object id="78" template="../../../../common/maps/obj/shop.tx" x="432.25" y="416.875">
+   <properties>
+    <property name="commonShopList" value="Mountain" />
+    <property name="noRestock" type="bool" value="true" />
+    <property name="signYOffset" type="float" value="-2" />
+   </properties>
+  </object>
+  <object id="79" template="../../../../common/maps/obj/shop.tx" x="544" y="384.875">
+   <properties>
+    <property name="commonShopList" value="Swamp" />
+    <property name="noRestock" type="bool" value="true" />
+    <property name="signYOffset" type="float" value="-2" />
+   </properties>
+  </object>
+  <object id="80" template="../../../../common/maps/obj/shop.tx" x="528.25" y="464.625">
+   <properties>
+    <property name="commonShopList" value="Island" />
+    <property name="noRestock" type="bool" value="true" />
+    <property name="signYOffset" type="float" value="-2" />
+   </properties>
+  </object>
+  <object id="81" template="../../../../common/maps/obj/shop.tx" x="463.75" y="463.625">
+   <properties>
+    <property name="commonShopList" value="Land" />
+    <property name="noRestock" type="bool" value="true" />
+    <property name="signYOffset" type="float" value="-2" />
+   </properties>
+  </object>
+  <object id="85" template="../../../../common/maps/obj/shop.tx" x="127.455" y="331.818">
+   <properties>
+    <property name="commonShopList" value="BoosterPackShop,AlphaBoosterPackShop,BetaBoosterPackShop,GammaBoosterPackShop,DeltaBoosterPackShop,Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" />
+    <property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" />
+    <property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black" />
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature" />
+   </properties>
+  </object>
+  <object id="86" template="../../../../common/maps/obj/shop.tx" x="79.4545" y="332.545">
    <properties>
     <property name="signYOffset" type="float" value="-2" />
     <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
   </object>
-  <object id="68" template="../../../../common/maps/obj/shop.tx" x="128" y="338">
+  <object id="87" template="../../../../common/maps/obj/shop.tx" x="208.364" y="331.636">
    <properties>
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" />
+    <property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" />
+    <property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" />
     <property name="signYOffset" type="float" value="-2" />
-    <property name="commonShopList" value="BoosterPackShop,AlphaBoosterPackShop,BetaBoosterPackShop,GammaBoosterPackShop,DeltaBoosterPackShop,Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature" /></properties>
-  </object>
-  <object id="69" template="../../../../common/maps/obj/RotatingShop.tx" x="481.667" y="418.667">
-   <properties>
-    <property name="rotation" value="White1,White2,White3,White4,White5,White6" />
-    <property name="signYOffset" type="float" value="-2" />
+    <property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" />
    </properties>
   </object>
-  <object id="70" template="../../../../common/maps/obj/RotatingShop.tx" x="541" y="193">
+  <object id="88" template="../../../../common/maps/obj/shop.tx" x="271.273" y="333.091">
    <properties>
-    <property name="rotation" value="White1,White2,White3,White4,White5,White6" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" />
+    <property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" />
+    <property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" />
     <property name="signYOffset" type="float" value="-2" />
+    <property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" />
    </properties>
   </object>
-  <object id="71" template="../../../../common/maps/obj/RotatingShop.tx" x="401" y="161">
+  <object id="89" template="../../../../common/maps/obj/RotatingShop.tx" x="80.1818" y="188.182">
    <properties>
-    <property name="rotation" value="White1,White2,White3,White4,White5,White6" />
-    <property name="signYOffset" type="float" value="-2" />
+    <property name="rotation" value="Green1,Green2,Green3,Green4,Green5,Green6,White1,White2,White3,White4,White5,White6,Black1,Black2,Black3,Black4,Black5,Black6,Blue1,Blue2,Blue3,Blue4,Blue5,Blue6,Red1,Red2,Red3,Red4,Red5,Red6" />
    </properties>
   </object>
-  <object id="72" template="../../../../common/maps/obj/shardtrader.tx" x="272" y="338">
+  <object id="90" template="../../../../common/maps/obj/RotatingShop.tx" x="127.455" y="188.182">
    <properties>
-    <property name="signYOffset" type="float" value="-2" />
+    <property name="rotation" value="Green1,Green2,Green3,Green4,Green5,Green6,White1,White2,White3,White4,White5,White6,Black1,Black2,Black3,Black4,Black5,Black6,Blue1,Blue2,Blue3,Blue4,Blue5,Blue6,Red1,Red2,Red3,Red4,Red5,Red6" />
    </properties>
   </object>
-  <object id="73" template="../../../../common/maps/obj/shop.tx" x="79.5" y="191.5">
+  <object id="91" template="../../../../common/maps/obj/RotatingShop.tx" x="207.818" y="188.455">
    <properties>
-    <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Plains" /><property name="noRestock" type="bool" value="true" /></properties>
+    <property name="rotation" value="Green1,Green2,Green3,Green4,Green5,Green6,White1,White2,White3,White4,White5,White6,Black1,Black2,Black3,Black4,Black5,Black6,Blue1,Blue2,Blue3,Blue4,Blue5,Blue6,Red1,Red2,Red3,Red4,Red5,Red6" />
+   </properties>
   </object>
-  <object id="74" template="../../../../common/maps/obj/shop.tx" x="208.5" y="192.5">
+  <object id="92" template="../../../../common/maps/obj/RotatingShop.tx" x="271.636" y="188.909">
    <properties>
-    <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Island" /><property name="noRestock" type="bool" value="true" /></properties>
+    <property name="rotation" value="Green1,Green2,Green3,Green4,Green5,Green6,White1,White2,White3,White4,White5,White6,Black1,Black2,Black3,Black4,Black5,Black6,Blue1,Blue2,Blue3,Blue4,Blue5,Blue6,Red1,Red2,Red3,Red4,Red5,Red6" />
+   </properties>
   </object>
-  <object id="75" template="../../../../common/maps/obj/shop.tx" x="128" y="190.75">
+  <object id="93" template="../../../../common/maps/obj/shop.tx" x="272.545" y="253.091">
    <properties>
-    <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Swamp" /><property name="noRestock" type="bool" value="true" /></properties>
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" />
+    <property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" />
+    <property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" />
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" />
+   </properties>
   </object>
-  <object id="76" template="../../../../common/maps/obj/shop.tx" x="271.75" y="191.75">
+  <object id="94" template="../../../../common/maps/obj/shop.tx" x="368.182" y="253.455">
    <properties>
-    <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Mountain" /><property name="noRestock" type="bool" value="true" /></properties>
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
+  </object>
+  <object id="95" template="../../../../common/maps/obj/shop.tx" x="416" y="253.455">
+   <properties>
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
+  </object>
+  <object id="96" template="../../../../common/maps/obj/shop.tx" x="464.182" y="254.182">
+   <properties>
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
+  </object>
+  <object id="97" template="../../../../common/maps/obj/shop.tx" x="543.818" y="260.364">
+   <properties>
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
+  </object>
+  <object id="98" template="../../../../common/maps/obj/shop.tx" x="367.818" y="318.727">
+   <properties>
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
+  </object>
+  <object id="99" template="../../../../common/maps/obj/shop.tx" x="415.455" y="318.727">
+   <properties>
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
+  </object>
+  <object id="100" template="../../../../common/maps/obj/shop.tx" x="464" y="317.818">
+   <properties>
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
+  </object>
+  <object id="101" template="../../../../common/maps/obj/shop.tx" x="543.818" y="318.545">
+   <properties>
+    <property name="signYOffset" type="float" value="-2" />
+    <property name="commonShopList" value="Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" /><property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" /><property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black,FlipShop,Saga,AttractionShop,ContraptionShop" /><property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature,Battle" /></properties>
   </object>
  </objectgroup>
 </map>

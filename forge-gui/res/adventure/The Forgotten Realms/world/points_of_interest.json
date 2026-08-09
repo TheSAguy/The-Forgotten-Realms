@@ -4049,7 +4049,7 @@
 		"count": 30,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "WasteTown",
-		"map": "../The Forgotten Realms/maps/map/towns/waste_town_player.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/player_town.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -4065,7 +4065,7 @@
 		"count": 35,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "WasteTown",
-		"map": "../The Forgotten Realms/maps/map/towns/waste_town_player.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/player_town.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -4081,7 +4081,7 @@
 		"count": 35,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "WasteTown",
-		"map": "../The Forgotten Realms/maps/map/towns/waste_town_player.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/player_town.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",

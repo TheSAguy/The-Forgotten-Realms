@@ -127,7 +127,7 @@ public class ShopActor extends MapActor {
             if (brokenSprite != null)
                 drawOverFootprint(batch, brokenSprite);
         } else {
-            // waste_town_player.tmx has no baked-in building art at all anymore (see
+            // player_town.tmx has no baked-in building art at all anymore (see
             // MOD_CHANGELOG.md), so every rebuilt shop needs SOME icon drawn here, not just the
             // 6 economy building types - otherwise a rebuilt plain Card Shop is invisible. Every
             // OTHER town template (an AI color's own, whether straight from world-gen or a
@@ -159,7 +159,7 @@ public class ShopActor extends MapActor {
     // player stands on to interact - the actual building looms above it).
     //
     // Vertical placement used to be derived from MapStage.getShopOverheadBounds() (the detected
-    // baked-tile bounds), but waste_town_player.tmx no longer has that baked art to detect at
+    // baked-tile bounds), but player_town.tmx no longer has that baked art to detect at
     // all, and the couple of shops with a stray leftover tile were getting positioned off of
     // that single stray tile instead - worse than the plain fallback. A single fixed offset
     // (calibrated against user testing, including one round where ruins and building icons were

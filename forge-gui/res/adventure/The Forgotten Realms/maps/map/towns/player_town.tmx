@@ -1,19 +1,19 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="6" nextobjectid="64">
  <editorsettings>
-  <export format="tmx" />
+  <export target="wastetown..tmx" format="tmx" />
  </editorsettings>
  <tileset firstgid="1" source="../../../../common/maps/tileset/main.tsx" />
  <tileset firstgid="10113" source="../../../../common/maps/tileset/buildings.tsx" />
  <tileset firstgid="11905" source="../../../../common/maps/tileset/buildings-nocollide.tsx" />
- <layer id="1" name="Background" width="30" height="30" visible="0">
+ <layer id="1" name="Background" width="30" height="30">
   <data encoding="base64" compression="zlib">
-   eJzt1LEOABAMANHufrizL7eaqmgRueEm9EkktIgoEaVWuzx7+r2jcxF3snrZ9c6aCfeM67F/c0f2rffN8LP/h2jXusfK+q4dPRMXFxfXqgGVp9Ws
+   eJyr4GZgqBjFo3gU0xQ3IWFi1GDDtHTTULWXWLNIwaP20sdeYuwebvYSsnug4pdW9tOqbKCmnRU49BEyk1I7SXUPPfCovaP2jto7cu0FAKBu1dQ=
   </data>
  </layer>
  <layer id="2" name="Ground" width="30" height="30">
   <data encoding="base64" compression="zlib">
-   eJzVl0tOwzAQhl1YoDjughMEdkjtqrAuiiBwBA5QOEjhCBygICFQzsE1QEKErFl1j0f2qBM3cSaPRmKkUdLU9fdPxx5P5kqIvVCIfe1D2EIKcSsNc0juKNwwwc+V0XEnd8eEWOeqyB0ibjdW9E+t5Xlgbt+8m/H2s5VmfKhinNQe+5WwxX6y3iXWn4p1iM9nEyFyMqaPmMLAeJ3de+LKpNF4VXF1718074Dhr9qPVTU3DYyuQF+P1MZlYBzv4QoxxkTDtTS/BU/IZ7iHcWeTeu4DI9eRMvNJj0aqL/fUomVY5P5O/eyYUddQX+JhR1YfcDm5u5C8/F5KM++bZ/2llsuJhTMGx52M/GN2xa2zJVmDaO8VWptwffsXDHP8xcgdN7/flkvzuyjRHDl7AnQkTu3I7X+SkefUce1mdi8HTu2Ac6nunI9UcY+ijpjMSfcvfD+dbeqJy8Szv2mfEZF6gHMenha/p/XNrZHuWQh8Lju1XE5tKzP3/Of2OF25q5Y9R1cuWJs+py9uHdPtlbpy1+N2PU4f8bax/8zF96Qm7ydcLqyLdUkfDfYHeUFq1w==
+   eJzVl0tOwzAQhl1YtHGcBScI7JCygrIuiqD0CBygcJDCEcq+ICFQzsE1QEKErll1j0e2lYlJnMlTYqSR09Tx90/GHjszwdiez9i+9CFsyRm74Yo5JHfkZ0zwc6F03PL+mBDrTOS5Q8Rtx2r8Q2p5GpjbJ8/YRjLeRT5ObOue2Y/a28T6XTIPzf3TiLEt6tNFTL6nvMruHHGlXGm8Kmnt62fJGxP8RfqRKOcmntLlyfZQZM495eYaWogxRhoWXD0LPke/TyLV7yyq5t4Tch0KNR53aMT6to5atPLpXLCYUNeMvmlUzg61PuBScnfBafm95GrcV8f8SzQ3tnKGHXT/jFUfaMFcfaHf8cj9XjC3zB4mqqW8Z2q/lZ6PuO9bgdYFr8d1rV8wk+NPQu6o+f3SXJzfZYHm0FoToGNeUDsgjhTdx27mbqrniWfVDtiXqvb5UOTXqK/XeYzGxOsX6yximr2/zjljPclyEesxD6Z/deL6ZtdIey8EPvWMk2gutcbYZu//1DNOW+6m4ZmjLResyTmnK24V8zrolrsLmp1xuoi3if1nrvlOqvN9QuXCvNgFxf/9AvctdOs=
   </data>
  </layer>
  <layer id="3" name="Walls" width="30" height="30">
@@ -21,7 +21,7 @@
    <property name="spriteLayer" type="bool" value="true" />
   </properties>
   <data encoding="base64" compression="zlib">
-   eJxjYBgFo4B2YAcLA4M0jfEuFkx7Q1lJd+sUDtLUY7ODHHtJBcTYS6pf8AGYWeT4lxruGMzhPFjstdZiYLDRor+91ACDxd6vA2QvLjEYcNdkYPAAYj1O+tpLLTCQ9k7mwBQDAWqWj9jsJUYM2W3o7qSWvV9YyatDSam3vyHZi+4PQuGM7mZy0gU5YUcNe8kBpNhLzTQ6FPyLDCj1+1Dz72CxFwB5miUJ
+   eJxjYBgFo4B2YAcLA4M0jfEuFkx7Q1lJd+sUDtLUY7ODHHtJBfS2FxYu5NhLaphiAyMlnCmx11qLgcFGi/72UgMMFnu/DpC9uMRgwF2TgcEDiPU46WsvtcBA2juZA1MMBKhRLuGzlxgxdLfRwt4vrOTVoaTU29+Q7EX3E6FwRnczOemCnHCkhr3kAFLspWYaHQr+RQaU+n2o+Xew2AsAgKsj0g==
   </data>
  </layer>
  <layer id="5" name="Overlay" width="30" height="30">

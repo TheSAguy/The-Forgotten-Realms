@@ -4338,3 +4338,50 @@ Realms" (18 spots incl. the "Welcome to Shandalar" story quest; possessives -> "
 Realms'"). Already-accepted quests on old saves keep their baked name; new games get the new
 text. items.json's one "Shandalar" mention (item flavor text) left as-is deliberately - flag if
 that should change too.
+
+
+## Fresh player_town.tmx / player_capital.tmx from the user (2026-08-09)
+
+User rebuilt both layouts in Tiled and handed over new files, plus renamed the town file:
+**`waste_town_player.tmx` -> `player_town.tmx`** (physical rename in the repo/live game, and
+`points_of_interest.json`'s 3 Waste Town template `map` fields updated to match - Generic/
+Identity/Tribal all pointed at the old name).
+
+Good news: this round's files needed no path rewriting (previous rounds' cross-machine
+`vicwaver`-path and untyped-`noRestock` issues are both absent - the user's own Tiled setup is
+clean now) and the town's object ids are the exact same set as before (`38,41,47,48,50,51,52,
+53,54,55,57,58,63`), so existing saves' `shopRebuilt_<id>` flags for ordinary towns keep working
+unaffected.
+
+**Re-applied fixes the fresh Tiled export had reverted** (expected - a from-scratch Tiled save
+doesn't know about code-side design decisions):
+- Town id 58: reverted to a booster-list shop (was the "special shop next to the Inn" the user
+  asked to demote to ordinary) - set back to the plain generic list, matching id 41.
+- Capital id 66 (Job Board): quest pool was `plains_capital` again (leftover from the White
+  Capital origin) - reset to `waste_town_generic`.
+- Capital id 64: the White Capital's `IntroChar` story NPC was present again - removed.
+
+**New in this file: 10 shops carrying the booster-heavy list (85, 86, 94-101)**, vs. the design
+intent of ONE dedicated booster shop, Capitol-only. This wasn't a stale carryover - it's new
+(the file's shop count grew significantly, 29 -> 32 objects, plenty of room for it to be
+deliberate) so it's flagged as an ASSUMPTION, not a confirmed fix: kept id 85 (lowest id) as the
+dedicated booster shop, converted the other 9 to the plain generic list (matching ids 87/88/93).
+**If 10 booster shops was intentional, this needs reverting** - ping to confirm either way.
+
+Land shops (55=Plains, 77=Forest, 78=Mountain, 79=Swamp, 80=Island, 81=Land) and the Armory
+(id 63 = Equipment) both came through from the user's Tiled edits correctly - no changes needed.
+
+**Known consequence, not fixed (a Tiled-layout-identity limit, not a bug)**: the Capitol's
+object ids changed completely from the previous round's file (old 41-76 range -> new 47-101
+range with mostly different numbers). Any save that ALREADY upgraded to a Capitol under the
+OLD capital tmx has its rebuilt-shop state keyed to ids that no longer exist in this new layout
+- those shops will show as rubble again on next entry. `readCapitolShopObjectIds()`'s runtime
+tmx-parse means the game itself handles the new ids fine going forward; there's no way to
+retroactively map "shop at old id 68" onto "shop at new id 85" since Tiled gave them no shared
+identity. A player who already built a Capitol will need to rebuild it.
+
+Compiled: no Java changes this round (only tmx/json data + 2 comment references in
+`ShopActor.java` updated to the new filename). Deployed + byte-verified (2 tmx renamed/replaced,
+points_of_interest.json).
+
+**Not yet playtested.**
