@@ -536,7 +536,39 @@ public class EnemySprite extends CharacterSprite implements Steerable<Vector2> {
                 rewards.addAll(rdata.generate(false,(Current.latestDeck() != null ? Current.latestDeck().getMain().toFlatList() : null), true));
             }
         }
+        applyGoldVariance(rewards);
         return rewards;
+    }
+
+    // Combat reward variance (2026-08-09, user spec): 25% of the time a Gold reward is swapped
+    // for Wood or Stone instead (50/50 between the two), at 50% of the gold amount it would have
+    // been. Deliberately NOT routed through the stock Reward/RewardActor flip-card system - Wood/
+    // Stone have no Reward.Type (see Reward.java) and wiring one in would mean extending several
+    // of RewardActor's icon-lookup switch statements for a type that has no art in the shared
+    // items.atlas either. Granted immediately instead, with the same plain-text floating status
+    // message ResourceSpawns pickups already use for these two resources (no icon - Wood/Stone
+    // were deliberately never registered with the font, see EconomyBuildings.java's Exchange
+    // dialog comment on the same constraint) - consistent with how Wood/Stone already present
+    // elsewhere in this mod, rather than inventing a second, card-flip presentation for them.
+    private static final float GOLD_VARIANCE_CHANCE = 0.25f;
+
+    private void applyGoldVariance(Array<Reward> rewards) {
+        for (int i = rewards.size - 1; i >= 0; i--) {
+            Reward reward = rewards.get(i);
+            if (reward.getType() != Reward.Type.Gold)
+                continue;
+            if (MyRandom.getRandom().nextFloat() >= GOLD_VARIANCE_CHANCE)
+                continue;
+            boolean wood = MyRandom.getRandom().nextBoolean();
+            int amount = Math.max(1, reward.getCount() / 2);
+            rewards.removeIndex(i);
+            if (wood)
+                AdventurePlayer.current().addWood(amount);
+            else
+                AdventurePlayer.current().addStone(amount);
+            AdventurePlayer.current().addStatusMessage(null, wood ? "Wood" : "Stone", amount,
+                    getX(), getY() + getHeight());
+        }
     }
 
     private void drawColorHints(Batch batch){

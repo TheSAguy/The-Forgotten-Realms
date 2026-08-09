@@ -4597,3 +4597,43 @@ Compiled clean (`mvn -pl forge-gui-mobile -am compile -o`). Deployed: `EconomyBu
 jar. **Not yet playtested** - this is a large, multi-path feature (2 new building types, a new
 cross-POI unlock/count system, a new fast-travel flow, and a UI change to every plain/booster
 shop's collision behavior); expect a real playtest round before calling it done.
+
+## Combat gold variance (Wood/Stone) + real Gold pickup sparkle (2026-08-09)
+
+Two small, unrelated user requests landed together.
+
+**Combat gold variance**: winning a duel against an enemy configured to reward Gold now has a 25%
+chance to instead get Wood or Stone (50/50 between the two) at 50% of the gold amount, 75% chance
+unchanged. New `EnemySprite.applyGoldVariance()`, run over the assembled reward list right before
+`getRewards()` returns (covers both `data.rewards` and the enemy's own extra `this.rewards`, so
+every combat-reward source is covered uniformly). **Deliberately bypasses the stock Reward/
+RewardActor flip-card system** rather than extending it: `Reward.Type` has no Wood/Stone value,
+and adding one would mean touching several of `RewardActor.java`'s icon-lookup switch statements
+(`case Life: case Shards: case Gold:` appears more than once) for two resources that don't even
+have art in the shared `items.atlas` `Config.getItemSprite()` reads from - Wood/Stone icons only
+exist in the mod's own `resource_icons.atlas`. Instead, a triggered swap removes the Gold `Reward`
+from the array, grants Wood/Stone immediately via the existing `AdventurePlayer.addWood()/
+addStone()`, and shows a floating status message via the same `addStatusMessage()` call
+`RewardSprite` walk-over pickups already use - consistent with how Wood/Stone already present
+everywhere else in this mod (a quiet grant + notification, not a card flip). The message has no
+icon (`addStatusMessage(null, ...)`), same known constraint as the Exchange dialog's Lumber/Stone
+rows: those two were deliberately never registered with the font's bracket-markup icon system
+(risked a null-FileHandle crash on other planes, see that entry's own comment).
+
+**Gold pickup sparkle**: user asked to confirm whether `templeofchandra.tmx`'s (a `common/`
+main-story map) "Gold" reward pickups use a nicer effect than our resource-spawn pickups' alpha
+twinkle, and to match it if so. Confirmed by reading both: the stock pickup is a `RewardSprite`
+(extends `CharacterSprite`), which plays a REAL animation built from `sprites/gold.atlas`'s 4
+same-named "Idle" regions (a genuine libGDX `Animation<TextureRegion>`, 0.2s/frame) - not a coded
+effect at all, just ordinary sprite-sheet animation. Our own `ResourceSpawnActor` (`WorldStage.
+java`) instead single-textures every pickup and oscillates its alpha in `draw()` (the "twinkle").
+Reused the stock art verbatim for our Gold-type spawns specifically: `WorldStage.
+getGoldSparkleAnimation()` lazily builds the same 4-frame `Animation` from `gold.atlas` (new
+`Paths.GOLD_ATLAS` constant) and `ResourceSpawnActor` now takes an optional `Animation<TextureRegion>`
+- when present (Gold only), it draws the current animation frame at full alpha instead of
+twinkling the static sprite. Shards/Wood/Stone/Mystery pickups are unaffected - no equivalent
+multi-frame sheet exists for any of them, so they keep the twinkle.
+
+Compiled clean. Deployed: `EnemySprite.class` + inner classes, `WorldStage.class` + inner classes
+(`ResourceSpawnActor` picked up the new field), `Paths.class` spliced into the installed jar.
+**Not yet playtested.**

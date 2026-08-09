@@ -388,6 +388,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   copy to the deploy directory, not a `jar uf`.
 
 ### Player / config
+- **`forge-gui-mobile/src/forge/adventure/util/Paths.java`** — added `GOLD_ATLAS = "sprites/
+  gold.atlas"` (2026-08-09, #14) - the stock Gold-pickup atlas, read by
+  `WorldStage.getGoldSparkleAnimation()`; no path previously pointed at it from mod code.
 - **`forge-gui-mobile/src/forge/adventure/player/AdventurePlayer.java`** — added Wood/Stone
   resource fields alongside existing Gold/Shards (#9), same pattern (get/add/take/onChange).
   Color Reputation (#1) added `colorReputationHalfPoints` (Map<String,Integer>, save/load/clear
@@ -414,7 +417,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   replaces that funnel.
 - **`forge-gui-mobile/src/forge/adventure/character/EnemySprite.java`** — added `territoryTarget`/
   `territoryColor` fields (#7, null for every ordinary enemy - only set on a Territory Control
-  mage).
+  mage). Combat gold variance (2026-08-09, #9): new `applyGoldVariance()`, called at the end of
+  `getRewards()` - 25% of any Gold reward in the assembled list is swapped for an immediate Wood/
+  Stone grant (see MOD_CHANGELOG.md for why this bypasses Reward.Type entirely).
 - **`forge-gui-mobile/src/forge/adventure/stage/WorldStage.java`** — day-counter-driven hooks for
   Economy Buildings (#10) and Territory Control (#7), the mage movement/arrival branch and
   `spawnAt()` (#7, also exempts a mage from the ordinary roaming-monster despawn timer - it has
@@ -442,7 +447,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   QuestExpiry's easy-to-miss corner toast. Dungeon rotation (#15): a
   `DungeonRotation.processDaysPassed()` call in the day-change block, and the ordinary-town entry
   bar swapped its corner notification for a real blocking dialog (`showEntryBarredDialog()`, same
-  styling as the capital-toll dialog).
+  styling as the capital-toll dialog). Gold-sparkle round (2026-08-09, #14): new
+  `getGoldSparkleAnimation()` (lazily builds a 4-frame `Animation<TextureRegion>` from the stock
+  `sprites/gold.atlas`, same art `templeofchandra.tmx`'s Gold pickup already uses) and
+  `ResourceSpawnActor` gained an optional `Animation<TextureRegion>` field - when set (Gold-type
+  spawns only), `draw()` plays the real animation instead of the alpha-twinkle.
 - **`forge-gui-mobile/src/forge/adventure/stage/GameStage.java`** — `showDialog()` now stops the
   player sprite's in-flight movement (2026-08-08 night 2) - the player kept walking behind every
   dialog; OnCollide's rebuild path had its own stop(), this generalizes it to all dialogs.

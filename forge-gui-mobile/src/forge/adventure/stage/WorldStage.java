@@ -1,8 +1,10 @@
 package forge.adventure.stage;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.GridPoint2;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
@@ -108,15 +110,36 @@ public class WorldStage extends GameStage implements SaveFileContent {
         return mages;
     }
 
+    // Real sparkle animation for Gold pickups (user request 2026-08-09, confirmed against
+    // templeofchandra.tmx's stock "Gold" reward object): that pickup draws real frame-by-frame
+    // art from sprites/gold.atlas's 4 "Idle" regions via RewardSprite/CharacterSprite's ordinary
+    // animation system, not a coded fade - visibly different from (and per the user, nicer than)
+    // the alpha-twinkle every other resource-spawn type below still uses. Reused verbatim here
+    // (same atlas, same frames) rather than re-authoring new art. No equivalent multi-frame sheet
+    // exists for Shards/Wood/Stone/Mystery - those keep the twinkle. Built lazily/once since
+    // Config's own atlas cache isn't guaranteed to exist yet at class-init time.
+    private static Animation<TextureRegion> goldSparkleAnimation;
+
+    private static Animation<TextureRegion> getGoldSparkleAnimation() {
+        if (goldSparkleAnimation == null) {
+            com.badlogic.gdx.utils.Array<com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion> frames =
+                    Config.instance().getAtlas(Paths.GOLD_ATLAS).findRegions("Idle");
+            goldSparkleAnimation = new Animation<>(0.15f, frames, Animation.PlayMode.LOOP);
+        }
+        return goldSparkleAnimation;
+    }
+
     // Random resource spawns (see ResourceSpawns): one lightweight actor per active pickup,
     // rendered inside foregroundSprites so it y-sorts with everything else on the map.
     private static class ResourceSpawnActor extends Actor {
         private final Sprite sprite;
+        private final Animation<TextureRegion> sparkleAnimation; // null unless this is a Gold pickup
         // Per-actor random phase so pickups don't all twinkle in lockstep.
         private final float twinklePhase = MathUtils.random(MathUtils.PI2);
         private float twinkleTime;
-        ResourceSpawnActor(Sprite sprite) {
+        ResourceSpawnActor(Sprite sprite, Animation<TextureRegion> sparkleAnimation) {
             this.sprite = sprite;
+            this.sparkleAnimation = sparkleAnimation;
         }
         @Override
         public void act(float delta) {
@@ -125,6 +148,12 @@ public class WorldStage extends GameStage implements SaveFileContent {
         }
         @Override
         public void draw(Batch batch, float parentAlpha) {
+            if (sparkleAnimation != null) {
+                // Real drawn animation, no alpha trickery needed - matches templeofchandra.tmx's
+                // Gold pickup exactly (same atlas/frames/timing).
+                batch.draw(sparkleAnimation.getKeyFrame(twinkleTime, true), getX(), getY(), getWidth(), getHeight());
+                return;
+            }
             // Gentle alpha twinkle to catch the eye on the overworld - the shared, cached Sprite
             // (Config.getAtlasSprite) is never mutated; only the batch's transient draw color is,
             // and it's restored immediately after so other actors sharing that Sprite are unaffected.
@@ -155,7 +184,8 @@ public class WorldStage extends GameStage implements SaveFileContent {
             Sprite sprite = ResourceSpawns.spriteFor(spawn[2]);
             if (sprite == null)
                 continue;
-            ResourceSpawnActor actor = new ResourceSpawnActor(sprite);
+            boolean isGold = spawn[2] == ResourceSpawns.TYPE_GOLD;
+            ResourceSpawnActor actor = new ResourceSpawnActor(sprite, isGold ? getGoldSparkleAnimation() : null);
             actor.setSize(tileSize, tileSize);
             actor.setPosition(spawn[0] * tileSize, spawn[1] * tileSize);
             foregroundSprites.addActor(actor);

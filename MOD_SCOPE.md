@@ -757,8 +757,14 @@ needs its own design pass before any of this gets built:**
   added to `GameHUD`'s `mapGroup` (grouped with the minimap it's positioned relative to), which
   gets hidden entirely on entering a town/dungeon; Gold/Shards/HP live in `hudGroup` instead,
   which only fades, never hides. Moved to `hudGroup` to match - visible everywhere now.
-- Earned via Economy Buildings (#10) below - no other source yet (not obtainable via shops,
-  rewards, or the `give item` console command).
+- Earned via Economy Buildings (#10), Random Resource Spawns (#14), and now **combat gold
+  variance (2026-08-09)**: winning a duel against an enemy that would have rewarded Gold now has
+  a 25% chance to instead award Wood or Stone (50/50) at 50% of the gold amount
+  (`EnemySprite.applyGoldVariance()`) - granted immediately with a floating status message, not a
+  proper flip-card reward (Wood/Stone have no `Reward.Type` - see #10's Buildings entry for why
+  extending the stock card-flip reward system wasn't worth it for two resources with no
+  `items.atlas` art of their own). Still not obtainable via shops or the `give item` console
+  command.
 
 ### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09, not yet playtested)
 - **Outlook (2026-08-09):** doubles a town's fog-of-war vision radius - vision only, not the
@@ -916,6 +922,13 @@ needs its own design pass before any of this gets built:**
   logic in new `ResourceSpawns.java`; rendered as lightweight per-pickup actors on `WorldStage`.
   Placement avoids water/mountains/structures and keeps 3+ tiles clear of POI icons. Full
   mechanism in `MOD_CHANGELOG.md`.
+- **Gold pickups sparkle for real now (2026-08-09)** - user noticed the stock Gold pickup in
+  `templeofchandra.tmx` (a `common/` main-story map) looks nicer than our alpha-twinkle and asked
+  to confirm/match it. Confirmed: that pickup draws real frame-by-frame art (`sprites/gold.atlas`,
+  4 "Idle" frames) via `RewardSprite`/`CharacterSprite`'s normal animation system, not a coded
+  fade. Our Gold-type spawns now reuse that exact same atlas/animation (`WorldStage.
+  getGoldSparkleAnimation()`) instead of the twinkle. Shards/Wood/Stone/Mystery keep the twinkle -
+  no equivalent multi-frame sheet exists for them.
 
 ### 15. Dungeon Rotation — `Built (2026-08-08), not yet playtested`
 - Generic hostile dungeons/caves appear and disappear across the map over time (hide/show in
