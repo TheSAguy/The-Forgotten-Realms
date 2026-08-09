@@ -4146,3 +4146,17 @@ Compiled, deployed, byte-verified (World + inners, TerritoryControl, ResourceSpa
 counts + the map visibly filling the center); placement safeguards + capital fallback need a
 fresh world (check every color has Capital + castle, Emrakul present); mystery pickup needs a
 few pickups (diamond icon), ideally forcing the ambush via repeated `spawn resource`.
+
+**Follow-up round (same evening):** the user's "still broken" new world was generated at 18:02,
+22 minutes BEFORE the pentagon-round jar deploy landed (18:24) - it ran entirely on pre-fix
+code (log fingerprint: old capital message, radii pegged 450/450, no claimed-count lines).
+Three additions so that world doesn't need ANOTHER regeneration: (1) new
+`TerritoryControl.repairMissingCapitals()` called from `World.load()` - re-runs the
+ensureCapital promotion/placement per color on load, idempotent, so the existing world's missing
+Plains Capital gets placed on next load; (2) Emrakul confirmed NOT missing - its POI entry
+carries `questFlagsToActivate: mainQuest >= 2`, i.e. placed but hidden until main-quest chapter
+2, in every world (user's "hidden tag" guess was right); (3) gold pickup icon corrected per user
+- (336,272) reads as sulfur; the intended gold is the sparkled nugget at (384,272), two right of
+the stone pile ((368,272) is a jar/cauldron) - resource_icons.png cell x=32 re-cropped, atlas
+unchanged. The pentagon backfill itself needs no world regen either - first day tick with the
+new jar claims everything the stall skipped.

@@ -158,6 +158,26 @@ public class TerritoryControl {
         world.regenerateDoodadsForBiome("waste");
     }
 
+    /**
+     * Load-time repair (2026-08-08): a world generated before the placement safeguards can be
+     * missing a color's capital outright (twice observed: White). Rather than force a world
+     * regeneration, re-run the same ensureCapital() promotion/placement pass on load - idempotent
+     * (returns immediately for every color whose capital exists), inert when the feature flag is
+     * off, and both of its repair paths (transformInto(), addPointOfInterestNear()) are already
+     * exercised at runtime by mage captures and dungeon rotation respectively.
+     */
+    public static void repairMissingCapitals(World world) {
+        if (!isEnabled())
+            return;
+        float keepRadiusWorld = CASTLE_KEEP_RADIUS_TILES * (float) world.getTileSize();
+        for (String color : COLORS) {
+            PointOfInterest castle = findCastle(world, color);
+            if (castle == null)
+                continue; // no castle at all - nothing sane to anchor a capital to
+            ensureCapital(world, color, castle, keepRadiusWorld);
+        }
+    }
+
     // A color's own "<Noun> Capital" is placed by ordinary world-gen (same as any other town)
     // somewhere across its *original*, full-size territory - it's not guaranteed to land inside
     // the small area kept around the castle above, and gets swept to neutral just like any other

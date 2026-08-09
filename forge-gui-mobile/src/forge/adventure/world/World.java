@@ -340,6 +340,9 @@ public class World implements Disposable, SaveFileContent {
         // Repair generic "Waste Town ..." display names left behind by the name-pool drain bug
         // (see BiomeData.getNewTownName()); no-ops on stock planes and on already-repaired saves.
         TownRestoration.migrateGenericTownNames(this);
+        // Repair any color missing its capital (worlds generated before the placement
+        // safeguards); idempotent, inert unless territoryControlEnabled.
+        TerritoryControl.repairMissingCapitals(this);
     }
 
     @Override
