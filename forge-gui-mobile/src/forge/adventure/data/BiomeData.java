@@ -139,7 +139,27 @@ public class BiomeData implements Serializable {
 
     private ArrayList<String> unusedTownNames;
     public String getNewTownName() {
-        return Aggregates.removeRandom(getUnusedTownNames());
+        String newName = Aggregates.removeRandom(getUnusedTownNames());
+        if (newName == null) {
+            // Pool ran dry - removeRandom on an empty list returns null, and a null display name
+            // silently bakes the POI template's generic name ("Waste Town Generic") into every
+            // remaining town. Reload the full list and keep going: a repeated town name is far
+            // better than a nameless one. The pool can only run dry mid-generation when world-gen's
+            // "Can not place POI ...Rerunning" restart has already drained it (each rerun discards
+            // its placed towns but not the names they consumed) - see also resetTownNamePool().
+            unusedTownNames = null;
+            newName = Aggregates.removeRandom(getUnusedTownNames());
+        }
+        return newName;
+    }
+
+    /**
+     * Restores the full name pool from disk. World-gen's placement-restart path calls this so
+     * every placement pass starts with the complete list instead of inheriting the drain from
+     * discarded passes (names consumed by a discarded pass were never kept by anything).
+     */
+    public void resetTownNamePool() {
+        unusedTownNames = null;
     }
 
     public ArrayList<String> getUnusedTownNames() {

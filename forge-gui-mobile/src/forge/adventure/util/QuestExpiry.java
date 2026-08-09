@@ -2,7 +2,7 @@ package forge.adventure.util;
 
 import forge.adventure.data.AdventureQuestData;
 import forge.adventure.data.ConfigData;
-import forge.adventure.stage.GameHUD;
+import forge.adventure.stage.WorldStage;
 import forge.adventure.world.World;
 import forge.adventure.world.WorldSave;
 
@@ -36,6 +36,7 @@ public class QuestExpiry {
         if (!isEnabled())
             return;
         World world = WorldSave.getCurrentSave().getWorld();
+        ArrayList<String> failedNames = new ArrayList<>();
         for (AdventureQuestData quest : new ArrayList<>(Current.player().getQuests())) {
             if (quest.storyQuest || quest.completed || quest.failed)
                 continue;
@@ -53,10 +54,14 @@ public class QuestExpiry {
             quest.fail();
             Current.player().removeQuest(quest);
             world.getQuestAcceptedDay().remove(key);
-            String message = "Quest failed: " + quest.getName() + " - you ran out of time!";
-            System.out.println("[QuestExpiry] " + message);
-            GameHUD.getInstance().addNotification("[*]" + message);
+            System.out.println("[QuestExpiry] Quest failed: " + quest.getName() + " - out of time");
+            failedNames.add(quest.getName());
         }
+        // A blocking dialog instead of the old corner toast (user request 2026-08-08: "give a
+        // popup... when the timer on the quest runs out" - the toast was too easy to miss,
+        // especially at 100x fast-forward). One dialog covers every same-day failure.
+        if (!failedNames.isEmpty())
+            WorldStage.getInstance().showQuestsFailedDialog(failedNames);
     }
 
     /**

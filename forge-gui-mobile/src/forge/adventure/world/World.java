@@ -336,6 +336,10 @@ public class World implements Disposable, SaveFileContent {
         // World BEFORE pointOfInterestChanges, and the rebuild reads town-ownership flags from
         // pointOfInterestChanges - calling it now would cache the PREVIOUS session's ownership.
         // WorldSave.load() calls it once both halves are loaded.
+
+        // Repair generic "Waste Town ..." display names left behind by the name-pool drain bug
+        // (see BiomeData.getNewTownName()); no-ops on stock planes and on already-repaired saves.
+        TownRestoration.migrateGenericTownNames(this);
     }
 
     @Override
@@ -780,6 +784,14 @@ public class World implements Disposable, SaveFileContent {
                                             otherPoints.clear();
                                             clearTerrain((int) (data.width * data.playerStartPosX), (int) (data.height * data.playerStartPosY), 10);
                                             storedInfo.clear();
+                                            // The discarded pass consumed town names it never kept -
+                                            // without this reset, enough reruns drain the pool dry and
+                                            // every later town silently falls back to its template's
+                                            // generic name ("Waste Town Generic"). Root cause of the
+                                            // 2026-08-08 duplicate-town-names report; reruns got
+                                            // frequent once pool rotation raised placement density.
+                                            for (BiomeData biomeToReset : data.GetBiomes())
+                                                biomeToReset.resetTownNamePool();
                                             continue here;
                                         }
                                         continue;

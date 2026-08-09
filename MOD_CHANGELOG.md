@@ -4013,3 +4013,77 @@ Compiled, deployed, byte-verified (34 class files), plane config synced (two new
 line in forge.log and world-gen time - see the placement-density note); loss-despawn needs one
 concede in a plain dungeon; the fog fix needs a fresh fog-of-war game's minimap checked; quest
 timers need the log window opened and a quest fast-forwarded past 30 days.
+
+
+## Six-report playtest round: twinkle flicker, red warning, quest popups, town names, radius evidence, spawn testing (2026-08-08 evening)
+
+Six reports from the resource-spawn round's playtest:
+
+**1. Twinkle flicker leak - everything on the map pulsing.** The twinkle's "restore the batch
+color afterward" used the reference `batch.getColor()` returns - which IS the batch's live
+internal `Color` object, already mutated by the time it was "restored", so the faded alpha leaked
+into every subsequent draw call that frame (neutral towns/dungeons/rocks all fading in and out,
+user screenshot). `ResourceSpawnActor.draw()` now snapshots the four primitive color components
+before `setColor` and restores from those.
+
+**2. "PLAYER OWNED TOWN!" warning red instead of bold.** The bold-caps emphasis (itself a
+workaround for the notification label's color-erasing black tint) rendered as smeared
+double-struck glyphs at pixel-font size (user screenshot). New opt-in
+`GameHUD.addNotification(text, authoredMarkup)` overload: WHITE label tint for that one message,
+caller opens with `[BLACK]` and fully authors the string - safe here precisely because the mage
+warning contains no quest payload/reset tokens, which is what sank the *global* white-tint attempt
+last round. Warning is now `[RED]PLAYER OWNED TOWN!`.
+
+**3. "Messages I did not understand" - the stock objective-unlocked popup.** The paper popups
+listing a quest name + objectives (user screenshot: MERFOLK INVASION) are the engine's standard
+stage-activation notification from `AdventureQuestData.activateNextStages()`. They fire whenever
+a stage flips INACTIVE->ACTIVE, which any quest event triggers - including, at 100x fast-forward,
+the constant roaming-monster despawn sweeps (`WorldStage` line ~220 calls `updateDespawn()` ->
+`activateNextStages()`). Not related to quest timers, and the quests were NOT failing - a later
+objective just unlocked. Fix: the notification now opens with "Quest Updated:" so these read as
+what they are.
+
+**4. Quest-timer expiry is now a real popup.** `QuestExpiry` swapped its corner toast (easy to
+miss, especially at 100x) for a blocking dialog via new `WorldStage.showQuestsFailedDialog()`
+(war-entry dialog styling, OK button): "[RED]Quest Failed![] / You did not complete <name> in
+time." - one dialog lists every quest that expired on the same day tick. Note the timer feature
+itself was already live; the user simply had no expired quest yet (each quest's 30-day clock
+starts at its first daily tick after acceptance).
+
+**5. Duplicate town names ("Waste Town Generic") - root-caused and fixed.** The name pool
+(`BiomeData.unusedTownNames`, from `town_names_<biome>.txt`) is drain-only, and world-gen's
+"Can not place POI ...Rerunning" restart discards every placed town WITHOUT restoring the names
+they consumed. Pool rotation's 5x placement density made those reruns routine, so the 395-name
+waste pool ran dry mid-generation; `Aggregates.removeRandom` on an empty list returns null, and a
+null display name silently falls back to the POI template's name - hence whole map regions of
+"Waste Town Generic/Identity/Tribal". Three-part fix: (a) the rerun path resets every biome's
+pool (each pass now starts with the full list); (b) `getNewTownName()` refills from disk if it
+ever still runs dry (a repeated name beats a generic one); (c) `World.load()` runs
+`TownRestoration.migrateGenericTownNames()` - existing saves get every generic-named wasteland
+town renamed from the pool once, then the names persist (idempotent, inert on stock planes).
+Quest text that already baked the old generic name keeps it (quest strings resolve at
+quest-generation time); map arrows still point at the right town, and new quests use new names.
+
+**6. Territory radius - hard evidence it IS live, just mid-flight.** forge.log from today's
+session shows `[TerritoryControl] <color>: territory radius now 233..236/450` climbing 3
+tiles/day - the 450 cap is deployed and territory IS growing daily; at Day ~61 the radius is
+simply nowhere near EITHER cap yet (300 needs day ~93, 450 day ~143 at 3/day from a 20-tile
+start). Nothing else is blocking the spread. If the pacing (not the cap) is the real complaint,
+`EXPANSION_TILES_PER_DAY` is the knob - left unchanged this round pending user's call.
+
+**Resource-spawn findability (user request):** new games now guarantee one spawn within 12 tiles
+of the start position (seeding runs on the first tick, while the player is still at the start);
+new debug console command `spawn resource` drops one right next to the player on demand - the
+user's existing Day-61 world is already seeded, so the command is the way to test the twinkle
+there. Allowed to exceed MAX_SPAWNS briefly; the pool self-corrects at the next day tick.
+
+Compiled, deployed, byte-verified (26 class files across `GameHUD`, `WorldStage` + inners,
+`ConsoleCommandInterpreter`, `QuestExpiry`, `ResourceSpawns`, `TerritoryControl`,
+`TownRestoration`, `AdventureQuestData`, `BiomeData`, `World` + inners). No config/res changes
+this round (no new flags).
+
+**Not yet playtested**: the twinkle fix + `spawn resource` command need one look at the overworld
+(pickups twinkle, nothing else does); the town-name migration needs the existing save loaded once
+(watch for "[TownRestoration] renamed N generic-named wasteland town(s)" in forge.log, then check
+a few towns); the red warning needs a mage dispatch at a player town; the Quest Failed dialog
+needs a quest fast-forwarded past its timer.

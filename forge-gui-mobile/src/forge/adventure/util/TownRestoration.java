@@ -26,6 +26,66 @@ public class TownRestoration {
     private static final int RESTORE_TOWN_COST = 100;
     private static final int REBUILD_SHOP_COST = 100;
 
+    // Biome json ("colorless.json") whose name pool (town_names_waste.txt) names wasteland towns.
+    private static final String WASTE_BIOME_NAME = "waste";
+
+    /**
+     * One-time repair for saves whose world generated while the town-name pool was drained (the
+     * pre-2026-08-08 rerun-drain bug): any wasteland town still carrying its POI template's
+     * generic name ("Waste Town Generic"/"Identity"/"Tribal") gets a fresh unique name from the
+     * waste biome's pool. Idempotent - once every town has a real name this scans and does
+     * nothing. Called from World.load(); inert unless townReconstructionEnabled (the
+     * isWastelandTown() gate), so stock planes never reach the rename.
+     * <p>
+     * Deliberately NOT applied to quest text: quest strings bake their target's display name at
+     * quest-generation time, so quests accepted before the repair keep mentioning the old generic
+     * name while their map arrows still point at the right (now renamed) town. New quests pick up
+     * the new names.
+     */
+    public static void migrateGenericTownNames(forge.adventure.world.World world) {
+        java.util.HashSet<String> usedNames = new java.util.HashSet<>();
+        java.util.List<PointOfInterest> needRename = new java.util.ArrayList<>();
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            if (!isWastelandTown(poi.getData()))
+                continue;
+            if (poi.getDisplayName().equals(poi.getData().name))
+                needRename.add(poi);
+            else
+                usedNames.add(poi.getDisplayName());
+        }
+        if (needRename.isEmpty())
+            return;
+        forge.adventure.data.BiomeData wasteBiome = null;
+        for (forge.adventure.data.BiomeData biome : world.getData().GetBiomes()) {
+            if (WASTE_BIOME_NAME.equals(biome.name)) {
+                wasteBiome = biome;
+                break;
+            }
+        }
+        if (wasteBiome == null) {
+            System.out.println("[TownRestoration] name repair skipped - no '" + WASTE_BIOME_NAME + "' biome found");
+            return;
+        }
+        int renamed = 0;
+        for (PointOfInterest poi : needRename) {
+            String newName = null;
+            for (int attempt = 0; attempt < 500; attempt++) {
+                newName = wasteBiome.getNewTownName();
+                if (newName == null || !usedNames.contains(newName))
+                    break;
+            }
+            if (newName == null) {
+                System.out.println("[TownRestoration] name repair stopped - town name list unavailable/empty");
+                break;
+            }
+            usedNames.add(newName);
+            poi.setDisplayName(newName);
+            renamed++;
+        }
+        if (renamed > 0)
+            System.out.println("[TownRestoration] renamed " + renamed + " generic-named wasteland town(s)");
+    }
+
     // Overworld icon for a destroyed wasteland town, custom art kept plane-local so it can never
     // show up on Shandalar or any other stock plane. All 16 variants share one atlas region name
     // so Forge's existing PointOfInterest.spriteIndex machinery could pick among them the normal

@@ -456,13 +456,16 @@ public class TerritoryControl {
 
         String message = capitalize(color) + " sends a mage toward " + target.getDisplayName() + "!";
         // Extra warning when the target is one of the PLAYER's towns (user request 2026-08-08) -
-        // bold + caps only, NO color markup: the notification label's black tint multiplies inline
-        // colors away, and the white-tint workaround regressed quest-text rendering (see
-        // addNotification()'s comment). Bold survives the tint.
+        // RED caps via the authored-markup overload (this string is fully self-authored, so the
+        // white-tint path is safe here; the earlier bold-caps version rendered as smeared
+        // double-struck glyphs at this pixel-font size, user report 2026-08-08).
         boolean targetPlayerOwned = TownRestoration.isTownRestored(
                 WorldSave.getCurrentSave().peekPointOfInterestChanges(target.getID()));
         System.out.println("[TerritoryControl] " + message + (targetPlayerOwned ? " (Player Owned!)" : ""));
-        GameHUD.getInstance().addNotification(targetPlayerOwned ? message + " [*]PLAYER OWNED TOWN!" : message);
+        if (targetPlayerOwned)
+            GameHUD.getInstance().addNotification("[BLACK]" + message + " [RED]PLAYER OWNED TOWN!", true);
+        else
+            GameHUD.getInstance().addNotification(message);
     }
 
     // 2 simultaneous mages per color on Easy, +1 per difficulty step up (Easy/Normal/Hard/Insane

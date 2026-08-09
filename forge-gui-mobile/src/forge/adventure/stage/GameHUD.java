@@ -1287,6 +1287,19 @@ public class GameHUD extends Stage {
     }
 
     public void addNotification(String text) {
+        addNotification(text, false);
+    }
+
+    /**
+     * authoredMarkup=true is the opt-in escape hatch from the tint-BLACK rule below, for messages
+     * whose text is FULLY authored by the caller (no quest payloads, no player-named content with
+     * tokens): the label is tinted WHITE so inline color tags work, and the caller MUST therefore
+     * open with a color tag (e.g. "[BLACK]...") because untagged glyphs would render white on the
+     * paper background. The global white-tint variant of this was tried and reverted (see the
+     * comment in the body) - per-message opt-in exists precisely so ordinary notifications keep
+     * the safe black tint.
+     */
+    public void addNotification(String text, boolean authoredMarkup) {
         Action preconfigureNotification = new Action() {
             @Override
             public boolean act(float delta) {
@@ -1297,9 +1310,10 @@ public class GameHUD extends Stage {
                 // (quest objective texts) carry their own style/reset tokens, and any reset mid-
                 // string snapped the remainder back to white - a reported regression ("some of the
                 // text colors changed... from black to white"). Inline COLOR therefore cannot work
-                // in notifications; use bold/caps for emphasis instead (bold survives the tint).
+                // in tint-BLACK notifications; fully-authored messages can opt in to WHITE tint
+                // via addNotification(text, true) - see that overload's comment.
                 notificationText.setText(text);
-                notificationText.setColor(Color.BLACK);
+                notificationText.setColor(authoredMarkup ? Color.WHITE : Color.BLACK);
                 notificationText.setWidth(Math.min(notificationText.getPrefWidth(), Forge.isLandscapeMode() ? getWidth() * 0.25f : getWidth() - 25));
                 notificationText.setWrap(true);
                 notificationText.layout();

@@ -16,6 +16,7 @@ import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Config;
 import forge.adventure.util.Current;
 import forge.adventure.util.Paths;
+import forge.adventure.util.ResourceSpawns;
 import forge.adventure.util.TownRestoration;
 import forge.adventure.world.WorldSave;
 import forge.card.CardEdition;
@@ -217,6 +218,9 @@ public class ConsoleCommandInterpreter {
         };
         registerCommand(new String[]{"give", "wood"}, giveWood);
         registerCommand(new String[]{"give", "lumber"}, giveWood);
+        // Drops one random resource pickup next to the player - for testing the spawn mechanic
+        // (icon, twinkle, walk-over pickup) without hunting one of the ~20 across the whole map.
+        registerCommand(new String[]{"spawn", "resource"}, s -> ResourceSpawns.debugSpawnNearPlayer());
         registerCommand(new String[]{"give", "stone"}, s -> {
             if (s.length < 1) return "Command needs 1 parameter: Amount.";
             int amount;

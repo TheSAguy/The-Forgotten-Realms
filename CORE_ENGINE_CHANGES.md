@@ -206,11 +206,21 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `PointOfInterestChanges` per scanned POI was permanently growing the save file. Five-request round:
   `load()` now calls `world.rebuildPlayerTownVision()` right after `pointOfInterestChanges` loads -
   the fog-of-war Revealed-areas cache reads town-ownership flags from it, so `World.load()` alone
-  runs too early (see its own comment).
+  runs too early (see its own comment). Six-report round (2026-08-08 evening, duplicate-town-names
+  root cause): the "Can not place POI ...Rerunning" placement-restart block now calls
+  `resetTownNamePool()` on every biome - each discarded pass consumed town names it never kept, so
+  enough reruns (frequent since pool rotation's 5x density) drained the pool dry and every later
+  town fell back to its template's generic name. `load()` also calls
+  `TownRestoration.migrateGenericTownNames(this)` to repair saves generated while the bug was
+  live (inert on stock planes via the `townReconstructionEnabled` gate).
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the
   `player` placeholder biome, #7, but a general engine bug, not player-biome-specific).
+  **Second bug fix (2026-08-08, duplicate-town-names report)**: `getNewTownName()` now reloads the
+  full `town_names_<biome>.txt` list when the pool runs dry instead of returning null (which
+  silently baked the POI template's generic name - "Waste Town Generic" - into every remaining
+  town); added `resetTownNamePool()` for World-gen's placement-restart path (see `World.java`).
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeStructureData.java`** — **bug fix**: the
   `BiomeStructureData(BiomeStructureData)` copy constructor copied every field except `N` (WFC
   pattern size), silently reverting a clone to the class default (`3`) instead of the source's real
@@ -280,7 +290,17 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   off, preserving old behavior). `addNotification()` briefly used a `[BLACK]`-markup-prefix + WHITE tint
   (to let inline colors through the multiplying black tint) and was REVERTED to plain tint-BLACK:
   quest texts carry their own style/reset tokens, and any reset snapped the remainder white (a
-  reported regression) - notification emphasis is bold-only now.
+  reported regression) - notification emphasis was bold-only for a round. Six-report round
+  (2026-08-08 evening): added an opt-in `addNotification(text, authoredMarkup)` overload - WHITE
+  tint for that one message only, caller must open with a color tag and fully author the string
+  (no quest payloads); ordinary notifications keep the safe tint-BLACK path. Used by the
+  mage-attack warning's `[RED]PLAYER OWNED TOWN!` (the bold-caps version rendered as smeared
+  double-struck glyphs at pixel-font size).
+- **`forge-gui-mobile/src/forge/adventure/data/AdventureQuestData.java`** — the stage-activation
+  notification in `activateNextStages()` now opens with a "Quest Updated:" header (2026-08-08).
+  It fires on accept AND whenever a later objective unlocks mid-quest (any quest event can trigger
+  it - at 100x fast-forward even a roaming monster's despawn sweep); without the header those
+  mid-quest firings read as unexplained quest popups (user report).
 - **`forge-gui-mobile/src/forge/adventure/scene/QuestLogScene.java`** — Side-quest timers (#16):
   both quest-name labels (list + detail) append `QuestExpiry.questLogSuffix()` - "(N days left)",
   empty when no timer applies.
@@ -321,8 +341,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/stage/ConsoleCommandInterpreter.java`** — debug
   console additions: `count towns` (#7 - was missing from this doc until now, added when the
   `give rep` change touched the same file), `give rep <color> <amount>` (#1,
-  net-zero-preserving reputation shift for tier testing), and `give wood`/`give lumber`
-  (alias)/`give stone` (#9).
+  net-zero-preserving reputation shift for tier testing), `give wood`/`give lumber`
+  (alias)/`give stone` (#9), and `spawn resource` (drops one random resource pickup next to the
+  player for testing the spawn mechanic without hunting the map).
 - **`forge-gui-mobile/src/forge/adventure/scene/DuelScene.java`** — Color Reputation (#1): one
   guarded hook at the top of `afterGameEnd()` (`winner && !isArena && eventData == null`) calling
   `ColorReputation.onPlayerWonDuel()`. That method is the single funnel every duel's end passes
@@ -349,7 +370,14 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `ResourceSpawns.forceResync()` in `clearCache()`. Resource-spawn twinkle (2026-08-08 polish):
   `ResourceSpawnActor.draw()` now oscillates the `Batch`'s transient draw color's alpha instead of
   drawing at a flat alpha - doesn't touch the shared, cached `Sprite` any actor's `sprite` field
-  points to. Dungeon rotation (#15): a
+  points to. **Twinkle flicker bug fix (same day)**: the first version "restored" the batch color
+  via the reference `batch.getColor()` returns - but that IS the batch's live internal `Color`
+  object, already mutated by the time it was reassigned, so the twinkle's faded alpha leaked into
+  every subsequent draw call that frame (towns/dungeons/rocks all pulsing). Now snapshots the
+  four primitive components before `setColor` and restores from those. Six-report round
+  (2026-08-08 evening): new `showQuestsFailedDialog(List<String>)` (#16) - blocking dialog in the
+  war-entry/capital-toll style listing every side quest that expired on a day tick, replacing
+  QuestExpiry's easy-to-miss corner toast. Dungeon rotation (#15): a
   `DungeonRotation.processDaysPassed()` call in the day-change block, and the ordinary-town entry
   bar swapped its corner notification for a real blocking dialog (`showEntryBarredDialog()`, same
   styling as the capital-toll dialog).

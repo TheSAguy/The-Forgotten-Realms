@@ -6,6 +6,7 @@ import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.world.World;
+import forge.adventure.world.WorldSave;
 
 import java.util.Iterator;
 
@@ -32,6 +33,7 @@ public class ResourceSpawns {
     private static final int OTHER_MIN = 2, OTHER_MAX = 10;
     private static final int POI_CLEARANCE_TILES = 3; // don't spawn on/right next to a town/dungeon icon
     private static final int PLACEMENT_ATTEMPTS = 200; // per spawn - plenty for a mostly-open map
+    private static final int NEAR_START_RADIUS_TILES = 12; // the guaranteed new-game spawn lands within this of the start
 
     // Spawn entry layout: {tileX, tileY, type, value, expiryDay} in world tile space.
     public static final int TYPE_GOLD = 0, TYPE_SHARDS = 1, TYPE_WOOD = 2, TYPE_STONE = 3;
@@ -65,6 +67,10 @@ public class ResourceSpawns {
             return;
         boolean changed = false;
         if (!world.isResourceSpawnsSeeded()) {
+            // One guaranteed spawn near the player's start (user request 2026-08-08: with only 20
+            // on the whole map, a fresh game had no findable example to verify the mechanic by).
+            // Seeding runs on the first tick, so the player is still at/near the start position.
+            changed |= spawnOneNearPlayer(world, currentDay, NEAR_START_RADIUS_TILES);
             for (int i = world.getResourceSpawns().size(); i < MAX_SPAWNS; i++)
                 changed |= spawnOne(world, currentDay);
             world.setResourceSpawnsSeeded(true);
@@ -99,11 +105,40 @@ public class ResourceSpawns {
     }
 
     private static boolean spawnOne(World world, int currentDay) {
+        return spawnInArea(world, currentDay, -1, -1, -1);
+    }
+
+    // Places one spawn within radiusTiles of the player's current tile (used for the guaranteed
+    // new-game spawn and the "spawn resource" console command). Falls back to anywhere-on-map
+    // placement if the neighborhood is too crowded to fit one.
+    private static boolean spawnOneNearPlayer(World world, int currentDay, int radiusTiles) {
+        WorldStage stage = WorldStage.getInstance();
+        if (stage.getPlayerSprite() == null)
+            return spawnOne(world, currentDay);
+        int centerX = (int) (stage.getPlayerSprite().getX() / world.getTileSize());
+        int centerY = (int) (stage.getPlayerSprite().getY() / world.getTileSize());
+        if (spawnInArea(world, currentDay, centerX, centerY, radiusTiles))
+            return true;
+        System.out.println("[ResourceSpawns] no free tile within " + radiusTiles + " tiles of the player, placing anywhere");
+        return spawnOne(world, currentDay);
+    }
+
+    // centerX < 0 means anywhere on the map; otherwise placement is restricted to the square of
+    // +-radiusTiles around (centerX, centerY).
+    private static boolean spawnInArea(World world, int currentDay, int centerX, int centerY, int radiusTiles) {
         int width = world.getWidthInTiles();
         int height = world.getHeightInTiles();
         for (int attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
-            int wx = 1 + world.getRandom().nextInt(Math.max(1, width - 2));
-            int wy = 1 + world.getRandom().nextInt(Math.max(1, height - 2));
+            int wx, wy;
+            if (centerX < 0) {
+                wx = 1 + world.getRandom().nextInt(Math.max(1, width - 2));
+                wy = 1 + world.getRandom().nextInt(Math.max(1, height - 2));
+            } else {
+                wx = centerX - radiusTiles + world.getRandom().nextInt(radiusTiles * 2 + 1);
+                wy = centerY - radiusTiles + world.getRandom().nextInt(radiusTiles * 2 + 1);
+                if (wx < 1 || wy < 1 || wx >= width - 1 || wy >= height - 1)
+                    continue;
+            }
             if (world.isColliding(wx, wy))
                 continue; // water/mountains/structures - must be walkable to be walk-over collectable
             boolean blocked = false;
@@ -135,8 +170,36 @@ public class ResourceSpawns {
             world.getResourceSpawns().add(new int[]{wx, wy, type, value, expiry});
             return true;
         }
-        System.out.println("[ResourceSpawns] no free tile found after " + PLACEMENT_ATTEMPTS + " attempts, skipping one spawn");
+        if (centerX < 0)
+            System.out.println("[ResourceSpawns] no free tile found after " + PLACEMENT_ATTEMPTS + " attempts, skipping one spawn");
         return false;
+    }
+
+    /**
+     * Console command hook ("spawn resource"): places one spawn right around the player so the
+     * mechanic (icon, twinkle, walk-over pickup) can be tested on demand without hunting the map.
+     * Allowed to exceed MAX_SPAWNS - the overflow corrects itself at the next day tick.
+     */
+    public static String debugSpawnNearPlayer() {
+        if (!isEnabled())
+            return "Resource spawns are disabled on this plane";
+        World world = WorldSave.getCurrentSave().getWorld();
+        if (!spawnOneNearPlayer(world, world.getCurrentDay(), 4))
+            return "No free tile found near the player";
+        int[] spawn = world.getResourceSpawns().get(world.getResourceSpawns().size() - 1);
+        WorldStage.getInstance().refreshResourceSpawnActors();
+        return "Spawned " + spawn[3] + " " + typeName(spawn[2]) + " at tile " + spawn[0] + "," + spawn[1]
+                + " (expires day " + spawn[4] + ")";
+    }
+
+    private static String typeName(int type) {
+        switch (type) {
+            case TYPE_GOLD: return "Gold";
+            case TYPE_SHARDS: return "Shards";
+            case TYPE_WOOD: return "Wood";
+            case TYPE_STONE: return "Stone";
+            default: return "?";
+        }
     }
 
     // Walk-over collection: the spawn is picked up when the player's center stands on its tile.

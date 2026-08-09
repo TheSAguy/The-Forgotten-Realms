@@ -449,7 +449,11 @@ public class AdventureQuestData implements Serializable {
         }
         if (showNotification) {
             StringBuilder description = new StringBuilder();
-            description.append("[!]").append(name).append("[]");
+            // "Quest Updated:" header (mod, 2026-08-08): this notification fires whenever a stage
+            // newly activates - on accept, and again mid-quest each time an objective unlocks.
+            // Without the header the mid-quest firings read as unexplained quest popups
+            // (user report: "I received a few messages that I did not understand").
+            description.append("Quest Updated: [!]").append(name).append("[]");
             for (AdventureQuestStage stage : getActiveStages()) {
                 description.append("\n")
                         .append(stage.name).append("\n[/]")

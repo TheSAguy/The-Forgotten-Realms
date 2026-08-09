@@ -129,10 +129,14 @@ public class WorldStage extends GameStage implements SaveFileContent {
             // (Config.getAtlasSprite) is never mutated; only the batch's transient draw color is,
             // and it's restored immediately after so other actors sharing that Sprite are unaffected.
             float alpha = parentAlpha * (0.55f + 0.45f * MathUtils.sin(twinkleTime * 3f + twinklePhase));
-            Color prev = batch.getColor();
-            batch.setColor(prev.r, prev.g, prev.b, alpha);
+            // batch.getColor() returns the batch's *internal* Color by reference, not a copy -
+            // snapshot the primitive components before calling setColor, or "restoring" below
+            // would just be re-applying the already-mutated object to itself.
+            Color prevRef = batch.getColor();
+            float pr = prevRef.r, pg = prevRef.g, pb = prevRef.b, pa = prevRef.a;
+            batch.setColor(pr, pg, pb, alpha);
             batch.draw(sprite, getX(), getY(), getWidth(), getHeight());
-            batch.setColor(prev);
+            batch.setColor(pr, pg, pb, pa);
         }
     }
 
@@ -446,6 +450,28 @@ public class WorldStage extends GameStage implements SaveFileContent {
         dialog.getContentTable().add(label).width(250f).row();
 
         dialog.getButtonTable().add(Controls.newTextButton("Leave", this::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog();
+    }
+
+    // Side-quest timer expiry (user request 2026-08-08): a real blocking dialog, same pattern as
+    // the war-entry dialog above - the old corner toast was easy to miss entirely, especially at
+    // 100x fast-forward. One dialog lists every quest that failed on the same day tick.
+    public void showQuestsFailedDialog(java.util.List<String> questNames) {
+        Dialog dialog = getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+
+        StringBuilder text = new StringBuilder("[RED]Quest Failed![]");
+        for (String questName : questNames)
+            text.append("\nYou did not complete [!]").append(questName).append("[] in time.");
+        TypingLabel label = Controls.newTypingLabel(text.toString());
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+
+        dialog.getButtonTable().add(Controls.newTextButton("OK", this::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
         showDialog();
     }
