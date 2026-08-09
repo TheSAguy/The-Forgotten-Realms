@@ -4325,3 +4325,16 @@ QuestActor, GameStage), res synced (2 tmx, items.json).
 on the existing save; armory stocking equipment (Missing item spam gone); land shops selling
 their lands; booster shop in Capitol only; straight-to-quests boards; player spread visible on
 the map ("player: Capitol territory radius now N/450" in the log).
+
+**Hotfix (same night): Capitol entry crash + Shandalar naming.** The can't-enter-Camelot report
+was a map-load crash, exact cause from forge.log: `MapStage.loadObjects:779` casts the
+`noRestock` object property to boolean, and the shop-list rewrite script had written
+`<property name="noRestock" value="true"/>` WITHOUT `type="bool"` (Tiled always writes the type
+attribute; untyped TMX properties load as String -> ClassCastException -> load aborts -> player
+left pinned against the POI on the world map). All 7 affected objects (armory + 6 land shops)
+fixed. Lesson recorded: any bool-typed TMX property written by tooling MUST carry `type="bool"`.
+Also: every user-facing "Shandalar" in the plane's quests.json replaced with "The Forgotten
+Realms" (18 spots incl. the "Welcome to Shandalar" story quest; possessives -> "The Forgotten
+Realms'"). Already-accepted quests on old saves keep their baked name; new games get the new
+text. items.json's one "Shandalar" mention (item flavor text) left as-is deliberately - flag if
+that should change too.

@@ -17804,7 +17804,7 @@
   <object id="55" template="../../../../common/maps/obj/shop.tx" x="465" y="515">
    <properties>
     <property name="signYOffset" type="float" value="-2" />
-   <property name="commonShopList" value="Land" /><property name="noRestock" value="true" /></properties>
+   <property name="commonShopList" value="Land" /><property name="noRestock" type="bool" value="true" /></properties>
   </object>
   <object id="58" template="../../../../common/maps/obj/entry_up.tx" x="320" y="644" width="80" height="20">
    <properties>
@@ -17901,12 +17901,12 @@
   <object id="62" template="../../../../common/maps/obj/shop.tx" x="80" y="338">
    <properties>
     <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Forest" /><property name="noRestock" value="true" /></properties>
+   <property name="commonShopList" value="Forest" /><property name="noRestock" type="bool" value="true" /></properties>
   </object>
   <object id="63" template="../../../../common/maps/obj/shop.tx" x="82" y="257">
    <properties>
     <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Equipment" /><property name="noRestock" value="true" /></properties>
+   <property name="commonShopList" value="Equipment" /><property name="noRestock" type="bool" value="true" /></properties>
   </object>
   <object id="66" template="../../../../common/maps/obj/quest.tx" x="200" y="257">
    <properties>
@@ -17948,22 +17948,22 @@
   <object id="73" template="../../../../common/maps/obj/shop.tx" x="79.5" y="191.5">
    <properties>
     <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Plains" /><property name="noRestock" value="true" /></properties>
+   <property name="commonShopList" value="Plains" /><property name="noRestock" type="bool" value="true" /></properties>
   </object>
   <object id="74" template="../../../../common/maps/obj/shop.tx" x="208.5" y="192.5">
    <properties>
     <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Island" /><property name="noRestock" value="true" /></properties>
+   <property name="commonShopList" value="Island" /><property name="noRestock" type="bool" value="true" /></properties>
   </object>
   <object id="75" template="../../../../common/maps/obj/shop.tx" x="128" y="190.75">
    <properties>
     <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Swamp" /><property name="noRestock" value="true" /></properties>
+   <property name="commonShopList" value="Swamp" /><property name="noRestock" type="bool" value="true" /></properties>
   </object>
   <object id="76" template="../../../../common/maps/obj/shop.tx" x="271.75" y="191.75">
    <properties>
     <property name="signYOffset" type="float" value="0" />
-   <property name="commonShopList" value="Mountain" /><property name="noRestock" value="true" /></properties>
+   <property name="commonShopList" value="Mountain" /><property name="noRestock" type="bool" value="true" /></properties>
   </object>
  </objectgroup>
 </map>
