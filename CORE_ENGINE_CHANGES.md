@@ -408,7 +408,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `DungeonRotation.processDaysPassed()` call in the day-change block, and the ordinary-town entry
   bar swapped its corner notification for a real blocking dialog (`showEntryBarredDialog()`, same
   styling as the capital-toll dialog).
-- **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Dungeon rotation (#15): the
+- **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Player Capitol round
+  (2026-08-08 late night): the "arena" object case switched to the gated 3-arg OnCollide
+  constructor (inn/spellsmith already used it) so an arena in a wasteland town/capital starts as
+  rubble; inert outside wasteland towns. Dungeon rotation (#15): the
   defeat hook lives at the match-loss handler (the branch calling `updateQuestsLose()`) - an
   earlier `exitDungeon()` hook keyed on its `defeated` parameter never fired for concedes or
   ordinary losses with life remaining (only life-hit-zero sets it). Still BEFORE quest updates so

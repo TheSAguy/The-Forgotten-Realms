@@ -685,11 +685,15 @@ public class MapStage extends GameStage {
                         }
                         break;
                     case "arena":
+                        // Gated 3-arg OnCollide like inn/spellsmith (2026-08-08, Player Capitol
+                        // round): in a wasteland town/capital the arena starts as rubble and must
+                        // be rebuilt like any other building; outside wasteland towns the gate is
+                        // inert and this behaves exactly as before.
                         addMapActor(obj, new OnCollide(() -> {
                             ArenaData arenaData = JSONStringLoader.parse(ArenaData.class, prop.get("arena").toString(), "");
                             ArenaScene.instance().loadArenaData(arenaData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong());
                             Forge.switchScene(ArenaScene.instance());
-                        }));
+                        }, id, this));
                         break;
                     case "exit":
                         addMapActor(obj, new OnCollide(() -> MapStage.this.exitDungeon(false, false)));

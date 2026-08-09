@@ -4210,3 +4210,63 @@ PointOfInterest, QuestActor + inners, MapViewScene + inners). No res changes.
 Details overlay needs a look at the zoomed map after visiting a couple of towns; rename needs a
 restored town's Job Board; contested borders need a few fast-forwarded days watching two
 adjacent colors' front (and the central circle filling in).
+
+
+## Player Capitol (MOD_SCOPE #13 first slice) + expansion perf cache + rename dropped (2026-08-08 late night)
+
+**Rename dropped** per user (names in messages/map made it unnecessary) - the Job Board menu
+option is now **Upgrade to Capitol** instead.
+
+**Capitol upgrade flow.** At any restored town's Job Board: requires 5 player-owned towns (shown
+disabled as "Upgrade to Capitol (N/5 towns)" until then), costs 1000 gold, disabled when short on
+gold. Only one Capitol ever: the option vanishes once any "Player Capitol" POI exists, and the
+Capitol's own board never shows it. Upgrading:
+- `transformInto()` to the new "Player Capitol" POI template (`points_of_interest.json`, count 0
+  so world-gen never places one): displayName "Camelot", type capital, castle-sized 64x64 icon
+  (`player_capitol_icon.png` downscaled from the user's 128x128 `Player_Capitol.png`, new
+  `player_capitol.atlas`), map `player_capital.tmx`. Keeps Town+BiomeColorless questTags ON
+  PURPOSE - isWastelandTown() stays true, so the whole wasteland-shop machinery (rubble overlay,
+  rebuild-for-gold, economy buildings) applies to the capital layout as-is.
+- **Building migration** (the id problem: transformInto changes the POI id AND the capital tmx's
+  object ids differ from the town's): migrated by COUNT and TYPE, not id - every economy
+  building type re-homes onto a capital shop slot (+ its shopRebuilt flag), then as many more
+  slots as the town had plain rebuilt shops get marked rebuilt, lowest ids first. Slot ids are
+  parsed from the capital tmx at runtime (root-level objectgroup only - the file embeds a
+  tileset whose tiles carry their own objectgroups) so a Tiled re-edit can't desync a hardcoded
+  list. Everything else (more shops, arena, spellsmith, inn) starts as rubble to build.
+- Territory radius re-keys to the new id (same as mage capture), vision cache rebuilt, world map
+  markers repainted (bigger icon), and the player is **kicked to the world map**
+  (`exitDungeon(false,false)`) so re-entering loads the capital layout fresh - the simplest
+  correct way to swap a live map, per discussion.
+- Arena gating: MapStage's "arena" case now uses the gated 3-arg OnCollide like inn/spellsmith
+  already did - rubble in unrestored/unbuilt wasteland context, inert everywhere else.
+
+**Town layout swap.** `waste_town_player.tmx` REPLACED with the user's new `player_town.tmx`
+(F:\FORGE) - visual relayout with IDENTICAL object ids (verified 38/41/47/48/50-58/63 match), so
+every existing save's shopRebuilt flags keep working. `player_capital.tmx` (40x40, 12 shop slots
++ inn/spellsmith/arena/job board, 3 entries) added alongside. Both files' tileset/template paths
+pointed at the OTHER machine's checkout (`C--Users-vicwaver-MTG-Forge/...`) - rewritten to the
+standard `../../../../common/` relative form (16 + 32 occurrences). NOTE: the capital tmx embeds
+a copy of the `main` tileset (firstgid=1) alongside the external references - loads fine in
+principle but untested in-engine; if the capital map crashes on entry, that embedded tileset is
+suspect #1.
+
+**Expansion perf cache** (user report: choppy day ticks at 100x). The full-disc re-contest only
+runs when the pull-source fingerprint changed (a town captured/placed/grown - anything that can
+change any tile's winner); otherwise only the newly-grown outer ring is scanned, and a color at
+its radius cap skips scanning entirely. Exact, not approximate: identical sources -> provably
+identical per-tile winners. First tick of a session always full-scans once.
+
+**Known gaps, deliberate:** capturing the Capitol is currently impossible (matchingTownData()
+has no "Player Capitol" mapping, so an arriving mage no-ops) - #13's "losing the Capitol ends
+the game" needs its own design round; Capitol-exclusive buildings (Bank/Archeologist/Exchange)
+not started.
+
+Compiled, deployed, byte-verified (TownRestoration, TerritoryControl, MapStage + inners), res
+synced (2 tmx, icon png + atlas, points_of_interest.json).
+
+**Not yet playtested**: the whole upgrade flow needs a save with 5 restored towns (console
+`give gold` + restoring towns is the fast path); the new town layout needs one town entry; the
+capital layout needs entry after upgrade (watch for tmx load errors - see embedded-tileset
+note); the perf cache needs a feel-check at 100x plus one capture (should log "full re-contest"
+that day only).

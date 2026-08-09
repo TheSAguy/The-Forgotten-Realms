@@ -262,6 +262,21 @@ public class TerritoryControl {
         return MIN_ATTACK_DAYS + world.getRandom().nextInt(MAX_ATTACK_DAYS - MIN_ATTACK_DAYS + 1);
     }
 
+    // Last tick's pull-source fingerprint (see the caching comment in processTerritoryExpansion).
+    // Deliberately transient/static: a fresh session's first tick always runs one full re-contest.
+    private static long lastPullSourcesFingerprint = Long.MIN_VALUE;
+
+    private static long pullSourcesFingerprint(Map<String, List<float[]>> sources) {
+        long hash = 17;
+        for (Map.Entry<String, List<float[]>> entry : sources.entrySet()) {
+            hash = hash * 31 + entry.getKey().hashCode();
+            for (float[] source : entry.getValue())
+                for (float component : source)
+                    hash = hash * 31 + Float.floatToIntBits(component);
+        }
+        return hash;
+    }
+
     /**
      * Every faction's influence sources for World.claimWastelandRing()'s weighted-pull model,
      * keyed by color name plus "player". Each source: {tileX, tileY, weightMultiplier,
@@ -404,6 +419,17 @@ public class TerritoryControl {
         // Rebuild sources with the towns' POST-growth radii (their 50% hard-protection tracks it).
         pullSources = buildPullSources(world, castlePositions, playerTowns);
 
+        // Caching layer (user report 2026-08-08: "day ticks at 100x started feeling choppy"):
+        // the full-disc re-contest only matters when the pull LANDSCAPE changed - a source
+        // appeared/moved/changed weight or protection (a town captured, a capital placed, a town
+        // radius grown). While the sources are byte-identical to last tick's, every tile's winner
+        // is provably unchanged too, so scanning only the newly-grown outer ring is exact, not an
+        // approximation - and a color already at its radius cap skips scanning entirely. Any
+        // source change (or the first tick of a session) triggers one full-disc re-contest day.
+        long fingerprint = pullSourcesFingerprint(pullSources);
+        boolean sourcesChanged = fingerprint != lastPullSourcesFingerprint;
+        lastPullSourcesFingerprint = fingerprint;
+
         for (String color : COLORS) {
             Integer currentRadius = world.getColorTerritoryRadius(color);
             if (currentRadius == null)
@@ -412,13 +438,19 @@ public class TerritoryControl {
             if (castlePosition == null)
                 continue;
             int newRadius = Math.min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
-            // Inner radius is the KEEP radius, not yesterday's radius (2026-08-08 pentagon-stall
-            // fix): the daily claim re-scans the whole disc, so tiles that were skipped when their
-            // ring passed - or LOST to a rival whose pull has since weakened (their forward town
-            // fell, say) - get (re)claimed instead of being gone forever. Cheap in steady state:
-            // an already-mine tile short-circuits on the ownership check immediately.
+            int innerRadius;
+            if (sourcesChanged) {
+                // Full-disc re-contest, KEEP outward (2026-08-08 pentagon-stall fix): tiles
+                // skipped when their ring passed - or LOST to a rival whose pull has since
+                // weakened - get (re)claimed instead of being gone forever.
+                innerRadius = CASTLE_KEEP_RADIUS_TILES;
+            } else if (newRadius > currentRadius) {
+                innerRadius = Math.max(CASTLE_KEEP_RADIUS_TILES, currentRadius - 1); // just the new ring (1-tile overlap for rounding)
+            } else {
+                continue; // at cap, landscape unchanged - provably nothing to claim, skip the scan
+            }
             int claimed = world.claimWastelandRing(color, castlePosition, pullSources,
-                    CASTLE_KEEP_RADIUS_TILES, newRadius,
+                    innerRadius, newRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
             if (newRadius > currentRadius)
@@ -426,7 +458,7 @@ public class TerritoryControl {
             // Radius AND claimed-count in the log - "radius grows but the map never changes" is
             // exactly how the pentagon stall stayed invisible; a claimed-tile count can't hide.
             System.out.println("[TerritoryControl] " + color + ": territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS
-                    + ", claimed " + claimed + " tile(s) this tick");
+                    + ", claimed " + claimed + " tile(s) this tick" + (sourcesChanged ? " (full re-contest)" : ""));
         }
     }
 

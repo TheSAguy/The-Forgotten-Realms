@@ -297,11 +297,23 @@ public class TownRestoration {
         return new MapDialog(root, stage, objectId, null);
     }
 
+    // Capitol upgrade (MOD_SCOPE.md #13, first slice 2026-08-08): one player town may become the
+    // Capitol "Camelot" - bigger castle-sized icon, its own 40x40 player_capital.tmx layout.
+    // (The earlier Rename-town option was dropped the same day per user - names showing in
+    // messages/map made it unnecessary.)
+    public static final String CAPITOL_POI_NAME = "Player Capitol";
+    private static final int CAPITOL_UPGRADE_COST = 1000;
+    private static final int CAPITOL_TOWNS_REQUIRED = 5;
+
     /**
      * Restored-town Job Board menu (user request 2026-08-08): instead of jumping straight into
-     * the quest offer, the board first offers Browse quests / Rename town / Leave. Only reachable
-     * for restored wasteland towns (QuestActor gates on isWastelandTown() + isTownRestored()), so
-     * stock planes and stock towns keep the direct-to-quest behavior.
+     * the quest offer, the board first offers Browse quests / Upgrade to Capitol / Leave. Only
+     * reachable for restored wasteland towns (QuestActor gates on isWastelandTown() +
+     * isTownRestored()), so stock planes and stock towns keep the direct-to-quest behavior.
+     * The upgrade option: needs CAPITOL_TOWNS_REQUIRED owned towns (shown disabled with the
+     * requirement until then), costs CAPITOL_UPGRADE_COST gold, and disappears once ANY Capitol
+     * exists (only one allowed; the Capitol's own board never shows it - its data name IS the
+     * capitol).
      */
     public static void openJobBoardMenu(MapStage stage, Runnable openQuestBoard) {
         PointOfInterest point = TileMapScene.instance().rootPoint;
@@ -318,30 +330,138 @@ public class TownRestoration {
             stage.hideDialog();
             openQuestBoard.run();
         })).width(240f).row();
-        dialog.getButtonTable().add(Controls.newTextButton("Rename town", () -> {
-            stage.hideDialog();
-            openRenameDialog(stage);
-        })).width(240f).row();
+        boolean isCapitolItself = point != null && CAPITOL_POI_NAME.equals(point.getData().name);
+        if (!isCapitolItself && !capitolExists()) {
+            int owned = countPlayerTowns();
+            if (owned < CAPITOL_TOWNS_REQUIRED) {
+                com.github.tommyettinger.textra.TextraButton needMore = Controls.newTextButton(
+                        "Upgrade to Capitol (" + owned + "/" + CAPITOL_TOWNS_REQUIRED + " towns)", () -> {});
+                needMore.setDisabled(true);
+                dialog.getButtonTable().add(needMore).width(240f).row();
+            } else {
+                com.github.tommyettinger.textra.TextraButton upgrade = Controls.newTextButton(
+                        "Upgrade to Capitol (" + CAPITOL_UPGRADE_COST + " gold)", () -> {
+                            stage.hideDialog();
+                            upgradeToCapitol(stage);
+                        });
+                upgrade.setDisabled(Current.player().getGold() < CAPITOL_UPGRADE_COST);
+                dialog.getButtonTable().add(upgrade).width(240f).row();
+            }
+        }
         dialog.getButtonTable().add(Controls.newTextButton("Leave", stage::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
         stage.showDialog();
     }
 
-    // On-screen keyboard for the new town name; empty/blank input (or Exit) keeps the old name.
-    private static void openRenameDialog(MapStage stage) {
+    private static boolean capitolExists() {
+        for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
+            if (CAPITOL_POI_NAME.equals(poi.getData().name))
+                return true;
+        }
+        return false;
+    }
+
+    private static int countPlayerTowns() {
+        int count = 0;
+        for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
+            if (isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID())))
+                count++;
+        }
+        return count;
+    }
+
+    /**
+     * The upgrade itself. The tricky part is that transformInto() changes the POI's id (derived
+     * from data.name), so the town's built state does NOT carry over automatically - and the
+     * capital layout's object ids differ from the town layout's anyway. Migration is by COUNT and
+     * TYPE, not id: every economy building (each type exists at most once per town) is re-homed
+     * onto a capital shop slot, then as many further slots as the old town had plain rebuilt
+     * shops are marked rebuilt, lowest object id first. Everything else starts as rubble on the
+     * capital layout - rebuildable through the ordinary wasteland-shop flow (the capital's data
+     * keeps the Town+BiomeColorless tags precisely so all of that machinery just applies).
+     * Finally the player is kicked to the world map (the currently-loaded scene still shows the
+     * old tmx; re-entering loads the capital layout fresh - simplest correct swap, per
+     * discussion with the user).
+     */
+    private static void upgradeToCapitol(MapStage stage) {
         PointOfInterest point = TileMapScene.instance().rootPoint;
         if (point == null)
             return;
-        KeyBoardDialog keyboard = new KeyBoardDialog();
-        keyboard.setText(point.getDisplayName());
-        keyboard.setOnFinish(newName -> {
-            String trimmed = newName == null ? "" : newName.trim();
-            if (!trimmed.isEmpty() && !trimmed.equals(point.getDisplayName())) {
-                point.setDisplayName(trimmed); // persists via PointOfInterest.save()
-                forge.adventure.stage.GameHUD.getInstance().addNotification("Town renamed to " + trimmed + "!");
-                System.out.println("[TownRestoration] town renamed to \"" + trimmed + "\"");
+        PointOfInterestData capitolData = PointOfInterestData.getPointOfInterest(CAPITOL_POI_NAME);
+        if (capitolData == null) {
+            System.out.println("[TownRestoration] CRITICAL: \"" + CAPITOL_POI_NAME + "\" POI data missing, upgrade aborted");
+            return;
+        }
+        forge.adventure.world.World world = WorldSave.getCurrentSave().getWorld();
+
+        // Snapshot the old town's built state before the id changes.
+        PointOfInterestChanges oldChanges = WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID());
+        int plainRebuiltShops = 0;
+        java.util.List<Integer> economyTypes = new java.util.ArrayList<>(oldChanges.getEconomyBuildingObjectIds().keySet());
+        java.util.Set<Integer> economyObjectIds = new java.util.HashSet<>(oldChanges.getEconomyBuildingObjectIds().values());
+        for (String flagKey : oldChanges.getMapFlags().keySet()) {
+            if (flagKey.startsWith("shopRebuilt_")) {
+                int objectId = Integer.parseInt(flagKey.substring("shopRebuilt_".length()));
+                if (!economyObjectIds.contains(objectId))
+                    plainRebuiltShops++; // economy buildings set the same flag - don't double-count them
             }
-        });
-        keyboard.show(stage);
+        }
+        Integer oldRadius = world.getTownTerritoryRadius(point.getID());
+
+        Current.player().takeGold(CAPITOL_UPGRADE_COST);
+        point.transformInto(capitolData, world.getRandom()); // template name -> displayName "Camelot"
+
+        PointOfInterestChanges newChanges = WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID());
+        newChanges.getMapFlags().put(TOWN_RESTORED_FLAG, (byte) 1);
+        java.util.List<Integer> capitolShopSlots = readCapitolShopObjectIds(capitolData.map);
+        int slotIndex = 0;
+        for (int economyType : economyTypes) {
+            if (slotIndex >= capitolShopSlots.size())
+                break;
+            int slot = capitolShopSlots.get(slotIndex++);
+            newChanges.setEconomyBuildingObjectId(economyType, slot);
+            newChanges.getMapFlags().put("shopRebuilt_" + slot, (byte) 1);
+        }
+        for (int i = 0; i < plainRebuiltShops && slotIndex < capitolShopSlots.size(); i++) {
+            int slot = capitolShopSlots.get(slotIndex++);
+            newChanges.getMapFlags().put("shopRebuilt_" + slot, (byte) 1);
+        }
+        System.out.println("[TownRestoration] Capitol migration: " + economyTypes.size() + " economy building(s) + "
+                + plainRebuiltShops + " rebuilt shop(s) mapped onto " + capitolShopSlots.size() + " capital slots");
+
+        // Territory state re-keys to the new id, same as a mage capture does.
+        world.setTownTerritoryRadius(point.getID(), oldRadius != null ? oldRadius : RECOLOR_RADIUS);
+        world.rebuildPlayerTownVision();
+        world.refreshWorldMapMarkers(); // the icon changed to the castle-sized capitol art
+
+        forge.adventure.stage.GameHUD.getInstance().addNotification("[*]Camelot rises! Return to your new Capitol to see it rebuilt.");
+        System.out.println("[TownRestoration] town upgraded to Capitol \"Camelot\"");
+        // Kick to the world map so re-entry loads the capital layout.
+        stage.exitDungeon(false, false);
+    }
+
+    /**
+     * The capital layout's shop slot ids, ascending, parsed straight from the tmx (root-level
+     * object group only - the file also embeds a tileset whose tiles carry their own tiny
+     * objectgroups, which must not be scanned). Parsing the real file instead of hardcoding ids
+     * keeps this correct if the user re-edits the map in Tiled.
+     */
+    private static java.util.List<Integer> readCapitolShopObjectIds(String mapPath) {
+        java.util.List<Integer> shopIds = new java.util.ArrayList<>();
+        try {
+            com.badlogic.gdx.utils.XmlReader.Element root = new com.badlogic.gdx.utils.XmlReader()
+                    .parse(Config.instance().getFile(mapPath));
+            for (com.badlogic.gdx.utils.XmlReader.Element group : root.getChildrenByName("objectgroup")) {
+                for (com.badlogic.gdx.utils.XmlReader.Element object : group.getChildrenByName("object")) {
+                    String template = object.getAttribute("template", "");
+                    if (template.endsWith("shop.tx"))
+                        shopIds.add(object.getIntAttribute("id"));
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("[TownRestoration] could not parse capital map for shop slots: " + e);
+        }
+        java.util.Collections.sort(shopIds);
+        return shopIds;
     }
 }
