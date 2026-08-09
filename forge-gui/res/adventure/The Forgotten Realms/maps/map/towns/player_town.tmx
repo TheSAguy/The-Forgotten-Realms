@@ -6,6 +6,7 @@
  <tileset firstgid="1" source="../../../../common/maps/tileset/main.tsx" />
  <tileset firstgid="10113" source="../../../../common/maps/tileset/buildings.tsx" />
  <tileset firstgid="11905" source="../../../../common/maps/tileset/buildings-nocollide.tsx" />
+ <tileset firstgid="13697" source="../../tileset/main-nocollide.tsx" />
  <layer id="1" name="Background" width="30" height="30">
   <data encoding="base64" compression="zlib">
    eJyr4GZgqBjFo3gU0xQ3IWFi1GDDtHTTULWXWLNIwaP20sdeYuwebvYSsnug4pdW9tOqbKCmnRU49BEyk1I7SXUPPfCovaP2jto7cu0FAKBu1dQ=
@@ -13,7 +14,7 @@
  </layer>
  <layer id="2" name="Ground" width="30" height="30">
   <data encoding="base64" compression="zlib">
-   eJzVl0tOwzAQhl1YtHGcBScI7JCygrIuiqD0CBygcJDCEcq+ICFQzsE1QEKErll1j0e2lYlJnMlTYqSR09Tx90/GHjszwdiez9i+9CFsyRm74Yo5JHfkZ0zwc6F03PL+mBDrTOS5Q8Rtx2r8Q2p5GpjbJ8/YRjLeRT5ObOue2Y/a28T6XTIPzf3TiLEt6tNFTL6nvMruHHGlXGm8Kmnt62fJGxP8RfqRKOcmntLlyfZQZM495eYaWogxRhoWXD0LPke/TyLV7yyq5t4Tch0KNR53aMT6to5atPLpXLCYUNeMvmlUzg61PuBScnfBafm95GrcV8f8SzQ3tnKGHXT/jFUfaMFcfaHf8cj9XjC3zB4mqqW8Z2q/lZ6PuO9bgdYFr8d1rV8wk+NPQu6o+f3SXJzfZYHm0FoToGNeUDsgjhTdx27mbqrniWfVDtiXqvb5UOTXqK/XeYzGxOsX6yximr2/zjljPclyEesxD6Z/deL6ZtdIey8EPvWMk2gutcbYZu//1DNOW+6m4ZmjLResyTmnK24V8zrolrsLmp1xuoi3if1nrvlOqvN9QuXCvNgFxf/9AvctdOs=
+   eJzVl0tOwzAQhg0sUBxngWAfOAIpghVBUSk9Qg9QWHOGwhE4QEFCQO4EEiL0CN3jkW114ibO5Ckx0shpOvH3T8avxIKxXZ+xPelD2JwzdssVc0jujr9hgl8JpeOO98eEXGOR5w6Rt52r8S+p5WVgbp88Y0vJ+BT5PLE99cx+1t4m19+ScWjuRxFjKxTTRU6+p7zKHhx5ZVxpvClp7etXydsn+Jv0E1HOTT2ly5Ptsdg495Sba2ghxwRpmHL1LPgE/T6NVNxZVM19JNQ6FKo/7tCI9a0ca9HCp3PBEsK6ZvSNonJ2qPUBl1K7MafV95qrft8d4y/V3MSqGXbQfX+pYqAFc8VC3Me5+71gbpkdxaqlvGdq3EKPRxw7vtiOm/J6XNf8BTM1/ibUjlrfH83F9Z0XaA6tOQE6JgVrB+SRofvYzdjN9DjxrLUD9qWqfT4U+Tnq63meoD7x/MU6i5hm769zzjiMN7VIdJ8Ho22deH2z10h7LwQ+9YyTai51jbHN3v+pZ5y23GXDM0dbLliTc05X3CrmLOiWuw6anXG6yLeJ/Weu+U6q831C5cK4WAfF//0BoQF0Sg==
   </data>
  </layer>
  <layer id="3" name="Walls" width="30" height="30">

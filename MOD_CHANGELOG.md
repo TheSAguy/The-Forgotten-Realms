@@ -4454,3 +4454,48 @@ Four user requests in one round:
   endpoints key off the town's post-transform identity).
 
 Compiled clean (`mvn -pl forge-gui-mobile -am compile -o`). **Not yet playtested.**
+
+## player_town.tmx: fix stray ground-layer collisions, new main-nocollide.tsx tileset (2026-08-09)
+
+User report: several decorations they'd hand-placed on the `Ground` layer of `player_town.tmx`
+still blocked player movement, while other earlier-placed decorations of similar appearance
+didn't. Root cause (not a bug in this session's code - a pre-existing property of the stock
+engine): `MapStage.loadCollision()` scans **every** `TiledMapTileLayer`, not just `Walls` -
+collision comes from whatever object-group rectangle a placed tile's *source tileset definition*
+carries (`<tile id="N"><objectgroup>...`), completely independent of which drawing layer (Ground/
+Walls/Overlay) it's stamped on. "Ground" is a pure naming convention with no walkable-only
+behavior built in - whether a placement blocks movement depends entirely on which exact tile ID
+was dragged in.
+
+Decoded the Ground layer's base64/zlib tile data and cross-referenced every unique GID against its
+source `.tsx`'s per-tile `<objectgroup>` definitions (script, not manual inspection - see chat).
+Found 9 of 51 placed tiles carrying collision:
+- **4 tiles**: `buildings.tsx` local ids 944-947 (GIDs 11057-11060), a contiguous 4-wide strip at
+  atlas row 33 cols 20-23 - one small house sprite. Fixed by swapping to the identical art already
+  provided collision-free at `buildings-nocollide.tsx` (same image, same tile-id layout, GID+1792)
+  - exactly what that sibling sheet exists for. No new files needed.
+- **5 tiles**: `main.tsx` local ids 295, 450, 2030, 2194, 2195 - five separate scenery-obstacle
+  props (rock/bush/stump style, each with a near-full-16x16 collision box), scattered around the
+  atlas. `main.tsx` has no `-nocollide` sibling (unlike buildings) and is the SHARED overworld
+  terrain sheet (10,112 tiles, used by every biome's procedural generation across the whole map) -
+  stripping collision from these tile ids directly in `main.tsx` would be a global change with an
+  unknown blast radius across ~1000 other maps, not scoped to this one town. User chose (of 3
+  options presented) a new sibling tileset mirroring the `buildings`/`buildings-nocollide` pattern
+  exactly: **`forge-gui/res/adventure/The Forgotten Realms/maps/tileset/main-nocollide.tsx`** -
+  same tilecount/columns/tilewidth/height as `main.tsx`, referencing the SAME shared
+  `common/maps/tileset/main.png` image (no duplicated art), zero `<tile>` collision definitions.
+  Kept in the mod's own plane folder per `CLAUDE.md`'s asset-placement ground rules (a derived
+  index file, not an edit to the shared `.tsx`, so no `common/` change and no
+  `CORE_ENGINE_CHANGES.md` entry needed). `player_town.tmx` gained one new `<tileset firstgid=
+  "13697" source="../../tileset/main-nocollide.tsx" />` entry (13697 = 11905 + 1792, right after
+  `buildings-nocollide.tsx`'s range), and the Ground layer's 5 affected GIDs were swapped
+  (296->13992, 451->14147, 2031->15727, 2195->15891, 2196->15892 - local id + 13697) via the same
+  decode/patch script, preserving every other tile untouched.
+
+Any future mod-authored Ground/Overlay decoration meant to be purely visual should be picked from
+`main-nocollide`/`buildings-nocollide` in Tiled's tileset panel, not `main`/`buildings` - the two
+panels show identical art side by side; only the panel choice determines whether a placement
+blocks movement.
+
+No Java changes (data/tileset-only). Deployed (new `main-nocollide.tsx` + updated `player_town.tmx`
+copied to the installed game, GID swaps byte-verified). **Not yet playtested.**
