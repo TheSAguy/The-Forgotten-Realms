@@ -4786,3 +4786,147 @@ Compiled clean. Deployed: `Reward.class`, `RewardData.class`, `MapStage.class` +
 briefly pushed the buggy shared-file edit there too - overwritten back to stock before this
 entry). **Not yet playtested** - can't verify the walkover trigger/animation without a live game
 session.
+
+## Reputation tweaks + mage persistence/cross-color targeting/Capitol defense (2026-08-10, home PC)
+
+A round of changes to Reputation (#1) and Territory Control (#7), designed over several rounds of
+back-and-forth with the user before building, per their request to raise questions/tweaks first.
+Built in four dependency-ordered pieces (reputation tweaks -> mage persistence -> cross-color
+targeting -> Capitol defense, since the last piece needed the first three stable). Compiled clean
+after each piece (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`). **None of this has been
+playtested yet** - built and pushed from the home PC for the user to test on the Gaming PC.
+
+**Reputation tier ranges** (`ColorReputation.getStatus()`): Neutral widened to -29..29 (was
+-19..19), Happy shifted to 30..79 (was 20..79), Unhappy to -30..-79 (was -20..-79). Partner (≥80)
+and War (≤-80) untouched. Pure constant change, no design implications beyond the ranges
+themselves.
+
+**Mage-kill 2x reputation bonus** (`ColorReputation.onPlayerWonDuel()`): signature grew a second
+`boolean isTerritoryMage` param, set by the caller (`DuelScene.afterGameEnd()`) from
+`enemy.territoryColor != null` - the same field Territory Control already stamps onto a dispatched
+mage's `EnemySprite`, so no new detection mechanism was needed. `MAGE_KILL_MULTIPLIER = 2`,
+applied instead of (not stacked with) the existing `BOSS_MULTIPLIER = 3` - mutually exclusive in
+practice since mages aren't tagged boss, but written as independent cases rather than assuming
+that never changes.
+
+**Partner-tier Inn overheal** (`AdventurePlayer.grantPartnerOverheal()`/
+`clearPartnerOverhealIfActive()`, new `partnerOverhealActive` boolean field, persisted). Went
+through a few design iterations with the user before landing on the simplest version actually
+built: entering ANY Partner-tier color's town or Capitol (`TileMapScene.enter()`, inside the
+existing `isAutoHealLocation()` block alongside the pre-existing full-heal-on-entry call) sets
+`life = maxLife + 2` unconditionally, no Inn visit required. Considered reusing the existing
+single-slot `Blessing` (`EffectData`/`AdventurePlayer.blessing`, "effect to apply for next
+battle", already cleared unconditionally in `DuelScene.GameEnd()` regardless of Arena/event
+status) since its lifecycle matches "till your next duel" almost exactly - decided against it:
+`EffectData.lifeModifier` is a duel-START-life effect, not the overworld HP pool the Inn's
+existing paid `potionOfFalseLife()` operates on (`life = maxLife + 2` there too, same shape),
+and blessing is a single overwriteable slot that could collide with something else occupying it.
+Built as its own flag+field pair instead, deliberately NOT touching `potionOfFalseLife()` at all
+(no flag there, so a manually-purchased false-life buff keeps its exact old behavior). Cleared
+(`life = Math.min(life, maxLife)`) by whichever happens first: the next duel (same
+`DuelScene.GameEnd()` funnel as `clearBlessing()`) or entering any other town/capital, including a
+player-owned one (`TileMapScene.enter()`'s same block, else-branch). Inn UI
+(`InnScene.refreshStatus()`/`potionOfFalseLife()`): War greys the purchase button out entirely
+("Barred", server-side guarded too via `ColorReputation.isHealBarred()`); Partner greys it out too
+("Blessed") for the opposite reason - already covered by the free grant, a purchase would be
+redundant (no explicit guard needed there beyond the label - `AdventurePlayer.potionOfFalseLife()`
+already refuses when `life != maxLife`, which is always true while overhealed).
+
+**Mage survives a lost fight** (`WorldStage.setWinner()`, `EnemySprite.lastDuelDay` new field,
+persisted through `WorldStage.save()`/`load()`). Previously ANY duel outcome against a roaming
+monster called `removeEnemy(currentMob)` - for an ordinary monster that's correct, but for a
+Territory Control attack mage it meant a LOST fight silently erased the attack (the mage vanished,
+never actually reaching its target) - arguably a bug, not by design. Now: on loss, if
+`currentMob.territoryColor != null`, the mage is left in the `enemies` list untouched (keeps
+traveling toward `territoryTarget` via the existing seek logic in `onActing()`) and stamped with
+`lastDuelDay = world.getCurrentDay()` instead of being removed. `onActing()`'s player-collision
+check gates on `mob.lastDuelDay == world.getCurrentDay()` to block re-engaging the same mage twice
+in one day - it just walks past. A WIN still removes/kills it exactly as before (that's what
+"killing" means for the 2x reputation bonus above).
+
+**Cross-color targeting activated** (`TerritoryControl.java`): the class gained its own
+`ALLIES`/`ENEMIES` wheel maps, a deliberate duplicate of `ColorReputation`'s copy (documented in
+both classes' comments as intentional - each must keep working with the other's feature flag off).
+`dispatch()`'s old `findNeutralTowns()` became `findAttackableTowns(world, color)`, now also
+matching ordinary TOWNS (never CAPITALS - no defined consequence exists yet for a captured AI
+capital, so this stays out of scope; also matches how the pre-existing neutral-capture path only
+ever handled "Waste Town", never "Waste Capital") owned by either of `color`'s two enemies
+(`colorOfOwnedTownForCombat()`, a straight `COLOR_TOWN_NOUN` prefix match). Neutral and
+enemy-owned candidates are pooled together and picked by pure distance, no type preference (user
+decision - simplest reading of the spec). `onMageArrived()` gained a real branch structure instead
+of the old single `isWastelandTown()` gate: neutral -> capture as before; target already this
+mage's own color, or not recognizably any color's town -> no-op (pre-existing race-condition
+stance); target owned by an ALLY of the attacker -> silent fizzle, no capture, no message (user
+request - covers the case where the town changed hands again mid-flight, e.g. another color's
+mage got there first and it's now allied territory); target still owned by a genuine ENEMY ->
+50/50 flip-to-attacker (reuses the capture path, generalized `matchingTownData()` below) or
+revert-to-neutral (`matchingWasteData()`, repainted with biome name `"colorless"` -
+`repaintBiomeAroundTown()`/`connectCapturedTownByRoad()` both already handle an arbitrary biome
+name generically, confirmed safe by reading them rather than assumed - `connectCapturedTownByRoad`
+in particular no-ops cleanly for `"colorless"` since `COLOR_TOWN_NOUN` has no such entry, so it
+never finds a same-owner network to extend). **User flagged this 50/50 for a later revisit** -
+weight it by mage tier/strength once mage tiers exist, instead of a flat coin flip; not built this
+round, logged here and in MOD_SCOPE.md #7 as an explicit open follow-up.
+
+`matchingTownData()` (was Waste-Town-only, matched by exact prefix) generalized to locate " Town "
+anywhere in the source name and rebuild with the target color's noun - handles "Waste Town X" (the
+original neutral case) and "Swamp Town X" -> "Mountain Town X" (a cross-color flip) identically,
+one method instead of needing two. Still deliberately TOWN-only, matching the CAPITAL-exclusion
+scoping decision above.
+
+**Capitol targeting math** (`dispatch()`, `TownRestoration.findCapitol()` new - refactored out of
+the pre-existing `capitolExists()`, both keyed on the canonical `data.name == "Player Capitol"`,
+immune to the "Camelot" display rename same as every other capital lookup in this codebase). The
+Capitol is never a normal `findAttackableTowns()` candidate (matches neither `isWastelandTown()`
+nor an enemy-color-town check), and is added explicitly per the user's spec: fully exempt at
+Partner/Happy (skipped outright); untouched at Neutral/Unhappy (no special rule requested, so it's
+simply never a candidate there); at War, added as a weighted candidate worth 5% of the pool's
+total (`bonus = totalWeight / 19f`, solving `bonus / (totalWeight + bonus) == 0.05` so the
+ordinary 5-nearest keep exactly 95% between them) - appended as a 6th candidate, or added on top of
+its existing weight if it's somehow already among the 5 nearest by distance (defensive - in
+practice this never happens given the exemption above, but costs nothing to handle). Confirmed
+with the user this STACKS with the existing per-town War reputation multiplier
+(`ColorReputation.getPlayerTownAttackWeight()`, 1.25x) rather than replacing it.
+
+**Capitol defense forced duel** (new: `WorldStage.startForcedCapitolDuel()`/
+`triggerCapitolDefeat()`; `TerritoryControl.pendingCapitolDefenseMage`/
+`checkPendingCapitolDefense()`; `GameStage.act()` hook). `onMageArrived()` special-cases a target
+matching `TownRestoration.CAPITOL_POI_NAME` before any of the capture logic above runs - queues the
+mage into a static `pendingCapitolDefenseMage` field and returns (the mage sprite itself is still
+removed from the map by `WorldStage`'s normal arrival handling right after, same as any capture -
+only the EnemyData/territoryColor need to survive that, which a plain object reference does fine).
+"Regardless of where the player is" (user's explicit requirement) is satisfied by checking the
+pending field from `GameStage.act()` - the one method both `WorldStage` (overworld) and `MapStage`
+(every town/dungeon) share via inheritance, `final` so neither subclass can skip it - gated on
+`!isDialogOnlyInput() && !Forge.advFreezePlayerControls` (the same "nothing else is happening"
+signal `WorldStage.onActing()` already uses internally). While the player is inside a genuinely
+different `Scene` (Inn, a shop, an ordinary duel, etc. - none of those are `GameStage` subclasses),
+this simply doesn't run at all until they return to the overworld or a town map, which is exactly
+the "next safe point" queuing behavior asked for, with no extra plumbing needed to detect "am I
+mid-something" - it falls out of which scene is even calling `act()`.
+
+The duel itself: `startForcedCapitolDuel()` clones the arrived mage's `EnemyData` (`EnemyData` has
+a copy constructor already) and sets `gamesPerMatch = 3` on ONLY the clone, then builds a fresh
+`EnemySprite` around it carrying the same `territoryColor` (so the existing mage-kill 2x reputation
+detection above still fires on a win) - deliberately not mutating the shared "Adept &lt;Color&gt;
+Wizard" `EnemyData` looked up by name, which would have made every ordinary interception fight
+best-of-3 too. `EnemyData.gamesPerMatch` already flows straight into `DuelScene`'s match rules
+(pre-existing, used by Inn tournaments) - no `DuelScene` changes needed at all for the best-of-3
+part. Reuses the same `TransitionScreen`/`initDuels()` sequence the ordinary player-collision path
+already builds (`WorldStage.onActing()`), just invoked directly instead of from a live collision,
+with a new `currentMobIsCapitolDefense` flag on `WorldStage` read-and-reset once at the top of
+`setWinner()` so the loss branch can special-case it: skip every ordinary consequence (life/gold
+penalty, quest hooks, the mage-persistence stamp above - all meaningless once the game is over) and
+call `triggerCapitolDefeat()` instead.
+
+`triggerCapitolDefeat()` is genuinely new territory - grepped the whole `forge/adventure` tree for
+any existing game-over/permadeath concept first and found none (an ordinary duel loss just applies
+a life/gold percentage penalty via `AdventurePlayer.defeated()` and respawns at Spawn if life hits
+0; nothing ends a run outright). Built the simplest thing that satisfies "game ends": a blocking
+dialog ("Your Capitol has fallen!"), then back to the main menu via the same
+`WorldSave.getCurrentSave().header.createPreview(); Forge.switchScene(StartScene.instance());`
+pattern `GameStage.openMenu()` already uses for an ordinary menu exit - deliberately does NOT
+delete the save file (no precedent for that anywhere in this codebase, and it's a much harder
+action to walk back than a dialog). This closes MOD_SCOPE.md #13's long-standing "game-over-on-loss
+still open" note. Worth revisiting once playtested - a plain menu-return might read as too soft
+(or the dialog's wording too harsh) for what's meant to be the run's actual ending.

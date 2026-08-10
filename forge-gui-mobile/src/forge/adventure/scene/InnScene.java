@@ -6,11 +6,15 @@ import com.github.tommyettinger.textra.TextraLabel;
 import forge.Forge;
 import forge.adventure.data.AdventureEventData;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.util.AdventureEventController;
+import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Controls;
 import forge.adventure.util.Current;
+import forge.adventure.util.TownRestoration;
+import forge.adventure.world.WorldSave;
 import forge.model.CardBlock;
 
 /**
@@ -75,9 +79,27 @@ public class InnScene extends UIScene {
     }
 
     public void potionOfFalseLife() {
+        // Color reputation (MOD_SCOPE.md #1): War-tier towns bar healing outright. (Partner-tier
+        // needs no server-side guard here - the free overheal already puts life above maxLife,
+        // and AdventurePlayer.potionOfFalseLife() only fires when life == maxLife.)
+        String repColor = currentRepColor();
+        if (repColor != null && ColorReputation.isHealBarred(repColor))
+            return;
         if (Current.player().potionOfFalseLife()){
             refreshStatus();
         }
+    }
+
+    // Color reputation (MOD_SCOPE.md #1): the color of the town this Inn is in, or null if this
+    // town matches no color (Waste/Spawn) or is player-owned (exempt from all color effects, same
+    // pattern as ShopActor.colorReputationModifier()).
+    private String currentRepColor() {
+        PointOfInterest point = TileMapScene.instance().rootPoint;
+        if (point == null)
+            return null;
+        if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(point.getID())))
+            return null;
+        return ColorReputation.colorOfTown(point.getData());
     }
 
     @Override
@@ -107,8 +129,21 @@ public class InnScene extends UIScene {
         boolean purchaseable = Current.player().getMaxLife() == Current.player().getLife() &&
                 tempHealthCost <= Current.player().getGold();
 
-        tempHitPointCost.setDisabled(!purchaseable);
-        tempHitPointCost.setText("[+GoldCoin] " + tempHealthCost);
+        // Color reputation (MOD_SCOPE.md #1): War bars healing outright; Partner is greyed out for
+        // the opposite reason - the free overheal (AdventurePlayer.grantPartnerOverheal(), granted
+        // on entering this town) already covers it, so a purchase would be redundant.
+        String repColor = currentRepColor();
+        ColorReputation.Status repStatus = repColor == null ? null : ColorReputation.getStatus(repColor);
+        if (repStatus == ColorReputation.Status.WAR) {
+            tempHitPointCost.setDisabled(true);
+            tempHitPointCost.setText("Barred");
+        } else if (repStatus == ColorReputation.Status.PARTNER) {
+            tempHitPointCost.setDisabled(true);
+            tempHitPointCost.setText("Blessed");
+        } else {
+            tempHitPointCost.setDisabled(!purchaseable);
+            tempHitPointCost.setText("[+GoldCoin] " + tempHealthCost);
+        }
 
         initLocalEvent();
         if (localEvent == null){

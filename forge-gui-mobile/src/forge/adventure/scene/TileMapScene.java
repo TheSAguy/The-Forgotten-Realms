@@ -105,6 +105,18 @@ public class TileMapScene extends HudScene {
             // auto heal
             if (Current.player().fullHeal())
                 autoheal = true; // to play sound/effect on act
+            // Color reputation (MOD_SCOPE.md #1): entering a Partner-tier color's town/capital
+            // (not player-owned - those match no color, see ColorReputation.colorOfTown()) grants
+            // a free overheal to maxLife+2; entering any other town/capital (including a
+            // player-owned one) drops an unused grant back down to maxLife - "lose it if you
+            // don't use it before your next duel" (also cleared in DuelScene.GameEnd()).
+            String repColor = ColorReputation.colorOfTown(rootPoint.getData());
+            boolean playerOwned = repColor != null && TownRestoration.isTownRestored(
+                    WorldSave.getCurrentSave().peekPointOfInterestChanges(rootPoint.getID()));
+            if (repColor != null && !playerOwned && ColorReputation.getStatus(repColor) == ColorReputation.Status.PARTNER)
+                Current.player().grantPartnerOverheal();
+            else
+                Current.player().clearPartnerOverhealIfActive();
         }
         if (WorldSave.getCurrentSave().getPlayer().hasAnnounceFantasy()) {
             WorldSave.getCurrentSave().getPlayer().clearAnnounceFantasy();

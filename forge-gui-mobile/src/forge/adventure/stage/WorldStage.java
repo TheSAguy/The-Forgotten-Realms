@@ -23,6 +23,7 @@ import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.scene.DuelScene;
 import forge.adventure.scene.RewardScene;
 import forge.adventure.scene.Scene;
+import forge.adventure.scene.StartScene;
 import forge.adventure.scene.TileMapScene;
 import forge.adventure.util.*;
 import forge.adventure.world.World;
@@ -45,6 +46,10 @@ import java.util.*;
 public class WorldStage extends GameStage implements SaveFileContent {
     private static WorldStage instance = null;
     protected EnemySprite currentMob;
+    // Capitol defense (MOD_SCOPE.md #7 forced duel, 2026-08-10): true while currentMob is the
+    // one-shot mage duel triggered by TerritoryControl.checkPendingCapitolDefense() - losing it
+    // ends the run (triggerCapitolDefeat()) instead of the ordinary life/gold-penalty loss path.
+    private boolean currentMobIsCapitolDefense = false;
     protected Random rand = MyRandom.getRandom();
     WorldBackground background;
     private float spawnDelay = 0;
@@ -296,7 +301,10 @@ public class WorldStage extends GameStage implements SaveFileContent {
                     }
                 }
 
-                if (player.collideWith(mob)) {
+                // Territory Control (MOD_SCOPE.md #7): a mage already fought (and survived) today
+                // can't be re-engaged again until the next in-game day - it just keeps moving.
+                boolean mageOnCooldownToday = mob.territoryColor != null && mob.lastDuelDay == world.getCurrentDay();
+                if (!mageOnCooldownToday && player.collideWith(mob)) {
                     if (collided)
                         return;
                     collided = true;
@@ -346,6 +354,8 @@ public class WorldStage extends GameStage implements SaveFileContent {
 
     @Override
     public void setWinner(boolean playerIsWinner, boolean isArena) {
+        boolean isCapitolDefense = currentMobIsCapitolDefense;
+        currentMobIsCapitolDefense = false;
         if (playerIsWinner) {
             currentMob.clearCollisionHeight();
             Current.player().win();
@@ -372,11 +382,26 @@ public class WorldStage extends GameStage implements SaveFileContent {
             currentMob.setAnimation(CharacterSprite.AnimationTypes.Attack);
             startPause(0.5f, () -> {
                 currentMob.resetCollisionHeight();
+                // Capitol defense (MOD_SCOPE.md #7): losing this one ends the run outright - skip
+                // every ordinary loss consequence (life/gold penalty, quest hooks, mage-
+                // persistence) entirely, they're meaningless once the game is over.
+                if (isCapitolDefense) {
+                    currentMob = null;
+                    triggerCapitolDefeat();
+                    return;
+                }
                 boolean defeated = Current.player().defeated();
                 AdventureQuestController.instance().updateQuestsLose(currentMob);
                 AdventureQuestController.instance().showQuestDialogs(MapStage.getInstance());
                 boolean defeatedFromBoss = currentMob.getData().boss && !isArena;
-                WorldStage.this.removeEnemy(currentMob);
+                // Territory Control (MOD_SCOPE.md #7): losing to an attack mage no longer removes
+                // it - it survives and keeps traveling toward its target, just can't be
+                // re-engaged again until the next in-game day (see the collision check below and
+                // EnemySprite.lastDuelDay). Killing one (the WIN branch above) still removes it.
+                if (currentMob.territoryColor != null)
+                    currentMob.lastDuelDay = WorldSave.getCurrentSave().getWorld().getCurrentDay();
+                else
+                    WorldStage.this.removeEnemy(currentMob);
                 currentMob = null;
                 if (defeated) {
                     WorldStage.getInstance().resetPlayerLocation();
@@ -461,6 +486,63 @@ public class WorldStage extends GameStage implements SaveFileContent {
 
     private static String capitalizeColor(String color) {
         return Character.toUpperCase(color.charAt(0)) + color.substring(1);
+    }
+
+    // Capitol defense (MOD_SCOPE.md #7 forced duel, user request 2026-08-10): called by
+    // TerritoryControl.checkPendingCapitolDefense() once it's safe to interrupt (see
+    // GameStage.act()). Duels a one-shot CLONE of the arrived mage's EnemyData with
+    // gamesPerMatch bumped to 3 - cloned so ordinary mage interceptions elsewhere stay best-of-1
+    // (EnemyData.gamesPerMatch already flows straight into DuelScene's match rules, no other
+    // plumbing needed). territoryColor carries over onto the clone so DuelScene's mage-kill 2x
+    // reputation bonus still applies on a win. Reuses the same transition-screen/initDuels
+    // sequence the ordinary player-collision path uses (WorldStage.onActing()), just triggered
+    // directly rather than from a live collision.
+    public void startForcedCapitolDuel(EnemySprite mage) {
+        EnemyData duelData = new EnemyData(mage.getData());
+        duelData.gamesPerMatch = 3;
+        EnemySprite duelMage = new EnemySprite(duelData);
+        duelMage.territoryColor = mage.territoryColor;
+        currentMob = duelMage;
+        currentMobIsCapitolDefense = true;
+        Forge.advFreezePlayerControls = true;
+        DuelScene duelScene = DuelScene.instance();
+        FThreads.invokeInEdtNowOrLater(() -> {
+            Forge.setTransitionScreen(new TransitionScreen(() -> {
+                Forge.advFreezePlayerControls = false;
+                duelScene.initDuels(player, duelMage);
+                Forge.switchScene(duelScene);
+            }, Forge.takeScreenshot(), true, false, false, false, "", Current.player().avatar(),
+                    duelMage.getAtlasPath(), Current.player().getName(), duelMage.getName()));
+            WorldSave.getCurrentSave().autoSave();
+        });
+    }
+
+    // Capitol defense loss (MOD_SCOPE.md #7, user request 2026-08-10): nothing like a run-ending
+    // state exists elsewhere in Adventure mode - built new for this. Deliberately does NOT delete
+    // the save (no permadeath mechanic exists in this codebase to hook into) - a blocking dialog,
+    // then back to the main menu, same "leave with a saved preview" pattern openMenu() already
+    // uses for an ordinary menu exit. If this turns out too harsh (or not harsh enough), the save
+    // itself is untouched either way.
+    private void triggerCapitolDefeat() {
+        Forge.advFreezePlayerControls = true;
+        Dialog dialog = getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+
+        TypingLabel label = Controls.newTypingLabel("[RED]Your Capitol has fallen![]\nWithout it, your hold on this realm is lost.");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+
+        dialog.getButtonTable().add(Controls.newTextButton("Return to Main Menu", () -> {
+            Forge.advFreezePlayerControls = false;
+            hideDialog();
+            WorldSave.getCurrentSave().header.createPreview();
+            Forge.switchScene(StartScene.instance());
+        })).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog();
     }
 
     // Severe-tier ordinary towns show a real blocking dialog (user request 2026-08-08 - the old
@@ -743,6 +825,9 @@ public class WorldStage extends GameStage implements SaveFileContent {
             // mages simply load the old way, as plain roaming monsters.
             List<String> territoryColors = data.containsKey("territoryColors") ? (List<String>) data.readObject("territoryColors") : null;
             List<String> territoryTargetIds = data.containsKey("territoryTargetIds") ? (List<String>) data.readObject("territoryTargetIds") : null;
+            // Absent on a save predating the mage-persists-on-loss change - defaults to "never
+            // engaged" (-1), same as a freshly-dispatched mage.
+            List<Integer> lastDuelDays = data.containsKey("lastDuelDays") ? (List<Integer>) data.readObject("lastDuelDays") : null;
             for (int i = 0; i < timeouts.size(); i++) {
                 EnemySprite sprite = new EnemySprite(WorldData.getEnemy(names.get(i)));
                 sprite.setX(x.get(i));
@@ -750,6 +835,8 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 sprite.questStageID = questStageIDs.get(i);
                 if (sprite.questStageID != null)
                     AdventureQuestController.instance().rematchQuestSprite(sprite);
+                if (lastDuelDays != null && i < lastDuelDays.size() && lastDuelDays.get(i) != null)
+                    sprite.lastDuelDay = lastDuelDays.get(i);
                 if (territoryTargetIds != null && i < territoryTargetIds.size() && territoryTargetIds.get(i) != null) {
                     // WorldSave.load() loads World (and its POIs) before this method runs, so the
                     // id resolves against the same world state the save captured. If it somehow
@@ -807,6 +894,8 @@ public class WorldStage extends GameStage implements SaveFileContent {
         // re-resolved against the freshly-loaded world in load() below.
         List<String> territoryColors = new ArrayList<>();
         List<String> territoryTargetIds = new ArrayList<>();
+        // Per-mage cooldown (MOD_SCOPE.md #7 mage-persistence change) - see EnemySprite.lastDuelDay.
+        List<Integer> lastDuelDays = new ArrayList<>();
         for (Pair<Float, EnemySprite> enemy : enemies) {
             timeouts.add(enemy.getKey());
             names.add(enemy.getValue().getData().getName());
@@ -815,6 +904,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
             questStageIDs.add(enemy.getValue().questStageID);
             territoryColors.add(enemy.getValue().territoryColor);
             territoryTargetIds.add(enemy.getValue().territoryTarget == null ? null : enemy.getValue().territoryTarget.getID());
+            lastDuelDays.add(enemy.getValue().lastDuelDay);
         }
         data.storeObject("timeouts", timeouts);
         data.storeObject("names", names);
@@ -822,6 +912,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
         data.storeObject("y", y);
         data.storeObject("questStageIDs", questStageIDs);
         data.storeObject("territoryColors", territoryColors);
+        data.storeObject("lastDuelDays", lastDuelDays);
         data.storeObject("territoryTargetIds", territoryTargetIds);
         data.store("globalTimer", globalTimer);
         return data;

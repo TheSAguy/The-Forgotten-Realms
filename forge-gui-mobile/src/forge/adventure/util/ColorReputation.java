@@ -57,6 +57,10 @@ public class ColorReputation {
     private static final int FIGHT_ALLY = -2;     // displayed -1
     private static final int FIGHT_ENEMY = 4;     // displayed +2
     private static final int BOSS_MULTIPLIER = 3;
+    // Territory Control (MOD_SCOPE.md #7) mage kills: 2x the ordinary win pattern, user request -
+    // mutually exclusive with BOSS_MULTIPLIER in practice (attack mages aren't tagged boss), but
+    // written as an independent case rather than assuming that stays true forever.
+    private static final int MAGE_KILL_MULTIPLIER = 2;
     private static final int START_TARGET = 20;   // displayed +10
     private static final int START_ALLY = 10;     // displayed +5
     private static final int START_ENEMY = -20;   // displayed -10
@@ -73,11 +77,11 @@ public class ColorReputation {
     // tier, War the SEVERE one (final answer, 2026-08-07 - the effects were always bound to the
     // scale rows; only these display strings moved around). ----
     public enum Status {
-        PARTNER("Partner"),   // rep >= 80: 30% cheaper, town 25% less likely to be mage-targeted
-        HAPPY("Happy"),       // 20..79:    15% cheaper, 5% less likely
-        NEUTRAL("Neutral"),   // -19..19:   no effect
-        UNHAPPY("Unhappy"),   // -79..-20:  25% pricier, 5% more likely
-        WAR("War");           // <= -80:    towns barred (capitals charge a toll), 40% pricier, 25% more likely
+        PARTNER("Partner"),   // rep >= 80: 30% cheaper, town 25% less likely to be mage-targeted, free Inn overheal
+        HAPPY("Happy"),       // 30..79:    15% cheaper, 5% less likely
+        NEUTRAL("Neutral"),   // -29..29:   no effect
+        UNHAPPY("Unhappy"),   // -79..-30:  25% pricier, 5% more likely
+        WAR("War");           // <= -80:    towns barred (capitals charge a toll), 40% pricier, 25% more likely, Inn heal barred
 
         public final String label;
         Status(String label) { this.label = label; }
@@ -90,8 +94,8 @@ public class ColorReputation {
     public static Status getStatus(String color) {
         int rep = displayValue(AdventurePlayer.current().getColorReputationHalfPoints(color));
         if (rep >= 80) return Status.PARTNER;
-        if (rep >= 20) return Status.HAPPY;
-        if (rep >= -19) return Status.NEUTRAL;
+        if (rep >= 30) return Status.HAPPY;
+        if (rep >= -29) return Status.NEUTRAL;
         if (rep >= -79) return Status.UNHAPPY;
         return Status.WAR;
     }
@@ -129,6 +133,13 @@ public class ColorReputation {
 
     /** True when the player is barred from this color's ordinary towns (War tier). */
     public static boolean isEntryBarred(String color) {
+        return isEnabled() && color != null && getStatus(color) == Status.WAR;
+    }
+
+    /** True when this color's War-tier standing bars the player from healing at its Inns
+     *  entirely (Partner-tier Inns are also non-purchasable, but for the opposite reason - see
+     *  AdventurePlayer.grantPartnerOverheal(); callers distinguish the two by status, not this). */
+    public static boolean isHealBarred(String color) {
         return isEnabled() && color != null && getStatus(color) == Status.WAR;
     }
 
@@ -194,16 +205,19 @@ public class ColorReputation {
 
     /**
      * Called by DuelScene when the player WINS an ordinary duel (caller excludes Arena/Inn-event
-     * fights and losses). Colorless/no-identity enemies are a no-op.
+     * fights and losses). Colorless/no-identity enemies are a no-op. isTerritoryMage is true when
+     * the defeated enemy was a Territory Control attack mage (EnemySprite.territoryColor != null)
+     * - killing one is worth double the normal win pattern (user request), on top of stopping the
+     * attack it was carrying out.
      */
-    public static void onPlayerWonDuel(EnemyData enemyData) {
+    public static void onPlayerWonDuel(EnemyData enemyData, boolean isTerritoryMage) {
         if (!isEnabled() || enemyData == null)
             return;
         java.util.List<String> enemyColors = colorsFromLetters(enemyData.colors);
         if (enemyColors.isEmpty())
             return;
         boolean mono = enemyColors.size() == 1;
-        int multiplier = enemyData.boss ? BOSS_MULTIPLIER : 1;
+        int multiplier = enemyData.boss ? BOSS_MULTIPLIER : (isTerritoryMage ? MAGE_KILL_MULTIPLIER : 1);
         for (String color : enemyColors) {
             // Multicolor applies the HALF pattern per color; internal values are stored doubled,
             // so "half" is a clean integer division by 2 of already-even constants.

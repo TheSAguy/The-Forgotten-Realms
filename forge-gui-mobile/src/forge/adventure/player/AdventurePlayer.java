@@ -74,6 +74,14 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
     // fights' half-strength effects stay exact integers and the 5 values always sum to exactly
     // zero - see ColorReputation for the rules and the display conversion.
     private final Map<String, Integer> colorReputationHalfPoints = new HashMap<>();
+    // Color reputation (MOD_SCOPE.md #1) Partner-tier Inn overheal: true while an auto-granted
+    // maxLife+2 top-up (from entering a Partner-tier color's town/capital) is still "unused".
+    // Cleared - dropping life back down to maxLife if it's still above it - by the next duel
+    // (DuelScene.GameEnd(), the same universal funnel that clears blessing below) or by entering
+    // any other town/capital (TileMapScene.enter()), whichever comes first. Deliberately NOT the
+    // same mechanism as the pre-existing paid potionOfFalseLife() - that one has no flag and is
+    // untouched by this, so a manually-purchased false-life buff keeps its old behavior exactly.
+    private boolean partnerOverhealActive = false;
     private EffectData blessing; //Blessing to apply for next battle.
     private final PlayerStatistic statistic = new PlayerStatistic();
     private final Map<String, Byte> questFlags = new HashMap<>();
@@ -135,6 +143,7 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         usingCustomDeck = false;
         adventureMode = null;
         blessing = null;
+        partnerOverhealActive = false;
         gold = 0;
         maxLife = 20;
         life = 20;
@@ -501,6 +510,7 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         wood = data.containsKey("wood") ? data.readInt("wood") : 0;
         stone = data.containsKey("stone") ? data.readInt("stone") : 0;
         townLifeBonus = data.containsKey("townLifeBonus") ? data.readInt("townLifeBonus") : 0;
+        partnerOverhealActive = data.containsKey("partnerOverhealActive") && data.readBool("partnerOverhealActive");
         colorReputationHalfPoints.clear();
         if (data.containsKey("colorReputationHalfPoints")) {
             Object obj = data.readObject("colorReputationHalfPoints");
@@ -873,6 +883,7 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         data.store("wood", wood);
         data.store("stone", stone);
         data.store("townLifeBonus", townLifeBonus);
+        data.store("partnerOverhealActive", partnerOverhealActive);
         data.storeObject("colorReputationHalfPoints", new HashMap<>(colorReputationHalfPoints));
         data.store("deckName", deck.getName());
 
@@ -1136,6 +1147,28 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
 
     public void heal(int amount) {
         life = Math.min(life + amount, maxLife);
+        onLifeTotalChangeList.emit();
+    }
+
+    public boolean isPartnerOverhealActive() {
+        return partnerOverhealActive;
+    }
+
+    /** Color reputation (MOD_SCOPE.md #1): free top-up to maxLife+2 on entering a Partner-tier
+     *  town/capital. Re-grants (refreshes back to maxLife+2) even if already active or already at
+     *  maxLife+2, so re-entering doesn't stack past +2. */
+    public void grantPartnerOverheal() {
+        life = maxLife + 2;
+        partnerOverhealActive = true;
+        onLifeTotalChangeList.emit();
+    }
+
+    /** Drops an unused Partner overheal back down to maxLife. No-op if not active. */
+    public void clearPartnerOverhealIfActive() {
+        if (!partnerOverhealActive)
+            return;
+        life = Math.min(life, maxLife);
+        partnerOverhealActive = false;
         onLifeTotalChangeList.emit();
     }
 

@@ -154,6 +154,9 @@ public class DuelScene extends ForgeScene {
         String insult = enemy.getBossInsult();
         boolean showMessages = enemy.getData().boss || (enemy.getData().copyPlayerDeck && Current.player().isUsingCustomDeck());
         Current.player().clearBlessing();
+        // Color reputation (MOD_SCOPE.md #1) Partner-tier Inn overheal: "used up" by the next duel
+        // regardless of outcome, same funnel/timing as clearBlessing() above.
+        Current.player().clearPartnerOverhealIfActive();
 
         boolean finalWinner = winner;
         boolean isBossLoss = (chaosBattle || showMessages) && !finalWinner;
@@ -207,7 +210,7 @@ public class DuelScene extends ForgeScene {
         // no-op inside the call. Deliberately outside the endRunnable below - that only runs
         // once the transition screen finishes, and reputation has no rendering dependency.
         if (winner && !isArena && eventData == null && enemy != null)
-            ColorReputation.onPlayerWonDuel(enemy.getData());
+            ColorReputation.onPlayerWonDuel(enemy.getData(), enemy.territoryColor != null);
         Forge.advFreezePlayerControls = winner;
         endRunnable = () -> Gdx.app.postRunnable(() -> {
             GameHUD.getInstance().updateBGM();

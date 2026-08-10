@@ -358,11 +358,18 @@ public class TownRestoration {
     }
 
     public static boolean capitolExists() {
+        return findCapitol() != null;
+    }
+
+    /** The player's Capitol POI ("Player Capitol", displayName "Camelot"), or null if none has
+     *  been built yet - at most one ever exists. Identified by canonical data.name, same as every
+     *  other capital-lookup in the mod, so it's unaffected by any future rename option. */
+    public static PointOfInterest findCapitol() {
         for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
             if (CAPITOL_POI_NAME.equals(poi.getData().name))
-                return true;
+                return poi;
         }
-        return false;
+        return null;
     }
 
     /** Is the town the player is currently inside the Capitol itself? */

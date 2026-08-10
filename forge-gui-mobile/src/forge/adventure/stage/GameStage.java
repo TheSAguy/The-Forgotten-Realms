@@ -42,6 +42,7 @@ import forge.adventure.util.Current;
 import forge.adventure.util.KeyBinding;
 import forge.adventure.util.MapDialog;
 import forge.adventure.util.Paths;
+import forge.adventure.util.TerritoryControl;
 import forge.adventure.world.WorldSave;
 import forge.assets.FBufferedImage;
 import forge.assets.FImageComplex;
@@ -406,6 +407,16 @@ public abstract class GameStage extends Stage {
         }
         camera.position.x = Math.min(Math.max(Scene.getIntendedWidth() / 2f, player.pos().x), getViewport().getWorldWidth() - Scene.getIntendedWidth() / 2f);
         camera.position.y = Math.min(Math.max(Scene.getIntendedHeight() / 2f, player.pos().y), getViewport().getWorldHeight() - Scene.getIntendedHeight() / 2f);
+
+        // Capitol defense (MOD_SCOPE.md #7 forced duel, user request 2026-08-10): checked here
+        // rather than in either subclass's onActing() specifically so it fires "regardless of
+        // where the player is" - both WorldStage (overworld) and MapStage (towns/dungeons) share
+        // this base act(), so a pending forced duel triggers the moment either one is on screen
+        // and nothing else (a dialog, an existing duel/scene transition, pause) is in the way.
+        // While inside a non-GameStage scene (Inn, shop, an ordinary duel, etc.) this simply never
+        // runs until the player returns to one of these two - the natural "next safe point".
+        if (!isDialogOnlyInput() && !Forge.advFreezePlayerControls)
+            TerritoryControl.checkPendingCapitolDefense();
 
         onActing(delta);
     }

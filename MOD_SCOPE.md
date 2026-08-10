@@ -111,6 +111,27 @@ Helping a color angers its two enemies, not its allies.
     funnel where win/Arena/event status are all knowable), `WorldStandingsScene.java` +
     `world_standings.json` (UI), `ConfigData.java` + plane `config.json` (flag). Engine-file
     edits recorded in `CORE_ENGINE_CHANGES.md`.
+- **Round of tweaks (2026-08-10, not yet playtested):**
+  - **Tier ranges adjusted** per user spec: Neutral widened to -29..29 (was -19..19), Happy is now
+    30..79 (was 20..79), Unhappy is now -30..-79 (was -20..-79). Partner (≥80) and War (≤-80)
+    thresholds unchanged.
+  - **Killing a Territory Control attack mage (#7) is worth 2x** the normal duel-win reputation
+    swing, on top of stopping whatever town it was going for - detected via
+    `EnemySprite.territoryColor != null` at the same `DuelScene.afterGameEnd()` funnel every other
+    reputation event already goes through. Mutually exclusive with the existing boss 3x in
+    practice (mages aren't tagged boss).
+  - **Inn healing now reputation-gated**: War-tier towns bar the paid heal option outright
+    (`ColorReputation.isHealBarred()`); Partner-tier towns grey it out for the opposite reason -
+    see the free overheal below, a purchase would be redundant. Happy/Neutral/Unhappy unchanged
+    (Unhappy explicitly still allowed - an earlier draft of this idea had Unhappy barred too,
+    dropped by the user before building).
+  - **Partner-tier free overheal**: entering any Partner-tier color's town or Capitol auto-grants
+    life = maxLife+2 (`AdventurePlayer.grantPartnerOverheal()`), simplified per the user to trigger
+    on town ENTRY, not specifically visiting the Inn. "Lose it if you don't use it": cleared back
+    to maxLife on the next duel (`DuelScene.GameEnd()`, same funnel `clearBlessing()` already
+    uses) or on entering any non-Partner town/capital first, whichever comes first
+    (`TileMapScene.enter()`). Deliberately a separate flag/mechanism from the pre-existing paid
+    `potionOfFalseLife()` (no flag, untouched by any of this) rather than reusing it.
 
 ### 2. Central Wasteland & Town Reconstruction — `In Progress`
 - First slice built: towns in the colorless "Wastes" biome (existing stand-in for "the middle
@@ -178,7 +199,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, fixed a day-reset bug and minimap staleness, then capped captured-town protection radius and fixed a stale-doodad-cache-on-load bug, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, fixed a day-reset bug and minimap staleness, then capped captured-town protection radius and fixed a stale-doodad-cache-on-load bug; 2026-08-10 - cross-color targeting activated, mages persist through a loss, Capitol defense forced duel built, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -696,6 +717,37 @@ needs its own design pass before any of this gets built:**
   into the new biome's closest named equivalent (`World.translateStructure()` and friends) -
   preserves the WFC-generated shape exactly, no re-derivation of placement needed. See "Terrain
   Switch-Out" below for the full writeup.
+- **Cross-color targeting activated, mage persistence changed, Capitol defense built (2026-08-10,
+  not yet playtested)** - closes out several items this section had long left unbuilt:
+  - **Colors now attack each other's towns**, not just neutral ones - a color's `dispatch()`
+    candidate pool now also includes ordinary TOWNS (never CAPITALS - no defined consequence
+    exists for a captured AI capital) owned by either of its two ENEMY colors on the standard
+    wheel (top of this doc), mixed with neutral candidates and picked purely by distance, no type
+    preference. Reaching a still-enemy-owned town is a 50/50 flip-to-attacker-or-revert-to-neutral
+    (the original, previously-unbuilt design above) - **note for a later pass (user request):
+    revisit this flat coin flip once mage tiers/strength exist, weight the odds instead.** If the
+    town changed hands to an ALLY of the attacker before the mage arrives, it fizzles silently
+    (no capture, no message) rather than fighting for it.
+  - **Losing to an attack mage no longer removes it.** It survives, keeps traveling toward its
+    target, and simply can't be re-engaged again until the next in-game day
+    (`EnemySprite.lastDuelDay`, checked in `WorldStage.onActing()`'s collision loop) - winning
+    still kills it and stops the attack, same as before.
+  - **Capitol targeting**: the player's own Capitol is never a normal candidate, and is fully
+    exempt from a color's attacks while Partner or Happy with it. At War specifically it becomes
+    attackable via a flat weight bonus worth 5% of the candidate pool's total - stacking with the
+    existing player-town reputation multiplier - on top of the ordinary 5 nearest (so 95%/5% in
+    the common case; the 5% bonus adds to whatever share it'd already have if it happened to also
+    land among the 5 nearest, though in practice it never does).
+  - **Capitol defense**: a mage that reaches the Capitol no longer captures it via the ordinary
+    flow - it queues a forced best-of-3 duel (`WorldStage.startForcedCapitolDuel()`, a one-shot
+    `EnemyData` clone with `gamesPerMatch=3` so ordinary mage encounters elsewhere stay best-of-1),
+    fired at the next safe moment regardless of whether the player is on the overworld or inside a
+    town (`GameStage.act()`, shared by both). **Losing ends the run** - closes out #13's
+    long-open "game-over-on-loss still open" item. No permadeath mechanic exists in this codebase
+    to hook into, so this is new: a blocking defeat dialog, then back to the main menu with the
+    save left untouched (not deleted) - worth a look once playtested to see if that's the right
+    weight for it. Winning defeats the mage normally (2x mage-kill reputation bonus applies, loot
+    drops as usual).
 
 ### 8. Town Fortifications — `Not Started`
 - Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete
@@ -902,14 +954,17 @@ needs its own design pass before any of this gets built:**
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
 
-### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; game-over-on-loss still open)
+### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7)
 - Once the player owns 5 towns, they can upgrade **one** of them into their Capitol - only 1
   allowed at a time. Needs a "which 5 towns count as owned" definition, which depends on #7
   (Dynamic Territory Control) existing first - "owns a town" isn't a concept the game has yet
   outside the player's always-safe Spawn/home base.
-- **Losing the Capitol ends the game.** Ties into #7's capture-resolution logic (a captured town
-  either flips to the attacker or reverts to neutral) and #8 (Town Fortifications) - the Capitol
-  is presumably the single highest-value thing Fortifications exist to protect.
+- **Losing the Capitol ends the game - built 2026-08-10, not yet playtested, see #7's "Capitol
+  defense" entry for the mechanism.** Turned out different from the original sketch here: rather
+  than the ordinary capture-resolution flow (flip-or-revert) ever touching the Capitol at all, a
+  mage that reaches it triggers a forced best-of-3 duel instead - lose that duel and the run ends,
+  win and the mage is defeated normally. #8 (Town Fortifications) still doesn't exist, so there's
+  currently no way to make that duel less likely to happen in the first place - only to win it.
 - **Certain buildings only buildable in the Capitol, not any town** - user's list so far: Bank,
   Archeologist (send an expedition/exploration party out - new building, not built at all yet,
   needs its own design pass), Exchange. **Open question, needs the user's call before this is
