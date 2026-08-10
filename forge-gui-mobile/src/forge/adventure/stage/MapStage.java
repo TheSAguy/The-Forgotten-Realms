@@ -1283,8 +1283,15 @@ public class MapStage extends GameStage {
                             case Life:
                             case Shards:
                             case Gold:
+                            case Stone:
                                 String message = Forge.getLocalizer().getMessageorUseDefault("lbl" + reward.getType().name(), reward.getType().name());
-                                AdventurePlayer.current().addStatusMessage(reward.getType().name(), message, reward.getCount(), actor.getX(), actor.getY() + player.getHeight());
+                                // Stone has no font-registered [+Stone] bracket icon (same
+                                // constraint as the Exchange dialog's Lumber/Stone rows and the
+                                // combat gold-variance status popup - never registered, risked a
+                                // null-FileHandle crash on other planes) - pass no icon rather
+                                // than show a broken glyph; Life/Shards/Gold keep theirs.
+                                String icon = reward.getType() == Reward.Type.Stone ? null : reward.getType().name();
+                                AdventurePlayer.current().addStatusMessage(icon, message, reward.getCount(), actor.getX(), actor.getY() + player.getHeight());
                                 AdventurePlayer.current().addReward(reward);
                                 break;
                             default:

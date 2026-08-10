@@ -336,7 +336,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   never ran for any shop/building/quest interaction - every one of those goes through THIS
   override, not the base class. Reduced to `super.showDialog()` + the one line MapStage actually
   adds (`freezeAllEnemyBehaviors = true`), so any future base-class dialog fix reaches MapStage
-  automatically. Dropped the now-unused `Actions` import.
+  automatically. Dropped the now-unused `Actions` import. Stone-pickup round (2026-08-10): the
+  single-resource walkover fast-path switch (`onActing()`'s `RewardSprite` branch) gained a
+  `case Stone:` alongside the existing Life/Shards/Gold group - Stone has no font-registered
+  `[+Stone]` bracket icon, so its status message passes a null icon rather than a broken glyph.
 
 ### HUD & UI
 - **`forge-gui-mobile/src/forge/adventure/stage/GameHUD.java`** — clock readout (#6), resource
@@ -419,7 +422,14 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   call in `create()` right after the starting deck's color identity is set. Territory Effects
   (#17, 2026-08-09): persisted `townLifeBonus` field + `applyTownLifeBonus(target)` (applies
   only the delta to maxLife; gain heals by the gain, loss clamps life to new max, never below
-  1) - driven by `TownRestoration.updateTownLifeBonus()`.
+  1) - driven by `TownRestoration.updateTownLifeBonus()`. Stone-pickup round (2026-08-10):
+  `addReward(Reward)` gained `case Stone: addStone(reward.getCount()); break;`.
+- **`forge-gui-mobile/src/forge/adventure/util/Reward.java`** — added `Stone` to the `Type` enum
+  (2026-08-10) - a walkover-only reward type (see `MapStage.java`'s onActing() entry); no new
+  constructor needed, the existing `Reward(Type, int)` covers it like `Life`/`Shards`.
+- **`forge-gui-mobile/src/forge/adventure/data/RewardData.java`** — added a `"stone"` case to
+  `generate()`'s switch (2026-08-10), mirroring the existing `"shards"` case exactly
+  (`new Reward(Reward.Type.Stone, count + addedCount)`).
 - **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 8 opt-in mod flags:
   `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`,
   `colorReputationEnabled`, `resourceSpawnsEnabled`, `dungeonRotationEnabled`, `sideQuestTimerEnabled` (all default `false` - see `CLAUDE.md`'s ground

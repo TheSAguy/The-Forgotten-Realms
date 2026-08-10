@@ -4721,3 +4721,68 @@ White mage's minimap dot showed on black. Redesign (`World.getTownVisionRadiusTi
 
 Compiled clean. Deployed (all changed classes + `new_buildings.atlas`/`.png`). **Not yet
 playtested.**
+
+## Spawn's decorative stone tile becomes a real Stone pickup + Reward.Type.Stone (2026-08-10)
+
+User spotted a purely decorative rock sprite on the floor of the Spawn map in Tiled and asked to
+turn it into something pickupable. Investigated with a 3-agent parallel workflow (map/tile
+location, the full walkover-reward pipeline, and sprite/animation requirements) before touching
+anything, since three separate unknowns needed resolving first.
+
+**What the tile was**: `main.tsx` local tile id 1879 (confirmed by back-computing the Tiled tile
+inspector's own `X=2256 Y=176` pixel rectangle against `main.tsx`'s 158-column, 16px-tile layout -
+`row*158+col = 11*158+141 = 1879`), baked once into `spawn.tmx`'s `Walls` layer at tile (17,10).
+
+**Reward pipeline gap found**: `Reward.Type` (stock `Reward.java`) had Card/Gold/Item/Life/
+Shards/CardPack but no Stone - same gap already known from the 2026-08-09 combat-variance round.
+Traced the full single-resource walkover path (`RewardSprite.getRewards()` -> `RewardData.
+generate()`'s `"gold"`/`"shards"` cases -> `MapStage.onActing()`'s inline `case Life: case
+Shards: case Gold:` fast-path group, which grants instantly with a floating status message and
+skips the card-flip `RewardScene`/`RewardActor` UI entirely for a single-resource pickup) and
+confirmed `RewardActor`'s two Reward.Type switches are LOOT/SHOP-UI only, never reached by this
+path - so adding Stone here was cheap: no card-flip icon/label wiring needed, just three small
+additions - `Reward.Type.Stone`, a `"stone"` case in `RewardData.generate()`, and a `case Stone:`
+folded into MapStage's existing fast-path group (with a one-line special case: Stone has no
+font-registered `[+Stone]` bracket icon, same known constraint as the Exchange dialog's Lumber/
+Stone rows and the combat-variance status popup, so its status message passes no icon rather than
+show a broken glyph - `AdventurePlayer.addReward()` gets the matching `case Stone: addStone(...)`).
+
+**Sprite requirement confirmed by reading `CharacterSprite.load()`/`updateAnimation()` directly**:
+an atlas needs a region literally named `"Idle"` (case-sensitive) or the pickup silently renders
+nothing at all (no exception, no log - `currentAnimation` just stays null and `draw()` no-ops).
+Every existing reward `.tx` template (`gold.tx`, `manashards.tx`, `scroll.tx`, `treasure.tx`) uses
+a 4-frame sparkle for this, but `Animation`'s own constructor has no minimum-frame requirement -
+a 1-element array is a valid, working "animation" that always returns that one frame. No nicer
+rock/pebble art existed anywhere in the repo at the right scale (overworld `_structures.atlas`
+rock sprites are 48x64 biome decorations, wrong register entirely) - reused the existing
+`resource_icons.atlas` Stone icon (used elsewhere for the Exchange dialog/HUD readout), cropped
+into a new single-frame `Idle`-named atlas (`The Forgotten Realms/maps/tileset/
+stone_pickup.atlas`/`.png`) since that shared atlas's own region is named `"Stone"`, not `"Idle"`.
+
+**New reward template**: `The Forgotten Realms/maps/obj/stone.tx`, mirroring `common/maps/obj/
+gold.tx`'s structure (`type="reward"`, JSON `[{"type":"stone","count":10,"addMaxCount":5}]`,
+`spawn.Easy/Normal/Hard/Insane` all true, `sprite="maps/tileset/stone_pickup.atlas"`).
+
+**Scoping catch, before deploying**: `spawn.tmx` lives under `common/maps/map/main_story/`, and
+BOTH `common/world/points_of_interest.json` AND the mod's own copy define "Spawn" identically -
+pointing at that same physical file (confirmed: the file's own dialog text says "This... is
+Shandalar", and Shandalar has no `points_of_interest.json` override of its own, so it reads
+common's copy directly). Editing that file in place would have put a Stone pickup on stock
+Shandalar too - a real violation of `CLAUDE.md`'s "never affect a stock plane" rule, caught before
+deploying (first attempt briefly edited-then-`git checkout`-reverted the common file). Fixed
+properly: copied the pristine stock `spawn.tmx` into `The Forgotten Realms/maps/map/main_story/`,
+fixed its five relative references (2 tileset, 3 object templates) from the 2-up `common/`-local
+style to the 4-up `../../../../common/...` style every other mod-plane map already uses to reach
+shared content, THEN applied the tile-removal + reward-object edit to that copy - `stone.tx`'s own
+reference shortens to a plain `../../obj/stone.tx` since it's mod-local now. The mod's `points_of_
+interest.json` "Spawn" entry's `map` field was repointed at `../The Forgotten Realms/maps/map/
+main_story/spawn.tmx` to match. `common/maps/map/main_story/spawn.tmx` itself is now byte-identical
+to stock again - verified via diff before deploying.
+
+Compiled clean. Deployed: `Reward.class`, `RewardData.class`, `MapStage.class` + inner classes,
+`AdventurePlayer.class` + inner class spliced into the jar; new `stone.tx`, `stone_pickup.atlas`/
+`.png`, the new mod-local `spawn.tmx`, and the updated `points_of_interest.json` copied in;
+`common/spawn.tmx` confirmed restored to stock in the installed game (an earlier deploy step had
+briefly pushed the buggy shared-file edit there too - overwritten back to stock before this
+entry). **Not yet playtested** - can't verify the walkover trigger/animation without a live game
+session.

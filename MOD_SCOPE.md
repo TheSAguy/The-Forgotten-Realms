@@ -757,14 +757,21 @@ needs its own design pass before any of this gets built:**
   added to `GameHUD`'s `mapGroup` (grouped with the minimap it's positioned relative to), which
   gets hidden entirely on entering a town/dungeon; Gold/Shards/HP live in `hudGroup` instead,
   which only fades, never hides. Moved to `hudGroup` to match - visible everywhere now.
-- Earned via Economy Buildings (#10), Random Resource Spawns (#14), and now **combat gold
-  variance (2026-08-09)**: winning a duel against an enemy that would have rewarded Gold now has
-  a 25% chance to instead award Wood or Stone (50/50) at 50% of the gold amount
-  (`EnemySprite.applyGoldVariance()`) - granted immediately with a floating status message, not a
-  proper flip-card reward (Wood/Stone have no `Reward.Type` - see #10's Buildings entry for why
-  extending the stock card-flip reward system wasn't worth it for two resources with no
-  `items.atlas` art of their own). Still not obtainable via shops or the `give item` console
-  command.
+- Earned via Economy Buildings (#10), Random Resource Spawns (#14), combat gold variance
+  (2026-08-09, below), and now a **Spawn-map walkover pickup (2026-08-10)**: the decorative
+  stone tile the player starts next to has been turned into a real one-time Stone pickup
+  (10-15 Stone) via a new `Reward.Type.Stone` (see below) wired through the same instant,
+  no-card-flip walkover path Gold/Shards already use.
+- **Combat gold variance (2026-08-09)**: winning a duel against an enemy that would have
+  rewarded Gold now has a 25% chance to instead award Wood or Stone (50/50) at 50% of the gold
+  amount (`EnemySprite.applyGoldVariance()`) - granted immediately with a floating status
+  message, not a proper flip-card reward, since at the time Wood/Stone had no `Reward.Type` (see
+  #10's Buildings entry for why extending the stock card-flip reward system wasn't worth it for
+  two resources with no `items.atlas` art of their own). **`Reward.Type.Stone` now exists**
+  (added 2026-08-10 for the Spawn pickup below) but this combat-variance path still bypasses it
+  deliberately - no reason to route through the card-flip UI for a quiet background grant. Wood
+  still has no `Reward.Type` and isn't obtainable via a Tiled reward object. Still not
+  obtainable via shops or the `give item` console command.
 
 ### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09, not yet playtested)
 - **Outlook (2026-08-09):** doubles a town's fog-of-war vision radius - vision only, not the

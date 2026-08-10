@@ -345,6 +345,11 @@ public class RewardData implements Serializable {
                 case "shards":
                     ret.add(new Reward(Reward.Type.Shards, count + addedCount));
                     break;
+                // Mod addition (The Forgotten Realms, 2026-08-10): Stone as a walkover-pickup
+                // reward type, mirroring "shards" above - see Reward.Type.Stone.
+                case "stone":
+                    ret.add(new Reward(Reward.Type.Stone, count + addedCount));
+                    break;
             }
         }
         return ret;

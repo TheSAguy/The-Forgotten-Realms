@@ -1,0 +1,8 @@
+stone_pickup.png
+size: 16,16
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+Idle
+  xy: 0, 0
+  size: 16, 16

@@ -1044,6 +1044,10 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
             case Shards:
                 addShards(reward.getCount());
                 break;
+            // Mod addition (The Forgotten Realms, 2026-08-10): Stone as a Reward type.
+            case Stone:
+                addStone(reward.getCount());
+                break;
         }
     }
 

@@ -14,7 +14,8 @@ public class Reward {
         Item,
         Life,
         Shards,
-        CardPack
+        CardPack,
+        Stone
     }
 
     Type type;

@@ -3645,7 +3645,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Spawn",
-		"map": "../common/maps/map/main_story/spawn.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/spawn.tmx",
 		"questTags": [
 			"Story",
 			"Spawn",
