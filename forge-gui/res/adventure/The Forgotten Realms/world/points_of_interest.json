@@ -1833,7 +1833,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "ForestCapital",
-		"map": "../common/maps/map/main_story/forest_capital.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/forest_capital.tmx",
 		"questTags": [
 			"Capital",
 			"BiomeGreen",
@@ -2425,7 +2425,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "IslandCapital",
-		"map": "../common/maps/map/main_story/island_capital.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/island_capital.tmx",
 		"questTags": [
 			"Capital",
 			"BiomeBlue",
@@ -3219,7 +3219,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MountainCapital",
-		"map": "../common/maps/map/main_story/mountain_capital.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/mountain_capital.tmx",
 		"questTags": [
 			"Capital",
 			"BiomeRed",
@@ -3317,7 +3317,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "PlainsCapital",
-		"map": "../common/maps/map/main_story/plains_capital.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/plains_capital.tmx",
 		"questTags": [
 			"Capital",
 			"BiomeWhite",
@@ -3802,7 +3802,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SwampCapital",
-		"map": "../common/maps/map/main_story/swamp_capital.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/swamp_capital.tmx",
 		"questTags": [
 			"Capital",
 			"BiomeBlack",
@@ -4203,5 +4203,197 @@
 			"BiomeBlack",
 			"Sidequest"
 		]
+	},
+	{
+		"name": "Omenport",
+		"displayName": "Omenport",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildingsbosses.atlas",
+		"sprite": "Zedruu",
+		"map": "../The Forgotten Realms/maps/map/fort/Omenport.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Tarnation",
+		"displayName": "Tarnation",
+		"type": "castle",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "ruinedcity",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/Tarnation_1.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Three Tree City",
+		"displayName": "Three Tree City",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "Building84",
+		"map": "../The Forgotten Realms/maps/map/fort/Three_Tree_City.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Wizard Palace",
+		"displayName": "Wizard Palace",
+		"type": "castle",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "DjinnPalace",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/Wizard_Palace_1.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Squirrel Farm",
+		"displayName": "Squirrel Farm",
+		"type": "castle",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "farm",
+		"map": "../The Forgotten Realms/maps/map/grove/Squirrel_Farm.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Gitrog Bog",
+		"displayName": "Gitrog Bog",
+		"type": "castle",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildingsbosses.atlas",
+		"sprite": "Mystical Bog",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/Gitrog_Bog_1.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Valor's Reach Arena",
+		"displayName": "Valor's Reach Arena",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "Building15",
+		"map": "../The Forgotten Realms/maps/map/cave/Valors_Reach_Arena.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Church of Valgavoth",
+		"displayName": "Church of Valgavoth",
+		"type": "castle",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildingsbosses.atlas",
+		"sprite": "Valvagoth's Lair",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/Church_of_Valgavoth_1.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Court of Paliano",
+		"displayName": "Court of Paliano",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "Building91",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/Court_of_Paliano.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Kenrith's Court",
+		"displayName": "Kenrith's Court",
+		"type": "castle",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "Building134",
+		"map": "../The Forgotten Realms/maps/map/fort/Kenriths_Court.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Prismari Classroom",
+		"displayName": "Prismari Classroom",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "Building22",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/Prismari_Classroom.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Silverquill Classroom",
+		"displayName": "Silverquill Classroom",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "Building143",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/Silverquill_Classroom.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Lorehold Classroom",
+		"displayName": "Lorehold Classroom",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "digsite",
+		"map": "../The Forgotten Realms/maps/map/fort/Lorehold_Classroom.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Witherbloom Classroom",
+		"displayName": "Witherbloom Classroom",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "MageTower",
+		"map": "../The Forgotten Realms/maps/map/grove/Witherbloom_Classroom.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Quandrix Classroom",
+		"displayName": "Quandrix Classroom",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "Portal",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/Quandrix_Classroom.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
+	},
+	{
+		"name": "Eldrazi Prison",
+		"displayName": "Eldrazi Prison",
+		"type": "castle",
+		"count": 1,
+		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
+		"sprite": "colorless_castle",
+		"map": "../The Forgotten Realms/maps/map/cave/Eldrazi_Prison_0.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"]
 	}
 ]

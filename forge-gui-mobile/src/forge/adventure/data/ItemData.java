@@ -20,7 +20,12 @@ public class ItemData implements Serializable, Cloneable {
     public String iconName;
     public boolean questItem=false;
     public int cost=1000;
-    
+    // Item economy (2026-08-10): Common/Uncommon/Rare/Mythic, matching MTG's own rarity naming.
+    // For items with effect.startBattleWithCard(InCommandZone), set from that card's real printed
+    // rarity (Forge's own card database, not guessed). For non-card items, set by cost/judgment.
+    // Not runtime-derived - an explicit, one-time editorial tag shops can gate/weight on.
+    public String rarity="Common";
+
     public boolean usableOnWorldMap;
     public boolean usableInPoi;
     public boolean isCracked;
@@ -44,6 +49,7 @@ public class ItemData implements Serializable, Cloneable {
         iconName          = cpy.iconName;
         questItem         = cpy.questItem;
         cost              = cpy.cost;
+        rarity            = cpy.rarity;
         usableInPoi       = cpy.usableInPoi;
         usableOnWorldMap  = cpy.usableOnWorldMap;
         commandOnUse      = cpy.commandOnUse;

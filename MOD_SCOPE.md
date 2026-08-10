@@ -1128,3 +1128,68 @@ pattern/assets, not literal copy-paste, unless noted otherwise.
   entry-bar/toll mechanics from towns out to the terrain itself).
 - Depends on: #7 (territory ownership per tile - exists), #1 (reputation tiers - exists),
   #13 (player territory - exists). This item is the payoff layer on top of all three.
+
+### 18. Item Economy — `Built (2026-08-10), not yet playtested`
+Started from a full item-catalog audit (spreadsheet export, user annotated it) covering
+obtainability, a proposed Common/Uncommon/Rare/Mythic tier system, and a weekly-refresh Armory
+concept. Built out over one long round:
+- **Catalog cleanup**: removed all items whose own description read "This item has been removed/
+  discontinued", all Commander-specific items (not used in this mod), and ~15 unfixable quest
+  items (see next bullet) - 76 items total (664 -> 588), full list in `MOD_CHANGELOG.md`.
+- **Quest-item obtainability audit + fixes**: every quest item traced to confirm it's actually
+  reachable in-game, not just present in `items.json`. Imported 17 dungeon files (+ 2 sprite
+  atlases) from the bundled "Realm of Legends" plane to fix items with no working source (verified
+  tileset-safe, no path collisions, before copying - same standard as every other cross-plane
+  borrow this mod has done). A handful of quest items judged not worth a dedicated new dungeon for
+  were removed instead, with the tradeoff noted in `MOD_CHANGELOG.md`.
+- **Rarity field**: every item now carries `rarity` (Common/Uncommon/Rare/Mythic - **"Mythic," not
+  "Legendary,"** matching MTG's own naming, per explicit standing instruction), usable for shop
+  gating and weighted drop tables.
+- **Land-art shops**: the ~60 "Landscape Sketchbook" items (grant alternate land art in the
+  deckbuilder) route through the Capitol's existing land shops, which already refresh weekly via
+  the pre-existing `landSketchbookShop` reward type.
+- **Weekly-refreshing Armory shops** (new `PointOfInterestChanges.getWeeklyShopSeed()` - shops
+  flagged `noRestock` now auto-reseed every 7 in-game days instead of never): player-town Armories
+  sell a random rotation of Obtainable-Common items; the Capitol Armory sells all 4 tiers, weighted
+  30% Common / 60% Uncommon / 8% Rare / 2% Mythic per week (`MapStage.java` gained optional
+  per-shop `uncommonThreshold`/`rareThreshold`/`mythicThreshold` TMX overrides for this).
+- **Arena prize pools rebuilt**: the non-quest, non-obtainable item pool (447 items) was split
+  across the 5 AI Capitals (Mythic excluded, ~85 items/color, rarity-balanced) added as a 50%-
+  weighted bonus layer on top of each arena's existing prizes. The player's own Capitol Arena got
+  the union of the 5 AI arenas' original prizes (all 5 colors, not just white) plus the *entire*
+  447-item non-obtainable pool at the same 30/60/8/2 weighting. (Weighting is approximated via
+  independent per-entry fire probabilities, not true mutual exclusivity - the engine's `RewardData`
+  has no built-in weighted-choice primitive; flagged as a pragmatic tradeoff, not a hidden one.)
+- **Boss drops**: 12 existing bosses that had zero item reward (Dark Enchanter, Emrakul, Kozilek,
+  Ancient Silver Dragon, Guardian Angel, Myr Superion, Sliver Queen, Sorin, The Hydra of Shandalaar,
+  Torturer, Valyx Feaster of Torment, Wounded Sliver - all confirmed actually reachable in this
+  plane, unlike 5 other candidates that turned out to be orphaned/debug-only enemy data everywhere,
+  not just here) now guarantee one random item from the non-obtainable Mythic pool (21 items) on
+  top of their existing card/gold/life rewards. Considered importing "Shandalar Old Border"'s own
+  separate bestiary for more boss targets - skipped: the arena pools above already make all 21
+  Mythic items obtainable on their own, so the ROI didn't justify importing an entire second
+  plane's dungeon set untested.
+- **Two real pre-existing bugs found and fixed while auditing obtainability**: the Eldrazi Prison
+  treasure reward referenced `"Eldrazi Rune"` (capital R) while the item is named `"Eldrazi rune"`
+  (lowercase) - silently never granted anything. And the "Quick Travel Mart" (OmenStones) shop -
+  sells 8 teleport-stone quest items - existed in the source dungeon (`Omenport.tmx`, object
+  already wired to `commonShopList="OmenStones"`, dialogue already references it) but the shop's
+  own data entry was never copied into this plane's `shops.json`, so the shop was silently empty.
+  Both fixed directly.
+- **Six broken cross-plane dungeon exits found and fixed** (latent crash risk, not yet hit by
+  playtesting): several dungeons imported from Realm of Legends had internal `teleport` doors
+  still pointing at `../Realm of Legends/...` paths for deeper levels that were never copied over
+  (Eldrazi Prison's 5 Eldrazi-titan boss chambers + a "Hall of the Unifier", Tarnation's level 2,
+  Church of Valgavoth's level 2, Wizard Palace's level 2) - walking into one would have tried to
+  load a file that doesn't exist on disk. Disabled those doors (empty `teleport` = exits the
+  dungeon instead, same as other intentionally-unbuilt exits already in these files) rather than
+  importing 7 more untested dungeon files for a bonus task. One pair (Gitrog Bog levels 1↔2) had
+  both ends already present in this plane - repointed to `../The Forgotten Realms/...` instead of
+  disabling, since that one actually works once fixed. The Eldrazi Prison hub in particular is a
+  real 7-branch boss dungeon only 1/8 built out here - worth a dedicated import pass later if
+  wanted, not done this round.
+- **Result**: final obtainability re-audit (scanning `shops.json` + `quests.json` + every
+  `.tmx`/`.tx` map file + `enemies.json` for each item's name) shows all 588 items in this plane's
+  catalog are now obtainable through some in-game path - the original audit's working hypothesis
+  ("everything left non-obtainable is non-quest") held, and this round's shop/arena/boss work
+  closed the non-quest gap too.
