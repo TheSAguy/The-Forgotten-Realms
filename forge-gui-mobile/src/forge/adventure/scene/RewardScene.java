@@ -36,7 +36,7 @@ import java.util.Comparator;
  * Displays the rewards of a fight or a treasure
  */
 public class RewardScene extends UIScene {
-    private TextraButton doneButton, detailButton, restockButton;
+    private TextraButton doneButton, detailButton, restockButton, destroyButton;
     private TextraLabel playerGold, playerShards;
     private TypingLabel headerLabel;
     private Vector2 headerLabelOrigPos;
@@ -84,6 +84,27 @@ public class RewardScene extends UIScene {
         detailButton.setVisible(false);
         doneButton = ui.findActor("done");
         restockButton = ui.findActor("restock");
+        // Destroy Building lives ON the shop page (mod feature, user revision 2026-08-09 - see
+        // ShopActor.isDestroyable() for which shops qualify) - built programmatically rather than
+        // added to the shared ui/items.json, which every plane's shops load. Positioned above the
+        // done/checkmark button.
+        destroyButton = Controls.newTextButton("Destroy Building", this::promptDestroyShop);
+        destroyButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
+        destroyButton.setPosition(doneButton.getX() + doneButton.getWidth() - destroyButton.getWidth(),
+                doneButton.getY() + doneButton.getHeight() + 10f);
+        destroyButton.setVisible(false);
+        ui.addActor(destroyButton);
+    }
+
+    private void promptDestroyShop() {
+        if (shopActor == null || !shopActor.isDestroyable())
+            return;
+        showDialog(createGenericDialog("", "Destroy this building?\nYou will not get any resources back.",
+                Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
+                    removeDialog();
+                    EconomyBuildings.destroyShopFromRewardScene(shopActor);
+                    done(true);
+                }, this::removeDialog));
     }
 
     @Override
@@ -361,6 +382,7 @@ public class RewardScene extends UIScene {
         this.type = type;
         doneClicked = false;
         updateCollectionPool();
+        destroyButton.setVisible(false); // re-enabled by the Shop case below when applicable
         if (type == Type.Shop) {
             this.shopActor = shopActor;
             this.changes = shopActor.getMapStage().getChanges();
@@ -444,6 +466,9 @@ public class RewardScene extends UIScene {
                     restockButton.setVisible(false);
                     restockButton.setDisabled(true);
                 }
+                destroyButton.setVisible(shopActor.isDestroyable());
+                if (destroyButton.isVisible())
+                    addToSelectable(destroyButton);
                 break;
             case QuestReward:
             case Loot:

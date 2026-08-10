@@ -4637,3 +4637,87 @@ multi-frame sheet exists for any of them, so they keep the twinkle.
 Compiled clean. Deployed: `EnemySprite.class` + inner classes, `WorldStage.class` + inner classes
 (`ResourceSpawnActor` picked up the new field), `Paths.class` spliced into the installed jar.
 **Not yet playtested.**
+
+## Big Outlook/Teleporter/Capitol playtest round: 15 reports, 2 root-caused engine bugs (2026-08-09)
+
+User playtested the whole building round and reported 15 items. The two deep ones first:
+
+### Root cause 1: movement STILL leaked through dialogs (third report of this class)
+`MapStage.showDialog()`'s missing stop() was fixed last round - but that only halts movement at
+dialog-OPEN time. The real hole: `GameStage.touchDown()`/`touchDragged()` record `touchX/touchY`
+and `act()` steers the player toward it every frame, and `keyDown()` sets movement direction -
+NONE of them checked `dialogOnlyInput`. The dialog lives on the HUD stage; input is multiplexed,
+so every click on a dialog BUTTON also reached GameStage.touchDown, and the player promptly
+walked toward the clicked button's screen position behind the dialog. Fixed by gating all three
+entry points (plus the act() steering itself) on `!dialogOnlyInput`.
+
+### Root cause 2: fog of war collapsed to 2 states + capitol icon missing + mage dot in the dark
+Three symptoms, one cause: the Capitol's fog "Revealed" tier used its mirrored territory radius -
+which daily expansion grows toward 450 tiles - as a permanently-bright CIRCLE. Most of the known
+world became always-Revealed (no hazed middle tier anywhere = "only Visible and Hidden"), and
+`isCurrentlyVisible()` returned true across vast unexplored ground, which is exactly where the
+White mage's minimap dot showed on black. Redesign (`World.getTownVisionRadiusTiles()` +
+`isPersistentlyRevealed()`):
+- The Revealed tier is now **actually-owned ground** (the player-biome bit per tile - exact, not
+  a circle) plus each owned town's SMALL vision circle. The Capitol's circle is its castle keep
+  radius (20), not the territory mirror.
+- Outlook multiplies a town's circle x2, the Capitol's x3 (user revision - was flat x2).
+- The minimap fog overlay (`updateFogOfWarPixmap`) now paints REAL three tiers: black unexplored /
+  veiled explored / full-brightness Revealed (was deliberately 2-tier; user asked for 3). The
+  player's transient circle stays out of the bright tier - the overlay only re-snapshots per
+  day/scene-enter, so it would smear stale.
+- The separate capitol-icon symptom: `refreshWorldMapMarkers()` redraws markers into `biomeImage`
+  but the fog overlay holds tile COPIES - it now ends with `rebuildFogOfWarPixmap()`. Also
+  re-derived once in `WorldSave.load()` after the vision cache is real (World.load()'s own
+  rebuild runs before pointOfInterestChanges exists).
+- Mage dots were already gated on `isCurrentlyVisible()` - correct again now that the function is.
+
+### The 13 smaller items
+1. **Inn never destroyed anywhere** (user reversal of this morning's "starts repaired in Capitol"):
+   MapStage's inn case back to the ungated single-arg OnCollide - always works, no repair, towns
+   and Capitol alike. The Capitol inn auto-repair from the morning round stays (harmless no-op now).
+2. **Rebuilt Arena/Spellsmith showed nothing**: gated OnCollide buildings can now carry a
+   `withRebuiltIcon()` - drawn over-footprint once rebuilt in wasteland-template maps. Arena uses
+   real art (see 4); Spellsmith uses the generic SpecialShop icon until real art is picked.
+3. **Land shop / booster repair labels**: "Repair White/Blue/Black/Red/Green/Utility Land Shop"
+   (mapped from the basic-land ShopData names) and "Repair Booster Shop" - was generic "Repair Shop".
+4. **Real Outlook/Teleporter/Arena icons**: the user's five Tiled tile references were verified to
+   be `common/maps/tileset/buildings.png` tiles (id*16 == the quoted pixel coords, 28-column
+   sheet): Look-out 355@(304,192), Teleporter 528@(384,288), Arena 227@(48,128), Archaeologist
+   751@(368,416), ScienceLab 805@(336,448). Extracted via a throwaway ImageIO program, 2x
+   nearest-upscaled to 32x32, packed as the mod-local `maps/tileset/new_buildings.atlas`/`.png`
+   (Archaeologist/ScienceLab included for the future). Replaces the PlainShop placeholders.
+5. **Capitol kept the town's actual shops**: new persisted `PointOfInterestChanges.pinnedShopNames`
+   (objectId -> ShopData name). The upgrade snapshots each rebuilt plain shop's LIVE rolled
+   ShopData from the town's MapStage (`getShopActors()`, new) and pins them onto the capital
+   slots in order; MapStage's shop loader honors a pin over the random roll (the roll still
+   executes so the shared world RNG advances identically). Also fixes capitol shops re-rolling
+   on every map entry.
+6. **Empty submenus hidden**: Financial/Industry/Utility buttons only appear while something in
+   them is still buildable (`typeAvailable()`, same economyBuilt_<type> flag the per-option hide
+   uses).
+7. **Teleporter build option shows "X/5 built"** (like the Capitol upgrade's town count).
+8. **Capitol's Teleporter can't be destroyed** (it's the network hub - every town teleporter's
+   only destination); town teleporters keep Destroy.
+9. **Exchange dialog halved**: one row per resource, Buy+Sell side by side as two real
+   TextraButtons per row (each table cell must still be a TextraButton - showDialog()'s cast),
+   [%85] labels, tighter icons; Destroy/Close span both columns.
+10. **Card/Booster shop Destroy moved onto the shop page**: the one-round-old Enter/Destroy/Leave
+    pre-dialog is gone (an extra click per visit); plain/booster shops go straight into
+    RewardScene again, which now owns a programmatic "Destroy Building" button (above the done
+    checkmark, confirm dialog via UIScene.createGenericDialog) shown when
+    `ShopActor.isDestroyable()` - plain/booster in wasteland towns only, per the exclusion list.
+11. **Outlook actually reveals now**: building one only rebuilt the vision CACHE - nothing
+    re-derived the already-baked fog overlay or ground chunk textures, so nothing visibly changed
+    (user report). New `World.refreshFogInRadius()` + `EconomyBuildings.onOutlookChanged()`:
+    rebuild cache, revealArea() the boosted circle (marks new ground explored), then re-tier
+    fog + re-bake ground over max(before, after) radius - covers destroy (shrink) too.
+12. **Stale ECONOMY_TYPE_FLAG bug (found by review, not reported)**: the one-shot "which build
+    option did the player pick" flag persisted forever; with Destroy now in play, closing any
+    later build menu (even via "Not now") could silently re-register the destroyed type free of
+    charge. Reset to NONE when the menu opens.
+13. **Armory-in-Capitol report**: user's second test saw it present - transient/not reproducible,
+    no change.
+
+Compiled clean. Deployed (all changed classes + `new_buildings.atlas`/`.png`). **Not yet
+playtested.**

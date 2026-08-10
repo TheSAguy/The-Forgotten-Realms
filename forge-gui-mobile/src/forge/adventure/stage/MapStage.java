@@ -233,6 +233,20 @@ public class MapStage extends GameStage {
         foregroundSprites.addActor(newActor);
     }
 
+    /**
+     * The currently-loaded map's live shop actors, with whatever ShopData each actually rolled
+     * this load - the Capitol migration snapshots these to pin the upgraded town's exact shop
+     * lineup onto the capital layout (see TownRestoration.upgradeToCapitol()).
+     */
+    public java.util.List<forge.adventure.character.ShopActor> getShopActors() {
+        java.util.List<forge.adventure.character.ShopActor> shopActors = new java.util.ArrayList<>();
+        for (MapActor actor : actors) {
+            if (actor instanceof forge.adventure.character.ShopActor)
+                shopActors.add((forge.adventure.character.ShopActor) actor);
+        }
+        return shopActors;
+    }
+
     @Override
     public boolean isColliding(Rectangle adjustedBoundingRect) {
         for (Rectangle collision : collisionRect) {
@@ -663,10 +677,17 @@ public class MapStage extends GameStage {
                         break;
                     case "inn":
                         localInnID = id;
-                        addMapActor(obj, new OnCollide(() -> Forge.switchScene(InnScene.instance(TileMapScene.instance(), TileMapScene.instance().rootPoint.getID(), changes, id)), id, this));
+                        // Ungated on purpose (user decision 2026-08-09, reversing the earlier
+                        // wasteland-rubble gating): the Inn always works from the start, in
+                        // destroyed towns and the Capitol alike - single-arg OnCollide, never
+                        // shows as rubble, never needs repair.
+                        addMapActor(obj, new OnCollide(() -> Forge.switchScene(InnScene.instance(TileMapScene.instance(), TileMapScene.instance().rootPoint.getID(), changes, id))));
                         break;
                     case "spellsmith":
-                        addMapActor(obj, new OnCollide(() -> Forge.switchScene(SpellSmithScene.instance()), id, this));
+                        // Rebuilt icon: no dedicated spellsmith art identified yet - the generic
+                        // special-shop building stands in (real art wanted, see MOD_SCOPE.md).
+                        addMapActor(obj, new OnCollide(() -> Forge.switchScene(SpellSmithScene.instance()), id, this)
+                                .withRebuiltIcon(EconomyBuildings.getSpecialShopSprite()));
                         break;
                     case "shardtrader":
                         MapActor shardTraderActor = new OnCollide(() -> Forge.switchScene(ShardTraderScene.instance()), id, this);
@@ -692,7 +713,7 @@ public class MapStage extends GameStage {
                             ArenaData arenaData = JSONStringLoader.parse(ArenaData.class, prop.get("arena").toString(), "");
                             ArenaScene.instance().loadArenaData(arenaData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong());
                             Forge.switchScene(ArenaScene.instance());
-                        }, id, this));
+                        }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite()));
                         break;
                     case "exit":
                         addMapActor(obj, new OnCollide(() -> MapStage.this.exitDungeon(false, false)));
@@ -805,6 +826,19 @@ public class MapStage extends GameStage {
                         if (shops.size == 0) continue;
 
                         ShopData data = shops.get(WorldSave.getCurrentSave().getWorld().getRandom().nextInt(shops.size));
+                        // A pinned slot ignores the roll above (still executed so the shared world
+                        // RNG advances identically either way) and becomes exactly the recorded
+                        // shop - how the Capitol migration keeps the source town's actual shops
+                        // (see PointOfInterestChanges.pinnedShopNames).
+                        String pinnedName = changes.getPinnedShopName(id);
+                        if (pinnedName != null) {
+                            for (ShopData candidate : new Array.ArrayIterator<>(WorldData.getShopList())) {
+                                if (pinnedName.equals(candidate.name)) {
+                                    data = candidate;
+                                    break;
+                                }
+                            }
+                        }
                         shopsAlreadyPresent.add(data.name);
                         Array<Reward> ret = new Array<>();
                         WorldSave.getCurrentSave().getWorld().getRandom().setSeed(changes.getShopSeed(id));

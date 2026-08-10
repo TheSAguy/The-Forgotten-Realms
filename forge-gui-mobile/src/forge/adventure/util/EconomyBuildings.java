@@ -17,7 +17,6 @@ import forge.adventure.data.ShopData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
-import forge.adventure.scene.RewardScene;
 import forge.adventure.stage.MapStage;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.world.WorldSave;
@@ -58,6 +57,13 @@ public class EconomyBuildings {
     private static final float INTEREST_RATE = 0.05f;
 
     private static final String ATLAS = "maps/tileset/economy_buildings.atlas";
+    // Real art for the newer building types (2026-08-09): 16x16 tiles the user pinpointed in
+    // common's buildings.png via Tiled's tile inspector (Look-out 355, Teleporter 528, Arena 227,
+    // Archaeologist 751, Science Lab 805 - the tile-id/pixel coords matched buildings.png's
+    // 28-column layout exactly), extracted + 2x nearest-upscaled to the same 32x32 the six
+    // economy_buildings icons use. Archaeologist/ScienceLab are packed too, for whenever those
+    // buildings get built.
+    private static final String NEW_BUILDINGS_ATLAS = "maps/tileset/new_buildings.atlas";
 
     private EconomyBuildings() {}
 
@@ -90,21 +96,23 @@ public class EconomyBuildings {
     /**
      * Icon to draw over a rebuilt shop's normal footprint when it's the town's registered economy
      * building, or null if it isn't one (a plain or special shop - see getPlainShopSprite()/
-     * getSpecialShopSprite()).
-     * <p>
-     * TEMPORARY (2026-08-09): Outlook/Teleporter have no dedicated icon art yet - falls back to
-     * the generic PlainShop silhouette so they're at least visible/distinguishable from rubble,
-     * same reasoning as every other "needs SOME icon" case in this file. Needs real art picked
-     * from buildings.tsx via Tiled's tile inspector, same workflow used for the original 6 (see
-     * MOD_SCOPE.md #10) - swap atlasRegion()'s two new cases in once available.
+     * getSpecialShopSprite()). Outlook/Teleporter draw their real art from NEW_BUILDINGS_ATLAS
+     * (was a PlainShop placeholder for one round, user-reported).
      */
     public static TextureRegion getBuildingSprite(int type) {
-        if (type == OUTLOOK || type == TELEPORTER)
-            return getPlainShopSprite();
+        if (type == OUTLOOK)
+            return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Outlook");
+        if (type == TELEPORTER)
+            return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Teleporter");
         String region = atlasRegion(type);
         if (region == null)
             return null;
         return Config.instance().getAtlasSprite(ATLAS, region);
+    }
+
+    /** Rebuilt-Arena icon for the Capitol's gated Arena building (see OnCollide.draw()). */
+    public static TextureRegion getArenaSprite() {
+        return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Arena");
     }
 
     // The waste-town map template no longer has any baked-in building art at all (see
@@ -239,8 +247,12 @@ public class EconomyBuildings {
             addButtonRow(dialog, "Travel to " + destination.getDisplayName(), true,
                     () -> travelTo(stage, destination));
         }
-        addButtonRow(dialog, "Destroy Building", true, () ->
-                openDestroyConfirmDialog(stage, objectId, () -> refreshTeleporterDialog(stage, objectId)));
+        // The Capitol's own Teleporter is the network hub - destroying it would strand every town
+        // teleporter (their only destination), so only TOWN teleporters offer Destroy (user spec
+        // 2026-08-09).
+        if (!TownRestoration.isCurrentTownCapitol())
+            addButtonRow(dialog, "Destroy Building", true, () ->
+                    openDestroyConfirmDialog(stage, objectId, () -> refreshTeleporterDialog(stage, objectId)));
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
     }
@@ -307,22 +319,55 @@ public class EconomyBuildings {
     /**
      * Undoes a rebuilt/converted shop back to rubble - no gold refunded. Clears the economy-
      * building type registration (map flag + type->objectId entry) if it had one, freeing that
-     * type up to be built again (here or elsewhere in the same town). Outlook needs one extra
-     * step: the town's fog-of-war vision cache is keyed off which towns currently have one, so
-     * destroying it has to trigger an immediate rebuild or the doubled vision would linger.
+     * type up to be built again (here or elsewhere in the same town). Outlook needs extra steps:
+     * the vision cache keys off which towns currently have one, and the shrunken area's fog +
+     * ground tiles need re-deriving or the widened vision would linger visually.
      */
     private static void destroyBuilding(MapStage stage, int objectId) {
         PointOfInterestChanges changes = stage.getChanges();
         if (changes == null)
             return;
         int type = getBuildingType(changes, objectId);
+        int outlookRadiusBefore = type == OUTLOOK ? currentTownVisionRadius() : 0;
         if (type != NONE) {
             changes.getEconomyBuildingObjectIds().values().removeIf(v -> v == objectId);
             changes.getMapFlags().remove(builtFlag(type));
         }
         changes.getMapFlags().remove("shopRebuilt_" + objectId);
         if (type == OUTLOOK)
-            WorldSave.getCurrentSave().getWorld().rebuildPlayerTownVision();
+            onOutlookChanged(outlookRadiusBefore);
+    }
+
+    private static int currentTownVisionRadius() {
+        PointOfInterest point = forge.adventure.scene.TileMapScene.instance().rootPoint;
+        if (point == null)
+            return 0;
+        forge.adventure.world.World world = WorldSave.getCurrentSave().getWorld();
+        return world.getTownVisionRadiusTiles(point,
+                WorldSave.getCurrentSave().peekPointOfInterestChanges(point.getID()));
+    }
+
+    /**
+     * Makes an Outlook build/destroy actually SHOW (user report 2026-08-09: "built an Outlook and
+     * it did not extend the visible FoW" - the vision cache was rebuilt but nothing re-derived
+     * the already-baked fog overlay/ground textures, so the widened tier was invisible until some
+     * unrelated repaint). Refreshes over the LARGER of the before/after radius so both directions
+     * work: a build brightens the new ring, a destroy re-hazes the lost one. revealArea() marks
+     * any not-yet-explored ring tiles explored (a fresh Outlook genuinely uncovers ground);
+     * refreshFogInRadius() re-tiers everything else.
+     */
+    private static void onOutlookChanged(int radiusBefore) {
+        forge.adventure.world.World world = WorldSave.getCurrentSave().getWorld();
+        world.rebuildPlayerTownVision();
+        PointOfInterest point = forge.adventure.scene.TileMapScene.instance().rootPoint;
+        if (point == null)
+            return;
+        int radiusAfter = currentTownVisionRadius();
+        int radius = Math.max(radiusBefore, radiusAfter) + 2;
+        int centerX = (int) (point.getPosition().x / world.getTileSize());
+        int centerY = (int) (point.getPosition().y / world.getTileSize());
+        world.revealArea(centerX, centerY, radiusAfter, WorldStage.getInstance()::refreshBackgroundTile);
+        world.refreshFogInRadius(centerX, centerY, radius, WorldStage.getInstance()::refreshBackgroundTile);
     }
 
     /**
@@ -346,32 +391,14 @@ public class EconomyBuildings {
     }
 
     /**
-     * Pre-entry gate for a rebuilt plain Card Shop or Booster shop (2026-08-09): these two never
-     * had any MapStage dialog at all before now (straight into RewardScene on collision), so
-     * offering Destroy means inserting one - Armory and every fixedShop (Capitol land shop) skip
-     * this entirely and keep direct entry, per user's exclusion list (ShopActor decides which
-     * shops route here, not this method).
+     * Destroys a plain Card Shop / Booster shop from INSIDE its RewardScene page (user revision
+     * 2026-08-09: the first version inserted an Enter/Destroy/Leave gate before the shop, an
+     * extra click on every visit - replaced by a Destroy Building button on the shop page
+     * itself). Called by RewardScene after its own confirmation dialog; the shop's MapStage is
+     * still the live one underneath the scene. Returns to the map with the shop as rubble.
      */
-    public static void openShopEntryMenu(MapStage stage, int objectId, ShopActor actor) {
-        refreshShopEntryMenu(stage, objectId, actor);
-        stage.showDialog();
-    }
-
-    private static void refreshShopEntryMenu(MapStage stage, int objectId, ShopActor actor) {
-        Dialog dialog = stage.getDialog();
-        dialog.getContentTable().clear();
-        dialog.getButtonTable().clear();
-        dialog.clearListeners();
-        addContentRow(dialog, actor.getName());
-        addButtonRow(dialog, "Enter Shop", true, () -> {
-            stage.hideDialog();
-            RewardScene.instance().loadRewards(actor.getRewardData(), RewardScene.Type.Shop, actor);
-            Forge.switchScene(RewardScene.instance());
-        });
-        addButtonRow(dialog, "Destroy Building", true, () ->
-                openDestroyConfirmDialog(stage, objectId, () -> refreshShopEntryMenu(stage, objectId, actor)));
-        dialog.getButtonTable().add(Controls.newTextButton("Leave", stage::hideDialog)).width(240f).row();
-        dialog.setKeepWithinStage(true);
+    public static void destroyShopFromRewardScene(ShopActor actor) {
+        destroyBuilding(actor.getMapStage(), actor.getObjectId());
     }
 
     private static DialogData.ActionData spendGoldAction() {
@@ -442,7 +469,14 @@ public class EconomyBuildings {
     // condition though, since that's a structural exclusion, not an affordability one.
     private static DialogData buildOption(int type, int objectId) {
         DialogData option = new DialogData();
-        option.name = buildingName(type) + " (" + BUILD_COST + " gold)";
+        String label = buildingName(type) + " (" + BUILD_COST + " gold)";
+        // The 5-total cap is otherwise invisible until it silently stops offering the option -
+        // show progress the same way the Capitol upgrade button shows its town count (user spec
+        // 2026-08-09).
+        if (type == TELEPORTER)
+            label = buildingName(type) + " (" + BUILD_COST + " gold, "
+                    + (countTownTeleporters() + (capitolHasTeleporter() ? 1 : 0)) + "/" + (MAX_TOWN_TELEPORTERS + 1) + " built)";
+        option.name = label;
         option.isDisabled = AdventurePlayer.current().getGold() < BUILD_COST;
         if (type == NONE) {
             option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId)};
@@ -451,6 +485,13 @@ public class EconomyBuildings {
             option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId), setEconomyTypeAction(type), setBuiltFlagAction(type)};
         }
         return option;
+    }
+
+    // "Is there anything left to build in this submenu" checks (2026-08-09, user request: an
+    // empty submenu button is a dead click - hide it). Reads the same economyBuilt_<type> flag
+    // buildOption()'s per-option hide condition uses.
+    private static boolean typeAvailable(MapStage stage, int type) {
+        return !stage.checkQuestFlag(builtFlag(type));
     }
 
     /**
@@ -464,47 +505,28 @@ public class EconomyBuildings {
      * fit through the byte-limited map-flag system - see PointOfInterestChanges).
      */
     public static MapDialog buildChooseBuildingDialog(MapStage stage, int objectId) {
+        // Reset the one-shot "which option did the player pick" flag BEFORE showing the menu.
+        // It used to persist forever after a build, which was harmless while buildings were
+        // permanent - but with Destroy in play a stale value could re-register the destroyed
+        // type onto whatever shop's menu closes next, free of charge (found by review, 2026-08-09).
+        if (stage.getChanges() != null)
+            stage.getChanges().getMapFlags().put(ECONOMY_TYPE_FLAG, (byte) NONE);
         DialogData root = new DialogData();
         root.text = "This shop is buried in rubble. What would you like to rebuild it as?";
 
         DialogData notNow = new DialogData();
         notNow.name = "Not now";
 
-        DialogData industryBack = new DialogData();
-        industryBack.name = "Back";
-        DialogData industry = new DialogData();
-        industry.name = "Industry";
-        industry.text = "Which industry building?";
-        industry.options = new DialogData[]{
-                buildOption(SHARD_MINE, objectId),
-                buildOption(GOLD_MINE, objectId),
-                buildOption(LUMBER_MILL, objectId),
-                buildOption(STONE_MINE, objectId),
-                industryBack
-        };
-
-        // Teleporter unlock (user spec 2026-08-09): the Capitol's own build menu always offers it
-        // (auto-hidden once built, same one-per-type condition every other type already uses) -
-        // an ordinary town only offers it once the Capitol has built one AND fewer than 4 towns
-        // already have (townTeleporterAvailable() - a cross-POI check the declarative condition
-        // system below can't express, so it's gated imperatively here instead).
         boolean isCapitol = TownRestoration.isCurrentTownCapitol();
-        DialogData utilityBack = new DialogData();
-        utilityBack.name = "Back";
-        DialogData utility = new DialogData();
-        utility.name = "Utility";
-        utility.text = "Which utility building?";
-        List<DialogData> utilityOptions = new ArrayList<>();
-        utilityOptions.add(buildOption(OUTLOOK, objectId));
-        if (isCapitol || townTeleporterAvailable())
-            utilityOptions.add(buildOption(TELEPORTER, objectId));
-        utilityOptions.add(utilityBack);
-        utility.options = utilityOptions.toArray(new DialogData[0]);
+        List<DialogData> rootOptions = new ArrayList<>();
+        List<DialogData> backButtons = new ArrayList<>();
+        rootOptions.add(buildOption(NONE, objectId));
 
-        if (isCapitol) {
+        if (isCapitol && (typeAvailable(stage, BANK) || typeAvailable(stage, EXCHANGE))) {
             // Financial (Bank/Exchange) stays Capitol-exclusive per the earlier 2026-08-08 decision.
             DialogData financialBack = new DialogData();
             financialBack.name = "Back";
+            backButtons.add(financialBack);
             DialogData financial = new DialogData();
             financial.name = "Financial";
             financial.text = "Which financial building?";
@@ -513,29 +535,56 @@ public class EconomyBuildings {
                     buildOption(EXCHANGE, objectId),
                     financialBack
             };
-
-            root.options = new DialogData[]{
-                    buildOption(NONE, objectId),
-                    financial,
-                    industry,
-                    utility,
-                    notNow
-            };
-            // "Back" just re-shows the top-level menu - same content, not a true navigation stack.
-            financialBack.text = root.text;
-            financialBack.options = root.options;
-        } else {
-            root.options = new DialogData[]{
-                    buildOption(NONE, objectId),
-                    industry,
-                    utility,
-                    notNow
-            };
+            rootOptions.add(financial);
         }
-        industryBack.text = root.text;
-        industryBack.options = root.options;
-        utilityBack.text = root.text;
-        utilityBack.options = root.options;
+
+        if (typeAvailable(stage, SHARD_MINE) || typeAvailable(stage, GOLD_MINE)
+                || typeAvailable(stage, LUMBER_MILL) || typeAvailable(stage, STONE_MINE)) {
+            DialogData industryBack = new DialogData();
+            industryBack.name = "Back";
+            backButtons.add(industryBack);
+            DialogData industry = new DialogData();
+            industry.name = "Industry";
+            industry.text = "Which industry building?";
+            industry.options = new DialogData[]{
+                    buildOption(SHARD_MINE, objectId),
+                    buildOption(GOLD_MINE, objectId),
+                    buildOption(LUMBER_MILL, objectId),
+                    buildOption(STONE_MINE, objectId),
+                    industryBack
+            };
+            rootOptions.add(industry);
+        }
+
+        // Teleporter unlock (user spec 2026-08-09): the Capitol's own build menu always offers it
+        // (auto-hidden once built, same one-per-type condition every other type already uses) -
+        // an ordinary town only offers it once the Capitol has built one AND fewer than 4 towns
+        // already have (townTeleporterAvailable() - a cross-POI check the declarative condition
+        // system below can't express, so it's gated imperatively here instead).
+        boolean teleporterOffered = (isCapitol || townTeleporterAvailable()) && typeAvailable(stage, TELEPORTER);
+        if (typeAvailable(stage, OUTLOOK) || teleporterOffered) {
+            DialogData utilityBack = new DialogData();
+            utilityBack.name = "Back";
+            backButtons.add(utilityBack);
+            DialogData utility = new DialogData();
+            utility.name = "Utility";
+            utility.text = "Which utility building?";
+            List<DialogData> utilityOptions = new ArrayList<>();
+            utilityOptions.add(buildOption(OUTLOOK, objectId));
+            if (teleporterOffered)
+                utilityOptions.add(buildOption(TELEPORTER, objectId));
+            utilityOptions.add(utilityBack);
+            utility.options = utilityOptions.toArray(new DialogData[0]);
+            rootOptions.add(utility);
+        }
+
+        rootOptions.add(notNow);
+        root.options = rootOptions.toArray(new DialogData[0]);
+        // "Back" just re-shows the top-level menu - same content, not a true navigation stack.
+        for (DialogData back : backButtons) {
+            back.text = root.text;
+            back.options = root.options;
+        }
 
         MapDialog dialog = new MapDialog(root, stage, objectId, null);
         dialog.addDialogCompleteListener(new ChangeListener() {
@@ -547,8 +596,10 @@ public class EconomyBuildings {
                 int chosenType = stage.getQuestFlag(ECONOMY_TYPE_FLAG);
                 if (chosenType != NONE && !changes.hasEconomyBuildingOfType(chosenType)) {
                     changes.setEconomyBuildingObjectId(chosenType, objectId);
+                    // Full visual refresh, not just the cache rebuild - see onOutlookChanged()
+                    // (the cache-only version was the "built an Outlook, nothing happened" bug).
                     if (chosenType == OUTLOOK)
-                        WorldSave.getCurrentSave().getWorld().rebuildPlayerTownVision();
+                        onOutlookChanged(0);
                 }
             }
         });
@@ -556,20 +607,32 @@ public class EconomyBuildings {
     }
 
     /**
-     * Simplified rebuild dialog for "special" shops (see isSpecialShop()) - just repairs the shop
-     * back to itself, skipping the Bank/Exchange/Industry conversion choice entirely. Converting
-     * a themed booster/armory shop into a generic economy building doesn't make sense, and it
-     * was never a normal Card Shop to begin with, so buildOption(NONE, ...)'s "Card Shop" label
-     * would be wrong here too - this builds its own single option instead of reusing that one.
-     * Armory shops (see isArmoryShop()) get a "Repair Armory" label instead of the generic
-     * "Repair Shop" - named per user feedback, since it's a distinct, recognizable shop type.
+     * Simplified rebuild dialog for "special" shops (see isSpecialShop()) and the Capitol's fixed
+     * land shops - just repairs the shop back to itself, skipping the Bank/Exchange/Industry
+     * conversion choice entirely. Converting a themed booster/armory/land shop into a generic
+     * economy building doesn't make sense, and it was never a normal Card Shop to begin with, so
+     * buildOption(NONE, ...)'s "Card Shop" label would be wrong here too - this builds its own
+     * single option instead of reusing that one. The label names WHAT is being repaired (user
+     * request 2026-08-09 - "Repair Green Land Shop", "Repair Booster Shop", "Repair Armory"), so
+     * the player knows it's not just another generic card shop.
      */
     public static MapDialog buildSimpleRepairDialog(MapStage stage, int objectId, ShopData data) {
         DialogData root = new DialogData();
         root.text = "This shop is buried in rubble. Repair it?";
 
+        String what;
+        String landShop = landShopLabel(data);
+        if (landShop != null)
+            what = "Repair " + landShop;
+        else if (isArmoryShop(data))
+            what = "Repair Armory";
+        else if (isBoosterShop(data))
+            what = "Repair Booster Shop";
+        else
+            what = "Repair Shop";
+
         DialogData repair = new DialogData();
-        repair.name = (isArmoryShop(data) ? "Repair Armory" : "Repair Shop") + " (" + BUILD_COST + " gold)";
+        repair.name = what + " (" + BUILD_COST + " gold)";
         repair.isDisabled = AdventurePlayer.current().getGold() < BUILD_COST;
         repair.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId)};
 
@@ -578,6 +641,23 @@ public class EconomyBuildings {
 
         root.options = new DialogData[]{repair, notNow};
         return new MapDialog(root, stage, objectId, null);
+    }
+
+    // The Capitol's six fixed land shops carry the plain basic-land ShopData names - map them to
+    // the color the player actually thinks in ("Forest" IS the green land shop). Null for
+    // anything that isn't one of the six.
+    private static String landShopLabel(ShopData data) {
+        if (data == null || data.name == null)
+            return null;
+        switch (data.name) {
+            case "Plains": return "White Land Shop";
+            case "Island": return "Blue Land Shop";
+            case "Swamp": return "Black Land Shop";
+            case "Mountain": return "Red Land Shop";
+            case "Forest": return "Green Land Shop";
+            case "Land": return "Utility Land Shop";
+            default: return null;
+        }
     }
 
     // ---- Bank / Exchange interaction dialogs (built directly, not via DialogData, since they
@@ -713,18 +793,28 @@ public class EconomyBuildings {
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();
 
-        for (Trade trade : TRADES) {
-            boolean enabled = trade.affordable(player);
-            int price = trade.verb.equals("Buy") ? TRADE_BUY_PRICE : TRADE_SELL_PRICE;
-            dialog.getButtonTable().add(buildTradeRow(trade.verb, TRADE_UNITS, trade.resourceAtlas, trade.resourceIcon,
-                    price, enabled, () -> {
-                        trade.apply(player);
+        // Compacted (user request 2026-08-09, "the Exchange menu is very big"): one row per
+        // resource, Buy and Sell as two side-by-side buttons - the dialog is half as tall as the
+        // old six-full-width-rows version. TRADES pairs stay (Buy, Sell) per resource, so step 2.
+        // Both cells must each hold an actual TextraButton (showDialog()'s hard cast, see
+        // buildTradeRow()); single-button rows below span both columns.
+        for (int i = 0; i + 1 < TRADES.length; i += 2) {
+            Trade buy = TRADES[i], sell = TRADES[i + 1];
+            dialog.getButtonTable().add(buildTradeRow(buy.verb, TRADE_UNITS, buy.resourceAtlas, buy.resourceIcon,
+                    TRADE_BUY_PRICE, buy.affordable(player), () -> {
+                        buy.apply(player);
                         refreshExchangeDialog(stage, objectId);
-                    })).width(240f).row();
+                    })).width(118f);
+            dialog.getButtonTable().add(buildTradeRow(sell.verb, TRADE_UNITS, sell.resourceAtlas, sell.resourceIcon,
+                    TRADE_SELL_PRICE, sell.affordable(player), () -> {
+                        sell.apply(player);
+                        refreshExchangeDialog(stage, objectId);
+                    })).width(118f).row();
         }
-        addButtonRow(dialog, "Destroy Building", true, () ->
+        TextraButton destroy = Controls.newTextButton("Destroy Building", () ->
                 openDestroyConfirmDialog(stage, objectId, () -> refreshExchangeDialog(stage, objectId)));
-        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
+        dialog.getButtonTable().add(destroy).colspan(2).width(240f).row();
+        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).colspan(2).width(240f).row();
         dialog.setKeepWithinStage(true);
     }
 
@@ -737,22 +827,24 @@ public class EconomyBuildings {
     // added directly onto the button itself after construction.
     private static TextraButton buildTradeRow(String verb, int qty, String resourceAtlas, String resourceIcon,
                                                int price, boolean enabled, Runnable action) {
-        TextraButton button = Controls.newTextButton(verb + " " + qty, enabled ? action : () -> {});
+        // Compact form (2026-08-09): "Buy 5 [icon] 100[gold]" at reduced scale, sized for two
+        // trade buttons per dialog row - was a full-width "Buy 5 [icon] for 100 [gold]" per row.
+        TextraButton button = Controls.newTextButton("[%85]" + verb + " " + qty, enabled ? action : () -> {});
         button.setDisabled(!enabled);
         // Controls.newTextButton()'s own label cell defaults to expand()+fill() (fine for a
         // plain single-label button, which is all this framework normally builds) - left as-is,
-        // it greedily claims the whole 240f button width, shoving every cell added below off to
+        // it greedily claims the whole button width, shoving every cell added below off to
         // the far right and leaving a big gap after "Buy 5"/"Sell 5". Disable that so the label
         // only takes its natural width and the icons sit right next to it.
         button.getTextraLabelCell().expand(false, false).fill(false, false);
 
         Sprite resourceSprite = Config.instance().getAtlasSprite(resourceAtlas, resourceIcon);
         if (resourceSprite != null)
-            button.add(new Image(new TextureRegionDrawable(resourceSprite))).size(16f).padLeft(6f);
-        button.add(Controls.newTypingLabel("for " + price)).padLeft(8f);
+            button.add(new Image(new TextureRegionDrawable(resourceSprite))).size(14f).padLeft(3f);
+        button.add(Controls.newTypingLabel("[%85]" + price)).padLeft(4f);
         Sprite goldSprite = Config.instance().getAtlasSprite(Paths.ITEMS_ATLAS, "Gold");
         if (goldSprite != null)
-            button.add(new Image(new TextureRegionDrawable(goldSprite))).size(16f).padLeft(6f);
+            button.add(new Image(new TextureRegionDrawable(goldSprite))).size(14f).padLeft(3f);
 
         return button;
     }

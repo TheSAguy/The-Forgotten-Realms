@@ -388,7 +388,12 @@ public abstract class GameStage extends Stage {
             onEndAction = null;
         }
 
-        if (touchX >= 0) {
+        // dialogOnlyInput gate (2026-08-09): while a dialog is up, a recorded touch must not keep
+        // steering the player - clicking dialog buttons also reaches this stage's touchDown
+        // (input is multiplexed with the HUD stage the dialog actually lives on), so without this
+        // the player walked toward every button click behind the dialog (user-reported twice; the
+        // earlier showDialog() stop() only halted movement at open time, not input during).
+        if (touchX >= 0 && !dialogOnlyInput) {
             Vector2 target = this.screenToStageCoordinates(new Vector2(touchX, touchY));
             target.x -= player.getWidth() / 2f;
             Vector2 diff = target.sub(player.pos());
@@ -427,17 +432,21 @@ public abstract class GameStage extends Stage {
         super.keyDown(keycode);
         if (isPaused())
             return true;
-        if (KeyBinding.Left.isPressed(keycode)) {
-            player.getMovementDirection().x = -1;
-        }
-        if (KeyBinding.Right.isPressed(keycode)) {
-            player.getMovementDirection().x = +1;
-        }
-        if (KeyBinding.Up.isPressed(keycode)) {
-            player.getMovementDirection().y = +1;
-        }
-        if (KeyBinding.Down.isPressed(keycode)) {
-            player.getMovementDirection().y = -1;
+        // Movement keys ignored while a dialog is up - same input-leak class as the touch gate in
+        // act(): the dialog's own stage handles navigation keys, this stage must not also walk.
+        if (!dialogOnlyInput) {
+            if (KeyBinding.Left.isPressed(keycode)) {
+                player.getMovementDirection().x = -1;
+            }
+            if (KeyBinding.Right.isPressed(keycode)) {
+                player.getMovementDirection().x = +1;
+            }
+            if (KeyBinding.Up.isPressed(keycode)) {
+                player.getMovementDirection().y = +1;
+            }
+            if (KeyBinding.Down.isPressed(keycode)) {
+                player.getMovementDirection().y = -1;
+            }
         }
         if (keycode == Input.Keys.F5)//todo config
         {
@@ -522,7 +531,7 @@ public abstract class GameStage extends Stage {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
-        if (isPaused())
+        if (isPaused() || dialogOnlyInput)
             return true;
         if (!GuiBase.isAndroid()) {
             touchX = screenX;
@@ -534,7 +543,7 @@ public abstract class GameStage extends Stage {
 
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        if (isPaused())
+        if (isPaused() || dialogOnlyInput)
             return true;
         if (!GuiBase.isAndroid()) {
             touchX = screenX;

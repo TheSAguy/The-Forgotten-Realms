@@ -1,0 +1,20 @@
+new_buildings.png
+size: 160,32
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+Outlook
+  xy: 0, 0
+  size: 32, 32
+Teleporter
+  xy: 32, 0
+  size: 32, 32
+Arena
+  xy: 64, 0
+  size: 32, 32
+Archaeologist
+  xy: 96, 0
+  size: 32, 32
+ScienceLab
+  xy: 128, 0
+  size: 32, 32

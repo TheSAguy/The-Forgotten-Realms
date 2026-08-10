@@ -419,14 +419,27 @@ public class TownRestoration {
         java.util.List<Integer> economyTypes = new java.util.ArrayList<>(oldChanges.getEconomyBuildingObjectIds().keySet());
         java.util.Set<Integer> economyObjectIds = new java.util.HashSet<>(oldChanges.getEconomyBuildingObjectIds().values());
         Integer oldInnId = readInnObjectId(point.getData().map); // the OLD town layout's inn
+        java.util.Set<Integer> plainRebuiltIds = new java.util.TreeSet<>(); // sorted - stable slot order
         for (String flagKey : oldChanges.getMapFlags().keySet()) {
             if (flagKey.startsWith("shopRebuilt_")) {
                 int objectId = Integer.parseInt(flagKey.substring("shopRebuilt_".length()));
                 if (oldInnId != null && objectId == oldInnId)
                     continue; // the inn migrates by type (auto-repaired below), not as a plain shop slot
-                if (!economyObjectIds.contains(objectId))
+                if (!economyObjectIds.contains(objectId)) {
                     plainRebuiltShops++; // economy buildings set the same flag - don't double-count them
+                    plainRebuiltIds.add(objectId);
+                }
             }
+        }
+        // The exact ShopData each rebuilt plain shop is currently showing, in objectId order -
+        // the upgrade is only reachable while standing IN the town, so its live MapStage still
+        // holds every rolled shop. Pinned onto the capital slots below so the Capitol keeps the
+        // SAME shops (user report 2026-08-09: "I got a different set of shops in the capitol
+        // from what I had in the town" - each map load re-rolls unpinned shop objects).
+        java.util.Map<Integer, String> rebuiltShopNames = new java.util.HashMap<>();
+        for (forge.adventure.character.ShopActor shopActor : stage.getShopActors()) {
+            if (plainRebuiltIds.contains(shopActor.getObjectId()) && shopActor.getShopData() != null)
+                rebuiltShopNames.put(shopActor.getObjectId(), shopActor.getShopData().name);
         }
         Integer oldRadius = world.getTownTerritoryRadius(point.getID());
 
@@ -445,9 +458,16 @@ public class TownRestoration {
             // offered a second mine of a type that had just migrated in (user-reported).
             EconomyBuildings.registerMigratedBuilding(newChanges, economyType, slot);
         }
+        java.util.Iterator<Integer> rebuiltIdIter = plainRebuiltIds.iterator();
         for (int i = 0; i < plainRebuiltShops && slotIndex < capitolShopSlots.size(); i++) {
             int slot = capitolShopSlots.get(slotIndex++);
             newChanges.getMapFlags().put("shopRebuilt_" + slot, (byte) 1);
+            // Pin the capital slot to the exact shop the source town's slot held (same order).
+            if (rebuiltIdIter.hasNext()) {
+                String shopName = rebuiltShopNames.get(rebuiltIdIter.next());
+                if (shopName != null)
+                    newChanges.setPinnedShopName(slot, shopName);
+            }
         }
         // The Inn came with the town (a restored town's inn was already working) - it starts
         // repaired in the Capitol, always (user spec 2026-08-09).

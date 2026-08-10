@@ -102,6 +102,11 @@ public class WorldSave {
                     // idempotent, both inert unless the mod plane's config flags are on.
                     forge.adventure.util.TownRestoration.repairCapitolState(currentSave.world);
                     forge.adventure.util.TownRestoration.updateTownLifeBonus(false);
+                    // Re-derive the minimap fog overlay now that the vision cache is real -
+                    // World.load()'s own rebuild ran before pointOfInterestChanges loaded, so its
+                    // Revealed tier (owned-town vision circles) was computed against an empty
+                    // cache. No-op when fog of war is off.
+                    currentSave.world.rebuildFogOfWarPixmap();
                     WorldStage.getInstance().load(mainData.readSubData("worldStage"));
                     // generateNew() never runs for a loaded save, so nothing has pre-built Territory
                     // Control's per-color WFC structure patterns yet - kick that off now, in the

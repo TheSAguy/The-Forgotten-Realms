@@ -1415,6 +1415,11 @@ public class World implements Disposable, SaveFileContent {
             return;
         rebakeMinimapAfterTerritoryControl();
         redrawAllPoiMarkers();
+        // The fog overlay is a separate pixmap holding COPIES of biomeImage tiles - with fog of
+        // war on it's what the minimap actually displays, so without this the fresh markers only
+        // ever landed in the hidden biomeImage (user-reported: the Capitol's new castle icon
+        // showed without fog of war but not with it). No-ops when fog of war is off.
+        rebuildFogOfWarPixmap();
     }
 
     private void rebakeMinimapAfterTerritoryControl() {
@@ -2873,18 +2878,83 @@ public class World implements Disposable, SaveFileContent {
                     WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
             if (!TownRestoration.isTownRestored(changes))
                 continue;
-            Integer radius = townTerritoryRadius.get(poi.getID());
-            int r = radius != null ? radius : TerritoryControl.RECOLOR_RADIUS;
-            // Outlook (2026-08-09): doubles VISION only, per user spec - the town's actual owned/
-            // claimable territory radius (townTerritoryRadius, read above) is left untouched, so
-            // this only widens what fog-of-war reveals, not what claimWastelandRing() can contest.
-            if (changes.hasEconomyBuildingOfType(EconomyBuildings.OUTLOOK))
-                r *= 2;
             playerTownVisionAreas.add(new int[]{
                     (int) (poi.getPosition().x / data.tileSize),
                     (int) (poi.getPosition().y / data.tileSize),
-                    r * r});
+                    getTownVisionRadiusTiles(poi, changes)});
         }
+        // Squared once, after the fact, so getTownVisionRadiusTiles() can stay in plain tiles for
+        // its other callers (EconomyBuildings' Outlook build/destroy refresh).
+        for (int[] area : playerTownVisionAreas)
+            area[2] = area[2] * area[2];
+    }
+
+    /**
+     * A player-owned town's fog-of-war vision radius in TILES. The Capitol's is deliberately its
+     * castle keep radius, NOT its mirrored territory radius (2026-08-09 FoW repair): the mirror
+     * grows toward MAX_TERRITORY_RADIUS (450) with daily expansion, and using it here made a huge
+     * disc count as permanently Revealed regardless of what the player actually held or had even
+     * explored - which is what collapsed fog of war to two visible states (everything near the
+     * player Revealed-bright, everything else unexplored-black, no hazed middle tier anywhere)
+     * and let mage minimap dots show over unexplored ground inside the circle (both
+     * user-reported). Actual held GROUND is Revealed via the ownership-bit check in
+     * isPersistentlyRevealed() instead - exact, not a circle. Outlook (vision building): x2 for a
+     * town, x3 for the Capitol (user spec 2026-08-09).
+     */
+    public int getTownVisionRadiusTiles(PointOfInterest poi, forge.adventure.pointofintrest.PointOfInterestChanges changes) {
+        boolean isCapitol = TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name);
+        int r;
+        if (isCapitol) {
+            r = TerritoryControl.CASTLE_KEEP_RADIUS_TILES;
+        } else {
+            Integer radius = townTerritoryRadius.get(poi.getID());
+            r = radius != null ? radius : TerritoryControl.RECOLOR_RADIUS;
+        }
+        if (changes != null && changes.hasEconomyBuildingOfType(EconomyBuildings.OUTLOOK))
+            r *= isCapitol ? 3 : 2;
+        return r;
+    }
+
+    // Lazily-resolved "player" biome bit for isPersistentlyRevealed()'s ownership check; -2 =
+    // not looked up yet, -1 = this plane has no player biome (every stock plane).
+    private int playerBiomeIndexCache = -2;
+
+    private long playerBiomeBit() {
+        if (playerBiomeIndexCache == -2) {
+            playerBiomeIndexCache = -1;
+            List<BiomeData> biomes = data.GetBiomes();
+            for (int i = 0; i < biomes.size(); i++) {
+                if ("player".equalsIgnoreCase(biomes.get(i).name)) {
+                    playerBiomeIndexCache = i;
+                    break;
+                }
+            }
+        }
+        return playerBiomeIndexCache < 0 ? 0L : 1L << playerBiomeIndexCache;
+    }
+
+    /**
+     * The PERSISTENT (player-position-independent) Revealed tier: ground the player actually owns
+     * (the player biome bit painted by captures/expansion - exact per tile, not a circle), plus
+     * each owned town's vision circle (which Outlook widens). Split out from isCurrentlyVisible()
+     * so the minimap fog overlay can use exactly this tier without the player's transient vision
+     * circle (the overlay only re-snapshots per day/enter, so a baked-in transient circle would
+     * just go stale and smear).
+     */
+    public boolean isPersistentlyRevealed(int x, int y) {
+        long playerBit = playerBiomeBit();
+        if (playerBit != 0 && biomeMap != null && x >= 0 && x < width && y >= 0 && y < height) {
+            int rawY = height - y - 1;
+            if (rawY >= 0 && rawY < height && (biomeMap[x][rawY] & playerBit) != 0)
+                return true;
+        }
+        for (int[] area : playerTownVisionAreas) {
+            int tx = x - area[0];
+            int ty = y - area[1];
+            if (tx * tx + ty * ty <= area[2])
+                return true;
+        }
+        return false;
     }
 
     public boolean isCurrentlyVisible(int x, int y) {
@@ -2894,13 +2964,7 @@ public class World implements Disposable, SaveFileContent {
         int dy = y - visiblePlayerTileY;
         if (dx * dx + dy * dy <= visionRadius * visionRadius)
             return true;
-        for (int[] area : playerTownVisionAreas) {
-            int tx = x - area[0];
-            int ty = y - area[1];
-            if (tx * tx + ty * ty <= area[2])
-                return true;
-        }
-        return false;
+        return isPersistentlyRevealed(x, y);
     }
 
     private Pixmap getFogTile() {
@@ -2930,9 +2994,12 @@ public class World implements Disposable, SaveFileContent {
     }
 
     // rawX/rawY are in biomeMap's raw/image-space (unflipped), matching the x,y loop that built biomeImage.
-    // The minimap only distinguishes unknown (black, untouched) vs known (dimmed) - it doesn't need a
-    // third "currently visible" tier the way the ground view does, since it isn't showing live monster
-    // positions in the first place.
+    // THREE tiers now (2026-08-09, user-requested - was two): unknown (solid black), explored
+    // (dimmed veil), and persistently Revealed (full brightness - owned ground and owned-town
+    // vision circles). The transient vision circle around the player deliberately does NOT get
+    // the bright tier here: the minimap texture only re-snapshots per in-game day (or scene
+    // enter), so baking the player's momentary circle in would leave a stale bright smear
+    // wherever they happened to be standing at snapshot time.
     private void updateFogOfWarPixmap(int rawX, int rawY) {
         if (fogOfWarPixmap == null || biomeImage == null || data == null)
             return;
@@ -2953,8 +3020,35 @@ public class World implements Disposable, SaveFileContent {
         fogOfWarPixmap.setBlending(Pixmap.Blending.None);
         fogOfWarPixmap.drawPixmap(biomeImage, rawX * mm, rawY * mm, mm, mm, rawX * mm, rawY * mm, mm, mm);
         fogOfWarPixmap.setBlending(Pixmap.Blending.SourceOver);
-        fogOfWarPixmap.setColor(0f, 0f, 0.05f, 0.5f);
-        fogOfWarPixmap.fillRectangle(rawX * mm, rawY * mm, mm, mm);
+        if (!isPersistentlyRevealed(rawX, height - rawY - 1)) {
+            fogOfWarPixmap.setColor(0f, 0f, 0.05f, 0.5f);
+            fogOfWarPixmap.fillRectangle(rawX * mm, rawY * mm, mm, mm);
+        }
+    }
+
+    /**
+     * Re-derives the fog overlay AND the baked ground textures for every tile within radius of a
+     * center tile - for events that change a whole area's REVEALED state without touching
+     * explored[][] at all (Outlook built/destroyed, a town gained/lost). revealArea() can't do
+     * this: it early-outs on already-explored tiles, which are exactly the ones whose tier
+     * changed. Call rebuildPlayerTownVision() first - both the fog overlay and the re-baked
+     * ground read the vision cache.
+     */
+    public void refreshFogInRadius(int centerWorldX, int centerWorldY, int radius, BiConsumer<Integer, Integer> onTileRepainted) {
+        if (!isFogOfWarEnabled() || data == null)
+            return;
+        int radiusSq = radius * radius;
+        for (int wx = Math.max(0, centerWorldX - radius); wx <= Math.min(width - 1, centerWorldX + radius); wx++) {
+            int dx = wx - centerWorldX;
+            for (int wy = Math.max(0, centerWorldY - radius); wy <= Math.min(height - 1, centerWorldY + radius); wy++) {
+                int dy = wy - centerWorldY;
+                if (dx * dx + dy * dy > radiusSq)
+                    continue;
+                updateFogOfWarPixmap(wx, height - wy - 1);
+                if (onTileRepainted != null)
+                    onTileRepainted.accept(wx, wy);
+            }
+        }
     }
 
     /** Rebuilds the minimap's fog overlay from the current explored[][] state. Only needed after

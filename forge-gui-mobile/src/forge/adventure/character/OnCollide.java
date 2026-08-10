@@ -17,6 +17,11 @@ public class OnCollide extends MapActor {
 
     Runnable onCollide;
     private final MapStage gatedStage;
+    // Icon drawn once this gated building is REBUILT, in maps with no baked-in building art
+    // (the wasteland town/capital templates) - without it a rebuilt Arena/Spellsmith was simply
+    // invisible (user-reported 2026-08-09). Null = draw nothing (all ungated uses, and gated
+    // buildings whose map has real baked art).
+    private com.badlogic.gdx.graphics.g2d.TextureRegion rebuiltIcon;
 
     public OnCollide(Runnable func) {
         super(0);
@@ -28,6 +33,11 @@ public class OnCollide extends MapActor {
         super(id);
         onCollide = func;
         gatedStage = stage;
+    }
+
+    public OnCollide withRebuiltIcon(com.badlogic.gdx.graphics.g2d.TextureRegion icon) {
+        rebuiltIcon = icon;
+        return this;
     }
 
     private boolean isDestroyed() {
@@ -55,8 +65,14 @@ public class OnCollide extends MapActor {
     @Override
     public void draw(Batch batch, float alpha) {
         super.draw(batch, alpha);
-        if (!isDestroyed())
+        if (!isDestroyed()) {
+            // Rebuilt gated building in a template with no baked art: draw its icon (user report
+            // 2026-08-09 - a restored Arena/Spellsmith showed nothing at all). Same
+            // over-footprint placement as ShopActor's icons.
+            if (rebuiltIcon != null && gatedStage != null && TownRestoration.isWastelandTown())
+                drawOverFootprint(batch, rebuiltIcon);
             return;
+        }
         // In the Capitol, a destroyed gated building (Arena, Spellsmith) shows the real
         // broken-shop art instead of the translucent rubble overlay (user spec 2026-08-09,
         // "use the broken shop art for now") - same 32x32-over-footprint placement as
@@ -64,12 +80,16 @@ public class OnCollide extends MapActor {
         if (TownRestoration.isCurrentTownCapitol()) {
             com.badlogic.gdx.graphics.g2d.TextureRegion broken = TownRestoration.getBrokenShopSprite(objectId);
             if (broken != null) {
-                float w = broken.getRegionWidth();
-                float h = broken.getRegionHeight();
-                batch.draw(broken, getX() + (getWidth() - w) / 2f, getY() + getHeight() - 16f, w, h);
+                drawOverFootprint(batch, broken);
                 return;
             }
         }
         RubbleOverlay.draw(batch, getX(), getY(), getWidth(), getHeight(), alpha);
+    }
+
+    private void drawOverFootprint(Batch batch, com.badlogic.gdx.graphics.g2d.TextureRegion region) {
+        float w = region.getRegionWidth();
+        float h = region.getRegionHeight();
+        batch.draw(region, getX() + (getWidth() - w) / 2f, getY() + getHeight() - 16f, w, h);
     }
 }

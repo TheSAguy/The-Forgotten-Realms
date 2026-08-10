@@ -788,9 +788,10 @@ needs its own design pass before any of this gets built:**
   Financial (Capitol-only: Bank, Exchange) / Utility (Outlook, Teleporter once unlocked) / Not
   now - was a flatter Card Shop/Bank/Exchange/Industry-submenu (Capitol) or Card Shop/4-mines-flat
   (towns) page; nested once Outlook/Teleporter pushed the option count too high for one screen.
-- **TEMPORARY placeholder art:** Outlook and Teleporter both render with the generic PlainShop
-  icon for now - no dedicated art exists yet. Needs the same Tiled-tile-inspector pick the
-  original 6 building icons got (see this section's earlier entries) before shipping for real.
+- **Real art wired (2026-08-09 playtest round):** Outlook, Teleporter, and Arena now use the
+  user's referenced buildings.png tiles (Look-out 355, Teleporter 528, Arena 227 - extracted 2x
+  to 32x32 into the mod-local `new_buildings.atlas`, Archaeologist/ScienceLab packed too for
+  later). Spellsmith still shows the generic SpecialShop icon - no dedicated art picked yet.
 - Wasteland shops (#2) can now be rebuilt as one of 6 special buildings instead of a plain Card
   Shop: Shard Mine, Gold Mine, Lumber Mill, Stone Mine, Bank, Exchange - offered via a submenu on
   the existing rebuild-shop dialog (top level: Card Shop / Bank / Exchange / Industry / Not now;

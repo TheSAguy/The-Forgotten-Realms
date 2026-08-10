@@ -244,7 +244,18 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   day): `rebuildPlayerTownVision()` doubles a town's cached vision radius if
   `EconomyBuildings.OUTLOOK` is registered there - vision only, `townTerritoryRadius` (ownership/
   expansion) itself is untouched, so a town can see twice as far without claiming twice as much
-  ground.
+  ground. FoW-repair round (2026-08-09 playtest): the Revealed-tier model redesigned - new
+  `getTownVisionRadiusTiles()` (Capitol capped at its keep radius, NOT the huge mirrored
+  territory radius that collapsed fog to 2 states; Outlook x2 town / x3 Capitol),
+  `isPersistentlyRevealed()` (owned-ground player-biome-bit check + town circles, split from
+  `isCurrentlyVisible()` so the minimap can use it), lazily-cached `playerBiomeBit()`;
+  `updateFogOfWarPixmap()` gained the third full-brightness tier for persistently-Revealed
+  tiles; `refreshWorldMapMarkers()` ends with `rebuildFogOfWarPixmap()` (the fog overlay holds
+  tile COPIES - markers redrawn only into biomeImage never reached it, the missing-Capitol-icon
+  bug); new `refreshFogInRadius()` (re-tier fog + re-bake ground for a radius whose Revealed
+  state changed without any explored[][] change - Outlook build/destroy). `WorldSave.load()`
+  re-derives the fog overlay once after the vision cache is real (World.load()'s own rebuild
+  runs before pointOfInterestChanges loads).
 - **`forge-gui-mobile/src/forge/adventure/data/BiomeData.java`** — bug fix in
   `getEnemy()`'s weighted-random selection: a biome whose only matching enemies all have 0 spawn
   weight used to always pick the same one deterministically instead of randomly (found via the
@@ -278,7 +289,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   wipe was why the gen-time sweep and every mage capture reverted uniquely-named towns to their
   template's generic name; the sweep and captures now preserve, capital promotion still resets.
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterestChanges.java`** — added
-  persisted per-town fields: `bankBalance`, `economyBuildingObjectIds` (#10).
+  persisted per-town fields: `bankBalance`, `economyBuildingObjectIds` (#10). Playtest round
+  (2026-08-09): persisted `pinnedShopNames` (objectId -> ShopData name; missing-key-safe load) -
+  pins a shop object to a fixed shop identity instead of the per-load random roll, used by the
+  Capitol migration to carry the source town's exact shop lineup over.
 
 ### Towns, shops, and buildings (Town Reconstruction / Economy Buildings, #2 & #10)
 - **`forge-gui-mobile/src/forge/adventure/character/ShopActor.java`** — heaviest content-logic
@@ -289,16 +303,18 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   property) - a fixed shop repairs via the simple dialog only (never the economy-building
   conversion menu) and draws no overlay icon once rebuilt (its hut art is baked into the map).
   Outlook/Teleporter/Destroy round (2026-08-09, same day): `onPlayerCollide()`'s economy-type
-  switch gained OUTLOOK and TELEPORTER cases; the plain `default:` case now routes to
-  `EconomyBuildings.openShopEntryMenu()` (a new Enter/Destroy/Leave gate) instead of jumping
-  straight into `RewardScene` - EXCEPT Armory and `fixedShop` shops, which keep the original
-  direct-entry behavior (excluded from Destroy per user spec).
+  switch gained OUTLOOK and TELEPORTER cases. Playtest round (same day, user revision): the
+  short-lived Enter/Destroy/Leave pre-gate is gone again - every plain shop goes straight into
+  RewardScene, which now hosts the Destroy button itself, driven by the new
+  `isDestroyable()` (plain/booster in wasteland towns; Armory/fixedShop excluded).
 - **`forge-gui-mobile/src/forge/adventure/character/OnCollide.java`** — added an optional
   town-restoration-gated constructor overload (Job Board building specifically) - the original
   single-arg constructor is unchanged/still used everywhere else unmodified. Capitol-polish
   round (2026-08-09): a destroyed gated building in the Capitol draws the 32x32 broken-shop art
   (same placement as ShopActor's) instead of the translucent RubbleOverlay; regular towns keep
-  the overlay.
+  the overlay. Playtest round (same day): `withRebuiltIcon(TextureRegion)` builder - drawn
+  over-footprint once the gated building is rebuilt in a wasteland-template map (a restored
+  Arena/Spellsmith was invisible, no baked art exists there); null (the default) draws nothing.
 - **`forge-gui-mobile/src/forge/adventure/character/QuestActor.java`** — same gating pattern as
   `OnCollide.java` for the Job Board's own quest-giver interaction, plus triggers the terrain
   recolor prototype (#7) once a town's restored. Night round (2026-08-08): a RESTORED wasteland
@@ -309,7 +325,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — largest diff after World.java:
   shop overhead-tile detection/hide (`findOverheadTiles`/`setShopOverheadTilesHidden`), sign
   visibility live-updates. Capitol-polish round (2026-08-09): the "shop" case reads the new
-  `fixedShop` tmx property onto `ShopActor.setFixedShop()`. **Bug fix, same round**:
+  `fixedShop` tmx property onto `ShopActor.setFixedShop()`. Playtest round (same day): the
+  "inn" case reverted to the ungated single-arg OnCollide (user decision - the Inn always works,
+  never rubble); "arena"/"spellsmith" cases attach `withRebuiltIcon()` art; the "shop" case
+  honors `PointOfInterestChanges.getPinnedShopName()` over the random roll (roll still executes
+  so the shared world RNG advances identically); new `getShopActors()` accessor (the Capitol
+  migration snapshots the live rolled shops). **Bug fix, same round**:
   `showDialog()` fully duplicated `GameStage.showDialog()`'s body instead of calling it, which
   meant the 2026-08-08 "stop player movement on dialog open" fix (added only to the base class)
   never ran for any shop/building/quest interaction - every one of those goes through THIS
@@ -455,6 +476,17 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
 - **`forge-gui-mobile/src/forge/adventure/stage/GameStage.java`** — `showDialog()` now stops the
   player sprite's in-flight movement (2026-08-08 night 2) - the player kept walking behind every
   dialog; OnCollide's rebuild path had its own stop(), this generalizes it to all dialogs.
+  Playtest round (2026-08-09), the REAL fix for that same complaint: `touchDown()`/
+  `touchDragged()`/`keyDown()`'s movement handling and `act()`'s touch-steering now all check
+  `dialogOnlyInput` - input is multiplexed with the HUD stage the dialog lives on, so clicking a
+  dialog button also reached this stage's touchDown and walked the player toward the click; the
+  earlier stop() only halted movement at dialog-open time, not input DURING the dialog.
+- **`forge-gui-mobile/src/forge/adventure/scene/RewardScene.java`** — Destroy-on-shop-page
+  (2026-08-09, mod feature): new programmatic `destroyButton` (built in the constructor, NOT
+  added to the shared ui/items.json every plane loads; positioned above the done button), shown
+  only for `type == Shop` when `ShopActor.isDestroyable()` (mod-plane wasteland shops only -
+  inert everywhere else), confirm dialog via the existing `createGenericDialog()`, destruction
+  routed through `EconomyBuildings.destroyShopFromRewardScene()`.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Player Capitol round
   (2026-08-08 late night): the "arena" object case switched to the gated 3-arg OnCollide
   constructor (inn/spellsmith already used it) so an arena in a wasteland town/capital starts as

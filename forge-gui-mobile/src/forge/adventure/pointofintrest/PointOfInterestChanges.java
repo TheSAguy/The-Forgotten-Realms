@@ -28,6 +28,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
     // bytes) since Tiled object ids can exceed mapFlags' byte range.
     private final java.util.Map<Integer, Integer> economyBuildingObjectIds = new HashMap<>();
     private int bankBalance = 0;
+    // Pinned shop identity per Tiled shop object id (shop's ShopData name). Normally a shop
+    // object's type is re-rolled from its tmx lists at every map load - the Capitol migration
+    // pins each migrated slot to the exact shop the source town actually had (user report
+    // 2026-08-09: "I got a different set of shops in the capitol from what I had in the town"),
+    // and MapStage honors a pin over the random roll from then on.
+    private final java.util.Map<Integer, String> pinnedShopNames = new HashMap<>();
 
     public static class Map extends HashMap<String,PointOfInterestChanges> implements SaveFileContent {
         @Override
@@ -91,6 +97,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
                 economyBuildingObjectIds.put((int) legacyType, legacyId);
         }
         bankBalance = data.containsKey("bankBalance") ? data.readInt("bankBalance") : 0;
+        pinnedShopNames.clear();
+        if (data.containsKey("pinnedShopNames")) {
+            Object obj = data.readObject("pinnedShopNames");
+            if (obj instanceof java.util.Map)
+                pinnedShopNames.putAll((java.util.Map<Integer, String>) obj);
+        }
     }
 
     @Override
@@ -105,7 +117,16 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("isVisited", isVisited);
         data.storeObject("economyBuildingObjectIds", economyBuildingObjectIds);
         data.store("bankBalance", bankBalance);
+        data.storeObject("pinnedShopNames", new HashMap<>(pinnedShopNames));
         return data;
+    }
+
+    public String getPinnedShopName(int objectId) {
+        return pinnedShopNames.get(objectId);
+    }
+
+    public void setPinnedShopName(int objectId, String shopName) {
+        pinnedShopNames.put(objectId, shopName);
     }
 
     public boolean isObjectDeleted(int objectID) { return deletedObjects.contains(objectID); }

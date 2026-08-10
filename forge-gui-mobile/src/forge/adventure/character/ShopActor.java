@@ -116,16 +116,26 @@ public class ShopActor extends MapActor {
                 EconomyBuildings.openTeleporterDialog(stage, objectId);
                 return;
             default:
-                // Every other rebuilt shop gets an Enter/Destroy/Leave gate EXCEPT Armory and
-                // fixedShop (Capitol land shops) - both excluded from destroy per user spec
-                // 2026-08-09, so they keep the original direct-to-RewardScene behavior unchanged.
-                if (fixedShop || EconomyBuildings.isArmoryShop(shopData)) {
-                    RewardScene.instance().loadRewards(rewardData, RewardScene.Type.Shop, this);
-                    Forge.switchScene(RewardScene.instance());
-                } else {
-                    EconomyBuildings.openShopEntryMenu(stage, objectId, this);
-                }
+                // Straight into the shop - a destroyable shop's Destroy Building button lives on
+                // the RewardScene page itself (user revision 2026-08-09; a first version's
+                // Enter/Destroy/Leave pre-dialog cost an extra click on every visit).
+                RewardScene.instance().loadRewards(rewardData, RewardScene.Type.Shop, this);
+                Forge.switchScene(RewardScene.instance());
         }
+    }
+
+    /**
+     * May this shop show a Destroy Building option (on its RewardScene page)? Plain Card Shops
+     * and Booster shops in player-held wasteland towns only - Armory and the Capitol's fixed
+     * land shops are on the user's excluded list, everything outside wasteland towns isn't
+     * player-buildable at all, and economy-building conversions carry their Destroy in their own
+     * dialogs already.
+     */
+    public boolean isDestroyable() {
+        return TownRestoration.isWastelandTown() && !fixedShop
+                && !EconomyBuildings.isArmoryShop(shopData)
+                && TownRestoration.isShopRebuilt(stage, objectId)
+                && EconomyBuildings.getBuildingType(stage.getChanges(), objectId) == EconomyBuildings.NONE;
     }
 
     private boolean isDestroyed() {
