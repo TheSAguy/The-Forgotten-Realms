@@ -95,10 +95,11 @@ forge-gui/tools/PerSetTrackingResults
 __pycache__
 *.pyc
 
-# Ignore Claude configuration, but track project-level skills so they travel with the repo
+# Ignore Claude configuration, but track project-level skills and settings so they travel with the repo
 .claude/*
 !.claude/skills/
 !.claude/skills/**
+!.claude/settings.json
 # EDHREC commander matrix tool intermediates
 forge-gui/tools/build
 forge-gui-ios/robovm.properties
