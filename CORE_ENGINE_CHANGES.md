@@ -183,6 +183,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `[x][height - y]` raw index convention, so runtime roads line up with the generated network),
   skips already-road tiles, updates minimap + fog pixmap per changed tile, chunk-patches changed
   tiles + a 2-tile blend ring; called from `TerritoryControl.connectCapturedTownByRoad()`.
+  FoW discovery-flash round (2026-08-10): new time-limited "temporarily revealed" tier on top of
+  the existing 3 (`temporaryRevealTimers`/`temporarilyReveal()`/`isTemporarilyRevealed()`/
+  `tickTemporaryReveals()`), checked from `isCurrentlyVisible()` alongside the live vision circle
+  and the persistent tier - a newly-discovered tile flashes fully bright for a few seconds before
+  settling into its ordinary tier, instead of jumping straight there (#3).
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterest.java`** — Dungeon
   rotation (#15): `getActive()` now honors the persisted `active` field (previously write-only -
   saved/loaded but never consulted; no data entry ships `active:false`, verified, so stock behavior
@@ -272,7 +277,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   to any existing behavior.
 - **`forge-gui-mobile/src/forge/adventure/stage/WorldBackground.java`** — added chunk-reload/tile-
   patch hooks (`onTileRevealed`, `reloadChunkObjects`) so a live terrain repaint (#7) or fog
-  reveal (#3) shows up immediately instead of only on map reload.
+  reveal (#3) shows up immediately instead of only on map reload. FoW discovery-flash round
+  (2026-08-10): the POI-discovery `revealArea()` call now flags each newly-revealed tile via
+  `World.temporarilyReveal()` in its callback, and `draw()` calls the new
+  `World.tickTemporaryReveals()` once per frame to decay/repaint expired flashes (#3).
 - **`forge-gui-mobile/src/forge/adventure/stage/MapSprite.java`** — overworld POI icons (towns/
   castles) now hide until the tile under their *center* has been explored (fog of war, #3) -
   previously checked the sprite's bottom-left corner, which could leave multi-tile buildings'
@@ -292,7 +300,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   persisted per-town fields: `bankBalance`, `economyBuildingObjectIds` (#10). Playtest round
   (2026-08-09): persisted `pinnedShopNames` (objectId -> ShopData name; missing-key-safe load) -
   pins a shop object to a fixed shop identity instead of the per-load random roll, used by the
-  Capitol migration to carry the source town's exact shop lineup over.
+  Capitol migration to carry the source town's exact shop lineup over. Capitol reserved-slots
+  round (2026-08-10): new `removePinnedShopName(objectId)` - lets `TownRestoration.
+  repairCapitolState()` strip a stale pin an older migration left on Armory/Booster so those slots
+  self-correct back to their tmx-defined shop type on an existing save (#13).
 
 ### Towns, shops, and buildings (Town Reconstruction / Economy Buildings, #2 & #10)
 - **`forge-gui-mobile/src/forge/adventure/character/ShopActor.java`** — heaviest content-logic
@@ -307,6 +318,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   short-lived Enter/Destroy/Leave pre-gate is gone again - every plain shop goes straight into
   RewardScene, which now hosts the Destroy button itself, driven by the new
   `isDestroyable()` (plain/booster in wasteland towns; Armory/fixedShop excluded).
+  Teleporter-animation round (2026-08-10): `draw()` intercepts the TELEPORTER economy type before
+  the generic building-sprite path, picking `EconomyBuildings.getTeleporterClosedSprite()` or the
+  current frame of `getTeleporterActiveAnimation()` (based on `isTeleporterNetworkActive()`) via a
+  new per-actor `teleporterAnimTime` clock ticked in `act()`.
 - **`forge-gui-mobile/src/forge/adventure/character/OnCollide.java`** — added an optional
   town-restoration-gated constructor overload (Job Board building specifically) - the original
   single-arg constructor is unchanged/still used everywhere else unmodified. Capitol-polish

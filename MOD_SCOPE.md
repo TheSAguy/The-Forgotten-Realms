@@ -166,6 +166,14 @@ Helping a color angers its two enemies, not its allies.
   around the player right now - full brightness, and the only state monsters render in). You
   remember the shape of the land once known, but not what's moving around on it. See
   `MOD_CHANGELOG.md` for the implementation.
+- **Discovery flash added (2026-08-10):** the wider reveal burst around a newly-discovered town/
+  capital used to jump straight to the dimmed "known" tier the instant it was uncovered - user
+  spec: "when you first get close to a town, or enemy capitol... the FoW should clear briefly,
+  then go to the middle state." Newly-explored tiles from that burst now render at full brightness
+  for a few seconds before settling into the normal dimmed tier, via a new time-limited "temporary
+  reveal" layer in `World.java` (separate from the persistent known/visible tiers - purely
+  cosmetic, doesn't affect what's actually explored). Only fires for genuinely new discoveries -
+  re-approaching an already-known town doesn't re-flash.
 
 ### 4. Progressive Set Unlocks — `Not Started`
 - ~100+ MTG expansions exist; player starts with access to a small subset (e.g. ~10).
@@ -825,7 +833,7 @@ needs its own design pass before any of this gets built:**
   still has no `Reward.Type` and isn't obtainable via a Tiled reward object. Still not
   obtainable via shops or the `give item` console command.
 
-### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09, not yet playtested)
+### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09; real Outlook/Arena/Spellsmith art + animated Teleporter + Arena color diversity 2026-08-10, not yet playtested)
 - **Outlook (2026-08-09):** doubles a town's fog-of-war vision radius - vision only, not the
   town's actual owned/claimable territory radius (deliberate per user spec: a scouting building,
   not a land-grab one). 100 gold, one per town, same rebuild-menu mechanism as the other 6.
@@ -851,6 +859,28 @@ needs its own design pass before any of this gets built:**
   user's referenced buildings.png tiles (Look-out 355, Teleporter 528, Arena 227 - extracted 2x
   to 32x32 into the mod-local `new_buildings.atlas`, Archaeologist/ScienceLab packed too for
   later). Spellsmith still shows the generic SpecialShop icon - no dedicated art picked yet.
+- **Real Outlook/Arena/Spellsmith art, corrected (2026-08-10):** the 2026-08-09 pass above turned
+  out wrong on visual inspection during playtest (a torch bracket for "Arena", unconfirmed art for
+  Outlook) - the user's referenced tile IDs were each part of a larger multi-tile composite, not a
+  single tile: Outlook is 2 vertically-stacked tiles (ids 327+355, 16x32 total - the user noted
+  it's 16x32, not 32x32), Arena a 2x2 block (ids 198/199/226/227, 32x32 - a colosseum entrance with
+  colored gems). Spellsmith re-cropped too (16x16 smithy stall upscaled 2x, id-verified via the
+  user's coordinates). `new_buildings.atlas`/`.png` rebuilt from these verified crops; old
+  Teleporter/Archaeologist/ScienceLab regions dropped (Teleporter no longer uses this atlas, see
+  next bullet). Non-square Outlook renders correctly with no code changes - the icon-drawing code
+  already sized itself off the region's own dimensions, not a hardcoded 32x32.
+- **Teleporter now uses the stock portal animation, not custom art (2026-08-10):** replaced the
+  static Teleporter icon with the game's existing `sprites/portal4.atlas` (`portals.png`) - the
+  same animation dungeon portals already use elsewhere. Shows the "Closed" frame until a second
+  teleporter exists anywhere in the network (Capitol + towns combined), then switches to the
+  looping "Active" animation (the atlas's last row, per the user's reference) - both states
+  computed live off `EconomyBuildings.isTeleporterNetworkActive()`, not baked into the save.
+- **Capitol Arena enemy pool diversified (2026-08-10):** was ~30 entries, all White. Replaced with
+  a 34-entry pool spanning all 5 colors plus colorless/artifact flavor (adept/apprentice/master
+  wizards of each color plus 4-5 color-flavored creature types, e.g. Griffin/Merfolk/Zombie/
+  Goblin/Bear, plus Construct/Golem/Elemental/Sliver/Juggernaut/Gargoyle) - same enemy pool bosses
+  are drawn from otherwise (none included, per the existing exclusion), user's pick to keep parity
+  with the rest of the roster rather than hand-picking a smaller curated set.
 - Wasteland shops (#2) can now be rebuilt as one of 6 special buildings instead of a plain Card
   Shop: Shard Mine, Gold Mine, Lumber Mill, Stone Mine, Bank, Exchange - offered via a submenu on
   the existing rebuild-shop dialog (top level: Card Shop / Bank / Exchange / Industry / Not now;
@@ -954,7 +984,20 @@ needs its own design pass before any of this gets built:**
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
 
-### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7)
+### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7; Armory + dedicated Booster shop made permanent fixed slots same day)
+- **Armory and dedicated Booster shop are now permanent, reserved slots (2026-08-10) - the same
+  protection the 6 land shops already had.** User report: "if you build [Armory] first in the
+  Town, then upgrade it works, if you don't build it first, then a shop can take its place and you
+  can't build one" - the Capitol-upgrade migration (which carries a source town's rebuilt shops
+  onto Capitol slots by count, see the migration mechanism further down this section) could park
+  any migrated plain shop onto the Armory/Booster slots, permanently overriding what showed there.
+  Fixed with a new `noMigrate` tmx flag (distinct from the land shops' `fixedShop` - that flag also
+  suppresses the icon overlay, which Armory/Booster still need) excluding both slots from the
+  migration target pool going forward, plus a repair pass that strips any pin an older, already-
+  affected save left behind so it self-corrects on next load. The dedicated Booster shop's actual
+  odds were also fixed while here - it turned out only ~21% likely to roll booster even when
+  correctly occupied (only its common tier was booster-weighted; rare/uncommon/mythic tiers had 0%
+  chance) - all four rarity tiers now guarantee booster.
 - Once the player owns 5 towns, they can upgrade **one** of them into their Capitol - only 1
   allowed at a time. Needs a "which 5 towns count as owned" definition, which depends on #7
   (Dynamic Territory Control) existing first - "owns a town" isn't a concept the game has yet

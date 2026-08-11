@@ -5612,3 +5612,125 @@ project memory), what each tag means and the exact grep/Select-String command to
 spelled out explicitly per mechanic so a future session doesn't misdiagnose an absence-of-evidence
 as a bug), and a note that these are temporary diagnostic instrumentation, safe to remove once
 confidence is established (with an explicit "ask first" caveat).
+
+## Capitol playtest round: Armory/Booster permanence, real Outlook/Arena/Spellsmith art, animated Teleporter, Arena color diversity, FoW discovery flash (2026-08-10)
+
+Six-item playtest-feedback round. Full user report at the top: Stone pickup confirmed working;
+Armory sometimes missing from a fresh Capitol; none of the Capitol's shops ever rolled the
+dedicated Booster shop; Arena/Spellsmith/Outlook art wrong (Outlook specifically noted as 16x32,
+not 32x32); Teleporter art wrong (should be 16x16, and the user found the game already has a
+portal animation, `portals.png`, worth reusing - empty state on build, "active" once a second
+teleporter exists); Arena opponents were all White, wanted randomized across all colors + artifact;
+FoW "95% correct," but discovering a town/capital should flash bright before settling to the
+dimmed tier, not jump straight there.
+
+**Armory/Booster reserved Capitol slots.** Root cause matched the user's own diagnosis exactly:
+`TownRestoration.upgradeToCapitol()`'s migration (moves a source town's rebuilt shops onto Capitol
+slots by count, pinning each slot to the exact shop the town had) drew its target-slot pool from
+`readCapitolShopObjectIds()`, which only excluded the 6 `fixedShop`-flagged land shops - Armory
+(id 63) and the dedicated Booster shop (id 85) were still fair game, so a migrated plain shop could
+land on either and pin it permanently to something else. Reusing `fixedShop` outright wasn't right
+either: that flag *also* suppresses the icon overlay in `ShopActor.draw()` (correct for land shops,
+whose hut art is baked into the map tiles - wrong for Armory/Booster, which still need their icon
+drawn). Added a second, narrower tmx flag, `noMigrate`, checked via a new `isReservedSlot()` helper
+alongside `fixedShop` everywhere the migration-pool exclusion logic lives
+(`readCapitolShopObjectIds()`); `readCapitolFixedShopObjectIds()` renamed to
+`readCapitolReservedShopObjectIds()`, used by `repairCapitolState()`'s existing "relocate a
+wrongly-parked economy building off a reserved slot" repair. That repair alone wouldn't have fixed
+an *already*-affected save, since a migrated plain shop isn't an "economy building" (Bank/Mine/
+Outlook/Teleporter) - it's a `pinnedShopNames` entry, a completely different mechanism
+`repairCapitolState()` never touched. Added `PointOfInterestChanges.removePinnedShopName()` and had
+the repair pass strip any pin on a reserved slot unconditionally (a no-op `Map.remove()` for saves
+that never had one) - `MapStage`'s shop-rolling code already falls back to the slot's own tmx
+`shopList` the instant no pin exists, so this alone restores Armory/Booster on next load with zero
+further code needed. Separately fixed the Booster shop's actual odds while investigating: it turned
+out only ~21% likely to roll booster even when correctly occupying its slot (only the
+`commonShopList` property was booster-weighted; `uncommonShopList`/`rareShopList`/`mythicShopList`
+had no booster entries at all, 0% chance at those tiers) - set all four tiers to the same
+booster-only list.
+
+**Real Outlook/Arena/Spellsmith art, corrected.** The 2026-08-09 round's icon extraction turned out
+wrong on visual inspection: cropping `buildings.png` at the user's first-given coordinates (Arena
+48,128; Outlook 304,192) produced a torch bracket for "Arena" and unconfirmed-looking art for
+Outlook. Tried an alternate tileset (`dungeon.tsx`, found via `cave_bandit.tmx`'s third tileset
+declaration) - still didn't match. Rather than keep guessing blindly, asked the user directly via
+AskUserQuestion which tileset/coordinates were actually right. **Lesson reinforced from this round:
+matching pixel-math for an assumed tileset is not proof of correctness - multiple same-column-count
+tilesets can produce identical arithmetic; always visually verify an extracted crop before
+deploying, don't trust coordinate math alone.** The user's answer revealed both were multi-tile
+composites, not single tiles: Outlook is 2 vertically-stacked tiles (ids 327 top + 355 bottom,
+`buildings.tsx`, 16x32 total - confirming the user's own "16x32, not 32x32" note) forming a clean
+lookout tower; Arena is a 2x2 block (ids 198/199/226/227, 32x32) forming a colosseum entrance with
+colored gems. Recomputed the correct pixel regions (`pixelX = (id % columns) * tileWidth`,
+`pixelY = (id / columns) * tileWidth`, integer division), cropped, and visually confirmed correct
+art before finalizing. Spellsmith re-cropped too (16x16 stall upscaled 2x nearest-neighbor).
+Rebuilt `new_buildings.png`/`.atlas` (80x32, three regions: Outlook 16x32, Arena 32x32, Spellsmith
+32x32) via a throwaway cropping tool written to scratchpad, not part of the repo. Old Teleporter/
+Archaeologist/ScienceLab regions dropped from this atlas entirely (Teleporter no longer sources
+from it - see next entry; the other two were unverified/unused). `ShopActor.drawOverFootprint()`
+already sized itself off `TextureRegion.getRegionWidth()/getRegionHeight()` rather than a hardcoded
+32x32, so the non-square Outlook needed zero further code changes to render correctly once the
+atlas region itself was right.
+
+**Teleporter: real portal animation instead of custom art.** The user identified that the game
+already ships a portal animation used elsewhere (`sprites/portal4.atlas` / `portals.png`) and asked
+to reuse it instead of a static custom icon - empty ("Closed") state when first built, "Active"
+(the atlas's last row, confirmed blue by inspecting the full sheet) once a second teleporter exists
+anywhere in the network. `EconomyBuildings` gained `getTeleporterClosedSprite()` (a plain
+`getAtlasSprite()` call) and `getTeleporterActiveAnimation()` (lazily builds a looping
+`Animation<TextureRegion>` from `getAtlas(...).findRegions("Active")` - 4 frames, all sharing the
+region name "Active" per libGDX atlas convention, exactly how the existing `PortalActor.java`
+already consumes this same file via `Config.getAnimatedSprites()`); `isTeleporterNetworkActive()`
+reuses the existing `capitolHasTeleporter()`/`countTownTeleporters()` helpers (`>= 2` combined).
+Removed Teleporter's old branch from `EconomyBuildings.atlasRegion()`/`getBuildingSprite()`
+entirely - it's now intercepted earlier in `ShopActor.draw()`, which picks the closed sprite or the
+current animation frame (`Animation.getKeyFrame(teleporterAnimTime, true)`, a new per-actor elapsed-
+time field ticked in `act()`) based on network state, before falling through to the generic
+building-sprite path for every other economy type. **Gotcha hit and fixed**: the region names in
+`portal4.atlas` actually have trailing spaces after each name (`"Closed "`, `"Active "`) - a raw
+`grep -n "^Closed$"` against the file found nothing, which looked like a real problem at first.
+Confirmed it isn't: `PortalActor.java`'s existing, already-working code reads the exact same file
+via `stand.toString()` (`"Closed"`, `"Active"`, no trailing space) and works correctly elsewhere in
+the game today, proving libGDX's atlas parser trims the region name on load - the raw file's
+trailing whitespace is cosmetic, not a parsing hazard. No workaround needed, just verified before
+trusting it.
+
+**Capitol Arena enemy pool diversified.** The `enemyPool` JSON array on the Capitol's `arena.tx`
+object (`player_capital.tmx`) was ~30 entries, all White. Replaced with a 34-entry pool spanning
+all 5 colors plus colorless/artifact flavor (adept/apprentice/master wizards per color, plus 4-5
+color-flavored creature types each - Cleric/Knight/Griffin for white, Merfolk/Faerie for blue,
+Zombie/Skeleton/Vampire for black, Goblin/Berserker for red, Bear/Treefolk/Spider for green - plus
+Construct/Golem/Elemental/Sliver/Juggernaut/Gargoyle for colorless/artifact). Every entry verified
+non-boss against `enemies.json`'s `"boss"` field via a Python script before finalizing, matching
+`ArenaScene`'s existing exclusion (no bosses drawn into arena brackets). `ArenaData.enemyPool` is a
+flat hardcoded name array with no dynamic pool-generation mechanism in the engine, so this is a
+straight content edit, not a code change.
+
+**FoW discovery flash.** User spec: "when you first get close to a town, or enemy capitol...the FoW
+should clear briefly, then go to the middle state" - previously the wider `DISCOVERY_REVEAL_RADIUS`
+burst `WorldBackground.draw()` fires around a newly-approached POI jumped straight to the normal
+dimmed "explored" tier the instant a tile was uncovered, with no bright moment first (the player's
+own live vision circle already flashes bright for tiles close enough to stand near, but this wider
+burst mostly covers tiles outside that circle). Added a fourth, purely-cosmetic, time-limited tier
+on `World.java` on top of the existing three (unexplored/explored-dimmed/persistently-revealed):
+`temporaryRevealTimers` (a `Map<Long, Float>` keyed by packed world-tile coordinates,
+`TEMPORARY_REVEAL_SECONDS = 3f`), `temporarilyReveal(x, y)` to start/refresh one,
+`isTemporarilyRevealed(x, y)` checked from `isCurrentlyVisible()` alongside the live vision circle
+and the persistent tier, and `tickTemporaryReveals(delta, onTileChanged)` to count timers down and
+repaint any tile whose flash just expired back to its ordinary tier (otherwise a tile would stay
+looking bright forever once its timer silently hit zero with nothing ever re-checking it).
+`WorldBackground.draw()` wires both ends in: the POI-discovery `revealArea()` call now flags each
+newly-revealed tile via `temporarilyReveal()` in its callback (relying on `revealArea()`'s existing
+early-out on already-explored tiles, so re-approaching a known town never re-flashes it), and a new
+`world.tickTemporaryReveals(Gdx.graphics.getDeltaTime(), this::onTileRevealed)` call runs once per
+frame (cheap no-op whenever nothing is actively flashing, which is nearly always the case).
+
+**Cross-machine merge note**: this round's changes were made on one machine while a large,
+unrelated round (reputation tweaks, item economy overhaul, roaming-enemy bestiary import, dungeon
+pool research/audit, playtest logging - see the entries above this one) landed on `origin/master`
+from the other. Merged cleanly except one real conflict, `player_capital.tmx`'s Armory shop object
+(id 63): the other round's item-economy overhaul had replaced its single `commonShopList="Equipment"`
+property with a proper 4-tier `ArmoryCommon`/`ArmoryUncommon`/`ArmoryRare`/`ArmoryMythic` split
+(plus thresholds) - resolved by keeping the tiered lists and adding this round's `noMigrate` flag
+alongside them, combining both rather than picking one side. Every other touched file (`TownRestoration.java`,
+`PointOfInterestChanges.java`) auto-merged without conflict.
