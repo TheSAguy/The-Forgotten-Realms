@@ -873,8 +873,16 @@ public class TerritoryControl {
         if (homeColor == null || currentColor == null || homeColor.equals(currentColor))
             return null;
         for (BiomeData biome : world.getData().GetBiomes()) {
-            if (currentColor.equals(biome.name))
-                return biome.getEnemy(originalDifficultyCeiling);
+            if (currentColor.equals(biome.name)) {
+                EnemyData result = biome.getEnemy(originalDifficultyCeiling);
+                if (result != null) {
+                    // Diagnostic-only logging (user request 2026-08-10, "hard to test in-game") -
+                    // greppable in forge.log as "[TFR-ReTheme]".
+                    System.out.println("[TFR-ReTheme] " + poi.getData().name + " (home=" + homeColor
+                            + ", now=" + currentColor + ") -> " + result.getName());
+                }
+                return result;
+            }
         }
         return null;
     }
@@ -1146,7 +1154,14 @@ public class TerritoryControl {
             // revert-to-neutral (design from MOD_SCOPE.md #7, activated alongside cross-color
             // targeting; reweighted 2026-08-10 by the attacking mage's deck-rarity tier, once
             // mage tiers existed - replaces the original flat 50/50 coin flip).
-            if (world.getRandom().nextFloat() < attackerWinChance(mage.getData().tier)) {
+            float captureChance = attackerWinChance(mage.getData().tier);
+            boolean attackerWins = world.getRandom().nextFloat() < captureChance;
+            // Diagnostic-only logging (user request 2026-08-10, "hard to test in-game") -
+            // greppable in forge.log as "[TFR-CaptureOdds]".
+            System.out.println("[TFR-CaptureOdds] " + mage.territoryColor + " mage (tier=" + mage.getData().tier
+                    + ", chance=" + captureChance + ") attacking " + target.getDisplayName() + " (" + targetOwnerColor
+                    + ") -> " + (attackerWins ? "CAPTURED" : "REVERTED to neutral"));
+            if (attackerWins) {
                 newData = matchingTownData(target.getData(), mage.territoryColor);
                 repaintColor = mage.territoryColor;
             } else {

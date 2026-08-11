@@ -5572,3 +5572,43 @@ script's* wrong assumption, not a real bug: `TileMapScene.load()` resolves `tele
 relative to the referencing file the way `<tileset source>` paths are - confirmed against a
 known-working stock example (`grolnok.tmx`'s own same-folder teleport uses the identical
 `../common/maps/map/grolnok/grolnok_f1.tmx` style already). The original fix was correct all along.
+
+## Playtest logging: making the hard-to-observe mechanics greppable (2026-08-10)
+
+User's follow-up to the final audit: a lot of what that audit checks (roaming spawn variety,
+War-tier boss rarity, dungeon re-theming, capture-odds weighting) is genuinely hard to confirm by
+just playing - you can't tell "no boss appeared because none of the 4% rolls hit yet" from "no boss
+appeared because the mechanism is silently broken" just by watching the screen. Added diagnostic
+`System.out.println` logging (this codebase's existing convention - `TerritoryControl.java` already
+logs mage dispatch/capture the same way, redirected into `forge.log` alongside the console by
+`ExceptionHandler`) at five points, all sharing a `[TFR-` prefix (findable as one group,
+`grep "\[TFR-" forge.log`) with a distinct sub-tag per mechanic:
+
+- `[TFR-Spawn]` (`WorldStage.handleMonsterSpawn()`) - every ordinary roaming spawn, with name,
+  tier, colors, and current biome. The bulk of the volume; useful for confirming tier distribution
+  and that the 11 `colors:"C"` enemies fixed in the final audit actually appear.
+- `[TFR-Intrusion]` (`WorldStage.handleMonsterSpawn()`) - only when the border-proximity/
+  reputation substitution actually fires.
+- `[TFR-WarBoss]` (`WorldStage.handleMonsterSpawn()`) - only on an actual War-tier boss spawn
+  (intentionally rare by design - 4% chance, gated on War-tier reputation).
+- `[TFR-ReTheme]` (`TerritoryControl.reThemedEnemyFor()`) - only when a dungeon's hardcoded enemy
+  placement actually gets substituted for the current territory owner's roster.
+- `[TFR-CaptureOdds]` (`TerritoryControl.onMageArrived()`) - every enemy-color-town capture
+  attempt, with the attacking mage's tier, the win chance used, and the actual outcome.
+
+Deliberately did **not** add logging for the 12 bosses' 90%/10% Rare/Mythic drop split - that lives
+inside the shared `RewardData` reward-granting path every reward in the game flows through, and
+instrumenting it would spam the log for every gold/card/item drop in the whole game, not just those
+12. That one's better confirmed directly (defeat one, look at the reward screen) than logged.
+
+**New file: `PLAYTEST_LOG_CHECKLIST.md`** (repo root, alongside `MOD_SCOPE.md`/`MOD_CHANGELOG.md`) -
+self-contained instructions for whichever session ends up checking these logs after a play session,
+written for zero assumed memory of this round (explicitly a different-PC scenario - the user plays
+on the Gaming PC, a future Claude Code session checks the log there). Covers: where `forge.log`
+actually lives (deliberately doesn't hardcode a guessed path since the deployed-game location is
+genuinely machine-specific - only known for certain on the home PC, `E:\GAMES\FORGE\`, per existing
+project memory), what each tag means and the exact grep/Select-String command to run, what a
+"nothing happened" result means for each (usually "didn't get the right conditions," not "broken" -
+spelled out explicitly per mechanic so a future session doesn't misdiagnose an absence-of-evidence
+as a bug), and a note that these are temporary diagnostic instrumentation, safe to remove once
+confidence is established (with an explicit "ask first" caveat).

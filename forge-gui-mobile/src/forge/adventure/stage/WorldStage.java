@@ -673,8 +673,14 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 float chance = SPAWN_INTRUSION_BASE_CHANCE * ColorReputation.getSpawnIntrusionMultiplier(foreignColor);
                 if (chance > 0f && rand.nextFloat() < chance) {
                     BiomeData intruding = findBiomeByName(biomeData, foreignColor);
-                    if (intruding != null)
+                    if (intruding != null) {
+                        // Diagnostic-only logging (user request 2026-08-10, "hard to test in-game")
+                        // - greppable in forge.log as "[TFR-Intrusion]". See MOD_CHANGELOG.md's
+                        // "Playtest logging" entry for the full checklist this feeds.
+                        System.out.println("[TFR-Intrusion] " + data.name + " territory -> " + foreignColor
+                                + " intrusion fired (chance=" + chance + ", status=" + ColorReputation.getStatus(foreignColor) + ")");
                         data = intruding;
+                    }
                 }
             }
         }
@@ -699,9 +705,23 @@ public class WorldStage extends GameStage implements SaveFileContent {
         EnemyData enemyData = null;
         if (ColorReputation.isEnabled() && ColorReputation.getStatus(data.name) == ColorReputation.Status.WAR) {
             enemyData = TerritoryControl.rollWarTierBoss(data.name, rand);
+            if (enemyData != null) {
+                // Diagnostic-only (user request 2026-08-10) - this fires ~4% of eligible rolls by
+                // design, so seeing it at all during a session confirms the mechanic works.
+                System.out.println("[TFR-WarBoss] " + enemyData.getName() + " spawned in " + data.name + " territory (War-tier)");
+            }
         }
-        if (enemyData == null)
+        if (enemyData == null) {
             enemyData = data.getEnemy(difficultyFactor);
+            if (enemyData != null) {
+                // Diagnostic-only (user request 2026-08-10) - the bulk of the log; see
+                // MOD_CHANGELOG.md's "Playtest logging" entry for how to summarize this instead of
+                // reading it line by line (tier distribution, color variety, confirming the 11
+                // colors:"C" enemies fixed this round actually appear, etc.)
+                System.out.println("[TFR-Spawn] " + enemyData.getName() + " (tier=" + enemyData.tier
+                        + ", colors=" + enemyData.colors + ") in " + data.name + " territory (rank=" + difficultyFactor + ")");
+            }
+        }
         EnemyData extraSpawnForQuests = data.getExtraSpawnEnemy(difficultyFactor);
         if (extraSpawnForQuests != null) {
             float spawnPicker = rand.nextFloat();
