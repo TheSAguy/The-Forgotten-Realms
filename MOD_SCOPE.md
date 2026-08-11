@@ -1193,3 +1193,82 @@ concept. Built out over one long round:
   catalog are now obtainable through some in-game path - the original audit's working hypothesis
   ("everything left non-obtainable is non-quest") held, and this round's shop/arena/boss work
   closed the non-quest gap too.
+
+### 19. Roaming-Enemy Bestiary + Mage Difficulty Tiers — `Built (2026-08-10), not yet playtested`
+User-driven: player territory's roaming spawns felt dead once Wasteland is fully replaced by
+player-owned land, the bundled non-Shandalar planes have a huge unused bestiary, and there was no
+real difficulty/tier system to gate any of it by. All three tackled together since they turned out
+to depend on each other.
+
+- **Player territory had zero roaming spawns** - `player.json`'s `enemies` array was literally
+  `[]`. Given a real (`WorldStage.handleMonsterSpawn()` pulls live from whichever biome currently
+  owns the player's tile), this silently meant nothing ever spawned there. Fixed with a real
+  61-enemy list: Wasteland/Colorless's own 49 (a genuine mixed-color roster already - wizards of
+  all 5 colors, golems, animals, bandits) plus 12 more truly-colorless creatures pulled from the
+  wider merged roster that weren't already in that list.
+- **Full cross-plane bestiary import** (user: "let's import them all, take your time and check for
+  any issues"): diffed every bundled plane's `enemies.json` against `common`'s 464-enemy baseline
+  for new, color-tagged entries - Innistrad (23), Realm of Legends (870), Shandalar Old Border
+  (118) - 1,011 candidates. Scoped the real asset cost before copying anything: sprite art needed
+  **zero new files** (every referenced atlas already exists in `common`, confirmed for all 3
+  planes), so the real cost was ~1,000 `.dck` deck files (each plane keeps its own `decks/`
+  folder), now copied into this plane's own new `decks/` tree.
+  - **Issues found and handled during the import** (not silently ignored): 6 enemies excluded
+    (Realm of Legends' "Borborygmos and Fblthp" + 4 "Fblthp, Lost in the..." variants + "Haktos" -
+    their deck files don't exist anywhere, no confident substitute); 1 deck path corrected
+    (Perrie's typo'd `perrie.dck` -> the real `perrie_the_pulverizer.dck`); 2 sprite paths
+    corrected (Innistrad's Watcher in the Web/Immerwolf were missing a subfolder segment - the real
+    art exists in `common`); 8 enemies renamed for cross-plane name collisions (7 Realm of
+    Legends/Shandalar Old Border pairs - same MTG legend represented two different ways, kept
+    Realm of Legends' plain name since it's the big generic pool, suffixed the other `(Boss)`/
+    `(Elite)` matching its own source-plane deck folder; 1 Innistrad/Realm of Legends pair on "The
+    Gitrog Monster," suffixed Innistrad's `(Innistrad)`). Net: 1,005 new enemies, 1,469 total.
+  - Considered importing "Shandalar Old Border" specifically for more *bosses* too (a separate,
+    earlier ask) - already covered by this same import (its 118 are included above), so no
+    additional work needed there.
+- **Mage difficulty/tier system** (user proposal: derive it from each mage's deck's card-rarity
+  ratio, gave a rough weighting scheme to build from). Built as **Common/Uncommon/Rare/Mythic**
+  (user's pick, 4 tiers - matches MTG's own rarity words and the item-tier naming from #18, and
+  lines up with a ladder that was already implicit in the base roster's naming: Apprentice/Adept/
+  Master/Challenger). Weighted 1/2/4/8 per Common/Uncommon/Rare/Mythic card (doubling scale so a
+  single Mythic meaningfully shifts a deck's average even among many commons), averaged per deck
+  **excluding basic lands** (counting land toward the ratio would just measure "how many lands does
+  this deck run," not power level), bucketed at <2.0/2.0-3.0/3.0-4.5/>=4.5. A one-off CLI tool
+  (`forge.lda.DeckRarityLookup`, same bootstrap as the item-economy round's `RarityLookup`, deleted
+  after use) batch-resolved real card rarity for all 1,548 resolvable decks.
+  - **Real finding, corrected before shipping**: initially recomputed difficulty for the *entire*
+    roster uniformly, but a sanity check against the pre-existing hand-tuned Apprentice/Adept/
+    Master/Challenger ladder caught a mismatch - "Challenger" decks (real official MTG precon
+    product, deliberately efficient/affordable, not rare-loaded) scored low on pure card-rarity
+    despite being the base game's own hardest AI tier by design. Course-corrected: preserved every
+    pre-existing enemy's original hand-tuned `difficulty` exactly (453 of 464), only applying the
+    new formula to enemies that never had a value at all (all 1,005 imports + 11 pre-existing
+    blanks). Re-checked after the fix - the full existing ladder now maps cleanly onto the new tier
+    names in order for both tested colors.
+  - **Real bug found and fixed while wiring this up**: `BiomeData.getEnemy(float
+    difficultyFactor)` silently discarded whatever was passed in and substituted the player's win
+    rank instead - meaning difficulty gating never actually reflected anything except overall
+    progression, no matter what a caller intended. Fixed to respect its parameter; callers still
+    pass player rank as the base signal (unchanged feel), now genuinely usable by other systems.
+- **Roaming-spawn proximity/reputation intrusion** (user: "if a colored city is in the area, that
+  color might spawn... if you're at war with a color they might spawn"): new
+  `TerritoryControl.findNearbyForeignColor()` finds the nearest OTHER color's town/capital/castle
+  within 40 tiles; `WorldStage.handleMonsterSpawn()` rolls a 25% base chance (per spawn attempt) to
+  substitute that color's biome for the current one, scaled by `ColorReputation` standing with that
+  color: 0x at Partner (never intrudes), 0.5x Happy, 1x Neutral, 1.5x Unhappy, 2.5x War. A War-tier
+  border is genuinely dangerous to linger near; a Partner-tier one never bleeds in at all.
+- **Town-fight capture odds now tier-weighted** (user: "we could use this to determine the chances
+  to win a town fight... currently always 50/50"): `TerritoryControl.onMageArrived()`'s flip-to-
+  attacker-or-revert-to-neutral roll (had an explicit TODO for exactly this since the reputation
+  round) now uses the attacking mage's tier - Common 10% / Uncommon 30% / Rare 70% / Mythic 90% -
+  instead of a flat coin flip.
+- **Content-level POI re-theme, settling the long-open question from #7** (user: "I think they
+  should re-theme and any colorless/wasteland POIs should be player terrain enabled"). Dungeon
+  enemies are hardcoded per-object by name in each map file, not drawn from a biome pool - so
+  re-theming doesn't need duplicate map content (the "5x the content" cost #7 originally flagged
+  and declined). Instead, `MapStage`'s existing named-enemy lookup now checks
+  `TerritoryControl.reThemedEnemyFor()`: if a POI's *current* land owner differs from whichever
+  color's biome originally placed it at world-gen, substitute a same-difficulty-ceiling pick from
+  the current owner's roster - `player` included, so a captured dungeon re-themes to the player's
+  own roster too. Boss and quest-tagged encounters are exempt (often logic-critical or a scripted
+  fight - shouldn't silently change).

@@ -54,6 +54,10 @@ public class WorldStage extends GameStage implements SaveFileContent {
     WorldBackground background;
     private float spawnDelay = 0;
     private static final float spawnInterval = 4;//todo config
+    // Base per-spawn-roll chance of a nearby foreign color's biome overriding this roll (before
+    // ColorReputation.getSpawnIntrusionMultiplier() scales it by relationship) - user request
+    // 2026-08-10, MOD_SCOPE.md #7 follow-up.
+    private static final float SPAWN_INTRUSION_BASE_CHANCE = 0.25f;
     private PointOfInterestMapSprite collidingPoint;
     protected ArrayList<Pair<Float, EnemySprite>> enemies = new ArrayList<>();
     private final static Float dieTimer = 20f;//todo config
@@ -658,6 +662,23 @@ public class WorldStage extends GameStage implements SaveFileContent {
         BiomeData data = biomeData.get(currentBiome);
         if (data == null) return;
 
+        // Roaming-spawn intrusion (MOD_SCOPE.md #7 follow-up, user request 2026-08-10): a nearby
+        // foreign-color town/capital/castle can bleed its color's monsters into this spawn roll,
+        // scaled by reputation with that color (War-tier borders are actively hostile; Partner-tier
+        // ones never intrude). Only substitutes THIS roll's biome, not the player's actual location
+        // - a cheap per-roll override rather than a real territory change.
+        if (ColorReputation.isEnabled()) {
+            String foreignColor = TerritoryControl.findNearbyForeignColor(world, player.pos(), data.name);
+            if (foreignColor != null) {
+                float chance = SPAWN_INTRUSION_BASE_CHANCE * ColorReputation.getSpawnIntrusionMultiplier(foreignColor);
+                if (chance > 0f && rand.nextFloat() < chance) {
+                    BiomeData intruding = findBiomeByName(biomeData, foreignColor);
+                    if (intruding != null)
+                        data = intruding;
+                }
+            }
+        }
+
         spawnDelay -= delta;
         if (spawnDelay >= 0) return;
         spawnDelay = spawnInterval + (rand.nextFloat() * 4.0f);
@@ -665,8 +686,13 @@ public class WorldStage extends GameStage implements SaveFileContent {
         ArrayList<EnemyData> list = data.getEnemyList();
         if (list == null)
             return;
-        EnemyData enemyData = data.getEnemy(1.0f);
-        EnemyData extraSpawnForQuests = data.getExtraSpawnEnemy(1.0f);
+        // BiomeData.getEnemy() used to silently discard whatever was passed here and substitute
+        // player rank itself (a real bug, fixed 2026-08-10) - now the caller's job. Player rank
+        // is still the base signal (unchanged progression feel), the intrusion substitution above
+        // is a separate, independent axis (which biome's list to draw from, not how hard within it).
+        float difficultyFactor = Current.player().getStatistic().rank();
+        EnemyData enemyData = data.getEnemy(difficultyFactor);
+        EnemyData extraSpawnForQuests = data.getExtraSpawnEnemy(difficultyFactor);
         if (extraSpawnForQuests != null) {
             float spawnPicker = rand.nextFloat();
 
@@ -684,6 +710,14 @@ public class WorldStage extends GameStage implements SaveFileContent {
 
         }
         else spawn(enemyData);
+    }
+
+    private static BiomeData findBiomeByName(List<BiomeData> biomes, String name) {
+        for (BiomeData b : biomes) {
+            if (name.equals(b.name))
+                return b;
+        }
+        return null;
     }
 
     private boolean spawn(EnemySprite sprite){

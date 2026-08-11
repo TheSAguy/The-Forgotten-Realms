@@ -2,6 +2,7 @@ package forge.adventure.util;
 
 import com.badlogic.gdx.math.Vector2;
 import forge.adventure.character.EnemySprite;
+import forge.adventure.data.BiomeData;
 import forge.adventure.data.DifficultyData;
 import forge.adventure.data.ConfigData;
 import forge.adventure.data.EnemyData;
@@ -115,6 +116,13 @@ public class TerritoryControl {
     // seeded at capture (onMageArrived() for AI, TownRestoration's restore path for the player).
     // A planned "outlook" building will later raise this further per town.
     public static final int TOWN_MAX_TERRITORY_RADIUS = 15;
+
+    // Roaming-spawn intrusion radius (user request 2026-08-10: "if a colored city is in the area,
+    // that color might spawn in a certain radius"). Deliberately larger than CASTLE_KEEP_RADIUS_TILES
+    // - a border town/capital should already start bleeding its color's monsters into the
+    // surrounding land before the player is technically standing inside that color's own claimed
+    // territory, not only once they cross the line.
+    public static final int SPAWN_INTRUSION_RADIUS_TILES = 40;
 
     private TerritoryControl() {}
 
@@ -716,6 +724,118 @@ public class TerritoryControl {
         return null;
     }
 
+    // Attacker's win chance when a mage capturing an enemy-color town resolves (onMageArrived()),
+    // scaled by the mage's deck-rarity difficulty tier (EnemyData.tier, user request 2026-08-10 -
+    // "we could use this to determine the chances to win a town fight"; replaces the original flat
+    // 50/50 coin flip). A Common-tier mage reaching a town is a real but weak threat; a Mythic-tier
+    // one should feel like a serious loss if it isn't intercepted first.
+    private static float attackerWinChance(String tier) {
+        if (tier == null)
+            return 0.5f;
+        switch (tier) {
+            case "Common": return 0.10f;
+            case "Uncommon": return 0.30f;
+            case "Rare": return 0.70f;
+            case "Mythic": return 0.90f;
+            default: return 0.5f;
+        }
+    }
+
+    // Roaming-spawn intrusion (MOD_SCOPE.md #7 follow-up, user request 2026-08-10): the nearest
+    // OTHER color's town/capital/castle within SPAWN_INTRUSION_RADIUS_TILES of pos, or null if
+    // none. excludeColor lets the caller skip the biome's own color - standing in your own
+    // color's land next to your own capital isn't an "intrusion." Player-owned towns never match
+    // (their name no longer starts with any color noun once transformInto() renames them), so
+    // they can't accidentally trigger this either - consistent with reputation treating
+    // player-owned towns as colorless.
+    public static String findNearbyForeignColor(World world, Vector2 pos, String excludeColor) {
+        float radiusWorld = SPAWN_INTRUSION_RADIUS_TILES * (float) world.getTileSize();
+        String nearestColor = null;
+        float nearestDist = radiusWorld;
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            PointOfInterestData data = poi.getData();
+            if (data.name == null)
+                continue;
+            String type = data.type;
+            if (!"town".equals(type) && !"capital".equals(type) && !"castle".equals(type))
+                continue;
+            String color = colorOfPoiName(data.name, type);
+            if (color == null || color.equals(excludeColor))
+                continue;
+            float dist = poi.getPosition().dst(pos);
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearestColor = color;
+            }
+        }
+        return nearestColor;
+    }
+
+    // Content-level POI re-theme (MOD_SCOPE.md #7, user request 2026-08-10 - settles the
+    // long-open "should special POIs change based on who controls the surrounding territory"
+    // question from when Territory Control first shipped, in favor of re-theming rather than
+    // leaving dungeons static forever). Which color's biome originally placed this POI at
+    // world-gen - checked against each biome's raw pointsOfInterest[] name list, independent of
+    // who owns the surrounding land NOW.
+    private static String homeColorOfPoi(World world, String poiName) {
+        if (poiName == null)
+            return null;
+        for (BiomeData biome : world.getData().GetBiomes()) {
+            if (biome.pointsOfInterest == null)
+                continue;
+            for (String name : biome.pointsOfInterest) {
+                if (poiName.equals(name))
+                    return biome.name;
+            }
+        }
+        return null;
+    }
+
+    // Current color of the land this POI sits on right now (may differ from homeColorOfPoi() once
+    // territory has changed hands) - same tile-ownership lookup WorldStage's roaming spawner uses.
+    private static String currentColorAtPoi(World world, PointOfInterest poi) {
+        Vector2 pos = poi.getPosition();
+        int biomeIndex = World.highestBiome(world.getBiome((int) pos.x / world.getTileSize(), (int) pos.y / world.getTileSize()));
+        List<BiomeData> biomes = world.getData().GetBiomes();
+        if (biomeIndex < 0 || biomeIndex >= biomes.size())
+            return null;
+        return biomes.get(biomeIndex).name;
+    }
+
+    /**
+     * A same-difficulty-ceiling replacement enemy from the CURRENT owner of poi's territory, for
+     * MapStage's hardcoded per-dungeon-object enemy placements - or null if the land hasn't
+     * changed hands since world-gen (or nothing applies), meaning the caller should keep its
+     * originally-authored enemy as-is. Deliberately doesn't check boss/quest status itself - only
+     * the caller knows this specific encounter's own EnemyData, and boss/quest encounters are
+     * often logic-critical or a scripted fight that shouldn't be silently swapped.
+     */
+    public static EnemyData reThemedEnemyFor(World world, PointOfInterest poi, float originalDifficultyCeiling) {
+        if (!ColorReputation.isEnabled() || poi == null)
+            return null;
+        String homeColor = homeColorOfPoi(world, poi.getData().name);
+        String currentColor = currentColorAtPoi(world, poi);
+        if (homeColor == null || currentColor == null || homeColor.equals(currentColor))
+            return null;
+        for (BiomeData biome : world.getData().GetBiomes()) {
+            if (currentColor.equals(biome.name))
+                return biome.getEnemy(originalDifficultyCeiling);
+        }
+        return null;
+    }
+
+    // "Plains Town X"/"Plains Capital"/"Plains Castle" -> white, etc. Castle names are an exact
+    // "<Color> Castle" match (findCastle() above); town/capital names only need the color noun as
+    // a prefix (matches ColorReputation.colorOfTown()'s equivalent town/capital check).
+    private static String colorOfPoiName(String name, String type) {
+        for (Map.Entry<String, String> entry : COLOR_TOWN_NOUN.entrySet()) {
+            String noun = entry.getValue();
+            if ("castle".equals(type) ? name.equals(noun + " Castle") : name.startsWith(noun))
+                return entry.getKey();
+        }
+        return null;
+    }
+
     // dispatch() candidates: every neutral town (incl. player-restored ones, deliberately - see
     // MOD_SCOPE.md #7) plus every ordinary TOWN (never a CAPITAL - a captured AI capital has no
     // defined consequence/equivalent in this design, so cross-color targeting is deliberately
@@ -967,11 +1087,11 @@ public class TerritoryControl {
             // capture, no notification (user request).
             return;
         } else {
-            // Still a valid enemy-color target: 50/50 flip-to-attacker or revert-to-neutral
-            // (design from MOD_SCOPE.md #7, activated alongside cross-color targeting).
-            // NOTE for a future pass (user request 2026-08-10): revisit this flat coin flip -
-            // weight it by mage tier/strength instead once mage tiers exist.
-            if (world.getRandom().nextBoolean()) {
+            // Still a valid enemy-color target: tier-weighted flip-to-attacker or
+            // revert-to-neutral (design from MOD_SCOPE.md #7, activated alongside cross-color
+            // targeting; reweighted 2026-08-10 by the attacking mage's deck-rarity tier, once
+            // mage tiers existed - replaces the original flat 50/50 coin flip).
+            if (world.getRandom().nextFloat() < attackerWinChance(mage.getData().tier)) {
                 newData = matchingTownData(target.getData(), mage.territoryColor);
                 repaintColor = mage.territoryColor;
             } else {

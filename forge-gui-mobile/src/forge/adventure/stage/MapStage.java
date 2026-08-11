@@ -25,6 +25,7 @@ import forge.Forge;
 import forge.adventure.character.*;
 import forge.adventure.data.*;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.*;
 import forge.adventure.util.*;
@@ -584,7 +585,19 @@ public class MapStage extends GameStage {
                                 forge.adventure.world.World world = Current.world();
                                 Vector2 poiPos = AdventureQuestController.instance().mostRecentPOI.getPosition();
                                 int currentBiome = forge.adventure.world.World.highestBiome(world.getBiome((int) poiPos.x / world.getTileSize(), (int) poiPos.y / world.getTileSize()));
-                                EN = world.getData().GetBiomes().get(currentBiome).getEnemy(1.0f);
+                                EN = world.getData().GetBiomes().get(currentBiome).getEnemy(Current.player().getStatistic().rank());
+                            } else if (!EN.boss && EN.questTags.length == 0) {
+                                // Content-level POI re-theme (MOD_SCOPE.md #7, user request
+                                // 2026-08-10): if this dungeon's land has changed hands since
+                                // world-gen, swap ordinary (non-boss, non-quest) encounters for a
+                                // same-difficulty-ceiling pick from the CURRENT owner's roster
+                                // instead of whatever color originally authored this placement.
+                                PointOfInterest mostRecentPOI = AdventureQuestController.instance().mostRecentPOI;
+                                if (mostRecentPOI != null) {
+                                    EnemyData reThemed = TerritoryControl.reThemedEnemyFor(Current.world(), mostRecentPOI, EN.difficulty);
+                                    if (reThemed != null)
+                                        EN = reThemed;
+                                }
                             }
                             EnemySprite mob = new EnemySprite(id, EN);
                             Object dialogObject = prop.get("dialog"); //Check if the enemy has a dialogue attached to it.

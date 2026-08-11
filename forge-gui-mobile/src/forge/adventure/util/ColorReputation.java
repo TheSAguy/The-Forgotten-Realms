@@ -131,6 +131,25 @@ public class ColorReputation {
         }
     }
 
+    /**
+     * Multiplier on the base proximity chance of a nearby foreign color's monsters intruding into
+     * a roaming-spawn roll (WorldStage.handleMonsterSpawn(), TerritoryControl.findNearbyForeignColor()
+     * - user request 2026-08-10: "if you are at war with a color they might spawn"). 1.0 at
+     * Neutral; a Partner-tier color never intrudes at all (0), War-tier borders are the most
+     * dangerous to wander near.
+     */
+    public static float getSpawnIntrusionMultiplier(String color) {
+        if (!isEnabled() || color == null)
+            return 1f;
+        switch (getStatus(color)) {
+            case PARTNER: return 0f;
+            case HAPPY: return 0.5f;
+            case UNHAPPY: return 1.5f;
+            case WAR: return 2.5f;
+            default: return 1f;
+        }
+    }
+
     /** True when the player is barred from this color's ordinary towns (War tier). */
     public static boolean isEntryBarred(String color) {
         return isEnabled() && color != null && getStatus(color) == Status.WAR;

@@ -5136,3 +5136,200 @@ plain substring-contains check across all sources instead) against the full 588-
 **all 588 are now obtainable** through some in-game path. The original working hypothesis
 ("everything left non-obtainable is non-quest") held through the cleanup/dungeon-import pass, and
 this round's Armory/Arena/boss-drop/bugfix work closed the remaining non-quest gap on top of it.
+
+## Roaming-Enemy Bestiary + Mage Difficulty Tiers (2026-08-10)
+
+User-driven, three interlocking asks tackled in one round: player territory's roaming spawns felt
+dead (Wasteland disappears as the player expands), the bundled non-Shandalar planes have a huge
+unused bestiary, and there was no real difficulty/tier system to gate any of it by - "no official
+Mage level/tier system, or the one that there is, is kinda broken." Not yet playtested.
+
+**Root cause of "player territory feels dead."** `WorldStage.handleMonsterSpawn()` resolves
+roaming spawns live, per player position - determines the biome owning the player's current tile
+(`World.highestBiome(world.getBiome(...))`) and draws from that `BiomeData.getEnemyList()`/
+`getEnemy()`. This already reacts correctly to Territory Control's existing repaint/capture system
+(a captured tile's biome ownership bit flips, so spawns should just follow) - but `player.json`'s
+own `enemies` array was literally `[]`. Fixed with a real 61-entry list: Colorless/Wasteland's own
+49 (already a mixed-color roster - Apprentice/Adept/Corrupted wizards in all 5 colors, golems,
+Eldrazi, animals, bandits) plus 12 more genuinely-colorless creatures (Cephalid, Homarid, Jellyfish,
+Juggernaut, Khenra Warrior, Nezumi Leader, Nezumi Ninja, Octopus, Owl, Pharaoh, Plant, Scorpion)
+pulled from the full merged roster that weren't already in Colorless's list.
+
+**Full cross-plane bestiary import ("let's import them all, take your time and check for any
+issues").** Diffed every bundled plane's `enemies.json` against `common`'s 464-enemy baseline for
+new, color-tagged (`colors` field non-empty) entries: Innistrad 23, Realm of Legends 870, Shandalar
+Old Border 118 - 1,011 candidates. Scoped the real asset cost before copying anything (same
+discipline as every other cross-plane import this mod has done):
+- **Sprite art needed zero new files.** Every atlas referenced by all 1,011 candidates already
+  exists in `common` (confirmed via existence checks against both the source plane's own folder
+  and `common`'s) - these planes reuse `common`'s existing enemy sprite catalog for their new
+  named-legend/deck combinations, they don't ship new art.
+- **~1,000 new `.dck` deck files were the real cost** - each plane keeps its own `decks/` folder
+  (`Config.instance().getFile()`'s plane-then-`common`-fallback resolution, confirmed by reading
+  `CardUtil.getDeck()`, so a deck only needs copying if it doesn't already resolve via `common`).
+  This plane never had its own `decks/` tree before - now does, 1,008 files, all under the exact
+  relative paths (`decks/legends/...`, `decks/miniboss/...`, etc.) their referencing `enemyData`
+  entries expect.
+
+**Issues found and handled during the import** (checked, not silently propagated):
+- **6 enemies excluded** - Realm of Legends' "Borborygmos and Fblthp" + 4 "Fblthp, Lost in the
+  Pits/Rivers/Stones/Walls" variants + "Haktos": their referenced deck files don't exist anywhere
+  (not even in Realm of Legends' own folder) and no unambiguous same-named substitute deck was
+  found nearby - a pre-existing gap in that plane's own data, not something to guess a fix for.
+- **1 deck path corrected** - "Perrie" referenced `decks/legends/perrie.dck` (doesn't exist);
+  `decks/legends/perrie_the_pulverizer.dck` is an unambiguous match, repointed.
+- **2 sprite paths corrected** - Innistrad's "Watcher in the Web"/"Immerwolf" referenced
+  `sprites/enemy/beast/spider_black.atlas`/`wolf.atlas` (missing a subfolder segment); the real
+  files exist in `common` at `sprites/enemy/beast/arachnid/spider_black.atlas`/
+  `.../largemammals/wolf.atlas` - repointed to the correct path rather than left broken.
+  Immerwolf/Watcher in the Web are both pre-existing Innistrad data typos, not introduced here.
+- **8 enemies renamed for cross-plane name collisions** (checked Innistrad/Realm of
+  Legends/Shandalar Old Border pairwise, zero deck-path collisions found, but enemy *names*
+  collided in two cases): 7 pairs between Realm of Legends and Shandalar Old Border - the same MTG
+  legendary character represented two different ways (Chromium, Karona, Kogla, Krampus, Nicol
+  Bolas, Palladia-Mors, Santa) - kept Realm of Legends' plain name (fits the big generic roaming
+  pool, all non-boss) and suffixed Shandalar Old Border's version `(Boss)` or `(Elite)` matching its
+  own source deck-folder classification (`decks/boss/`, `decks/miniboss/`, `decks/elite/`). 1 pair
+  between Innistrad and Realm of Legends ("The Gitrog Monster," different decks/life/sprite) -
+  suffixed Innistrad's `(Innistrad)`, kept Realm of Legends' plain name for the same reason.
+- Net result: 1,005 new enemies added, 1,469 total, verified zero duplicate names remaining.
+
+Considered pulling more bosses specifically from Shandalar Old Border (a separate, earlier ask,
+already answered as "not worth importing on its own") - moot now, since this same import already
+includes all 118 of its color-tagged entries.
+
+**Mage difficulty/tier system, from deck card-rarity ratio (user's proposal).** Built as
+**Common/Uncommon/Rare/Mythic** (user's pick, 4 tiers) - matches MTG's own rarity words, matches
+the item-tier naming from the Item Economy round, and turned out to already be implicit in the
+base roster's own naming convention: `Apprentice/Adept/Master/Challenger <Color> Wizard` decks are
+tagged `easy`/`medium`/`hard` and carry a hand-authored `EnemyData.difficulty` of `0.1`/`1`/`2`/`3`
+respectively - a real 4-rung ladder already sitting in the data, just disconnected (see bug below).
+- **Weighting**: Common=1, Uncommon=2, Rare=4, Mythic=8 per card (doubling scale, so a single
+  Mythic meaningfully shifts a deck's average even among many commons) - **basic lands excluded**
+  from both the weighted sum and the card-count denominator (`CardRarity.BasicLand` check), since
+  counting land toward the ratio would measure "how many lands does this deck run," not the power
+  of its actual spell package. Averaged per deck, bucketed at score `<2.0`/`2.0-3.0`/`3.0-4.5`/
+  `>=4.5` (chosen against the real computed distribution - min 1.0, max 5.68, mean 3.01 across
+  1,547 resolvable decks - not a naive even-quartile split, an explainable one: a deck averaging
+  2.0 reads as "every card is at least Uncommon," which should already be solidly Uncommon tier).
+- **Batch resolution tool**: `forge.lda.DeckRarityLookup` (new, throwaway - deleted after use, same
+  convention as the Item Economy round's `RarityLookup`). Same bootstrap
+  (`GuiBase.setInterface(new GuiDesktop()); FModel.initialize(null, ...)`), same manually-assembled
+  classpath approach as before (`mvn dependency:build-classpath` still isn't reliably resolvable
+  standalone in this offline environment even with `-am` and a fresh `mvn install -N` - worked
+  around identically: glob every jar under `~/.m2/repository`, exclude the same known-conflicting
+  Guava/commons-lang3 versions, feed reactor `target/classes` dirs + jars through a Java `@argfile`).
+  Parses each deck's `[Main]` section (`count cardName|edition` lines), resolves each card's rarity
+  via `StaticData.instance().getCommonCards().getCard(name).getRarity()`, outputs one TSV line per
+  deck. **Must be run with `forge-gui/` as the working directory** - `Localizer.setLanguage()`
+  resolves `res/languages/en-US.properties` relative to cwd, not the classpath; running from repo
+  root throws `MissingResourceException` before `FModel.initialize()` even completes. Processed all
+  1,549 unique deck paths referenced across the full 1,469-enemy roster; 1 genuinely unresolvable
+  (`decks/standard/zombiepoisoner.dck`, referenced only by the pre-existing "Plaguelord" - missing
+  in both `common` and this plane, a pre-existing gap unrelated to this round's import).
+- **Real finding, corrected before shipping**: initially recomputed `difficulty`/`tier` for the
+  *entire* 1,469-enemy roster uniformly from the new formula. A sanity check against the
+  pre-existing hand-tuned Apprentice/Adept/Master/Challenger ladder caught a real mismatch:
+  "Challenger" decks (an actual official MTG precon product line, deliberately built efficient and
+  affordable rather than rare-loaded, for accessible competitive REL play) scored only "Uncommon" by
+  pure card-rarity, despite `difficulty=3` making them the base game's own hardest AI-tier by
+  design - two genuinely different notions of "difficulty" (print rarity vs. actual play strength)
+  that don't always agree. Course-corrected: pulled the pre-import `enemies.json` from git HEAD
+  (`a42884c0425`, before this round's changes) to get the *original* 464-enemy roster's difficulty
+  values, and only applied the new deck-rarity formula to enemies that had **no** existing value at
+  all (`difficulty == 0`/unset) - all 1,005 imports plus 11 pre-existing enemies that had a real
+  deck but no hand-authored difficulty (`Plaguelord` included, unaffected by its own missing-deck
+  issue above since its *difficulty* value was independently already set). 453 of 464 pre-existing
+  enemies kept their exact original value; a small numeric-range mapping (`<0.5`/`<1.5`/`<2.5`/
+  else) converts each preserved float into the new tier label for display/odds-lookup purposes,
+  chosen to match the values actually observed in the base data (0.1-0.4 all present, 0.5-1
+  clustered, 1.5-2 clustered, 3 at the top). Re-verified after the fix: Apprentice/Adept/Master/
+  Challenger now maps cleanly onto Common/Uncommon/Rare/Mythic in order, for both colors checked.
+- **`EnemyData.java` gained `public String tier = "Common";`** (+ copy-constructor wiring),
+  parallel to `ItemData.rarity`'s pattern from the Item Economy round - `difficulty` stays the
+  mechanical float `BiomeData.getEnemy()` actually gates on, `tier` is the readable label other
+  systems (town-fight odds below) switch on directly instead of comparing floats.
+- **Real bug found and fixed while wiring this up**: `BiomeData.getEnemy(float difficultyFactor)`
+  silently discarded whatever was passed in and substituted `Current.player().getStatistic().rank()`
+  instead (`difficultyFactor = Current.player()...` as the very first line of the method body) -
+  meaning the parameter was always dead on arrival, and difficulty gating only ever reflected
+  overall win-count progression, never anything a caller might want to express. Every call site
+  had been passing a meaningless placeholder (`1.0f`) as a result. Fixed by removing the
+  overwrite; callers (`WorldStage.handleMonsterSpawn()`, `MapStage`'s named-enemy-not-found
+  fallback) now explicitly compute and pass `Current.player().getStatistic().rank()` themselves -
+  same value, same existing progression feel, but the parameter is now genuinely respected, which
+  matters now that ~1,000 previously-blank enemies have real difficulty data to be gated by.
+  `BiomeData.getExtraSpawnEnemy()`'s pre-existing `//todo: implement difficultyFactor` was left as
+  future work - out of scope for this round, that path already works (quest-spawn boosting), it
+  just doesn't yet vary by difficulty.
+
+**Roaming-spawn proximity/reputation intrusion** (user: "if a colored city is in the area, that
+color might spawn in a certain radius... if you are at war with a color they might spawn").
+New `TerritoryControl.findNearbyForeignColor(World, Vector2 pos, String excludeColor)` - nearest
+OTHER color's town/capital/castle within a new `SPAWN_INTRUSION_RADIUS_TILES` (40, deliberately
+larger than `CASTLE_KEEP_RADIUS_TILES` so a border starts bleeding before the player is technically
+standing inside claimed territory) - reuses the existing `COLOR_TOWN_NOUN` prefix-matching
+convention, extended to also recognize `"castle"`-type POIs (exact `"<Color> Castle"` name match,
+same as `findCastle()`), which the pre-existing `ColorReputation.colorOfTown()` doesn't cover.
+`WorldStage.handleMonsterSpawn()` calls this every spawn attempt (gated on
+`ColorReputation.isEnabled()`); on a hit, rolls a new `SPAWN_INTRUSION_BASE_CHANCE` (0.25) scaled by
+a new `ColorReputation.getSpawnIntrusionMultiplier(color)` - 0x Partner (never intrudes), 0.5x
+Happy, 1x Neutral, 1.5x Unhappy, 2.5x War - and if it fires, substitutes that color's `BiomeData`
+for the current roll only (a new `findBiomeByName()` helper on `WorldStage`), not a real territory
+change. Considered and explicitly dropped a symmetric "Partner-tier reduces your own hostile spawn
+rate" addition - user clarified the player has no owned/friendly monster concept (only the planned
+future "guards" feature would introduce one), and this would've just been the same reputation dial
+run backward without adding anything the War-tier-intrusion ask didn't already cover.
+
+**Town-fight capture odds now tier-weighted** (user: "we could use this to determine the chances to
+win a town fight, currently we have it always as 50/50... level 1 has a 25/75, level 2 has 50/50
+level 3 has 75/25" - extended to 4 tiers to match the tier count above, with more spread at the
+extremes). `TerritoryControl.onMageArrived()`'s enemy-color-town capture resolution (previously a
+flat `world.getRandom().nextBoolean()`, with an explicit comment placed there during the reputation
+round noting exactly this as deferred future work) now calls a new `attackerWinChance(String tier)`
+- Common 10% / Uncommon 30% / Rare 70% / Mythic 90% attacker-wins chance - keyed off the attacking
+mage's own `EnemyData.tier`.
+
+**Content-level POI re-theme, settling the long-open MOD_SCOPE.md #7 question** (user: "I think
+they should re-theme and any colorless/wasteland POIs should be player terrain enabled"). Checked
+how dungeon encounters actually work before designing this: `MapStage`'s `"enemy"` object case
+does an exact-name lookup (`WorldData.getEnemy(name)`) against a name hardcoded per map object, NOT
+a draw from a biome's roaming pool - only falling back to a random biome pick when that name is
+missing/broken. This meant a real content re-theme didn't need parallel per-color map sets (the
+"5x the content" cost MOD_SCOPE.md's Territory Control section already flagged and declined when
+this was first raised) - it needed a substitution layer instead:
+- New `TerritoryControl.homeColorOfPoi(World, String poiName)` (private) - which color's `BiomeData`
+  originally placed this POI at world-gen, found by checking each biome's raw `pointsOfInterest[]`
+  name array (not the lazy `getPointsOfInterest()` accessor, which has cave/dungeon-sorting side
+  effects not wanted here).
+- New `TerritoryControl.currentColorAtPoi(World, PointOfInterest)` (private) - same tile-ownership
+  lookup (`World.highestBiome(world.getBiome(...))`) `WorldStage`'s roaming spawner already uses,
+  applied to the POI's own position instead of the player's.
+- New `TerritoryControl.reThemedEnemyFor(World, PointOfInterest, float originalDifficultyCeiling)`
+  (public) - if home and current color differ, returns a same-difficulty-ceiling pick
+  (`currentColorBiome.getEnemy(originalDifficultyCeiling)`) from the current owner's roster, or
+  `null` if the land hasn't changed hands (caller keeps its original enemy). Ceiling, not exact
+  match, so a re-themed encounter can't come out *harder* than what was originally authored there -
+  only its color/flavor changes, not the dungeon's intended difficulty curve.
+- `MapStage`'s `"enemy"` case calls this right after a successful named lookup, but only when
+  `!EN.boss && EN.questTags.length == 0` - boss and quest-tagged encounters are exempt, since
+  those are often quest-logic-critical or a scripted fight that shouldn't silently change out from
+  under a quest.
+- `player` participates as an ordinary target color with no special-casing needed - once wasteland
+  territory is captured and repainted to player color, a dungeon sitting on it re-themes to
+  `player.json`'s own roster (the 61-entry list above) the same way any other capture would,
+  directly satisfying "colorless/wasteland POIs should be player terrain enabled."
+- Deliberately not deterministic-per-visit beyond the difficulty ceiling - `BiomeData.getEnemy()`
+  draws from the world's shared RNG, so a re-themed dungeon's specific substitute can vary between
+  visits, same as ordinary roaming spawns already do. Considered pinning it to a stable per-POI
+  seed for consistency, but decided the variety reads as more alive, matching this round's overall
+  intent, rather than making repeat visits feel scripted.
+
+**Toolchain note.** `mvn dependency:build-classpath` continues to be unreliable standalone in this
+offline environment (`${revision}` unresolved even after `mvn install -N` + `mvn -pl <module> -am
+install`, and both direct `flatten:flatten` and the dependency plugin's own goal invocation fail
+trying to resolve plugin-internal dependencies that aren't cached at the exact needed versions).
+The manual-classpath-assembly workaround from the Item Economy round (glob `~/.m2/repository`,
+exclude known-conflicting Guava/commons-lang3 versions, `@argfile`) remains the reliable path for
+any future one-off CLI tool in `forge-lda` - don't re-attempt `dependency:build-classpath` first,
+go straight to the manual assembly.
