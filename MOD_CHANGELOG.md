@@ -8,6 +8,48 @@ this repo up next (this PC, the Gaming PC, or a future session here). `MOD_SCOPE
 entry below corresponds to a real commit with a fuller message. This file is the "why/how it fits
 together" layer on top of that.
 
+## Handoff note for the Gaming PC session (2026-08-11, from the home PC)
+
+Everything as of this note is committed AND pushed - `origin/master` is at `50e28707bae`
+("Cross-machine playtest round..."), confirmed 0 ahead/0 behind against the local checkout that
+wrote it. `git pull` on the Gaming PC should fast-forward cleanly with no merge needed.
+
+**`git pull` only updates this checkout - it does NOT touch the Gaming PC's deployed/installed
+game.** Before testing anything from this round, run the full deploy checklist from
+`project_forge_adventure_mod` memory / this file's own build notes: `mvn -pl forge-gui-mobile -am
+compile -DskipTests -o`, splice the rebuilt `forge/adventure` package into the installed jar with
+`jar uf`, and mirror `forge-gui/res/adventure/The Forgotten Realms/` over the deployed copy's same
+folder (a plain recursive copy is fine - see the "Cross-machine merge note" and the entry right
+below this one for what actually changed and why a full resource mirror was used instead of
+cherry-picking individual files).
+
+**What this round fixed** (full detail in the "Cross-machine playtest round: 8 real bugs found..."
+entry immediately below): a real map-load crash (broken `treasure.tx` template path in 6 merged
+dungeon maps - the likely cause of a "stuck on screen" report), four bugs in the fog-of-war
+discovery-reveal mechanic (including a big one - the Capitol's Territory Expansion growth was
+force-revealing its entire ~450-tile radius as fog-of-war "explored" regardless of actual player
+exploration), a reputation bug (Unhappy/War towns were still fully healing the player on entry),
+AI capitals' Armory shops not visibly restocking weekly (their `shops.json` data had nothing
+randomizable - fixed with pooled rewards), a duplicate castle-look icon on the minimap (Eldrazi
+Prison shared Emrakul's sprite), plus small Armory UI/wording polish and reputation-number
+tier-coloring on World Standings.
+
+**Not fully resolved - needs the user's own follow-up while playing today:**
+- The user reported **three** castle/capitol-style icons in neutral/player territory; this round
+  only tracked down two (Emrakul, the intended singleton, and Eldrazi Prison, now fixed to a Cave
+  icon instead). If a third one is still visible after pulling this round, get its exact name/
+  location (walk up to it, check the label) before investigating further - the leading unconfirmed
+  guess is that it's actually one of the 5 real AI castles now sitting visually inside the
+  Capitol's own greatly-expanded territory (post fog-of-war fix, that territory can legitimately
+  reach ~450 tiles out), not a genuine duplicate. Don't assume that guess is right without checking.
+- Separately, six other new "Story"-tagged POIs from the last merge (Tarnation, Wizard Palace,
+  Squirrel Farm, Gitrog Bog, Church of Valgavoth, Kenrith's Court) are placed randomly across
+  their ENTIRE assigned color biome at world-gen, not confined near that color's castle keep -
+  this is unrelated to the icon bug above (none of them use a castle-looking sprite, so they don't
+  cause the same visual confusion) but is a real gap if it turns out to matter for how "neutral
+  vs. AI territory" is supposed to read on the map. Not fixed this round - flagged in case it comes
+  up during today's session.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at
