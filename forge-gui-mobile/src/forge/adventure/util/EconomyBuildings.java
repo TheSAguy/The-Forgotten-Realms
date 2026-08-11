@@ -8,13 +8,18 @@ import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.Array;
 import com.github.tommyettinger.textra.TextraButton;
 import com.github.tommyettinger.textra.TypingLabel;
 import forge.Forge;
 import forge.adventure.character.ShopActor;
 import forge.adventure.data.DialogData;
+import forge.adventure.data.ItemData;
+import forge.adventure.data.ItemListData;
+import forge.adventure.data.RewardData;
 import forge.adventure.data.ShopData;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.scene.RewardScene;
 import forge.adventure.scene.UIScene;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
@@ -23,10 +28,16 @@ import forge.adventure.stage.MapStage;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.world.WorldSave;
 import forge.gui.FThreads;
+import forge.item.PaperCard;
 import forge.screens.CoverScreen;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 
 /**
  * Economy buildings (MOD_SCOPE.md #9): wasteland shops can optionally be rebuilt as one of six
@@ -60,11 +71,13 @@ public class EconomyBuildings {
 
     private static final String ATLAS = "maps/tileset/economy_buildings.atlas";
     // Real art for the newer building types (2026-08-09): 16x16 tiles the user pinpointed in
-    // common's buildings.png via Tiled's tile inspector (Look-out 355, Teleporter 528, Arena 227,
-    // Archaeologist 751, Science Lab 805 - the tile-id/pixel coords matched buildings.png's
-    // 28-column layout exactly), extracted + 2x nearest-upscaled to the same 32x32 the six
-    // economy_buildings icons use. Archaeologist/ScienceLab are packed too, for whenever those
-    // buildings get built.
+    // common's buildings.png via Tiled's tile inspector (Look-out 355, Teleporter 528, Arena 227),
+    // extracted + 2x nearest-upscaled to the same 32x32 the six economy_buildings icons use.
+    // Science Lab 805 was speculatively reserved here too but never built - still unclaimed.
+    // Archaeologist 751 (also speculatively reserved here) was checked on 2026-08-11 when the
+    // Archaeologist building actually got built: on inspection it's part of an unrelated teal
+    // guardian-temple sprite, not archaeology-themed at all, so it was NOT used - see
+    // getArchaeologistSprite() below, which uses the generic SpecialShop icon as a placeholder.
     private static final String NEW_BUILDINGS_ATLAS = "maps/tileset/new_buildings.atlas";
     // Guard tier map-indicator icons (2026-08-11, MOD_SCOPE.md #22) - 8x8, cropped from
     // common/maps/tileset/dungeon.png (user-supplied IDs 83/84/86/88) and shrunk per the user's
@@ -217,6 +230,114 @@ public class EconomyBuildings {
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
     }
+
+    // ---- Archaeologist (2026-08-11, user spec) ----
+    // Capitol-only building (new `archaeologist.tx` template, mirroring arena.tx/spellsmith.tx -
+    // gated by the same OnCollide rebuild mechanic those use, see MapStage's "archaeologist" case).
+    // Sends a 7-day expedition that returns 5 cards the player doesn't already own (by name - see
+    // ownedCardNames() below), no Mythic Rare, plus a 25% chance of an additional booster pack and
+    // a 5% chance of an additional non-Mythic item. No real art identified for this building yet -
+    // tile 751 (the id an old code comment speculatively reserved for "Archaeologist") turned out on
+    // inspection to be part of an unrelated teal guardian-temple sprite, not archaeology-themed at
+    // all, so this uses the generic SpecialShop icon as a placeholder for now, same as Spellsmith
+    // originally did before real art was found for it.
+    public static final int ARCHAEOLOGIST_EXPEDITION_DAYS = 7;
+    private static final float ARCHAEOLOGIST_BOOSTER_CHANCE = 0.25f;
+    private static final float ARCHAEOLOGIST_ITEM_CHANCE = 0.05f;
+
+    public static TextureRegion getArchaeologistSprite() {
+        return getSpecialShopSprite();
+    }
+
+    /** Cost to send an expedition: not specified by the user - defaulting to FREE (flagged in
+     *  MOD_CHANGELOG.md/MOD_SCOPE.md as an assumption, not a confirmed design decision) rather
+     *  than guessing a gold amount with no basis. Easy to add a cost here later if the user wants
+     *  one once the 7-day cadence has been playtested. */
+    public static void openArchaeologistDialog(MapStage stage, int objectId) {
+        refreshArchaeologistDialog(stage, objectId);
+        stage.showDialog();
+    }
+
+    private static void refreshArchaeologistDialog(MapStage stage, int objectId) {
+        Dialog dialog = stage.getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+
+        PointOfInterestChanges changes = stage.getChanges();
+        int sentDay = changes.getArchaeologistExpeditionSentDay();
+        addContentRow(dialog, "Archaeologist");
+
+        if (sentDay < 0) {
+            addContentRow(dialog, "Send an expedition to dig up cards you don't yet own.");
+            addButtonRow(dialog, "Send Expedition", true, () -> {
+                changes.setArchaeologistExpeditionSentDay(WorldSave.getCurrentSave().getWorld().getCurrentDay());
+                refreshArchaeologistDialog(stage, objectId);
+            });
+        } else {
+            int elapsed = WorldSave.getCurrentSave().getWorld().getCurrentDay() - sentDay;
+            if (elapsed < ARCHAEOLOGIST_EXPEDITION_DAYS) {
+                int daysLeft = ARCHAEOLOGIST_EXPEDITION_DAYS - elapsed;
+                addContentRow(dialog, "Expedition in progress - " + daysLeft + (daysLeft == 1 ? " day" : " days") + " remaining.");
+            } else {
+                addContentRow(dialog, "The expedition has returned!");
+                addButtonRow(dialog, "Collect Rewards", true, () -> {
+                    changes.setArchaeologistExpeditionSentDay(-1);
+                    stage.hideDialog();
+                    Array<Reward> rewards = generateExpeditionRewards(WorldSave.getCurrentSave().getWorld().getRandom());
+                    RewardScene.instance().loadRewards(rewards, RewardScene.Type.Loot, null);
+                    Forge.switchScene(RewardScene.instance());
+                });
+            }
+        }
+        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+    }
+
+    private static Set<String> ownedCardNames() {
+        Set<String> owned = new HashSet<>();
+        for (Map.Entry<PaperCard, Integer> entry : AdventurePlayer.current().getCards())
+            owned.add(entry.getKey().getName());
+        return owned;
+    }
+
+    private static Array<Reward> generateExpeditionRewards(Random random) {
+        Array<Reward> rewards = new Array<>();
+
+        RewardData nonMythic = new RewardData();
+        nonMythic.rarity = new String[]{"Common", "Uncommon", "Rare"};
+        List<PaperCard> pool = new ArrayList<>(CardUtil.getPredicateResult(RewardData.getAllCards(), nonMythic));
+        Set<String> owned = ownedCardNames();
+        pool.removeIf(pc -> owned.contains(pc.getName()));
+        Collections.shuffle(pool, random);
+        int cardCount = Math.min(5, pool.size());
+        for (int i = 0; i < cardCount; i++)
+            rewards.add(new Reward(pool.get(i)));
+
+        if (random.nextFloat() < ARCHAEOLOGIST_BOOSTER_CHANCE) {
+            RewardData booster = new RewardData();
+            booster.type = "cardPackShop";
+            booster.probability = 1f;
+            booster.count = 1;
+            rewards.addAll(booster.generate(false, true));
+        }
+
+        if (random.nextFloat() < ARCHAEOLOGIST_ITEM_CHANCE) {
+            String itemName = NON_MYTHIC_ITEM_POOL[random.nextInt(NON_MYTHIC_ITEM_POOL.length)];
+            ItemData itemData = ItemListData.getItem(itemName);
+            if (itemData != null)
+                rewards.add(new Reward(itemData));
+        }
+
+        return rewards;
+    }
+
+    // Common+Uncommon+Rare, non-quest items from items.json (542 entries) - same query convention
+    // (rarity + questItem exclusion) as the Arena Challenge item pools above, just spanning all
+    // three non-Mythic tiers at once since the user's spec for this 5% roll wasn't tier-split.
+    private static final String[] NON_MYTHIC_ITEM_POOL = {
+            "Challenge Coin", "Silver Challenge Coin", "Landscape Sketchbook - Zendikar", "Landscape Sketchbook - Innistrad", "Landscape Sketchbook - Ravnica Allegiance", "Landscape Sketchbook - Theros", "Landscape Sketchbook - Kamigawa Neon Dynasty", "Landscape Sketchbook - Dominaria", "Landscape Sketchbook - Lorwyn", "Landscape Sketchbook - Shards of Alara", "Landscape Sketchbook - Amonkhet", "Landscape Sketchbook - Ixalan", "Landscape Sketchbook - Unglued", "Landscape Sketchbook - Unhinged", "Landscape Sketchbook - Unstable", "Landscape Sketchbook - Unfinity", "Landscape Sketchbook - Aetherdrift", "Landscape Sketchbook - Edge of Eternities", "Landscape Sketchbook - Strixhaven: School of Mages", "Landscape Sketchbook - Streets of New Capenna", "Landscape Sketchbook - Kaldheim", "Landscape Sketchbook - Ikoria: Lair of Behemoths", "Landscape Sketchbook - Throne of Eldraine", "Landscape Sketchbook - Shadows Over Innistrad", "Landscape Sketchbook - Battle for Zendikar", "Landscape Sketchbook - Khans of Tarkir", "Landscape Sketchbook - Hour of Devastation", "Landscape Sketchbook - Kaladesh", "Landscape Sketchbook - Mercadian Masques", "Landscape Sketchbook - New Phyrexia", "Landscape Sketchbook - Mirrodin Besieged", "Landscape Sketchbook - Scars of Mirrodin", "Landscape Sketchbook - Magic Origins", "Landscape Sketchbook - Magic 2021", "Landscape Sketchbook - Modern Horizons", "Landscape Sketchbook - Tempest", "Landscape Sketchbook - Onslaught", "Landscape Sketchbook - Odyssey", "Landscape Sketchbook - Rise of the Eldrazi", "Landscape Sketchbook - Dragons of Tarkir", "Landscape Sketchbook - Duskmourn: House of Horror", "Landscape Sketchbook - Outlaws of Thunder Junction", "Landscape Sketchbook - Bloomburrow", "Landscape Sketchbook - The Brothers War", "Landscape Sketchbook - Seventh Edition", "Landscape Sketchbook - Limited Edition Alpha", "Landscape Sketchbook - Limited Edition Beta", "Landscape Sketchbook - Revised Edition", "Landscape Sketchbook - Fourth Edition", "Landscape Sketchbook - Fifth Edition", "Landscape Sketchbook - Sixth Edition", "Landscape Sketchbook - Ice Age", "Landscape Sketchbook - Tempest", "Landscape Sketchbook - Portal", "Landscape Sketchbook - Portal Second Age", "Landscape Sketchbook - Portal Three Kingdoms", "Landscape Sketchbook - Starter 1999", "Landscape Sketchbook - Starter 2000", "Landscape Sketchbook - Battle Royale", "Landscape Sketchbook - Beatdown Box Set", "Landscape Sketchbook - Lorwyn Eclipsed", "Landscape Sketchbook - Tarkir: Dragonstorm", "Captive Soul of a Priest", "Kobold Boots", "Courier's Boots", "Symbiote Bondband", "Imposter's Sliverband", "Maestro Loafers", "Sky Skiff Turnkey", "Bloodfire Boots", "Witch's Shoes", "Petalmane Pants", "Enduring Sliverband", "Coiled Anklet", "Deathspore Shoes", "Obscura Shoes", "Angelic Ring", "Steel Boots", "Cabaretti Kicks", "Caravaneer's Greaves", "Silvergill Tailband", "Riveteer Greaves", "Deathspitter Skirt", "Lookout's Harness", "Bearhide Breeches", "Timebug Boots", "Glimmerbell Bondband", "Firefrightener Shoes", "Gingerboots", "Brokers Boots", "Scarecrow Socks", "Sabertooth Bondband", "Bandar Boots", "Trickster's Shoes", "Blistering Breeches", "Greaves of Glare", "Cragflame", "Fblthp's Lost Socks", "Raptor Bondband", "Plated Sliverband", "Greenseeker's Shoes", "Angelic Greaves", "Basilica Skullbomb", "Tome of Fire", "Golden Egg", "Malign Prayerbook", "Furnace Skullbomb", "Thaumaton Torpedo", "Scroll of Griselbrand", "Scroll of Avacyn", "Necrogen Gauntlet", "Aether Gauntlet", "Lotus Petal", "Pyrite Gauntlet", "Chromatic Sphere", "Amnesiac Prayerbook", "Kaleidostone", "Sunbeam Gauntlet", "Tome of the Executioner", "Maze Skullbomb", "Prayerbook of Vigor", "Surgical Skullbomb", "Tome of Removal", "Nascent Prayerbook", "Prayerbook of Return", "Tome of Dispelling", "Prayerbook of Ire", "Lifespark Gauntlet", "Volatile Prayerbook", "Prayerbook of Fortunes", "Wedding Invitation", "Dross Skullbomb", "Mephitic Draught", "Tome of Might", "Ephemeral Prayerbook", "Prayerbook of Fertility", "Ajani's Amulet", "Referee's Shoes", "Bladed Bracer", "Echo Shield", "Runed Stalactite", "Tawnos's Wand", "Short Sword", "Kor Halberd", "Ceremonial Knife", "Blight Sickle", "Goldvein Pick", "Jousting Lance", "Hoversail Glove", "Bespoke Gauntlet", "Pirate Hat in Hand", "Adventuring Gear", "Spidersilk Glove", "Spidersilk Helm", "Strider Reins", "Truth Butcher's Armor", "Steel Armor", "Mithril Armor", "Cloak of the Wastes", "Meadow Outfit", "Isle Shirt", "Mire Leather", "Smoldering Cloak", "Karst Shawl", "Phelddagrif Plate", "Seraphim Wings", "Scrapling Shoes", "Infernal Armor", "Generous Armor", "Generous Pants", "Generous Necklace", "Generous Ring", "Generous Coin", "Medal of the Outgunned", "Medal of the Outmaneuvered", "Medal of Ultimate Victory", "Mad Hat", "Faerie Anklet", "Colossal Dreadmace", "Helm of Battle", "Winter Boots", "Pilgrim's Cloak", "Bronze Challenge Coin", "Landscape Sketchbook - 30th Anniversary Edition", "Landscape Sketchbook - Thrones of Eldraine", "Chandra's Stone", "Phoenix", "Liliana's Stone", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Sandals", "Dark Shield", "Dark Armor", "Blood Vial", "Snack", "Mad Staff", "Dark Amulet", "Pandora's Box", "Traveler's Amulet", "Amulet of Kroog", "Lightbringers Boots", "Kiora's Bident", "Chicken Egg", "Staff of Invisibility", "Captive Soul of a Saint", "Cloudseeder Shoes", "Jolly Boots", "Brimstone Boots", "Peddler's Shoes", "Jade Anklet", "Mamba Bondband", "Empyrial Greaves", "Artificial Sliverband", "Shoes of the Swarm", "Joraga Boots", "Hellkite Greaves", "Valorous Greaves", "Battle Cry Boots", "Vindicator Greaves", "Despoiler's Boots", "Sovereign Greaves", "Bloodsworn Bite", "Victual Sliverband", "Beastbreaker Boots", "Princely Greaves", "Packsong Pants", "Acidic Sliverband", "Anklet of the End", "Spectral Sliverband", "Godsire Greaves", "Draped Dragonhide", "Cryptologist's Fins", "Soul Shoes", "Barrier Breeches", "Abzan Gauntlet", "Urza's Bauble", "Tome of Triumph", "Mishra's Bauble", "Map to the World Tree", "Keys to the House", "Poisoner's Glove", "Chimeric Coils", "Temur Gauntlet", "Tome of the Builder", "Sultai Gauntlet", "Mardu Gauntlet", "Jeskai Gauntlet", "Sinister Concoction", "Tempting Apple", "Little Black Book", "Soul-Guide Gauntlet", "Tome of Binding", "Amulet of Compleation", "Team Pennant", "Leech Breeches", "Mask of Compulsion", "Breaching Stormcrown", "Mask of Narcissism", "Acorn Amulet", "Amulet of Aeons Torn", "Roiling Stormcrown", "Amulet of Telepathy", "Bonder's Helm", "Amulet of Annihilation", "Corroding Stormcrown", "Mask of Mortiphobia", "Mask of Pyromania", "Mask of Hypochondria", "Teeming Stormcrown", "Skywise Talisman", "Crown of Winter", "Encroaching Stormcrown", "Ominous Amulet", "Silverskin Gauntlet", "Sorcerer's Wand", "Spy Kit", "Shield of the Righteous", "Steelclaw Lance", "Starforged Sword", "Trusty Machete", "Enormous Energy Blade", "Angelic Armaments", "Brawler's Cestus", "Fblthp's Lost Fishing Pole", "Ramosian Greatsword", "Ring of Xathrid", "Petrified Head", "Ring of Dragon Blood", "Ring of Thune", "Ring of Valkas", "Witches' Eye", "Ring of Kalonia", "Ring of Evos Isle", "Siren Song Lyre", "Full Moon Necklace", "Flaming Armor", "Armor of Ramunap", "Blessed Armor", "Nomad Armor", "Forbidden Robes", "Cabal Armor", "Armor of Ifnir", "Centaur Armor", "Nivix Vest", "Rancher's Garb", "Armor of Ipnu", "Heavy Armor", "Liliana's Veil", "Barbarian Armor", "Glacial Armor", "Cephalid Armor", "Cloak of Prahv", "Cloak of Svogthos", "Vitu-Ghazi Cloak", "Pinecrest Cloak", "Mantle of Dusk", "Cloak of Orzhova", "Tranquil Cloak", "Novijen Cloak", "Explorer's Cloak", "Cloudcrest Cloak", "Lantern-Lit Cloak", "Sunhome Cloak", "Sage's Robes", "Skargg Cloak", "Waterveil Cloak", "Rix Maadi Cloak", "Thunder Lasso", "Medal of the Outnumbered", "Medal of the Outmatched", "Medal of the Overpowered Opponent", "Medal of the Overwhelmed Champion", "Fleshwright Chaps", "Thirsting Axe", "Chitinous Club", "Giant's Bracer", "Jewel of Blessings", "Jewel of War", "Ghoulish Jewel", "Jewel of Rage", "High Ground Helm", "Cunning Mask", "Mighty Helm", "Helm of the Fallen", "Vampiric Amulet", "War Helm", "Helm of Contemplation", "Outlaw's Hat", "Manaforce Mace", "Hengestrider Boots", "Tome of Blight", "Hill Giant Club", "Sol Ring", "Life Amulet", "Iron Boots", "Iron Armor", "Steel Sword", "Jungle Shield", "Cursed Ring", "Presence of the Hydra", "Death Ring", "Mirror Shield", "Dungeon Map", "Crown of Growth", "Mantle of Denial", "Wood Bow", "Dark Boots", "Charm", "Magic Shard", "Entrancing Lyre", "Heavy Arbalest", "Unerring Sling", "Jeweled Amulet", "Relic Amulet", "Jinxed Ring", "Nine-Ringed Bo", "Prism Ring", "Kite Shield", "Shell Wand", "Manasight Amulet", "The Underworld Cookbook", "Bronze Blessing of Speed", "Cutthroat Skirt", "Utopia Anklet", "Amulet of Agony", "Witch-Maw Anklet", "Sheldon's Shoes", "Gixian Graft", "Yore-Tiller Anklet", "Dune-Brood Anklet", "Ghoulcaller Greaves", "Spore Skirt", "Glint-Eye Anklet", "Ink-Treader Anklet", "Fblthp's Lost Bauble", "Triangle of War", "Black Lotus", "Triassic Egg", "Ooze Amulet", "Pack Leader Pants", "Girlfriend's Skirt", "Chaos Wand", "Bear Helm", "Alesha's War Skirt", "Acolyte's Anklet", "Mask of Valgavoth", "Amulet of Awakening", "Pinnacle Circlet", "Artist's Beret", "Arguel's Amulet", "Amulet of Fury", "Amulet of Mirth", "Worn Coin", "Amulet of Mischief", "Amulet of Scorn", "Scavenger's Bandana", "Caretaker's Cap", "Amulet of Favor", "Celestial Sword", "Aegis of the Meek", "Sword of the Ur-Dragon", "Shield of Kaldra", "Draconian Cylix", "Crucible Armor", "Crystalline Armor", "Oracle's Robes", "Armor of the First", "Librarian's Robes", "Sanctuary Armor", "Fblthp's Lost Shirt", "Armor of Urami", "Parun's Armor", "Urza's Robe", "Diamond Belt", "Generous Ingot", "Ghostfire Blade", "Dire Flail", "Poet's Quill", "Skyclave Maul", "Glorious Helm", "Helm of Myth", "Shadowspear", "Chandra's Tome", "Phoenix Charm", "Demonic Contract", "Cursed Treasure", "Farmer's Tools", "Mox Emerald", "Mox Jet", "Mox Pearl", "Mox Ruby", "Mox Sapphire", "Hivestone", "Iron Shield", "Steel Shield", "Sorin's Amulet", "Aladdin's Ring", "Spell Book", "Mithril Boots", "Mithril Shield", "Flame Sword", "Basilisk Collar", "Evil Ankh", "Concordant Boots", "Aladdin's Lamp", "Warren Tender's Baton", "Robes of Omniscience", "Gold Boots", "Gold Shield", "Gold Armor", "Change", "Treasure", "Disrupting Scepter", "The Blackstaff of Waterdeep", "Amulet of Vigor", "Veilstone Amulet", "Jandor's Ring", "Ring of Immortals", "Ring of Renewal", "Fortune Coin", "Slimefoot's Slimy Staff", "Slime-Covered Boots", "Amulet of the Deceiver", "Jace's Signature Hoodie", "Teferi's Staff", "Garruk's Mighty Axe", "Nahiri's Armory", "Giant Scythe", "Tibalt's Bag of Tricks", "Xira's Fancy Hat", "Mantle of Ancient Lore", "Zedruu's Lantern", "Grolnok's Skin", "Slobad's Iron Boots", "Hallowed Sigil", "Unhallowed Sigil", "Crown of the False God", "Kobold King's Blade", "Crown of the Vale", "Tasty Tome", "Shield of Air", "Attendant's Prayerbook", "Tome of the Trove", "Grovetender's Robes", "Rainbow Spear", "Windwalker's Blessing", "Staff of Azar", "Goblin Trumpet", "Faerie Dragon Egg", "Prismatic Egg", "Celestial Prism", "Guard's Shield", "Miller's Shoes", "Ley Line Walker Boots", "Shield of the Hivelord", "Torturer's Hood", "Staff of the Ages", "Spyglass", "Ferret Food", "Shaman's Staff", "Istvan's Axe", "Holy Symbol", "Breathstealer's Blade", "Ichor Knife", "Bog Glider Glove", "Urza's Armor", "Amulet of Gaea", "Serra's Prayer Book", "Krampus's Horns", "Santa's Hat", "Crooked Scales", "Kry Greaves", "Immortal Anklet", "Marble Mace", "Life Matrix", "Gauntlets of Chaos"
+    };
 
     // ---- Armory Guards (2026-08-11, MOD_SCOPE.md #22) ----
     // Tiers reuse EnemyData.tier's own internal strings (Common/Uncommon/Rare/Mythic - see

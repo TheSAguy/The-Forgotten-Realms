@@ -311,7 +311,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Capitol migration to carry the source town's exact shop lineup over. Capitol reserved-slots
   round (2026-08-10): new `removePinnedShopName(objectId)` - lets `TownRestoration.
   repairCapitolState()` strip a stale pin an older migration left on Armory/Booster so those slots
-  self-correct back to their tmx-defined shop type on an existing save (#13).
+  self-correct back to their tmx-defined shop type on an existing save (#13). Building-level round
+  (2026-08-11, #8/#13): persisted `buildingLevels` (objectId -> level, missing = 1) for Arena/
+  Armory L1->L2 upgrades. Guard round (same day, #22): persisted `guardTiers`/`guardLastPaidDay`
+  parallel lists. Archaeologist round (same day, #24): persisted `archaeologistExpeditionSentDay`
+  (plain int, -1 = none active, missing-key-safe load like `bankBalance`) - not objectId-keyed like
+  the two fields just above, since there's only ever one Archaeologist per save.
 - **`forge-gui-mobile/src/forge/adventure/scene/TileMapScene.java`** — `enter()`'s
   `isAutoHealLocation()` block grants a Partner-tier free overheal (#1, from the other machine's
   2026-08-10 round). Playtest round (2026-08-11) fixed a real bug found there: the base
@@ -481,7 +486,26 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `ColorReputation.onPlayerWonDuel()`. That method is the single funnel every duel's end passes
   through, and the only spot where win/loss, Arena, and Inn-event status are all knowable at once
   - if upstream restructures `GameEnd()`/`afterGameEnd()`, this hook needs to move with whatever
-  replaces that funnel.
+  replaces that funnel. Ante-off round (2026-08-11, #20 - missing from this doc until now, added
+  when the same file was touched again for Arena Challenge): `initDuels()`'s `rules.
+  setPlayForAnte(...)` now also checks `!enemy.getData().noAnte` (new field, see `EnemyData.java`
+  below) alongside the existing global Ante preference.
+- **`forge-gui-mobile/src/forge/adventure/data/EnemyData.java`** — added `noAnte` (boolean, default
+  false, #20) - lets a single fight force Ante off regardless of the player's global preference,
+  without touching that preference itself; set only on a per-fight clone (`new EnemyData(enemyData)`
+  then `.noAnte = true`), never on the shared roster data, so the enemy's other appearances are
+  unaffected. Read by `DuelScene.initDuels()` (see above). `gamesPerMatch` (the field
+  `ArenaScene.loadArenaData()`'s new `isChallenge` flag also overrides per-fight, same clone
+  pattern) is pre-existing stock Forge, not a mod addition - confirmed via `git log -p` on this
+  file, listed here only for context since both fields are touched by the same clone-and-override
+  pattern.
+- **`forge-gui-mobile/src/forge/adventure/scene/ArenaScene.java`** — Ante-off round (2026-08-11,
+  #20 - also missing from this doc until now): `loadArenaData()`'s enemy-cloning loop sets
+  `arenaEnemyData.noAnte = true` on each per-fight `EnemyData` clone. Challenge Arena round (same
+  day, later): new `loadArenaData(ArenaData, long, boolean isChallenge)` overload (the original
+  2-arg signature delegates to it with `false`) - when `isChallenge` is true, the same clone also
+  gets `gamesPerMatch = 1` forced, overriding the roughly 30% of the Challenge enemy pool that
+  otherwise defaults to best-of-3 in `enemies.json`.
 - **`forge-gui-mobile/src/forge/adventure/character/EnemySprite.java`** — added `territoryTarget`/
   `territoryColor` fields (#7, null for every ordinary enemy - only set on a Territory Control
   mage). Combat gold variance (2026-08-09, #9): new `applyGoldVariance()`, called at the end of
@@ -541,7 +565,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   earlier `exitDungeon()` hook keyed on its `defeated` parameter never fired for concedes or
   ordinary losses with life remaining (only life-hit-zero sets it). Still BEFORE quest updates so
   the 3-attempts rule sees its protecting quest. No-op for story dungeons/bosses/towns and any
-  non-rotatable POI.
+  non-rotatable POI. Arena upgrade round (2026-08-11, #8/#20): "arena" case wraps its parse-and-
+  switch-scene logic in a `Runnable` passed to `EconomyBuildings.openArenaEntryDialog()` instead of
+  running unconditionally on collision. Challenge Arena round (same day, later): that call gained a
+  second `Runnable` parameter, `prop.containsKey("arenaChallenge") ? (...) : null` - null wherever
+  a town's arena has no `arenaChallenge` tmx property (every arena but the player Capitol's).
+  Archaeologist round (same day): new `"archaeologist"` case (#24), same gated 3-arg `OnCollide` +
+  `withRebuiltIcon()` pattern as "arena"/"spellsmith".
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with

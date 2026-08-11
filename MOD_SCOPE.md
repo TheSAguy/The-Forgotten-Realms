@@ -1613,3 +1613,55 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
 - User idea (2026-08-11), not yet scoped or discussed in detail - presumably the Bank dialog's
   balance/deposit/withdraw rows (`EconomyBuildings.refreshBankDialog()`), which are plain text
   right now (`"Deposited: N gold"`, etc.) with no actual gold icon alongside the number.
+
+### 24. Archaeologist Building — `Built (2026-08-11), not yet playtested`
+- **User spec (verbatim, 2026-08-11)**: "Archeologist building. Capitol only building. - sends out
+  expeditions. Takes 7 days. Random 5 cards that the player does not have/already own. No mythic.
+  25% to also get a booster. 5% chance get an item. No mythic items. If you visit before the 7
+  days, it will just say x days remaining before the expedition returns. Same sort of interface as
+  when you win a duel and get rewards, you flip over the cards to see what you received."
+- **New Capitol-only building, dedicated template (not a shop conversion)**: modeled on Arena/
+  Spellsmith rather than Bank/Exchange/Armory, since it needs its own distinct gameplay (a timer,
+  not buying/selling) rather than fitting the existing shop-conversion or named-shop mechanisms.
+  New `forge-gui/res/adventure/The Forgotten Realms/maps/obj/archaeologist.tx` (plane-scoped per
+  the mod's file-placement convention, unlike arena.tx/spellsmith.tx which live in `common/` -
+  there's already a precedent for this, `maps/obj/stone.tx`), a new object (id 102) placed on
+  `player_capital.tmx` at (208, 140), and a new `"archaeologist"` case in `MapStage.java` using the
+  same gated 3-arg `OnCollide` + `withRebuiltIcon()` pattern as Arena/Spellsmith - starts as rubble
+  in a wasteland-origin Capitol and must be paid to rebuild first, exactly like its siblings.
+- **Timer**: new `PointOfInterestChanges.archaeologistExpeditionSentDay` (single int field, -1 =
+  no expedition active - not objectId-keyed like `buildingLevels`/guard fields, since there's only
+  ever one Archaeologist). "Send Expedition" stamps the current in-game day; visiting before 7 days
+  have elapsed shows "Expedition in progress - X days remaining"; visiting at/after 7 days shows
+  "Collect Rewards", which resets the timer to -1 and routes into `RewardScene` with
+  `Type.Loot` - the exact same flip-to-reveal interface duel wins already use, per the user's
+  explicit ask.
+- **Rewards** (`EconomyBuildings.generateExpeditionRewards()`): 5 DISTINCT cards (sampled without
+  replacement, so never a duplicate within one batch) from the pool of Common/Uncommon/Rare cards
+  the player doesn't already own by name (`AdventurePlayer.current().getCards()`, matched by
+  `PaperCard.getName()` so a different edition/printing of an already-owned card still counts as
+  owned - a card you own in one printing isn't really a new find). Recomputed fresh from the
+  player's live collection on every visit, so a card already claimed from an earlier expedition
+  won't be offered again. 25% chance of an additional real booster pack (reuses the existing
+  `"cardPackShop"` `RewardData` type - the same mechanism Booster Pack Shops use - picking any
+  legal, obtainable edition at random). 5% chance of an additional item from a new 542-entry
+  non-Mythic item pool (Common+Uncommon+Rare, non-quest - same `rarity` + `questItem` exclusion
+  query already used for the Arena Challenge pools, just spanning all three tiers unweighted since
+  the user's spec wasn't tier-split for this roll).
+- **No cost to send an expedition - Claude's own default, not user-specified.** The user's spec
+  didn't mention a cost at all; every other Capitol action in this mod (Arena entry, Armory guard
+  salaries, building upgrades) does cost something, so this may be an oversight rather than an
+  intentional "free" design - flagged here explicitly rather than silently guessed. Trivial to add
+  a gold cost to `openArchaeologistDialog()`'s "Send Expedition" button later if the user wants one
+  once the 7-day cadence has been playtested.
+- **No real art identified.** An old speculative code comment in `EconomyBuildings.java` reserved
+  tile 751 in `common/maps/tileset/buildings.png` for "Archaeologist, whenever that building gets
+  built" - now that it has, tile 751 was actually checked (cropped and visually inspected) and
+  turned out to be part of an unrelated teal guardian-temple sprite, nothing archaeology-themed.
+  `getArchaeologistSprite()` falls back to the generic `SpecialShop` icon instead, same placeholder
+  Spellsmith originally launched with before real art was found for it.
+- **Map placement not visually verified.** (208, 140) on `player_capital.tmx` was chosen as
+  open-looking space near the existing Arena (423, 114)/Spellsmith (452, 212)/Inn (536, 144)
+  cluster, based on reading other objects' coordinates - not confirmed walkable/decoration-free by
+  actually loading the map, since that requires the running game or Tiled itself. Easy to reposition
+  (just the object's x/y in the TMX) if it turns out to land somewhere bad once seen in-game.

@@ -39,6 +39,11 @@ public class PointOfInterestChanges implements SaveFileContent  {
     // 2026-08-09: "I got a different set of shops in the capitol from what I had in the town"),
     // and MapStage honors a pin over the random roll from then on.
     private final java.util.Map<Integer, String> pinnedShopNames = new HashMap<>();
+    // Archaeologist expeditions (2026-08-11, user spec): the in-game day the current expedition
+    // was sent, or -1 if none is active. A single field, not objectId-keyed like buildingLevels/
+    // guardTiers, since the Archaeologist is a single fixed Capitol-only building - never more
+    // than one per save.
+    private int archaeologistExpeditionSentDay = -1;
     // Building upgrade level per Tiled shop object id (Arena/Armory L1->L2, 2026-08-11 - Task
     // #8/#13). Missing entry means level 1 (base) - a not-yet-upgraded building or a pre-existing
     // save needs no migration, getBuildingLevel() already defaults correctly.
@@ -114,6 +119,8 @@ public class PointOfInterestChanges implements SaveFileContent  {
                 economyBuildingObjectIds.put((int) legacyType, legacyId);
         }
         bankBalance = data.containsKey("bankBalance") ? data.readInt("bankBalance") : 0;
+        archaeologistExpeditionSentDay = data.containsKey("archaeologistExpeditionSentDay")
+                ? data.readInt("archaeologistExpeditionSentDay") : -1;
         pinnedShopNames.clear();
         if (data.containsKey("pinnedShopNames")) {
             Object obj = data.readObject("pinnedShopNames");
@@ -158,6 +165,7 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("isVisited", isVisited);
         data.storeObject("economyBuildingObjectIds", economyBuildingObjectIds);
         data.store("bankBalance", bankBalance);
+        data.store("archaeologistExpeditionSentDay", archaeologistExpeditionSentDay);
         data.storeObject("pinnedShopNames", new HashMap<>(pinnedShopNames));
         data.storeObject("shopLastRefreshDay", new HashMap<>(shopLastRefreshDay));
         data.storeObject("buildingLevels", new HashMap<>(buildingLevels));
@@ -173,6 +181,16 @@ public class PointOfInterestChanges implements SaveFileContent  {
 
     public void setBuildingLevel(int objectId, int level) {
         buildingLevels.put(objectId, level);
+    }
+
+    // ---- Archaeologist expeditions (2026-08-11, user spec) ----
+
+    public int getArchaeologistExpeditionSentDay() {
+        return archaeologistExpeditionSentDay;
+    }
+
+    public void setArchaeologistExpeditionSentDay(int day) {
+        archaeologistExpeditionSentDay = day;
     }
 
     // ---- Armory Guards (2026-08-11, MOD_SCOPE.md #22) ----

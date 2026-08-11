@@ -734,6 +734,12 @@ public class MapStage extends GameStage {
                             } : null);
                         }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id))));
                         break;
+                    case "archaeologist":
+                        // Gated 3-arg OnCollide like arena/spellsmith - the Archaeologist starts as
+                        // rubble in a wasteland town/capital and must be rebuilt first (2026-08-11).
+                        addMapActor(obj, new OnCollide(() -> EconomyBuildings.openArchaeologistDialog(this, id), id, this)
+                                .withRebuiltIcon(EconomyBuildings.getArchaeologistSprite()));
+                        break;
                     case "exit":
                         addMapActor(obj, new OnCollide(() -> MapStage.this.exitDungeon(false, false)));
                         break;

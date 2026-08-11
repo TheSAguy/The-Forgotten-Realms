@@ -6552,3 +6552,86 @@ Compiles clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`, BUILD SUC
 playtested in-game.
 
 Compiled and verified. **Not yet playtested.**
+
+## Archaeologist building (2026-08-11)
+
+New Capitol-only building (`MOD_SCOPE.md` #24) implementing the user's full verbatim spec: sends
+a 7-day expedition returning 5 cards the player doesn't already own (no Mythic), plus a 25% chance
+of a bonus booster and a 5% chance of a bonus non-Mythic item, using the same flip-to-reveal
+`RewardScene` interface duel wins already use.
+
+**Modeled on Arena/Spellsmith, not Bank/Exchange/Armory.** Those three are shop.tx-based (a shop
+slot converted or pre-assigned to a special type); Archaeologist needs its own timer-driven
+gameplay entirely unrelated to buying/selling, so it got a dedicated template instead, same as
+Arena/Spellsmith already have. New `forge-gui/res/adventure/The Forgotten Realms/maps/obj/
+archaeologist.tx` - deliberately placed under the FR plane's own `maps/obj/` folder rather than
+`common/maps/obj/` (where arena.tx/spellsmith.tx live), per the mod's standing "prefer plane-scoped
+storage" rule - there's already a precedent for a plane-scoped `.tx` template, `maps/obj/stone.tx`
+from the Stone-pickup round. References `common/maps/tileset/buildings.tsx` for a valid base gid
+(reused Spellsmith's own gid, 1391 - since the rebuilt-icon overlay replaces it visually anyway,
+same as Arena/Spellsmith, the exact base gid doesn't matter beyond being valid).
+
+**New object on `player_capital.tmx`**: id 102 (bumped `nextobjectid` to 103 for Tiled's own
+bookkeeping), placed at (208, 140) - open-looking space near the existing Arena (423, 114)/
+Spellsmith (452, 212)/Inn (536, 144) cluster, chosen by reading the other objects' coordinates
+rather than by visually loading the map (no way to render Tiled maps from here). **Flagged as
+unverified** - may need repositioning after the user sees it in-game if it lands on unwalkable
+ground or overlapping decoration; trivial fix, just the object's x/y.
+
+**Gated exactly like Arena/Spellsmith**: reused the identical 3-arg `OnCollide(Runnable, id,
+MapStage).withRebuiltIcon(...)` pattern (`MapStage`'s new `"archaeologist"` case), so it
+automatically starts as rubble in a wasteland-origin Capitol and needs a one-time paid rebuild
+before it's usable - this is fully generic (`TownRestoration.isShopRebuilt()`/
+`buildRebuildShopDialog()` key off the raw object id, no per-building-type registration needed),
+confirmed by reading how Arena/Spellsmith already use it rather than assuming.
+
+**Timer**: new `PointOfInterestChanges.archaeologistExpeditionSentDay` (plain int, -1 = none
+active - not objectId-keyed like `buildingLevels`/`guardTiers`, since there's only ever one
+Archaeologist per save). Load/save wired the same missing-key-tolerant way as `bankBalance`.
+`EconomyBuildings.openArchaeologistDialog()`/`refreshArchaeologistDialog()` (built against
+`MapStage`'s persistent dialog, same convention as Arena/Bank/Exchange) show one of three states:
+"Send Expedition" (no expedition active), "Expedition in progress - N days remaining" (active,
+`WorldSave...getCurrentDay() - sentDay < 7`), or "Collect Rewards" (active, 7+ days elapsed) -
+collecting resets the timer to -1 and switches to `RewardScene.instance().loadRewards(rewards,
+RewardScene.Type.Loot, null)`, same call ArenaScene's own reward hand-off uses.
+
+**Reward generation** (`EconomyBuildings.generateExpeditionRewards(Random)`):
+- 5 distinct non-owned, non-Mythic cards: built a `RewardData` with `rarity = {"Common",
+  "Uncommon", "Rare"}`, ran it through `CardUtil.getPredicateResult(RewardData.getAllCards(),
+  ...)` (the same filtering pipeline every other card reward in this codebase uses), then removed
+  anything matching a name in the player's own `AdventurePlayer.current().getCards()` (matched by
+  `PaperCard.getName()`, so a different printing of an already-owned card still counts as owned -
+  no loophole via alternate art/edition). `Collections.shuffle()` + take up to 5 - sampling WITHOUT
+  replacement, unlike `CardUtil.generateCards()`'s own with-replacement approach, since "5 cards"
+  implied 5 different ones. Recomputed fresh from the live collection every visit, so a card
+  already claimed on an earlier expedition won't show up again on a later one.
+- 25% bonus booster: reuses the existing `"cardPackShop"` `RewardData` type verbatim (the exact
+  mechanism Booster Pack Shops already use) - a throwaway `RewardData` with just `type`/
+  `probability=1`/`count=1` set, `.generate(false, true)` called directly, letting the existing
+  edition-selection logic (respects `restrictedEditions`/`restrictedCards`, any obtainable legal
+  edition) do the real work rather than reimplementing it.
+- 5% bonus item: new 542-entry `NON_MYTHIC_ITEM_POOL` (`EconomyBuildings.java`) - Common+Uncommon+
+  Rare, non-quest items from `items.json`, same `rarity` + `questItem` exclusion query already
+  used for the Arena Challenge round's pools, just spanning all three tiers unweighted in one flat
+  list (the user's spec wasn't tier-split for this roll, unlike Arena Challenge's separate 25%/
+  65%/15% pools).
+
+**Flagged assumption: expedition cost.** The user's spec never mentioned a cost to send an
+expedition - defaulted to FREE rather than guessing a gold amount with no basis. Every other
+Capitol action in this mod costs something (Arena entry, Armory guard salaries, building
+upgrades), so this might be an oversight in the spec rather than an intentional free action -
+explicitly flagged here and in `MOD_SCOPE.md` #24 for the user to confirm/correct, trivial to add
+a cost to the "Send Expedition" button later if wanted.
+
+**No real art.** An old speculative comment in `EconomyBuildings.java` (from the Outlook/Arena/
+Spellsmith art round) reserved tile 751 in `common/maps/tileset/buildings.png` for "Archaeologist,
+whenever that building gets built." Now that it has, tile 751 was actually cropped and visually
+inspected for the first time - it's part of an unrelated teal guardian-temple sprite (a face with
+glowing eyes and a staircase), nothing archaeology-themed at all, so it was NOT used. Updated the
+stale comment to record this rather than leaving a misleading pointer for a future session.
+`getArchaeologistSprite()` falls back to the generic `SpecialShop` icon, the same placeholder
+Spellsmith itself originally launched with before real art was found.
+
+Compiles clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`, BUILD SUCCESS). Not yet
+playtested in-game - in particular the map placement and the rebuild-gate/timer/reward flow have
+only been verified by reading code, not by actually visiting the building.
