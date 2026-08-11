@@ -15,6 +15,7 @@ import forge.adventure.character.ShopActor;
 import forge.adventure.data.DialogData;
 import forge.adventure.data.ShopData;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.scene.UIScene;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.stage.GameHUD;
@@ -159,6 +160,53 @@ public class EconomyBuildings {
     // 1 guard per ordinary town, 2 for the Capitol (user spec).
     public static int maxGuardsForTown(String poiName) {
         return forge.adventure.util.TownRestoration.CAPITOL_POI_NAME.equals(poiName) ? 2 : 1;
+    }
+
+    /** "Manage Guards" dialog, shown from the Armory's RewardScene page once Level 2 (user spec
+     *  2026-08-11). Built fresh each time (same convention RewardScene's own "Destroy Building" /
+     *  createGenericDialog already uses) rather than a persistent MapStage-style dialog singleton -
+     *  RewardScene has no equivalent to stage.getDialog(), so "refresh after hiring/dismissing" is
+     *  just close-then-reopen a freshly-built one. */
+    public static void openManageGuardsDialog(UIScene scene, PointOfInterestChanges changes, String poiName, int objectId) {
+        scene.showDialog(buildManageGuardsDialog(scene, changes, poiName, objectId));
+    }
+
+    private static Dialog buildManageGuardsDialog(UIScene scene, PointOfInterestChanges changes, String poiName, int objectId) {
+        Dialog dialog = new Dialog("Guards", Controls.getSkin());
+        int maxGuards = maxGuardsForTown(poiName);
+        int currentCount = changes.getGuardCount();
+
+        addContentRow(dialog, "Guards: " + currentCount + "/" + maxGuards);
+        for (int i = 0; i < currentCount; i++)
+            addContentRow(dialog, "- " + guardTierDisplayName(changes.getGuardTier(i)));
+        addContentRow(dialog, "Your gold: " + AdventurePlayer.current().getGold() + "   Your shards: " + AdventurePlayer.current().getShards());
+
+        for (String tier : GUARD_TIERS_ASCENDING) {
+            int goldCost = guardWeeklyGoldCost(tier);
+            int shardCost = guardWeeklyShardCost(tier);
+            String costText = goldCost + " gold" + (shardCost > 0 ? " + " + shardCost + " shards" : "") + "/week";
+            boolean canAfford = AdventurePlayer.current().getGold() >= goldCost && AdventurePlayer.current().getShards() >= shardCost;
+            boolean hasRoom = currentCount < maxGuards;
+            addButtonRow(dialog, "Hire " + guardTierDisplayName(tier) + " (" + costText + ")", hasRoom && canAfford, () -> {
+                AdventurePlayer.current().takeGold(goldCost);
+                if (shardCost > 0)
+                    AdventurePlayer.current().takeShards(shardCost);
+                changes.hireGuard(tier, WorldSave.getCurrentSave().getWorld().getCurrentDay());
+                scene.removeDialog();
+                openManageGuardsDialog(scene, changes, poiName, objectId);
+            });
+        }
+        for (int i = 0; i < currentCount; i++) {
+            int guardIndex = i;
+            addButtonRow(dialog, "Dismiss " + guardTierDisplayName(changes.getGuardTier(i)), true, () -> {
+                changes.removeGuardAt(guardIndex);
+                scene.removeDialog();
+                openManageGuardsDialog(scene, changes, poiName, objectId);
+            });
+        }
+        dialog.getButtonTable().add(Controls.newTextButton("Close", scene::removeDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        return dialog;
     }
 
     // Teleporter art (2026-08-10, user spec): reuses the stock "portal4" (blue) animated portal

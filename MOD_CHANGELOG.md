@@ -6337,3 +6337,51 @@ save-persisted infrastructure - genuinely reachable once the UI exists, not a st
 calls `hireGuard()` from a player action yet.
 
 Compiled and verified after every step. **Not yet playtested.**
+
+## Armory Guard system, part 2: Hire/Dismiss UI, Armory upgrade button (2026-08-11)
+
+Closes the loop from part 1 above - guards are now reachable end to end from a fresh save, no
+console/debug access needed.
+
+**Found the right UI precedent before building anything.** `RewardScene`'s existing "Destroy
+Building" button (`promptDestroyShop()` / `createGenericDialog`) looked like the obvious template,
+but it only supports up to 3 buttons - not enough for 4 hire tiers plus a variable number of
+Dismiss options. `EconomyBuildings.java`'s Bank/Exchange dialogs turned out to be the better match:
+built directly against a raw `com.badlogic.gdx.scenes.scene2d.ui.Dialog` (`addContentRow()`/
+`addButtonRow()` helpers, already generic - not tied to `MapStage`), with a self-recursive
+`refreshXDialog()` pattern (rebuild the dialog's content/buttons in place after every action).
+Only wrinkle: Bank/Exchange are triggered from `MapStage` collision handlers and reuse
+`stage.getDialog()`, a persistent singleton `RewardScene` has no equivalent of - solved by building
+a **fresh** `Dialog` on every open/refresh instead (matches how `promptDestroyShop()` already
+calls `createGenericDialog` fresh each time, just extended to arbitrarily-many buttons).
+
+**`EconomyBuildings.openManageGuardsDialog(UIScene, PointOfInterestChanges, poiName, objectId)`**
+(new): shows current guard count/tiers as content rows, one "Hire `<Tier>` (`<cost>`)" button per
+tier (disabled if the town's guard slots are full or the player can't afford that tier's upfront
+cost - `AdventurePlayer.getGold()`/`getShards()` checked directly, same `isDisabled`-but-visible
+convention `buildOption()` already uses elsewhere so the player can see prices even when short),
+one "Dismiss `<Tier>`" button per currently-hired guard. Every button closes and reopens a freshly
+rebuilt dialog (`scene.removeDialog(); openManageGuardsDialog(...)`) rather than trying to mutate
+the shown one in place.
+
+**`RewardScene.java`**: new `guardsButton` ("Manage Guards") and `upgradeButton` ("Upgrade Armory
+(100g)") - mutually exclusive, same position (a shop is never Level 1 and Level 2 at once), same
+programmatic-button-above-Destroy-Building convention the 2026-08-09 Destroy Building feature
+already established. Visibility recomputed every `loadRewards()` call (`EconomyBuildings.
+isArmoryShop(shopActor.getShopData())` gates both to Armory-only; `changes.getBuildingLevel(...)`
+picks which of the two shows). Upgrading spends `BUILDING_UPGRADE_COST` via the same
+`createGenericDialog` confirm-Yes/No pattern `promptDestroyShop()` uses, then flips the two
+buttons' visibility immediately (no need to wait for a `loadRewards()` re-trigger) so the player
+sees "Manage Guards" appear the instant they confirm the upgrade.
+
+**Current state of MOD_SCOPE.md #22 and #20**: hiring, dismissing, weekly salary, combat
+resolution (both the Capitol's sequential 2-guard fight and ordinary player-owned towns' new
+guard-then-roll defense), and the Armory upgrade trigger are ALL now real and reachable in-game.
+Remaining: the map indicator icon showing an active guard near a town/capitol (cosmetic - guards
+already function correctly without it, just invisible on the overworld until the player walks in
+and checks); Arena's own upgrade button/Level 2 Challenge mode (separate feature, not started);
+the deck-test 3rd Arena mode (separate feature, not started).
+
+Compiled and verified after every step. **Not yet playtested** - this is a large amount of new
+interactive UI (multi-button dynamic dialogs, a new combat branch for player-owned towns) that
+really needs a real playthrough before trusting it fully.

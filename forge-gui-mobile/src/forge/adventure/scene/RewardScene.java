@@ -36,7 +36,7 @@ import java.util.Comparator;
  * Displays the rewards of a fight or a treasure
  */
 public class RewardScene extends UIScene {
-    private TextraButton doneButton, detailButton, restockButton, destroyButton;
+    private TextraButton doneButton, detailButton, restockButton, destroyButton, guardsButton, upgradeButton;
     private TextraLabel playerGold, playerShards;
     private TypingLabel headerLabel;
     private Vector2 headerLabelOrigPos;
@@ -94,6 +94,49 @@ public class RewardScene extends UIScene {
                 doneButton.getY() + doneButton.getHeight() + 10f);
         destroyButton.setVisible(false);
         ui.addActor(destroyButton);
+        // Manage Guards (mod feature, user spec 2026-08-11, MOD_SCOPE.md #22) - Armory-only, Level
+        // 2 only. Same programmatic-button pattern as Destroy Building above, positioned one row
+        // higher so both can be visible at once (an Armory that's both Level 2 and destroyable).
+        guardsButton = Controls.newTextButton("Manage Guards", this::promptManageGuards);
+        guardsButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
+        guardsButton.setPosition(doneButton.getX() + doneButton.getWidth() - guardsButton.getWidth(),
+                doneButton.getY() + doneButton.getHeight() * 2 + 20f);
+        guardsButton.setVisible(false);
+        ui.addActor(guardsButton);
+        // Upgrade to Level 2 (mod feature, user spec 2026-08-11, Task #8/#13) - Armory-only,
+        // Level 1 only (mutually exclusive with Manage Guards, same row/position - a shop is never
+        // both at once). 100g placeholder cost, EconomyBuildings.BUILDING_UPGRADE_COST.
+        upgradeButton = Controls.newTextButton("Upgrade Armory (" + EconomyBuildings.BUILDING_UPGRADE_COST + "g)", this::promptUpgradeArmory);
+        upgradeButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
+        upgradeButton.setPosition(doneButton.getX() + doneButton.getWidth() - upgradeButton.getWidth(),
+                doneButton.getY() + doneButton.getHeight() * 2 + 20f);
+        upgradeButton.setVisible(false);
+        ui.addActor(upgradeButton);
+    }
+
+    private void promptManageGuards() {
+        if (shopActor == null || changes == null)
+            return;
+        forge.adventure.pointofintrest.PointOfInterest rootPoint = TileMapScene.instance().rootPoint;
+        String poiName = rootPoint == null ? null : rootPoint.getData().name;
+        EconomyBuildings.openManageGuardsDialog(this, changes, poiName, shopActor.getObjectId());
+    }
+
+    private void promptUpgradeArmory() {
+        if (shopActor == null || changes == null)
+            return;
+        int cost = EconomyBuildings.BUILDING_UPGRADE_COST;
+        if (AdventurePlayer.current().getGold() < cost)
+            return;
+        showDialog(createGenericDialog("", "Upgrade this Armory to Level 2 for " + cost
+                        + " gold?\nUnlocks the ability to hire guards to defend this town.",
+                Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
+                    removeDialog();
+                    AdventurePlayer.current().takeGold(cost);
+                    changes.setBuildingLevel(shopActor.getObjectId(), 2);
+                    guardsButton.setVisible(true);
+                    upgradeButton.setVisible(false);
+                }, this::removeDialog));
     }
 
     private void promptDestroyShop() {
@@ -399,6 +442,8 @@ public class RewardScene extends UIScene {
         doneClicked = false;
         updateCollectionPool();
         destroyButton.setVisible(false); // re-enabled by the Shop case below when applicable
+        guardsButton.setVisible(false); // re-enabled by the Shop case below when applicable
+        upgradeButton.setVisible(false); // re-enabled by the Shop case below when applicable
         if (type == Type.Shop) {
             this.shopActor = shopActor;
             this.changes = shopActor.getMapStage().getChanges();
@@ -485,6 +530,14 @@ public class RewardScene extends UIScene {
                 destroyButton.setVisible(shopActor.isDestroyable());
                 if (destroyButton.isVisible())
                     addToSelectable(destroyButton);
+                boolean isArmory = EconomyBuildings.isArmoryShop(shopActor.getShopData());
+                int armoryLevel = changes.getBuildingLevel(shopActor.getObjectId());
+                guardsButton.setVisible(isArmory && armoryLevel >= 2);
+                if (guardsButton.isVisible())
+                    addToSelectable(guardsButton);
+                upgradeButton.setVisible(isArmory && armoryLevel < 2);
+                if (upgradeButton.isVisible())
+                    addToSelectable(upgradeButton);
                 break;
             case QuestReward:
             case Loot:

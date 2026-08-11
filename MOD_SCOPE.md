@@ -1521,24 +1521,22 @@ to depend on each other.
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
   the roaming-enemy roster.
 
-### 22. Armory Guard Hiring (Level 2 unlock) — `In Progress` (full spec given 2026-08-11; odds formula + art built same day, hiring/persistence/combat-hook not started)
-- Level 1 Armory functions exactly as it does today. Level 2 unlocks a "Hire Guards" button
-  (natural home: alongside the existing "Destroy Building" button on the Armory's `RewardScene`
-  page, same precedent). Towns can hold 1 guard, Capitols 2.
-- Guard tiers reuse the plane's existing Apprentice/Adept/Master/Challenger ladder
-  (`EnemyData.tier`, built 2026-08-10 for mage difficulty - not a new parallel system). Weekly
-  salary: Apprentice 50g, Adept 100g, Master 150g, Challenger 200g + 5 shards - the same amount is
-  also paid upfront on hire. Missed salary payment disbands the guard.
-- Not a physical map unit. Needs a small indicator icon near the town/capitol showing an active
-  guard - user supplied source art (`common/maps/tileset/dungeon.png`, IDs 83/84/86/88, one per
-  tier) plus a mockup showing it should render smaller than the native 16x16 and sit in a
-  building's corner. **Built (2026-08-11)**: extracted and shrunk to 8x8 per the user's own
-  estimate (`maps/tileset/guard_apprentice/adept/master/challenger_8x8.png`, 16x16 originals also
-  kept) - visually confirmed still legible at that size. Not yet wired into any UI.
-- **Combat odds - built (2026-08-11), confirmed no damage-carries-over mechanic wanted.** New
-  public `TerritoryControl.guardFightAttackerWinChance(String attackerTier, String defenderTier)` -
-  reuses the Item Economy round's own Common/Uncommon/Rare/Mythic = 1/2/4/8 power weighting,
-  `attackerPower / (attackerPower + defenderPower)`. Full matrix (attacker rows, defender columns):
+### 22. Armory Guard Hiring (Level 2 unlock) — `Built (2026-08-11), not yet playtested` (map indicator icon still cosmetic-only unbuilt)
+Full loop is real and reachable in-game from a fresh save: Armory starts Level 1 (unchanged
+behavior) -> "Upgrade Armory (100g)" button on its `RewardScene` page -> confirms, spends gold,
+flips to Level 2 art -> "Manage Guards" button appears -> hire any of 4 tiers (slot-limited,
+cost-gated, upfront payment) or dismiss an existing one -> weekly salary auto-deducts (disbands on
+missed payment) -> an attacking mage must beat every hired guard, strongest first, no weakening
+between fights, before it can proceed to the town's/Capitol's own capture resolution.
+- **Tiers** reuse the plane's existing Apprentice/Adept/Master/Challenger ladder (`EnemyData.tier`,
+  built 2026-08-10 for mage difficulty - not a new parallel system). Towns hold 1 guard, Capitols 2
+  (`EconomyBuildings.maxGuardsForTown()`).
+- **Costs** (`EconomyBuildings.guardWeeklyGoldCost()`/`guardWeeklyShardCost()`): 50/100/150/200
+  gold weekly (Apprentice/Adept/Master/Challenger), +5 shards only at Challenger - same amount
+  charged upfront on hire, exact user spec.
+- **Combat odds** (`TerritoryControl.guardFightAttackerWinChance()`): reuses the Item Economy
+  round's own Common/Uncommon/Rare/Mythic = 1/2/4/8 power weighting, `attackerPower /
+  (attackerPower + defenderPower)`. Full matrix (attacker rows, defender columns):
 
   | Attacker \ Defender | Apprentice | Adept | Master | Challenger |
   |---|---|---|---|---|
@@ -1547,15 +1545,22 @@ to depend on each other.
   | **Master** | 80% | 67% | 50% | 33% |
   | **Challenger** | 89% | 80% | 67% | 50% |
 
-  Guard loses -> dies (guard no longer active), attacker proceeds into whatever capture resolution
-  already applies. Guard wins -> stays active, attacker is removed. **Not yet wired to an actual
-  fight** - hooking a guard check into `TerritoryControl.onMageArrived()`'s capture flow, before
-  the existing capture-odds check, is still open.
-- **Armory Level 1/2 art - built (2026-08-11)**, unblocking the upgrade trigger UI (see #10,
-  `MOD_CHANGELOG.md` for the corrected-IDs story - both the L1 and L2 IDs the user gave had a
-  single-digit slip, caught by visually compositing before trusting either).
-- **Still not started**: the actual "Hire Guards" button/tier-picker UI, per-town guard persistence
-  (tier, active/inactive), the weekly salary deduction + disband-on-nonpayment tick, and the map
-  indicator icon actually being drawn near a guarded town. The Armory upgrade trigger itself
-  (Level 1 -> 2 button) is also still unbuilt - #20's own plumbing (building-level persistence,
-  level-aware sprites) is ready for it, just no UI trigger exists yet for either Arena or Armory.
+- **A real, corrected gap from this same day's own earlier research**: player-owned ordinary towns
+  were *already* attackable (not "can't be attacked" as first reported) - `isWastelandTown()` is a
+  static property of a town's original biome tag, true for player-owned wasteland-origin towns
+  exactly as much as genuinely-unclaimed ones, so `onMageArrived()`'s neutral-claim branch treated
+  both identically: instant unconditional flip, zero roll, zero defense. Player-owned ordinary
+  towns now get their own branch (guard defense, then the same `attackerWinChance(tier)` roll the
+  AI-vs-AI capture path already uses) - truly-neutral, never-claimed wasteland towns are completely
+  unchanged. The Capitol's own 2 guards fight in strict sequence (strongest first, independent
+  fresh roll each fight - a win against guard 1 does not weaken the attacker for guard 2), and only
+  once both fall does the existing forced-duel mechanic trigger.
+- **UI**: `EconomyBuildings.openManageGuardsDialog()` (built directly against a raw
+  `scene2d.ui.Dialog`, not the DialogData/ActionData system - see `MOD_CHANGELOG.md` for why that
+  system didn't fit); `RewardScene`'s `guardsButton`/`upgradeButton`, Armory-only, mutually
+  exclusive by level.
+- **Still open, purely cosmetic**: the map indicator icon near a guarded town/capitol. Source art
+  is ready (`maps/tileset/guard_apprentice/adept/master/challenger_8x8.png`, extracted from
+  `common/maps/tileset/dungeon.png` IDs 83/84/86/88 and shrunk to 8x8 per the user's mockup) but
+  nothing draws it yet - guards function correctly without it, just invisible on the overworld
+  until the player walks in and checks the Armory.
