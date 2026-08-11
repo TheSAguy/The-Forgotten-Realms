@@ -6385,3 +6385,54 @@ the deck-test 3rd Arena mode (separate feature, not started).
 Compiled and verified after every step. **Not yet playtested** - this is a large amount of new
 interactive UI (multi-button dynamic dialogs, a new combat branch for player-owned towns) that
 really needs a real playthrough before trusting it fully.
+
+## Guard system part 3: combat balance tuning, map indicator icon (2026-08-11)
+
+User feedback after seeing the odds matrix: a hired Challenger guard plus the base town-capture
+roll compounded to what felt like too safe a defense (roughly 1-in-20 for the attacker in the
+worst case) - wanted the attacker buffed, with the Outlook building given a new role to partially
+counter it.
+
+**Guard-fight balance**: two new constants in `TerritoryControl.java`, `GUARD_FIGHT_ATTACKER_BONUS`
+(+10%) and `GUARD_FIGHT_OUTLOOK_DEFENSE_BONUS` (-5%, i.e. net +5% attacker advantage when the
+defending town has an Outlook, +10% when it doesn't) - applied in `resolveGuardDefense()` on top
+of the pure `guardFightAttackerWinChance()` tier math, clamped to [0,1]. Deliberately NOT baked
+into `guardFightAttackerWinChance()` itself - that function stays the reusable pure baseline (e.g.
+if a future tooltip wants to show "base odds" separately from "with your Outlook"), the bonus is a
+combat-context modifier layered on only where a fight actually resolves. This is the Outlook
+building's first role beyond fog-of-war vision radius.
+
+**"Sacked" outcome**: even a successful capture doesn't guarantee the attacker keeps the town -
+new `ATTACKER_SACKS_TOWN_CHANCE` (20%), rolled only after a genuine contest (guard fight and/or
+capture roll), never for claiming truly-unclaimed neutral land. On a sack, the town reverts to a
+neutral ruin exactly like a failed capture would, but with distinct messaging ("X was sacked by Y
+and left in ruins!" vs. "X breaks free from Y - reverts to neutral!") - a new `isSacked` flag,
+separate from the pre-existing `isRevert` (attacker LOST the roll) since they need different
+text despite both ending in the same colorless repaint. **Applied uniformly to every successful
+capture** (both player-owned town defense and AI-vs-AI captures) rather than scoped to player
+defense specifically - my own call, not explicitly asked for either way: "sacking" reads as a
+general war mechanic that should cut both ways, and it reuses the exact revert-to-neutral
+machinery the AI-vs-AI losing-roll case already has. Flagged in case the intent was player-only.
+One real wrinkle worked through: player-owned towns are renamed only at the *display* level by
+restoration - the internal `data.name` `getPointOfInterest()` keys off stays `"Waste Town X"` the
+entire time (confirmed by reading `TownRestoration`/`colorOfOwnedTownForCombat` together), so
+sacking a player town needed no waste-template lookup at all, just re-fetching its own
+already-correct internal name - `matchingWasteData()` (which expects a color-noun-prefixed name)
+would have silently returned null for a player town.
+
+**Map indicator icon, closing out `MOD_SCOPE.md` #22's last open item.** New `guard_icons.atlas`/
+`.png` (composited from the 4 already-extracted 8x8 tier PNGs, `EconomyBuildings.
+getGuardTierIconSprite()`/`strongestGuardTier()`) drawn directly in `PointOfInterestMapSprite.
+draw()` - the exact class that already draws every town/dungeon's overworld sprite - right after
+the existing sprite draw call, bottom-left corner, only when `PointOfInterestChanges.
+getGuardCount() > 0` for that POI (a `peek`, not `get`, lookup - this runs every frame the POI is
+on-screen and must never lazily create a changes entry for every town the player scrolls past).
+Shows only the single strongest guard even at a 2-guard Capitol, same simplification the combat
+resolution's own fight order already uses. **Deliberately snapshots the batch's primitive color
+components before `setColor` and restores from those afterward** - the exact fix pattern the
+2026-08-10 "twinkle flicker" bug established (restoring from `batch.getColor()`'s live reference
+after mutating it just re-applies the already-changed value to itself) - this draw call runs
+constantly for every visible guarded POI, so getting this wrong would have reintroduced that same
+bug class immediately.
+
+Compiled and verified after every step. **Not yet playtested.**

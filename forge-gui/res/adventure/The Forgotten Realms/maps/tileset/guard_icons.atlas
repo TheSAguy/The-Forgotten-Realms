@@ -1,0 +1,17 @@
+guard_icons.png
+size: 32,8
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+GuardApprentice
+  xy: 0, 0
+  size: 8, 8
+GuardAdept
+  xy: 8, 0
+  size: 8, 8
+GuardMaster
+  xy: 16, 0
+  size: 8, 8
+GuardChallenger
+  xy: 24, 0
+  size: 8, 8

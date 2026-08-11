@@ -839,6 +839,16 @@ public class TerritoryControl {
         return attackerPower / (attackerPower + defenderPower);
     }
 
+    // Guard-fight balance adjustment (user spec 2026-08-11): the base tier-vs-tier formula alone
+    // felt too safe for the defender once compounded with the base town-capture roll afterward
+    // (e.g. a Common attacker vs. a hired Challenger guard was ~11%, then another roll on top of
+    // that) - a flat attacker bonus, partly countered by a new combat role for the Outlook
+    // building (previously vision-radius only) if the town has one. Deliberately NOT applied to
+    // guardFightAttackerWinChance() itself - that function stays the pure tier-math baseline,
+    // these are combat-context modifiers layered on top only where an actual fight resolves.
+    private static final float GUARD_FIGHT_ATTACKER_BONUS = 0.10f;
+    private static final float GUARD_FIGHT_OUTLOOK_DEFENSE_BONUS = 0.05f;
+
     /**
      * Resolves any active guards at target before an attack proceeds (user spec 2026-08-11,
      * refined after follow-up: strongest guard fights first; a win against one guard does NOT
@@ -852,6 +862,7 @@ public class TerritoryControl {
         PointOfInterestChanges changes = WorldSave.getCurrentSave().getPointOfInterestChanges(target.getID());
         if (changes == null)
             return true;
+        boolean hasOutlook = changes.hasEconomyBuildingOfType(EconomyBuildings.OUTLOOK);
         while (changes.getGuardCount() > 0) {
             int strongestIndex = 0;
             for (int i = 1; i < changes.getGuardCount(); i++) {
@@ -859,7 +870,9 @@ public class TerritoryControl {
                     strongestIndex = i;
             }
             String guardTier = changes.getGuardTier(strongestIndex);
-            float attackerChance = guardFightAttackerWinChance(mage.getData().tier, guardTier);
+            float baseChance = guardFightAttackerWinChance(mage.getData().tier, guardTier);
+            float attackerChance = baseChance + GUARD_FIGHT_ATTACKER_BONUS - (hasOutlook ? GUARD_FIGHT_OUTLOOK_DEFENSE_BONUS : 0f);
+            attackerChance = Math.max(0f, Math.min(1f, attackerChance));
             boolean attackerWins = WorldSave.getCurrentSave().getWorld().getRandom().nextFloat() < attackerChance;
             // Diagnostic-only logging, same convention as [TFR-CaptureOdds] - greppable in forge.log.
             System.out.println("[TFR-GuardFight] " + mage.territoryColor + " mage (tier=" + mage.getData().tier
@@ -877,6 +890,20 @@ public class TerritoryControl {
                     + " guard fell defending " + target.getDisplayName() + "!", true);
         }
         return true;
+    }
+
+    // "Sacked" outcome (user spec 2026-08-11): even a successful capture doesn't guarantee the
+    // attacker keeps the town - a separate post-win roll can instead revert it to a neutral ruin
+    // ("they won the town, but sacked it"). Applied uniformly to every successful capture (both
+    // player-owned town defense and AI-vs-AI captures), not scoped to player defense specifically
+    // - my own call, not explicitly asked for either way: "sacking" reads as a general war
+    // mechanic that should apply symmetrically, and it reuses the exact same revert-to-neutral
+    // machinery the AI-vs-AI losing-roll case already has, rather than needing separate handling.
+    // Flag this if the intent was player-town-only.
+    private static final float ATTACKER_SACKS_TOWN_CHANCE = 0.20f;
+
+    private static boolean attackerSacksInstead(World world) {
+        return world.getRandom().nextFloat() < ATTACKER_SACKS_TOWN_CHANCE;
     }
 
     // Roaming-spawn intrusion (MOD_SCOPE.md #7 follow-up, user request 2026-08-10): the nearest
@@ -1220,6 +1247,10 @@ public class TerritoryControl {
         String repaintColor;
         boolean isRevert = false;
         String revertedFromColor = null;
+        // "Sacked" (user spec 2026-08-11): distinct from isRevert above (which means the attacker
+        // LOST the capture roll) - this means the attacker WON but a separate roll destroyed the
+        // town instead of keeping it. Both end up colorless/neutral, but need different messaging.
+        boolean isSacked = false;
 
         if (targetNeutral) {
             // Guard defense + a fair fight for player-owned towns (MOD_SCOPE.md #22, 2026-08-11 -
@@ -1231,6 +1262,10 @@ public class TerritoryControl {
             // player has actually restored.
             boolean playerOwnedNow = TownRestoration.isTownRestored(
                     WorldSave.getCurrentSave().peekPointOfInterestChanges(target.getID()));
+            // Sacked (see attackerSacksInstead() comment) - only ever rolled below, where an
+            // actual fight/roll happened; genuinely-unclaimed neutral land (no contest at all)
+            // never sacks, it just claims normally, unchanged from before this feature.
+            boolean sackedInstead = false;
             if (playerOwnedNow) {
                 if (!resolveGuardDefense(mage, target))
                     return;
@@ -1244,9 +1279,19 @@ public class TerritoryControl {
                             + "'s attack on " + target.getDisplayName() + "!", true);
                     return;
                 }
+                sackedInstead = attackerSacksInstead(world);
             }
-            newData = matchingTownData(target.getData(), mage.territoryColor);
-            repaintColor = mage.territoryColor;
+            if (sackedInstead) {
+                // Player-owned towns are renamed only at the DISPLAY level by restoration - the
+                // internal data.name (what getPointOfInterest() keys off) stays "Waste Town X"
+                // the whole time, so this is already the correct ruin template, no lookup needed.
+                newData = PointOfInterestData.getPointOfInterest(target.getData().name);
+                repaintColor = "colorless";
+                isSacked = true;
+            } else {
+                newData = matchingTownData(target.getData(), mage.territoryColor);
+                repaintColor = mage.territoryColor;
+            }
         } else if (targetOwnerColor == null || targetOwnerColor.equals(mage.territoryColor)) {
             // Race condition (documented in MOD_SCOPE.md #7): the target isn't recognizably any
             // color's town right now (already something else - e.g. a capital), or it's already
@@ -1269,10 +1314,19 @@ public class TerritoryControl {
             boolean attackerWins = world.getRandom().nextFloat() < captureChance;
             // Diagnostic-only logging (user request 2026-08-10, "hard to test in-game") -
             // greppable in forge.log as "[TFR-CaptureOdds]".
+            boolean sackedInstead = attackerWins && attackerSacksInstead(world);
             System.out.println("[TFR-CaptureOdds] " + mage.territoryColor + " mage (tier=" + mage.getData().tier
                     + ", chance=" + captureChance + ") attacking " + target.getDisplayName() + " (" + targetOwnerColor
-                    + ") -> " + (attackerWins ? "CAPTURED" : "REVERTED to neutral"));
-            if (attackerWins) {
+                    + ") -> " + (sackedInstead ? "CAPTURED but SACKED" : attackerWins ? "CAPTURED" : "REVERTED to neutral"));
+            if (sackedInstead) {
+                // Attacker won the capture roll but the separate sack roll destroyed the town
+                // instead of keeping it - reuses the SAME waste-template lookup the losing-roll
+                // case below already needs (the town's current name still carries the DEFENDER's
+                // color pattern at this point, transformInto() hasn't run yet).
+                newData = matchingWasteData(target.getData(), targetOwnerColor);
+                repaintColor = "colorless";
+                isSacked = true;
+            } else if (attackerWins) {
                 newData = matchingTownData(target.getData(), mage.territoryColor);
                 repaintColor = mage.territoryColor;
             } else {
@@ -1318,9 +1372,13 @@ public class TerritoryControl {
         if (wasPlayerOwned)
             TownRestoration.updateTownLifeBonus(true);
 
-        String message = isRevert
-                ? displayName + " breaks free from " + capitalize(revertedFromColor) + " - reverts to neutral!"
-                : displayName + " has fallen to " + capitalize(mage.territoryColor) + "!";
+        String message;
+        if (isSacked)
+            message = displayName + " was sacked by " + capitalize(mage.territoryColor) + " and left in ruins!";
+        else if (isRevert)
+            message = displayName + " breaks free from " + capitalize(revertedFromColor) + " - reverts to neutral!";
+        else
+            message = displayName + " has fallen to " + capitalize(mage.territoryColor) + "!";
         System.out.println("[TerritoryControl] " + message);
         GameHUD.getInstance().addNotification(message);
     }

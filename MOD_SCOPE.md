@@ -1521,7 +1521,7 @@ to depend on each other.
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
   the roaming-enemy roster.
 
-### 22. Armory Guard Hiring (Level 2 unlock) — `Built (2026-08-11), not yet playtested` (map indicator icon still cosmetic-only unbuilt)
+### 22. Armory Guard Hiring (Level 2 unlock) — `Built (2026-08-11), not yet playtested`
 Full loop is real and reachable in-game from a fresh save: Armory starts Level 1 (unchanged
 behavior) -> "Upgrade Armory (100g)" button on its `RewardScene` page -> confirms, spends gold,
 flips to Level 2 art -> "Manage Guards" button appears -> hire any of 4 tiers (slot-limited,
@@ -1536,7 +1536,8 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   charged upfront on hire, exact user spec.
 - **Combat odds** (`TerritoryControl.guardFightAttackerWinChance()`): reuses the Item Economy
   round's own Common/Uncommon/Rare/Mythic = 1/2/4/8 power weighting, `attackerPower /
-  (attackerPower + defenderPower)`. Full matrix (attacker rows, defender columns):
+  (attackerPower + defenderPower)`. Base matrix (attacker rows, defender columns) before the
+  balance pass below:
 
   | Attacker \ Defender | Apprentice | Adept | Master | Challenger |
   |---|---|---|---|---|
@@ -1545,6 +1546,19 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   | **Master** | 80% | 67% | 50% | 33% |
   | **Challenger** | 89% | 80% | 67% | 50% |
 
+- **Balance pass (2026-08-11, same day, after the user saw the matrix above)**: felt too safe for
+  the defender once compounded with the base town-capture roll (a Common attacker vs. a hired
+  Challenger guard alone was ~11%, then another roll on top). Attacker gets a flat +10% in any
+  guard fight (`GUARD_FIGHT_ATTACKER_BONUS`), countered by -5% if the defending town has an
+  Outlook (`GUARD_FIGHT_OUTLOOK_DEFENSE_BONUS` - Outlook's first role beyond fog-of-war vision
+  radius), net +5%/+10% attacker advantage with/without one, clamped to [0,1]. The pure tier-math
+  function above is unchanged - this is a modifier layered on only where a fight actually resolves.
+- **"Sacked" outcome (2026-08-11, same round)**: even a successful capture isn't guaranteed to
+  stick - a separate 20% roll (`ATTACKER_SACKS_TOWN_CHANCE`) can revert the town to a neutral ruin
+  instead ("they won the town, but sacked it"), only ever rolled after a genuine contest (never for
+  claiming truly-unclaimed land). Applied uniformly to both player-owned town defense and AI-vs-AI
+  captures (a judgment call, not explicitly scoped either way by the user - flagged in
+  `MOD_CHANGELOG.md` in case player-only was intended).
 - **A real, corrected gap from this same day's own earlier research**: player-owned ordinary towns
   were *already* attackable (not "can't be attacked" as first reported) - `isWastelandTown()` is a
   static property of a town's original biome tag, true for player-owned wasteland-origin towns
@@ -1559,8 +1573,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   `scene2d.ui.Dialog`, not the DialogData/ActionData system - see `MOD_CHANGELOG.md` for why that
   system didn't fit); `RewardScene`'s `guardsButton`/`upgradeButton`, Armory-only, mutually
   exclusive by level.
-- **Still open, purely cosmetic**: the map indicator icon near a guarded town/capitol. Source art
-  is ready (`maps/tileset/guard_apprentice/adept/master/challenger_8x8.png`, extracted from
-  `common/maps/tileset/dungeon.png` IDs 83/84/86/88 and shrunk to 8x8 per the user's mockup) but
-  nothing draws it yet - guards function correctly without it, just invisible on the overworld
-  until the player walks in and checks the Armory.
+- **Map indicator icon - built (2026-08-11).** `guard_icons.atlas`/`.png` (composited from the 4
+  already-extracted 8x8 tier PNGs, sourced from `common/maps/tileset/dungeon.png` IDs 83/84/86/88
+  per the user's mockup), drawn in `PointOfInterestMapSprite.draw()` - the strongest guard's icon
+  only, bottom-left corner, even at a 2-guard Capitol. Fully closes out this scope item.

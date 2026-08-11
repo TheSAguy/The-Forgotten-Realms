@@ -66,8 +66,47 @@ public class EconomyBuildings {
     // economy_buildings icons use. Archaeologist/ScienceLab are packed too, for whenever those
     // buildings get built.
     private static final String NEW_BUILDINGS_ATLAS = "maps/tileset/new_buildings.atlas";
+    // Guard tier map-indicator icons (2026-08-11, MOD_SCOPE.md #22) - 8x8, cropped from
+    // common/maps/tileset/dungeon.png (user-supplied IDs 83/84/86/88) and shrunk per the user's
+    // own mockup estimate. See PointOfInterestMapSprite for where these actually get drawn.
+    private static final String GUARD_ICONS_ATLAS = "maps/tileset/guard_icons.atlas";
 
     private EconomyBuildings() {}
+
+    /** The strongest currently-hired guard's tier at this POI, or null if it has none - used by
+     *  PointOfInterestMapSprite for the overworld indicator icon (shows one icon even when the
+     *  Capitol has 2 guards, same "strongest represents the defense" simplification the combat
+     *  resolution itself uses for fight order). */
+    public static String strongestGuardTier(PointOfInterestChanges changes) {
+        if (changes == null || changes.getGuardCount() == 0)
+            return null;
+        String strongest = changes.getGuardTier(0);
+        for (int i = 1; i < changes.getGuardCount(); i++) {
+            String candidate = changes.getGuardTier(i);
+            if (indexOfTier(candidate) > indexOfTier(strongest))
+                strongest = candidate;
+        }
+        return strongest;
+    }
+
+    private static int indexOfTier(String tier) {
+        for (int i = 0; i < GUARD_TIERS_ASCENDING.length; i++) {
+            if (GUARD_TIERS_ASCENDING[i].equals(tier))
+                return i;
+        }
+        return 0;
+    }
+
+    public static TextureRegion getGuardTierIconSprite(String tier) {
+        String region;
+        switch (tier == null ? "" : tier) {
+            case "Uncommon": region = "GuardAdept"; break;
+            case "Rare": region = "GuardMaster"; break;
+            case "Mythic": region = "GuardChallenger"; break;
+            default: region = "GuardApprentice"; break;
+        }
+        return Config.instance().getAtlasSprite(GUARD_ICONS_ATLAS, region);
+    }
 
     public static String buildingName(int type) {
         switch (type) {
