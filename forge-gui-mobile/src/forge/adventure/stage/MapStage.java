@@ -726,7 +726,7 @@ public class MapStage extends GameStage {
                             ArenaData arenaData = JSONStringLoader.parse(ArenaData.class, prop.get("arena").toString(), "");
                             ArenaScene.instance().loadArenaData(arenaData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong());
                             Forge.switchScene(ArenaScene.instance());
-                        }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite()));
+                        }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id))));
                         break;
                     case "exit":
                         addMapActor(obj, new OnCollide(() -> MapStage.this.exitDungeon(false, false)));

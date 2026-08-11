@@ -39,6 +39,10 @@ public class PointOfInterestChanges implements SaveFileContent  {
     // 2026-08-09: "I got a different set of shops in the capitol from what I had in the town"),
     // and MapStage honors a pin over the random roll from then on.
     private final java.util.Map<Integer, String> pinnedShopNames = new HashMap<>();
+    // Building upgrade level per Tiled shop object id (Arena/Armory L1->L2, 2026-08-11 - Task
+    // #8/#13). Missing entry means level 1 (base) - a not-yet-upgraded building or a pre-existing
+    // save needs no migration, getBuildingLevel() already defaults correctly.
+    private final java.util.Map<Integer, Integer> buildingLevels = new HashMap<>();
 
     public static class Map extends HashMap<String,PointOfInterestChanges> implements SaveFileContent {
         @Override
@@ -114,6 +118,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
             if (obj instanceof java.util.Map)
                 shopLastRefreshDay.putAll((java.util.Map<Integer, Integer>) obj);
         }
+        buildingLevels.clear();
+        if (data.containsKey("buildingLevels")) {
+            Object obj = data.readObject("buildingLevels");
+            if (obj instanceof java.util.Map)
+                buildingLevels.putAll((java.util.Map<Integer, Integer>) obj);
+        }
     }
 
     @Override
@@ -130,7 +140,17 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.store("bankBalance", bankBalance);
         data.storeObject("pinnedShopNames", new HashMap<>(pinnedShopNames));
         data.storeObject("shopLastRefreshDay", new HashMap<>(shopLastRefreshDay));
+        data.storeObject("buildingLevels", new HashMap<>(buildingLevels));
         return data;
+    }
+
+    public int getBuildingLevel(int objectId) {
+        Integer level = buildingLevels.get(objectId);
+        return level == null ? 1 : level;
+    }
+
+    public void setBuildingLevel(int objectId, int level) {
+        buildingLevels.put(objectId, level);
     }
 
     public String getPinnedShopName(int objectId) {

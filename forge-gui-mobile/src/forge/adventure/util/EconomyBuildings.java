@@ -111,10 +111,16 @@ public class EconomyBuildings {
         return Config.instance().getAtlasSprite(ATLAS, region);
     }
 
-    /** Rebuilt-Arena icon for the Capitol's gated Arena building (see OnCollide.draw()). */
-    public static TextureRegion getArenaSprite() {
-        return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Arena");
+    /** Rebuilt-Arena icon for the Capitol's gated Arena building (see OnCollide.draw()) - level 2
+     *  (paid upgrade, Task #8) keeps the original art, level 1 (default/base) uses the smaller
+     *  16x32 art the user provided alongside it. */
+    public static TextureRegion getArenaSprite(int level) {
+        return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, level >= 2 ? "Arena" : "ArenaLevel1");
     }
+
+    // Placeholder cost per user spec 2026-08-11 ("some 100g for now") - shared by every building
+    // upgrade (Arena today; Armory once its level 1 art and Guard-hiring mechanic land, Task #13).
+    public static final int BUILDING_UPGRADE_COST = 100;
 
     // Teleporter art (2026-08-10, user spec): reuses the stock "portal4" (blue) animated portal
     // already shipped for the game's own dungeon entrances (sprites/portal4.atlas / the shared
@@ -665,11 +671,24 @@ public class EconomyBuildings {
      * the player knows it's not just another generic card shop.
      */
     public static MapDialog buildSimpleRepairDialog(MapStage stage, int objectId, ShopData data) {
+        String landShop = landShopLabel(data);
+        if (landShop != null) {
+            String uncapitaledColor = landShopCapitalNotYetVisited(data);
+            if (uncapitaledColor != null) {
+                DialogData blocked = new DialogData();
+                blocked.text = "This shop is buried in rubble. You'll need to visit the "
+                        + uncapitaledColor + " Capital at least once before you can restore it.";
+                DialogData ok = new DialogData();
+                ok.name = "OK";
+                blocked.options = new DialogData[]{ok};
+                return new MapDialog(blocked, stage, objectId, null);
+            }
+        }
+
         DialogData root = new DialogData();
         root.text = "This shop is buried in rubble. Repair it?";
 
         String what;
-        String landShop = landShopLabel(data);
         if (landShop != null)
             what = "Repair " + landShop;
         else if (isArmoryShop(data))
@@ -706,6 +725,30 @@ public class EconomyBuildings {
             case "Land": return "Utility Land Shop";
             default: return null;
         }
+    }
+
+    // Land shop visit-gate (2026-08-11 user spec): a color-specific land shop can't be repaired
+    // until the player has visited that color's own AI capital at least once. "Land" (Utility -
+    // colorless) has no capital and is deliberately exempt. Returns the display color name
+    // ("White") if the gate is blocking, null if the shop isn't gated or the gate is satisfied.
+    private static String landShopCapitalNotYetVisited(ShopData data) {
+        if (data == null || data.name == null)
+            return null;
+        String color;
+        String capitalName;
+        switch (data.name) {
+            case "Plains": color = "White"; capitalName = "Plains Capital"; break;
+            case "Island": color = "Blue"; capitalName = "Island Capital"; break;
+            case "Swamp": color = "Black"; capitalName = "Swamp Capital"; break;
+            case "Mountain": color = "Red"; capitalName = "Mountain Capital"; break;
+            case "Forest": color = "Green"; capitalName = "Forest Capital"; break;
+            default: return null; // "Land" (Utility) or not one of the 6 land shops - never gated
+        }
+        PointOfInterest capital = WorldSave.getCurrentSave().getWorld().findPointsOfInterest(capitalName);
+        if (capital == null)
+            return null; // no capital in this world for some reason - don't block on it
+        boolean visited = WorldSave.getCurrentSave().getPointOfInterestChanges(capital.getID()).isVisited();
+        return visited ? null : color;
     }
 
     // ---- Bank / Exchange interaction dialogs (built directly, not via DialogData, since they

@@ -1,5 +1,5 @@
 new_buildings.png
-size: 80,32
+size: 96,32
 format: RGBA8888
 filter: Nearest,Nearest
 repeat: none
@@ -12,3 +12,6 @@ Arena
 Spellsmith
   xy: 48, 0
   size: 32, 32
+ArenaLevel1
+  xy: 80, 0
+  size: 16, 32

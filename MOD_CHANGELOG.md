@@ -6154,3 +6154,67 @@ intentionally unplaced. **Not yet playtested** - this is the first real test of 
 content from Innistrad specifically (previous cross-plane imports were all from Realm of Legends
 or Shandalar Old Border), and the `hunting_lodge`/`lair` folders are new additions to this plane's
 map-folder taxonomy worth a quick sanity walk-through.
+
+## Land shop visit-gate, Outlook/Spellsmith art correction, building-level plumbing (2026-08-11)
+
+**Land shop visit-gate, the real mechanism this time.** The earlier finding this same day ("no
+build/repair dialog exists for the 6 land shops") was wrong - re-investigated after the user
+clarified they *do* start as rubble and already show a "Repair [Color] Land Shop" dialog
+(`EconomyBuildings.buildSimpleRepairDialog()`, confirmed via its own `landShopLabel()` helper,
+added 2026-08-09). The earlier miss was about a different, real thing (`fixedShop` skips the
+Bank/Exchange/Industry *conversion menu*, not the repair dialog itself) but the wrong conclusion
+was drawn from it. Fixed properly: new `landShopCapitalNotYetVisited(ShopData)` looks up that
+color's own AI capital by name (`Plains`->`Plains Capital`, etc. - `World.findPointsOfInterest()`)
+and checks `PointOfInterestChanges.isVisited()` on it; if not yet visited, the repair dialog is
+replaced with a blocking explanation ("You'll need to visit the White Capital at least once...")
+instead of the normal repair offer. `Land` (Utility/colorless) has no capital and is exempt by
+construction (the color-to-capital switch simply doesn't have a case for it, falls through to "not
+gated").
+
+**Outlook/Spellsmith art, corrected.** Two user corrections: (1) the "Spellsmith" label on an
+earlier reference screenshot was itself mislabeled - it was actually "Armory" flavor text, and the
+*real* Spellsmith art is buildings.png IDs 432/433/460/461 (a 2x2 block, 32x32 - the previous
+Spellsmith placeholder region is fully replaced). (2) Outlook's art was rebuilt from IDs 329/357
+(a 16x32 vertical pair) per corrected coordinates. Both extracted via ImageMagick (now installed)
+directly from `common/maps/tileset/buildings.png` using the same tile-ID-to-pixel-rectangle math
+already established (28 columns, 16x16 tiles, verified against the user's own Tiled "Rectangle"
+panel values for multiple IDs before trusting the formula on new ones). `economy_buildings.atlas`'s
+existing "Armory" region (Level 2 Armory art) is untouched - confirmed via code as "the one we had
+before," a completely separate atlas from `new_buildings.atlas`.
+
+**Arena Level 1 art added, composited (not just cropped).** IDs 378/379 sit horizontally adjacent
+in the source sheet (a straight bounding-box crop would be 32x16), but the user specified the
+final sprite must be 16x32 (tall, not wide) - twice, with emphasis. Interpreted as: crop each
+16x16 tile separately, then vertically stack them into a new composited image, rather than a
+literal rectangular crop of the source region. `new_buildings.atlas` gained a new `ArenaLevel1`
+region; the existing `Arena` region (Level 2) was re-extracted unchanged from the current sheet
+and re-placed identically, so the confirmed-working Level 2 look isn't at any risk from this edit.
+All 4 new art pieces (plus the corrected Outlook/Spellsmith) were visually verified via upscaled
+4x nearest-neighbor previews before wiring in - not just trusted from the crop coordinates alone.
+
+**One art piece rejected, flagged back to the user.** Armory Level 1 (IDs 148/149/177/178)
+composited into two clearly unrelated pieces (a gate/door with a star emblem, a separate small
+chimney building) - the coordinate math was independently double-checked against the user's own
+Tiled "Rectangle" values for one of the four IDs (177: 144,96) and matched exactly, so this isn't a
+formula error on this end. Sent the user an upscaled preview image directly rather than guessing
+further or shipping something that clearly doesn't read as one building. `armory_l1.png` (the
+current, likely-wrong composite) and the 4 correctly-extracted guard-tier icons (`guard_apprentice/
+adept/master/challenger.png`, from `common/maps/tileset/dungeon.png`, exact IDs 83/84/86/88 per the
+user's own Tiled screenshot) are sitting in `maps/tileset/` uncommitted, ready once Armory L1 is
+resolved and the Guard system (`MOD_SCOPE.md` #13, see below) is designed.
+
+**Building-upgrade level, the shared plumbing (Task #8/#13).** New `PointOfInterestChanges.
+getBuildingLevel(objectId)`/`setBuildingLevel(objectId, level)` (missing entry = level 1, so no
+save migration needed for pre-existing buildings), mirroring the exact save/load pattern
+`pinnedShopNames` already established. `EconomyBuildings.getArenaSprite(int level)` now picks
+`ArenaLevel1` or `Arena` based on the calling site's own `changes.getBuildingLevel(id)` -
+`MapStage`'s `"arena"` case updated to pass it through. New `EconomyBuildings.BUILDING_UPGRADE_COST`
+(100, placeholder per user spec "some 100g for now") ready for whichever building's upgrade button
+gets built first. **Deliberately NOT wiring an actual upgrade button/dialog yet** - Arena's own
+Level 2 gameplay rework (mini-boss/boss encounters, best-of-1, prize/cost changes) is still coming
+in a follow-up from the user, and Armory's upgrade is tightly coupled to the not-yet-designed Guard
+system (`MOD_SCOPE.md` #13) - building either UI now risked getting thrown away and rebuilt once
+the fuller specs land. The persisted level + sprite-selection half is real, tested-via-compile
+infrastructure either way, not a stub.
+
+Compiled and verified after every step. **Not yet playtested** (new art, new persisted field).

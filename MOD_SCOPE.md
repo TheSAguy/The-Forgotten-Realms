@@ -1487,9 +1487,45 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `Not Started`
-- User idea, not yet scoped or discussed in detail.
+### 20. Upgradable Arena — `In Progress` (2026-08-11: art + level plumbing built, upgrade trigger not yet wired)
+- Real spec now exists: Level 2 fights Mini-bosses/Bosses, "Best out of 1" match format, and an
+  unclear note "No ant in Arena" the user hasn't yet clarified. Prize/entry-cost changes for the
+  Arena also mentioned, no specific numbers given yet. **Deliberately not built until the user's
+  promised follow-up on these details lands** ("Arena. will do next") - building the upgrade
+  trigger UI now, before the Level 2 gameplay itself is specified, risked throwing it away.
+- **Built so far**: real Level 1 art (buildings.png IDs 378/379, composited into a 16x32 vertical
+  stack per the user's spec - see `MOD_CHANGELOG.md` for why this needed compositing rather than a
+  plain crop) alongside the existing, untouched Level 2 art. New shared building-level plumbing
+  (`PointOfInterestChanges.getBuildingLevel()`/`setBuildingLevel()`, `EconomyBuildings.
+  getArenaSprite(level)`, `BUILDING_UPGRADE_COST` = 100g placeholder) - reusable by Armory's own
+  upgrade (#22) once that's ready too.
 
 ### 21. Speed Up All Monsters — `Not Started`
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
   the roaming-enemy roster.
+
+### 22. Armory Guard Hiring (Level 2 unlock) — `Not Started` (full spec given 2026-08-11)
+- Level 1 Armory functions exactly as it does today. Level 2 unlocks a "Hire Guards" button
+  (natural home: alongside the existing "Destroy Building" button on the Armory's `RewardScene`
+  page, same precedent). Towns can hold 1 guard, Capitols 2.
+- Guard tiers reuse the plane's existing Apprentice/Adept/Master/Challenger ladder
+  (`EnemyData.tier`, built 2026-08-10 for mage difficulty - not a new parallel system). Weekly
+  salary: Apprentice 50g, Adept 100g, Master 150g, Challenger 200g + 5 shards - the same amount is
+  also paid upfront on hire. Missed salary payment disbands the guard.
+- Not a physical map unit. Needs a small indicator icon near the town/capitol showing an active
+  guard - user supplied source art (`common/maps/tileset/dungeon.png`, IDs 83/84/86/88, one per
+  tier) plus a mockup showing it should render smaller than the native 16x16 and sit in a
+  building's corner; extracted (`maps/tileset/guard_apprentice/adept/master/challenger.png`,
+  uncommitted, ready) but not yet wired into any UI or scaled to the mockup's implied size.
+- **Combat**: if a guarded town is attacked, the attacker must beat the guard first. User asked for
+  odds design feedback specifically - see `MOD_CHANGELOG.md`'s "Roaming-Enemy Bestiary + Mage
+  Difficulty Tiers" entry: `TerritoryControl.attackerWinChance(String tier)` already exists (Common
+  10% / Uncommon 30% / Rare 70% / Mythic 90%, keyed off the attacker's own tier alone, used for
+  neutral-vs-enemy-color town capture) - the guard fight needs a genuine tier-vs-tier matchup
+  (attacker AND defender both vary), which that function doesn't do yet; proposed extending it
+  rather than inventing a parallel odds system. Guard loses -> dies (guard no longer active),
+  attacker proceeds into whatever capture resolution already applies. Guard wins -> stays active,
+  attacker is removed.
+- **Blocked on**: Armory's own Level 1 art (see #10/`MOD_CHANGELOG.md` - the user-given tile IDs
+  composited into two unrelated pieces, flagged back, awaiting corrected IDs) before the Level
+  1/2 upgrade trigger itself can be built - the Guard system depends on that same trigger existing.
