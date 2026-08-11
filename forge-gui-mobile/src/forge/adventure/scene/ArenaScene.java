@@ -285,6 +285,15 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     Actor player;
 
     public void loadArenaData(ArenaData data, long seed) {
+        loadArenaData(data, seed, false);
+    }
+
+    /** isChallenge (2026-08-11, Arena Level 2 Challenge mode, MOD_SCOPE.md #20): forces every
+     *  fight in this run to best-of-1 regardless of each enemy's own EnemyData.gamesPerMatch -
+     *  about a third of the Challenge pool (bosses/mini-bosses/Planeswalkers) default to
+     *  gamesPerMatch=3 in enemies.json, and the user's spec was explicit that Challenge is
+     *  best-of-1 across the board, same as Regular Arena's wizard pool already is by default. */
+    public void loadArenaData(ArenaData data, long seed, boolean isChallenge) {
         startButton.setText("[%80][+OK]");
         startButton.layout();
         doneButton.setText("[%80][+Exit]");
@@ -308,6 +317,8 @@ public class ArenaScene extends UIScene implements IAfterMatch {
             // one-off gamesPerMatch override, so this enemy's non-Arena appearances are unaffected.
             EnemyData arenaEnemyData = new EnemyData(enemyData);
             arenaEnemyData.noAnte = true;
+            if (isChallenge)
+                arenaEnemyData.gamesPerMatch = 1;
             EnemySprite enemy = new EnemySprite(arenaEnemyData);
             enemies.add(enemy);
             fighters.add(new ArenaRecord(new Image(enemy.getAvatar()), enemyData.getName()));

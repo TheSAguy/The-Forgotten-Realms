@@ -6460,4 +6460,95 @@ Level 2 art until the player next leaves and re-enters the town. The upgrade's a
 correct right away regardless - purely a one-map-icon cosmetic lag, same category of limitation
 already accepted for Armory's icon in the very first Task #8 plumbing round.
 
+## Outlook extended to the base town-capture roll (2026-08-11)
+
+Same-day follow-up to the guard-fight balance pass: the user asked for Outlook's -5% defender
+bonus to "apply to town also, beyond guards" - i.e. also discount the underlying
+`attackerWinChance(tier)` roll a player-owned town faces even when it has no guard at all (or
+after its guard(s) already fell).
+
+New `TerritoryControl.townHasOutlook(PointOfInterest)` helper:
+```java
+private static boolean townHasOutlook(PointOfInterest target) {
+    PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(target.getID());
+    return changes != null && changes.hasEconomyBuildingOfType(EconomyBuildings.OUTLOOK);
+}
+```
+Wired into the player-owned-town branch of `onMageArrived()`, right after `resolveGuardDefense()`
+and before the capture roll itself:
+```java
+float captureChance = attackerWinChance(mage.getData().tier);
+if (townHasOutlook(target))
+    captureChance = Math.max(0f, captureChance - OUTLOOK_DEFENSE_BONUS);
+boolean attackerWins = world.getRandom().nextFloat() < captureChance;
+```
+Renamed the constant from `GUARD_FIGHT_OUTLOOK_DEFENSE_BONUS` to `OUTLOOK_DEFENSE_BONUS` (still
+0.05f) to reflect the wider scope - same clamp behavior as the guard-fight version, and for the
+same reason never actually risks going negative given the existing 10/30/70/90 baseline range.
+
+**Scope call, flagged rather than silently assumed**: only the player-owned-town branch got this
+treatment, not the AI-vs-AI branch (`else` at the bottom of `onMageArrived()`). An AI-held town
+could in principle still have a player-built Outlook standing (if the player lost that town after
+building one), but the user's request was framed around defending the player's own towns
+specifically, so AI-vs-AI captures are unaffected. Easy to extend if that turns out to matter.
+
+## Arena Level 2 Challenge mode (2026-08-11)
+
+Builds out the "Challenge" half of the Level 2 gameplay spec from the previous Arena round
+(`MOD_SCOPE.md` #20) - "Regular" stays exactly as Level 1 already was (unchanged), "Challenge"
+is a new, harder, higher-stakes bracket gated behind Level 2.
+
+**New `arenaChallenge` TMX property** on `player_capital.tmx`'s Arena object (id 61), parallel to
+and immediately following the existing `arena` property, same plain-quote JSON convention:
+- `enemyPool`: 84 names - the union of every `boss:true` entry, every enemy whose deck path
+  contains "miniboss", and every Master-tier Wizard in `enemies.json`. Built via a PowerShell query
+  against the raw JSON rather than hand-curated, then cross-checked with `Test-Path` that every
+  single name resolves to a real `.dck` file (either in the FR plane's own `decks/` or
+  `common/decks/`) - avoids the "orphaned enemy" bug class an earlier round in this session already
+  hit once for a different pool.
+- `rounds:3`, `entryFee:300` (3x Level 1's 100g, per user spec "~3x").
+- `rewards`: 3 rounds of gold (300/500/800, escalating) plus three independent, probability-gated
+  item-tier pools each round (25% Uncommon / 65% Rare / 15% Mythic - built by querying `items.json`
+  for non-quest items at each rarity: 178 Uncommon, 155 Rare, 23 Mythic), plus a guaranteed Rare
+  card round 2 and a guaranteed Mythic Rare card round 3. No Common or Uncommon cards ever drop,
+  matching "No Commons, Low Uncommons, High Rare, reasonable Mythic". The exact gold amounts and
+  item-tier probabilities are Claude's own proposal, not numbers the user specified beyond "~3x
+  entry" and the rarity-skew description - flagged for the user to tune if the balance feels off
+  after playtesting.
+
+**Best-of-1 enforced, not just inherited.** Checked `enemies.json` before assuming Regular Arena's
+existing behavior was representative: Regular's wizard pool (Apprentice/Adept/Master x5 colors)
+all have `gamesPerMatch` unset (defaults to `EnemyData.gamesPerMatch = 1`, i.e. already best-of-1),
+but roughly 30% of the new 84-name Challenge pool (bosses, Planeswalkers, mini-bosses) have
+`gamesPerMatch: 3` set explicitly in `enemies.json` - without an override, "Challenge" fights
+against those specific enemies would silently run best-of-3, contradicting the user's explicit
+"best-of-1 not best-of-3" spec. `ArenaScene.loadArenaData(ArenaData, long)` gained an overload
+`loadArenaData(ArenaData, long, boolean isChallenge)`; when true, the per-fight `EnemyData` clone
+(same clone-not-mutate pattern already used for `noAnte`) also gets `gamesPerMatch = 1` forced:
+```java
+EnemyData arenaEnemyData = new EnemyData(enemyData);
+arenaEnemyData.noAnte = true;
+if (isChallenge)
+    arenaEnemyData.gamesPerMatch = 1;
+```
+
+**Entry dialog and wiring.** `EconomyBuildings.openArenaEntryDialog()`/`refreshArenaEntryDialog()`
+gained a second `Runnable onEnterChallenge` parameter (nullable) - the "Enter Challenge Arena"
+button only renders when `level >= 2 AND onEnterChallenge != null`. `MapStage`'s `"arena"` case
+passes `prop.containsKey("arenaChallenge") ? (...) : null` for that parameter rather than assuming
+every arena object has one: the 5 AI capitals' arenas (`forest_capital.tmx` etc.) share the exact
+same `case "arena":` code path and could in principle also be leveled up (nothing in the upgrade
+button currently checks ownership), but only `player_capital.tmx` got an `arenaChallenge` property
+this round, so those get no Challenge button and no risk of a missing-property crash reading
+`prop.get("arenaChallenge")`.
+
+Validated the embedded JSON both in isolation (PowerShell `ConvertFrom-Json` against the generated
+blob before insertion) and read back out of the actual TMX file post-edit (parsed the `<property
+name="arenaChallenge">` node's `InnerText` and re-validated) - confirmed `enemyPool` count 84,
+`rounds` 3, `entryFee` 300, 3 reward rounds, matching the source data exactly. Full file re-checked
+as well-formed XML via PowerShell's `[xml]` cast after the edit.
+
+Compiles clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`, BUILD SUCCESS). Not yet
+playtested in-game.
+
 Compiled and verified. **Not yet playtested.**

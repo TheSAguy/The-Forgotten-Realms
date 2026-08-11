@@ -178,12 +178,16 @@ public class EconomyBuildings {
      * immediately (Level 2 art shown as soon as this dialog is reopened, and the discount/behavior
      * is correct right away).
      */
-    public static void openArenaEntryDialog(MapStage stage, int objectId, Runnable onEnterArena) {
-        refreshArenaEntryDialog(stage, objectId, onEnterArena);
+    public static void openArenaEntryDialog(MapStage stage, int objectId, Runnable onEnterArena, Runnable onEnterChallenge) {
+        refreshArenaEntryDialog(stage, objectId, onEnterArena, onEnterChallenge);
         stage.showDialog();
     }
 
-    private static void refreshArenaEntryDialog(MapStage stage, int objectId, Runnable onEnterArena) {
+    /** onEnterChallenge is null wherever this town's arena has no "arenaChallenge" TMX property
+     *  (every arena but the player Capitol's, 2026-08-11 Arena Level 2 Challenge round) - the
+     *  button below is skipped entirely in that case regardless of level, rather than assuming
+     *  every arena object has a Challenge pool defined. */
+    private static void refreshArenaEntryDialog(MapStage stage, int objectId, Runnable onEnterArena, Runnable onEnterChallenge) {
         Dialog dialog = stage.getDialog();
         dialog.getContentTable().clear();
         dialog.getButtonTable().clear();
@@ -196,12 +200,18 @@ public class EconomyBuildings {
             stage.hideDialog();
             onEnterArena.run();
         });
+        if (level >= 2 && onEnterChallenge != null) {
+            addButtonRow(dialog, "Enter Challenge Arena", true, () -> {
+                stage.hideDialog();
+                onEnterChallenge.run();
+            });
+        }
         if (level < 2) {
             boolean canAfford = AdventurePlayer.current().getGold() >= BUILDING_UPGRADE_COST;
             addButtonRow(dialog, "Upgrade to Level 2 (" + BUILDING_UPGRADE_COST + "g)", canAfford, () -> {
                 AdventurePlayer.current().takeGold(BUILDING_UPGRADE_COST);
                 stage.getChanges().setBuildingLevel(objectId, 2);
-                refreshArenaEntryDialog(stage, objectId, onEnterArena);
+                refreshArenaEntryDialog(stage, objectId, onEnterArena, onEnterChallenge);
             });
         }
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();

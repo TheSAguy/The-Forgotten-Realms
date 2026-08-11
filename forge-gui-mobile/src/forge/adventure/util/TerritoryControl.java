@@ -847,7 +847,16 @@ public class TerritoryControl {
     // guardFightAttackerWinChance() itself - that function stays the pure tier-math baseline,
     // these are combat-context modifiers layered on top only where an actual fight resolves.
     private static final float GUARD_FIGHT_ATTACKER_BONUS = 0.10f;
-    private static final float GUARD_FIGHT_OUTLOOK_DEFENSE_BONUS = 0.05f;
+    // OUTLOOK_DEFENSE_BONUS (renamed from GUARD_FIGHT_-specific, 2026-08-11 same-day follow-up):
+    // the user asked for Outlook to also defend the base town-capture roll, not just guard fights
+    // - same -5% value, no separate attacker-side bonus added to the capture roll (only the guard
+    // fight got the +10% attacker buff; extending that too wasn't asked for).
+    private static final float OUTLOOK_DEFENSE_BONUS = 0.05f;
+
+    private static boolean townHasOutlook(PointOfInterest target) {
+        PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(target.getID());
+        return changes != null && changes.hasEconomyBuildingOfType(EconomyBuildings.OUTLOOK);
+    }
 
     /**
      * Resolves any active guards at target before an attack proceeds (user spec 2026-08-11,
@@ -871,7 +880,7 @@ public class TerritoryControl {
             }
             String guardTier = changes.getGuardTier(strongestIndex);
             float baseChance = guardFightAttackerWinChance(mage.getData().tier, guardTier);
-            float attackerChance = baseChance + GUARD_FIGHT_ATTACKER_BONUS - (hasOutlook ? GUARD_FIGHT_OUTLOOK_DEFENSE_BONUS : 0f);
+            float attackerChance = baseChance + GUARD_FIGHT_ATTACKER_BONUS - (hasOutlook ? OUTLOOK_DEFENSE_BONUS : 0f);
             attackerChance = Math.max(0f, Math.min(1f, attackerChance));
             boolean attackerWins = WorldSave.getCurrentSave().getWorld().getRandom().nextFloat() < attackerChance;
             // Diagnostic-only logging, same convention as [TFR-CaptureOdds] - greppable in forge.log.
@@ -1269,7 +1278,13 @@ public class TerritoryControl {
             if (playerOwnedNow) {
                 if (!resolveGuardDefense(mage, target))
                     return;
+                // Outlook now also defends the base capture roll (user spec 2026-08-11 follow-up,
+                // extending its guard-fight-only role from earlier the same day) - clamped same as
+                // the guard-fight version, though a single -5% off attackerWinChance()'s existing
+                // 10/30/70/90 range never actually risks going out of [0,1].
                 float captureChance = attackerWinChance(mage.getData().tier);
+                if (townHasOutlook(target))
+                    captureChance = Math.max(0f, captureChance - OUTLOOK_DEFENSE_BONUS);
                 boolean attackerWins = world.getRandom().nextFloat() < captureChance;
                 System.out.println("[TFR-CaptureOdds] " + mage.territoryColor + " mage (tier=" + mage.getData().tier
                         + ", chance=" + captureChance + ") attacking player-owned " + target.getDisplayName()

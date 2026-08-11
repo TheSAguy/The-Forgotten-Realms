@@ -725,9 +725,13 @@ public class MapStage extends GameStage {
                         addMapActor(obj, new OnCollide(() -> {
                             EconomyBuildings.openArenaEntryDialog(this, id, () -> {
                                 ArenaData arenaData = JSONStringLoader.parse(ArenaData.class, prop.get("arena").toString(), "");
-                                ArenaScene.instance().loadArenaData(arenaData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong());
+                                ArenaScene.instance().loadArenaData(arenaData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), false);
                                 Forge.switchScene(ArenaScene.instance());
-                            });
+                            }, prop.containsKey("arenaChallenge") ? () -> {
+                                ArenaData challengeData = JSONStringLoader.parse(ArenaData.class, prop.get("arenaChallenge").toString(), "");
+                                ArenaScene.instance().loadArenaData(challengeData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), true);
+                                Forge.switchScene(ArenaScene.instance());
+                            } : null);
                         }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id))));
                         break;
                     case "exit":

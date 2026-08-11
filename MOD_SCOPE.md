@@ -1491,7 +1491,7 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, and Ante-off all built; Level 2 gameplay itself not yet built)
+### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; deck-test mode not yet built)
 - **"No ant in Arena" resolved**: means Ante (the mechanic where match winner takes a card from the
   loser's deck - "ant" was a typo missing the "e"), which is on by default for every match
   currently. **Built**: Ante is now force-disabled for Arena matches specifically (new
@@ -1508,18 +1508,30 @@ to depend on each other.
   getArenaSprite(level)`, `BUILDING_UPGRADE_COST`) is the same infrastructure Armory's own upgrade
   (#22) already uses. Known cosmetic-only limitation: the overworld icon updates on next
   visit, not instantly (it's set once at map-load, not re-evaluated live).
-- **Full Level 2 gameplay spec given 2026-08-11, not yet built.** Level 2 offers **two** modes:
-  "Regular" (identical to Level 1) and "Challenge" - high-level mages/Challengers/Mini-bosses/
-  bosses, best-of-1 (not best-of-3), entry cost ~3x (300g, current Capitol Arena's `entryFee` is
-  100g), and a reward-rarity distribution skewed hard toward the top ("No Commons, Low Uncommons,
-  High Rare, reasonable Mythic" - no specific percentages given yet). **3rd mode confirmed for this
-  round, corrected from an earlier miscommunication**: a player-vs-own-deck test - the player picks
-  2 of their own saved decks, **pilots one themselves** (an ordinary duel from their side), AI
-  pilots the other (not a full AI-vs-AI spectator match, which is what an earlier summary of this
-  wrongly said) - meaningfully simpler to build than first scoped, since it's just an ordinary
-  `DuelScene` match where the opponent's deck happens to be player-supplied instead of a canonical
-  enemy `.dck` file. None of this Level 2 gameplay (mode split, Challenge pool/costs/rewards,
-  deck-test) is built yet - only the art/trigger/Ante-off pieces above are done.
+- **Challenge Arena mode - built (2026-08-11).** Level 2's arena entry dialog now offers a second
+  button, "Enter Challenge Arena", alongside the existing "Enter Arena" (which stays identical to
+  Level 1 - same pool, same 3-round bracket, same 100g `entryFee`, unchanged). New `arenaChallenge`
+  TMX property on `player_capital.tmx`'s Arena object (id 61), parallel to the existing `arena`
+  property: 84-enemy pool (union of every `boss:true` entry, every "miniboss"-deck-path entry, and
+  every Master-tier Wizard in `enemies.json`, each verified to resolve to a real `.dck` file),
+  `entryFee:300` (3x Level 1's 100g), 3 rounds of escalating rewards (300/500/800 gold + Uncommon/
+  Rare/Mythic-tier item pools at 25%/65%/15% probability each round, plus a guaranteed Rare card
+  round 2 and a guaranteed Mythic Rare card round 3 - no Common or Uncommon cards ever drop,
+  matching the user's "No Commons, Low Uncommons, High Rare, reasonable Mythic" spec). Gold/item-
+  pool numbers are Claude's own proposal (not explicitly specified by the user beyond "~3x" entry
+  and the rarity-skew description) - flagged here for the user to tune if the balance feels off.
+  **Best-of-1 enforced**: about 30% of the Challenge pool (bosses/Planeswalkers/mini-bosses)
+  default to best-of-3 (`EnemyData.gamesPerMatch=3`) in vanilla `enemies.json`; `ArenaScene.
+  loadArenaData()` gained an `isChallenge` flag that forces `gamesPerMatch=1` on the per-fight
+  cloned `EnemyData` (same clone-not-mutate pattern already used for `noAnte`), so every Challenge
+  fight is best-of-1 regardless of that enemy's own data. The "Enter Challenge Arena" button only
+  appears when `arenaChallenge` exists AND the building is Level 2 - every other arena in the game
+  (the 5 AI capitals') has no `arenaChallenge` property and silently gets no button at all, so
+  upgrading an AI capital's Arena (if that's ever even reachable) can't hit a missing-property crash.
+- **Deck-test mode still not started.** Per spec: the player picks 2 of their own saved decks,
+  **pilots one themselves** (an ordinary duel from their side), AI pilots the other - simpler than
+  first scoped, since it's just an ordinary `DuelScene` match where the opponent's deck happens to
+  be player-supplied instead of a canonical enemy `.dck` file.
 
 ### 21. Speed Up All Monsters — `Not Started`
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
@@ -1557,9 +1569,21 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   the defender once compounded with the base town-capture roll (a Common attacker vs. a hired
   Challenger guard alone was ~11%, then another roll on top). Attacker gets a flat +10% in any
   guard fight (`GUARD_FIGHT_ATTACKER_BONUS`), countered by -5% if the defending town has an
-  Outlook (`GUARD_FIGHT_OUTLOOK_DEFENSE_BONUS` - Outlook's first role beyond fog-of-war vision
+  Outlook (`OUTLOOK_DEFENSE_BONUS` - Outlook's first role beyond fog-of-war vision
   radius), net +5%/+10% attacker advantage with/without one, clamped to [0,1]. The pure tier-math
   function above is unchanged - this is a modifier layered on only where a fight actually resolves.
+- **Outlook extended to the base town-capture roll (2026-08-11, same-day follow-up)**: the -5%
+  bonus above originally only fired inside guard fights; the user asked for it to also apply to
+  the underlying `attackerWinChance(tier)` capture roll itself (guards or not). `TerritoryControl.
+  townHasOutlook()` (new helper, `PointOfInterestChanges.hasEconomyBuildingOfType(OUTLOOK)`) now
+  gates a -5% off `captureChance` in the player-owned-town branch of `onMageArrived()`, same
+  `Math.max(0f, ...)` clamp as the guard-fight version (never risks going negative given the
+  existing 10/30/70/90 baseline range). Renamed the constant from `GUARD_FIGHT_OUTLOOK_DEFENSE_
+  BONUS` to `OUTLOOK_DEFENSE_BONUS` to reflect the wider scope. Only wired into the player-owned-
+  town branch, not the AI-vs-AI branch - an AI-held town could theoretically still have a player-
+  built Outlook standing if the player lost it after building one, but the user's ask was framed
+  around defending the player's own towns, so this was left AI-vs-AI-unaffected pending explicit
+  scope from the user if that matters.
 - **"Sacked" outcome (2026-08-11, same round)**: even a successful capture isn't guaranteed to
   stick - a separate 20% roll (`ATTACKER_SACKS_TOWN_CHANCE`) can revert the town to a neutral ruin
   instead ("they won the town, but sacked it"), only ever rolled after a genuine contest (never for
