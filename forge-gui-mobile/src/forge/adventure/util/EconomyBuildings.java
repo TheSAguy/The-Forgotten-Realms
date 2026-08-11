@@ -89,6 +89,9 @@ public class EconomyBuildings {
             case STONE_MINE: return "StoneMine";
             case BANK: return "Bank";
             case EXCHANGE: return "Exchange";
+            // TELEPORTER deliberately excluded - it needs the animated portal art, handled by
+            // ShopActor directly via getTeleporterClosedSprite()/getTeleporterActiveAnimation(),
+            // not this single-static-region path.
             default: return null;
         }
     }
@@ -96,14 +99,12 @@ public class EconomyBuildings {
     /**
      * Icon to draw over a rebuilt shop's normal footprint when it's the town's registered economy
      * building, or null if it isn't one (a plain or special shop - see getPlainShopSprite()/
-     * getSpecialShopSprite()). Outlook/Teleporter draw their real art from NEW_BUILDINGS_ATLAS
-     * (was a PlainShop placeholder for one round, user-reported).
+     * getSpecialShopSprite()), OR if it's TELEPORTER (animated - see ShopActor.draw(), which
+     * intercepts that type before ever calling this method).
      */
     public static TextureRegion getBuildingSprite(int type) {
         if (type == OUTLOOK)
             return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Outlook");
-        if (type == TELEPORTER)
-            return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Teleporter");
         String region = atlasRegion(type);
         if (region == null)
             return null;
@@ -113,6 +114,36 @@ public class EconomyBuildings {
     /** Rebuilt-Arena icon for the Capitol's gated Arena building (see OnCollide.draw()). */
     public static TextureRegion getArenaSprite() {
         return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Arena");
+    }
+
+    // Teleporter art (2026-08-10, user spec): reuses the stock "portal4" (blue) animated portal
+    // already shipped for the game's own dungeon entrances (sprites/portal4.atlas / the shared
+    // portals.png sheet), rather than a hand-picked static icon like every other building type -
+    // a real 4-frame shimmer read the exact same way WorldStage.getGoldSparkleAnimation() reuses
+    // the stock Gold pickup's animation. "Closed" (a plain empty archway, region shared by every
+    // portalN.atlas) shows until a SECOND teleporter exists anywhere - before that the network
+    // has no usable destination, so nothing to signal as active.
+    private static final String PORTAL_ATLAS = "sprites/portal4.atlas";
+    private static com.badlogic.gdx.graphics.g2d.Animation<TextureRegion> teleporterActiveAnimation;
+
+    public static TextureRegion getTeleporterClosedSprite() {
+        return Config.instance().getAtlasSprite(PORTAL_ATLAS, "Closed");
+    }
+
+    public static com.badlogic.gdx.graphics.g2d.Animation<TextureRegion> getTeleporterActiveAnimation() {
+        if (teleporterActiveAnimation == null) {
+            com.badlogic.gdx.utils.Array<com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion> frames =
+                    Config.instance().getAtlas(PORTAL_ATLAS).findRegions("Active");
+            teleporterActiveAnimation = new com.badlogic.gdx.graphics.g2d.Animation<>(0.15f, frames,
+                    com.badlogic.gdx.graphics.g2d.Animation.PlayMode.LOOP);
+        }
+        return teleporterActiveAnimation;
+    }
+
+    /** True once a SECOND Teleporter exists anywhere (Capitol + towns combined) - before that
+     *  a lone Teleporter has no destination, so it stays visually "Closed". */
+    public static boolean isTeleporterNetworkActive() {
+        return (capitolHasTeleporter() ? 1 : 0) + countTownTeleporters() >= 2;
     }
 
     // The waste-town map template no longer has any baked-in building art at all (see

@@ -2964,7 +2964,61 @@ public class World implements Disposable, SaveFileContent {
         int dy = y - visiblePlayerTileY;
         if (dx * dx + dy * dy <= visionRadius * visionRadius)
             return true;
+        if (isTemporarilyRevealed(x, y))
+            return true;
         return isPersistentlyRevealed(x, y);
+    }
+
+    // Discovery flash (2026-08-10, user spec): "when you first get close to a town, or enemy
+    // capital, the FoW should clear briefly, then go to the middle state". The player's own live
+    // vision circle already does this for tiles close enough to stand near, but
+    // WorldBackground's wider DISCOVERY_REVEAL_RADIUS burst around a newly-found POI marks its
+    // OUTER ring explored (dimmed-tier forever after) without ever passing through a bright
+    // moment first, since those tiles are typically outside the live vision circle. This is a
+    // separate, TIME-LIMITED tier bolted onto isCurrentlyVisible() above - a tile flashes bright
+    // for TEMPORARY_REVEAL_SECONDS, then falls through to its ordinary tier (dimmed once
+    // explored, unless something else keeps it persistently bright).
+    private final java.util.Map<Long, Float> temporaryRevealTimers = new java.util.HashMap<>();
+    private static final float TEMPORARY_REVEAL_SECONDS = 3f;
+
+    private static long packWorldTile(int x, int y) {
+        return ((long) x << 32) | (y & 0xffffffffL);
+    }
+
+    /** Starts (or refreshes) a discovery flash on this tile - see the class comment above. */
+    public void temporarilyReveal(int wx, int wy) {
+        temporaryRevealTimers.put(packWorldTile(wx, wy), TEMPORARY_REVEAL_SECONDS);
+    }
+
+    public boolean isTemporarilyRevealed(int wx, int wy) {
+        Float remaining = temporaryRevealTimers.get(packWorldTile(wx, wy));
+        return remaining != null && remaining > 0f;
+    }
+
+    /**
+     * Ticks every active discovery flash down by delta, repainting any tile whose flash JUST
+     * expired back to its ordinary tier (it was drawn bright while flashing - without this it
+     * would stay looking bright forever once the timer silently hit zero). Cheap no-op whenever
+     * nothing is currently flashing, which is nearly always true.
+     */
+    public void tickTemporaryReveals(float delta, BiConsumer<Integer, Integer> onTileChanged) {
+        if (temporaryRevealTimers.isEmpty())
+            return;
+        java.util.Iterator<java.util.Map.Entry<Long, Float>> it = temporaryRevealTimers.entrySet().iterator();
+        while (it.hasNext()) {
+            java.util.Map.Entry<Long, Float> entry = it.next();
+            float remaining = entry.getValue() - delta;
+            if (remaining <= 0f) {
+                it.remove();
+                long key = entry.getKey();
+                int wx = (int) (key >> 32);
+                int wy = (int) (key & 0xffffffffL);
+                if (onTileChanged != null)
+                    onTileChanged.accept(wx, wy);
+            } else {
+                entry.setValue(remaining);
+            }
+        }
     }
 
     private Pixmap getFogTile() {

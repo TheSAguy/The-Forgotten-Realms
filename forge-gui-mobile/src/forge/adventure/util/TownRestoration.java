@@ -491,31 +491,43 @@ public class TownRestoration {
         stage.exitDungeon(false, false);
     }
 
+    // A shop slot is "reserved" - excluded from the Capitol migration target pool entirely - if
+    // it's either a fixedShop (the 6 land shops: no conversion menu, no icon, hut art baked into
+    // the map) or noMigrate (2026-08-10 addition: the Armory and dedicated Booster slots - DO
+    // still get a conversion-menu bypass and a real icon like any other special shop, just also
+    // can never be claimed by a migrated economy building or a random re-roll). User report:
+    // "if you don't build [Armory] first in the Town, a shop can take its place and you can't
+    // build one" - because neither slot was excluded from the migration pool before this.
+    private static boolean isReservedSlot(com.badlogic.gdx.utils.XmlReader.Element object) {
+        return hasTrueProperty(object, "fixedShop") || hasTrueProperty(object, "noMigrate");
+    }
+
     /**
      * The capital layout's shop slot ids, ascending, parsed straight from the tmx (root-level
      * object group only - the file also embeds a tileset whose tiles carry their own tiny
      * objectgroups, which must not be scanned). Parsing the real file instead of hardcoding ids
-     * keeps this correct if the user re-edits the map in Tiled. Shops marked "fixedShop" (the 6
-     * hardcoded land shops, user spec 2026-08-09) are NOT migration slots - they must stay
-     * exactly what the tmx says they are, so they're excluded here.
+     * keeps this correct if the user re-edits the map in Tiled. Reserved slots (see
+     * isReservedSlot()) are NOT migration targets - they must stay exactly what the tmx says
+     * they are, so they're excluded here.
      */
     private static java.util.List<Integer> readCapitolShopObjectIds(String mapPath) {
         java.util.List<Integer> shopIds = new java.util.ArrayList<>();
         for (com.badlogic.gdx.utils.XmlReader.Element object : readMapObjects(mapPath)) {
             String template = object.getAttribute("template", "");
-            if (template.endsWith("shop.tx") && !hasTrueProperty(object, "fixedShop"))
+            if (template.endsWith("shop.tx") && !isReservedSlot(object))
                 shopIds.add(object.getIntAttribute("id"));
         }
         java.util.Collections.sort(shopIds);
         return shopIds;
     }
 
-    /** The capital layout's fixedShop-marked shop ids (the 6 hardcoded land shops), ascending. */
-    private static java.util.List<Integer> readCapitolFixedShopObjectIds(String mapPath) {
+    /** The capital layout's reserved shop ids (6 land shops + Armory + dedicated Booster shop),
+     *  ascending - repairCapitolState() relocates any economy building wrongly parked on one. */
+    private static java.util.List<Integer> readCapitolReservedShopObjectIds(String mapPath) {
         java.util.List<Integer> shopIds = new java.util.ArrayList<>();
         for (com.badlogic.gdx.utils.XmlReader.Element object : readMapObjects(mapPath)) {
             String template = object.getAttribute("template", "");
-            if (template.endsWith("shop.tx") && hasTrueProperty(object, "fixedShop"))
+            if (template.endsWith("shop.tx") && isReservedSlot(object))
                 shopIds.add(object.getIntAttribute("id"));
         }
         java.util.Collections.sort(shopIds);
@@ -565,10 +577,14 @@ public class TownRestoration {
      * <ul>
      * <li>The Inn always starts repaired - it "came with the town" (the upgrade requires a
      * restored, functioning town, whose inn the player already had working).</li>
-     * <li>Any economy building the pre-fixedShop migration parked on one of the 6 hardcoded land
-     * shops is relocated to the first free regular slot - a land shop must never be a Bank/Mine.
-     * Its shopRebuilt flag moves with it; the land shop reverts to rubble, rebuildable as
-     * itself.</li>
+     * <li>Any economy building an older migration parked on a reserved slot (the 6 land shops,
+     * Armory, or the dedicated Booster shop - see isReservedSlot()) is relocated to the first
+     * free regular slot - none of those may ever be a Bank/Mine. Its shopRebuilt flag moves with
+     * it; the reserved slot reverts to rubble, rebuildable as itself.</li>
+     * <li>Any pinned plain-shop name an older migration left on a reserved slot is cleared, so
+     * Armory/Booster fall back to their own tmx-defined shopList instead of showing whatever
+     * shop had migrated in (user report 2026-08-09/10: "if you don't build [Armory] first in the
+     * Town, a shop can take its place").</li>
      * </ul>
      */
     public static void repairCapitolState(forge.adventure.world.World world) {
@@ -591,13 +607,20 @@ public class TownRestoration {
         if (innId != null && changes.getMapFlags().putIfAbsent("shopRebuilt_" + innId, (byte) 1) == null)
             System.out.println("[TownRestoration] Capitol repair: inn (object " + innId + ") marked repaired");
 
-        java.util.List<Integer> fixedSlots = readCapitolFixedShopObjectIds(mapPath);
-        if (fixedSlots.isEmpty())
+        java.util.List<Integer> reservedSlots = readCapitolReservedShopObjectIds(mapPath);
+        if (reservedSlots.isEmpty())
             return;
+        // A save from before reserved slots were excluded from the migration pool may still carry
+        // a pinned plain-shop name on Armory/Booster (see upgradeToCapitol()'s setPinnedShopName())
+        // - strip it so MapStage falls back to the slot's own tmx shopList (Equipment/Booster)
+        // instead of whatever shop had migrated in. No-op (Map.remove() on an absent key) for
+        // saves that never had one.
+        for (int reservedSlot : reservedSlots)
+            changes.removePinnedShopName(reservedSlot);
         java.util.List<Integer> regularSlots = readCapitolShopObjectIds(mapPath);
         for (java.util.Map.Entry<Integer, Integer> entry : changes.getEconomyBuildingObjectIds().entrySet()) {
             int objectId = entry.getValue();
-            if (!fixedSlots.contains(objectId))
+            if (!reservedSlots.contains(objectId))
                 continue;
             Integer freeSlot = null;
             for (int slot : regularSlots) {
@@ -609,14 +632,14 @@ public class TownRestoration {
             }
             if (freeSlot == null) {
                 System.out.println("[TownRestoration] Capitol repair: no free slot to move economy building type "
-                        + entry.getKey() + " off land shop " + objectId);
+                        + entry.getKey() + " off reserved shop " + objectId);
                 continue;
             }
             entry.setValue(freeSlot);
             changes.getMapFlags().remove("shopRebuilt_" + objectId);
             changes.getMapFlags().put("shopRebuilt_" + freeSlot, (byte) 1);
             System.out.println("[TownRestoration] Capitol repair: moved economy building type " + entry.getKey()
-                    + " off land shop " + objectId + " to slot " + freeSlot);
+                    + " off reserved shop " + objectId + " to slot " + freeSlot);
         }
     }
 

@@ -1,5 +1,6 @@
 package forge.adventure.stage;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
@@ -56,6 +57,9 @@ public class WorldBackground extends Actor {
         int visionRadius = world.getVisionRadius();
         world.revealArea(playerTileX, playerTileY, visionRadius, this::onTileRevealed);
         world.setPlayerTilePosition(playerTileX, playerTileY);
+        // Discovery-flash decay (see World.tickTemporaryReveals()'s own comment) - cheap no-op
+        // whenever nothing is currently flashing, which is nearly always.
+        world.tickTemporaryReveals(Gdx.graphics.getDeltaTime(), this::onTileRevealed);
 
         // Known tiles near the player toggle between hazed and fully visible as they walk, even
         // when nothing newly becomes known - re-patch the local neighborhood (one tile wider than
@@ -79,7 +83,16 @@ public class WorldBackground extends Actor {
             int dx = poiTileX - playerTileX;
             int dy = poiTileY - playerTileY;
             if (dx * dx + dy * dy <= visionRadius * visionRadius) {
-                world.revealArea(poiTileX, poiTileY, DISCOVERY_REVEAL_RADIUS, this::onTileRevealed);
+                // Discovery flash (user spec 2026-08-09): the burst of tiles a town/capitol
+                // uncovers on first approach should flare fully bright for a moment before
+                // settling to the normal dimmed "explored" tier, instead of jumping straight
+                // there. revealArea()'s callback only fires for tiles that were NOT already
+                // explored, so this only flags the genuinely newly-discovered ring - already-
+                // explored tiles near a POI (e.g. re-approaching a known town) don't re-flash.
+                world.revealArea(poiTileX, poiTileY, DISCOVERY_REVEAL_RADIUS, (tx, ty) -> {
+                    world.temporarilyReveal(tx, ty);
+                    onTileRevealed(tx, ty);
+                });
             }
         }
         if (currentChunkX != pos.x || currentChunkY != pos.y) {

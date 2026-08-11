@@ -129,6 +129,13 @@ public class PointOfInterestChanges implements SaveFileContent  {
         pinnedShopNames.put(objectId, shopName);
     }
 
+    // Reverts a slot to its tmx-derived shop type - used by TownRestoration.repairCapitolState()
+    // to undo a pin an older, buggier Capitol migration left on a now-reserved slot (Armory/
+    // Booster) before that slot was excluded from the migration pool.
+    public void removePinnedShopName(int objectId) {
+        pinnedShopNames.remove(objectId);
+    }
+
     public boolean isObjectDeleted(int objectID) { return deletedObjects.contains(objectID); }
     public boolean deleteObject(int objectID)    { return deletedObjects.add(objectID); }
 

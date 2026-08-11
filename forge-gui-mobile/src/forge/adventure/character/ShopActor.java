@@ -30,6 +30,10 @@ public class ShopActor extends MapActor {
     // always repair as exactly what they are (no Bank/Mine conversion menu), and once repaired
     // draw NO overlay icon - their hut art is already baked into the map's own tile layers.
     private boolean fixedShop = false;
+    // Teleporter's portal animation needs its own elapsed-time clock (the 4-frame "Active"
+    // shimmer, see EconomyBuildings.getTeleporterActiveAnimation()) - Animation.getKeyFrame()
+    // takes elapsed time, not a frame index, and nothing else on this actor already tracks time.
+    private float teleporterAnimTime = 0f;
 
     public ShopActor(MapStage stage, int id, Array<Reward> rewardData, ShopData data) {
         super(id);
@@ -47,6 +51,7 @@ public class ShopActor extends MapActor {
         // (there's no way to hide a baked tile via the shop object itself).
         int economyType = EconomyBuildings.getBuildingType(stage.getChanges(), objectId);
         stage.setShopOverheadTilesHidden(objectId, isDestroyed() || economyType != EconomyBuildings.NONE);
+        teleporterAnimTime += delta;
     }
 
     public float getPriceModifier() {
@@ -167,7 +172,16 @@ public class ShopActor extends MapActor {
             // choice there - getBuildingSprite() already returns null for NONE, so that path is
             // unaffected by this gate.
             int economyType = EconomyBuildings.getBuildingType(stage.getChanges(), objectId);
-            TextureRegion buildingSprite = EconomyBuildings.getBuildingSprite(economyType);
+            TextureRegion buildingSprite;
+            if (economyType == EconomyBuildings.TELEPORTER) {
+                // Animated portal art, not a single static region - intercepted before the
+                // generic getBuildingSprite() path (see its own comment on TELEPORTER).
+                buildingSprite = EconomyBuildings.isTeleporterNetworkActive()
+                        ? EconomyBuildings.getTeleporterActiveAnimation().getKeyFrame(teleporterAnimTime, true)
+                        : EconomyBuildings.getTeleporterClosedSprite();
+            } else {
+                buildingSprite = EconomyBuildings.getBuildingSprite(economyType);
+            }
             if (buildingSprite == null && TownRestoration.isWastelandTown() && !fixedShop) {
                 if (EconomyBuildings.isArmoryShop(shopData))
                     buildingSprite = EconomyBuildings.getArmoryShopSprite();

@@ -17783,35 +17783,39 @@
 
     "enemyPool":[
 	"Adept White Wizard",
-	"Adventurer",
 	"Apprentice White Wizard",
-	"Archer",
-	"Archer Elite",
-	"Archaeologist",
-	"Armored Knight",
-	"Cathar",
-	"Challenger 20",
-	"Challenger 21",
-	"Challenger 22",
-	"Cleric",
-	"Dawnhart Witch",
-	"Disciple of Teferi",
-	"Dwarf Pilot",
-	"Eldraine Knight",
-	"Horseman",
-	"Human",
-	"Human elite",
-	"Human guard",
-	"Human Mercenary",
-	"Knight",
-	"Knight Mercenary",
-	"Kor Warrior",
 	"Master White Wizard",
-	"Monk",
-	"Runelord",
-	"Orthodoxy Duelist",
-	"Orzhov Cleric",
-	"White Dwarf"
+	"Cleric",
+	"Knight",
+	"Griffin",
+	"Adept Blue Wizard",
+	"Apprentice Blue Wizard",
+	"Master Blue Wizard",
+	"Merfolk",
+	"Faerie",
+	"Adept Black Wizard",
+	"Apprentice Black Wizard",
+	"Master Black Wizard",
+	"Zombie",
+	"Skeleton",
+	"Vampire",
+	"Adept Red Wizard",
+	"Apprentice Red Wizard",
+	"Master Red Wizard",
+	"Goblin",
+	"Berserker",
+	"Adept Green Wizard",
+	"Apprentice Green Wizard",
+	"Master Green Wizard",
+	"Bear",
+	"Treefolk",
+	"Spider",
+	"Construct",
+	"Golem",
+	"Elemental",
+	"Sliver",
+	"Juggernaut",
+	"Gargoyle"
 	],
     "rounds":3,
     "entryFee":100,
@@ -17865,6 +17869,7 @@
   <object id="63" template="../../../../common/maps/obj/shop.tx" x="80" y="253">
    <properties>
     <property name="commonShopList" value="Equipment" />
+    <property name="noMigrate" type="bool" value="true" />
     <property name="noRestock" type="bool" value="true" />
     <property name="signYOffset" type="float" value="0" />
    </properties>
@@ -17916,11 +17921,12 @@
   </object>
   <object id="85" template="../../../../common/maps/obj/shop.tx" x="127.455" y="331.818">
    <properties>
-    <property name="commonShopList" value="BoosterPackShop,AlphaBoosterPackShop,BetaBoosterPackShop,GammaBoosterPackShop,DeltaBoosterPackShop,Colorless,Colorless,Artifact,Creature2Colorless,Wand,Enchantment,Instant,Creature" />
-    <property name="mythicShopList" value="Planeswalker,WUBRG,PhyrexianColorless" />
-    <property name="rareShopList" value="Land4Colorless,Vehicle,White,Blue,Red,Green,Black" />
+    <property name="commonShopList" value="BoosterPackShop,AlphaBoosterPackShop,BetaBoosterPackShop,GammaBoosterPackShop,DeltaBoosterPackShop" />
+    <property name="mythicShopList" value="BoosterPackShop,AlphaBoosterPackShop,BetaBoosterPackShop,GammaBoosterPackShop,DeltaBoosterPackShop" />
+    <property name="noMigrate" type="bool" value="true" />
+    <property name="rareShopList" value="BoosterPackShop,AlphaBoosterPackShop,BetaBoosterPackShop,GammaBoosterPackShop,DeltaBoosterPackShop" />
     <property name="signYOffset" type="float" value="-2" />
-    <property name="uncommonShopList" value="Artifact,Land,Assembly,Golem,Sliver,Wall,Equip,Enchantment,Instant,Creature" />
+    <property name="uncommonShopList" value="BoosterPackShop,AlphaBoosterPackShop,BetaBoosterPackShop,GammaBoosterPackShop,DeltaBoosterPackShop" />
    </properties>
   </object>
   <object id="86" template="../../../../common/maps/obj/shop.tx" x="79.4545" y="332.545">
