@@ -184,7 +184,7 @@ public class ShopActor extends MapActor {
             }
             if (buildingSprite == null && TownRestoration.isWastelandTown() && !fixedShop) {
                 if (EconomyBuildings.isArmoryShop(shopData))
-                    buildingSprite = EconomyBuildings.getArmoryShopSprite();
+                    buildingSprite = EconomyBuildings.getArmoryShopSprite(stage.getChanges().getBuildingLevel(objectId));
                 else if (EconomyBuildings.isSpecialShop(shopData))
                     buildingSprite = EconomyBuildings.getSpecialShopSprite();
                 else

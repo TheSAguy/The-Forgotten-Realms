@@ -810,6 +810,34 @@ public class TerritoryControl {
         }
     }
 
+    // Town guard fight odds (MOD_SCOPE.md #22, Armory Guard hiring, 2026-08-11 user spec: "you
+    // will have to calculate the odds, for all, i.e. an attacking Adept vs. defending Master").
+    // Unlike attackerWinChance() above (single-tier vs. a fixed baseline), a guard fight needs a
+    // genuine tier-vs-tier matchup on BOTH sides. Reuses the same 1/2/4/8 Common/Uncommon/Rare/
+    // Mythic power weighting the Item Economy round already established for deck-rarity scoring
+    // (MOD_CHANGELOG.md, "Weighting: Common=1, Uncommon=2, Rare=4, Mythic=8") rather than a new
+    // scale - attackerPower / (attackerPower + defenderPower) gives same-tier a clean 50/50 and,
+    // as a sanity check, a 3-tier gap (Common attacker vs Mythic defender) comes out to 11%, closely
+    // matching attackerWinChance()'s own independently-chosen 10% for the equivalent single-tier
+    // case above - the two systems agree without having been forced to.
+    private static float tierPower(String tier) {
+        if (tier == null)
+            return 1f;
+        switch (tier) {
+            case "Common": return 1f;
+            case "Uncommon": return 2f;
+            case "Rare": return 4f;
+            case "Mythic": return 8f;
+            default: return 1f;
+        }
+    }
+
+    public static float guardFightAttackerWinChance(String attackerTier, String defenderTier) {
+        float attackerPower = tierPower(attackerTier);
+        float defenderPower = tierPower(defenderTier);
+        return attackerPower / (attackerPower + defenderPower);
+    }
+
     // Roaming-spawn intrusion (MOD_SCOPE.md #7 follow-up, user request 2026-08-10): the nearest
     // OTHER color's town/capital/castle within SPAWN_INTRUSION_RADIUS_TILES of pos, or null if
     // none. excludeColor lets the caller skip the biome's own color - standing in your own

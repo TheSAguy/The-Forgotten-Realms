@@ -1317,6 +1317,10 @@ concept. Built out over one long round:
   catalog are now obtainable through some in-game path - the original audit's working hypothesis
   ("everything left non-obtainable is non-quest") held, and this round's shop/arena/boss work
   closed the non-quest gap too.
+- **Starting Challenge Coins removed from Armory pools (2026-08-11 user request)**: "Challenge
+  Coin"/"Silver Challenge Coin"/"Bronze Challenge Coin" (the 3 items every player starts with)
+  don't make sense as something to buy - removed from the 2 `shops.json` pools that had them
+  (the generic player-town "Equipment" shop, "ArmoryCommon"). No other Armory-family pool had them.
 
 ### 19. Roaming-Enemy Bestiary + Mage Difficulty Tiers — `Built (2026-08-10), not yet playtested`
 User-driven: player territory's roaming spawns felt dead once Wasteland is fully replaced by
@@ -1487,24 +1491,37 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `In Progress` (2026-08-11: art + level plumbing built, upgrade trigger not yet wired)
-- Real spec now exists: Level 2 fights Mini-bosses/Bosses, "Best out of 1" match format, and an
-  unclear note "No ant in Arena" the user hasn't yet clarified. Prize/entry-cost changes for the
-  Arena also mentioned, no specific numbers given yet. **Deliberately not built until the user's
-  promised follow-up on these details lands** ("Arena. will do next") - building the upgrade
-  trigger UI now, before the Level 2 gameplay itself is specified, risked throwing it away.
+### 20. Upgradable Arena — `In Progress` (2026-08-11: art + level plumbing + Ante-off built; full Level 2 spec now given, gameplay not yet built)
+- **"No ant in Arena" resolved**: means Ante (the mechanic where match winner takes a card from the
+  loser's deck - "ant" was a typo missing the "e"), which is on by default for every match
+  currently. **Built (2026-08-11)**: Ante is now force-disabled for Arena matches specifically
+  (new `EnemyData.noAnte`, set on a per-fight clone in `ArenaScene.loadArenaData()` - the player's
+  global Ante setting is untouched, still applies to every non-Arena duel).
+- **Full Level 2 spec given 2026-08-11**: Level 1 keeps working exactly as now; add an upgrade
+  button "somewhere that makes sense." Level 2 offers **two** modes: "Regular" (identical to
+  Level 1) and "Challenge" - high-level mages/Challengers/Mini-bosses/bosses, best-of-1 (not
+  best-of-3), entry cost ~3x, and a reward-rarity distribution skewed hard toward the top ("No
+  Commons, Low Uncommons, High Rare, reasonable Mythic"). **Possible 3rd mode floated, feasibility
+  asked**: a player-vs-player deck test, where the player picks 2 of their own saved decks and
+  watches them fight (one AI-piloted per side, no human input) to compare performance - plausible
+  (Forge's underlying match engine already supports two AI-controlled players, unrelated to
+  Adventure mode's own always-one-human `DuelScene` setup), but would need a genuinely new
+  scene/UI (deck-pair picker, spectator match view, result summary) - not a small add-on if wanted.
+  **None of the Level 2 gameplay (mode split, Challenge pool/costs/rewards, deck-test) is built
+  yet** - only the upgrade plumbing and Ante-off piece above are done.
 - **Built so far**: real Level 1 art (buildings.png IDs 378/379, composited into a 16x32 vertical
   stack per the user's spec - see `MOD_CHANGELOG.md` for why this needed compositing rather than a
   plain crop) alongside the existing, untouched Level 2 art. New shared building-level plumbing
   (`PointOfInterestChanges.getBuildingLevel()`/`setBuildingLevel()`, `EconomyBuildings.
   getArenaSprite(level)`, `BUILDING_UPGRADE_COST` = 100g placeholder) - reusable by Armory's own
-  upgrade (#22) once that's ready too.
+  upgrade (#22) too. **The actual upgrade button/trigger UI for either Arena or Armory is still
+  unbuilt** - the plumbing is ready, nothing calls `setBuildingLevel()` yet from any player action.
 
 ### 21. Speed Up All Monsters — `Not Started`
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
   the roaming-enemy roster.
 
-### 22. Armory Guard Hiring (Level 2 unlock) — `Not Started` (full spec given 2026-08-11)
+### 22. Armory Guard Hiring (Level 2 unlock) — `In Progress` (full spec given 2026-08-11; odds formula + art built same day, hiring/persistence/combat-hook not started)
 - Level 1 Armory functions exactly as it does today. Level 2 unlocks a "Hire Guards" button
   (natural home: alongside the existing "Destroy Building" button on the Armory's `RewardScene`
   page, same precedent). Towns can hold 1 guard, Capitols 2.
@@ -1515,17 +1532,30 @@ to depend on each other.
 - Not a physical map unit. Needs a small indicator icon near the town/capitol showing an active
   guard - user supplied source art (`common/maps/tileset/dungeon.png`, IDs 83/84/86/88, one per
   tier) plus a mockup showing it should render smaller than the native 16x16 and sit in a
-  building's corner; extracted (`maps/tileset/guard_apprentice/adept/master/challenger.png`,
-  uncommitted, ready) but not yet wired into any UI or scaled to the mockup's implied size.
-- **Combat**: if a guarded town is attacked, the attacker must beat the guard first. User asked for
-  odds design feedback specifically - see `MOD_CHANGELOG.md`'s "Roaming-Enemy Bestiary + Mage
-  Difficulty Tiers" entry: `TerritoryControl.attackerWinChance(String tier)` already exists (Common
-  10% / Uncommon 30% / Rare 70% / Mythic 90%, keyed off the attacker's own tier alone, used for
-  neutral-vs-enemy-color town capture) - the guard fight needs a genuine tier-vs-tier matchup
-  (attacker AND defender both vary), which that function doesn't do yet; proposed extending it
-  rather than inventing a parallel odds system. Guard loses -> dies (guard no longer active),
-  attacker proceeds into whatever capture resolution already applies. Guard wins -> stays active,
-  attacker is removed.
-- **Blocked on**: Armory's own Level 1 art (see #10/`MOD_CHANGELOG.md` - the user-given tile IDs
-  composited into two unrelated pieces, flagged back, awaiting corrected IDs) before the Level
-  1/2 upgrade trigger itself can be built - the Guard system depends on that same trigger existing.
+  building's corner. **Built (2026-08-11)**: extracted and shrunk to 8x8 per the user's own
+  estimate (`maps/tileset/guard_apprentice/adept/master/challenger_8x8.png`, 16x16 originals also
+  kept) - visually confirmed still legible at that size. Not yet wired into any UI.
+- **Combat odds - built (2026-08-11), confirmed no damage-carries-over mechanic wanted.** New
+  public `TerritoryControl.guardFightAttackerWinChance(String attackerTier, String defenderTier)` -
+  reuses the Item Economy round's own Common/Uncommon/Rare/Mythic = 1/2/4/8 power weighting,
+  `attackerPower / (attackerPower + defenderPower)`. Full matrix (attacker rows, defender columns):
+
+  | Attacker \ Defender | Apprentice | Adept | Master | Challenger |
+  |---|---|---|---|---|
+  | **Apprentice** | 50% | 33% | 20% | 11% |
+  | **Adept** | 67% | 50% | 33% | 20% |
+  | **Master** | 80% | 67% | 50% | 33% |
+  | **Challenger** | 89% | 80% | 67% | 50% |
+
+  Guard loses -> dies (guard no longer active), attacker proceeds into whatever capture resolution
+  already applies. Guard wins -> stays active, attacker is removed. **Not yet wired to an actual
+  fight** - hooking a guard check into `TerritoryControl.onMageArrived()`'s capture flow, before
+  the existing capture-odds check, is still open.
+- **Armory Level 1/2 art - built (2026-08-11)**, unblocking the upgrade trigger UI (see #10,
+  `MOD_CHANGELOG.md` for the corrected-IDs story - both the L1 and L2 IDs the user gave had a
+  single-digit slip, caught by visually compositing before trusting either).
+- **Still not started**: the actual "Hire Guards" button/tier-picker UI, per-town guard persistence
+  (tier, active/inactive), the weekly salary deduction + disband-on-nonpayment tick, and the map
+  indicator icon actually being drawn near a guarded town. The Armory upgrade trigger itself
+  (Level 1 -> 2 button) is also still unbuilt - #20's own plumbing (building-level persistence,
+  level-aware sprites) is ready for it, just no UI trigger exists yet for either Arena or Armory.

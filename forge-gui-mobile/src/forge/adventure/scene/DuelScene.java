@@ -518,7 +518,9 @@ public class DuelScene extends ForgeScene {
             rules = new GameRules(GameType.Adventure);
             rules.setGamesPerMatch(enemy.getData().gamesPerMatch);
         }
-        rules.setPlayForAnte(FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ANTE));
+        // Arena matches disable ante regardless of the player's global setting (user spec
+        // 2026-08-11) - see EnemyData.noAnte, set only on a per-fight clone by ArenaScene.
+        rules.setPlayForAnte(!enemy.getData().noAnte && FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ANTE));
         rules.setMatchAnteRarity(FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ANTE_MATCH_RARITY));
         rules.setAnteIncludeBasicLands(FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ANTE_INCLUDE_BASIC_LANDS));
         rules.setManaBurn(false);

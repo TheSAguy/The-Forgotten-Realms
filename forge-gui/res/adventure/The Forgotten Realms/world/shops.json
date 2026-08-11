@@ -726,7 +726,7 @@
     { "type": "item","count":1, "itemName": "Staff of Flight"  },
     { "type": "item","count":1, "itemName": "Staff of Healing"  },
     { "type": "item","count":1, "itemName": "Staff of Speed"  },
-    { "type": "item","count":6, "itemNames": [ "Challenge Coin", "Silver Challenge Coin", "Landscape Sketchbook - Ixalan", "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Bronze Challenge Coin", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
+    { "type": "item","count":6, "itemNames": [ "Landscape Sketchbook - Ixalan", "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
 
     ]
 
@@ -736,7 +736,7 @@
 "spriteAtlas":"maps/tileset/buildings.atlas",
 "sprite":"EquipmentShop",
   "rewards": [
-    { "type": "item","count":6, "itemNames": [ "Challenge Coin", "Silver Challenge Coin", "Landscape Sketchbook - Ixalan", "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Bronze Challenge Coin", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
+    { "type": "item","count":6, "itemNames": [ "Landscape Sketchbook - Ixalan", "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
     ]
 
 },{

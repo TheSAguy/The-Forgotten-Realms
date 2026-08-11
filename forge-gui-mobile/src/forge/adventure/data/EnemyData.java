@@ -53,6 +53,11 @@ public class EnemyData implements Serializable {
     public int gamesPerMatch = 1;
     public String bossInsult;
     public String bossIntro;
+    // Mod addition (The Forgotten Realms, 2026-08-11): Arena matches disable the ante mechanic
+    // (on globally by default, DuelScene reads UI_ANTE) without touching that global preference -
+    // set true only on a per-fight clone (see ArenaScene.loadArenaData()), same pattern the
+    // Capitol-defense duel already uses for a one-off gamesPerMatch override.
+    public boolean noAnte = false;
 
     public EnemyData() {
     }
@@ -82,6 +87,7 @@ public class EnemyData implements Serializable {
         questTags       = enemyData.questTags.clone();
         lifetime        = enemyData.lifetime;
         gamesPerMatch   = enemyData.gamesPerMatch;
+        noAnte          = enemyData.noAnte;
         if (enemyData.scale == 0.0f) {
             scale = 1.0f;
         }

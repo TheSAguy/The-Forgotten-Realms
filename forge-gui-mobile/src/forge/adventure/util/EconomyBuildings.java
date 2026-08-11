@@ -197,8 +197,11 @@ public class EconomyBuildings {
         return Config.instance().getAtlasSprite(ATLAS, "SpecialShop");
     }
 
-    public static TextureRegion getArmoryShopSprite() {
-        return Config.instance().getAtlasSprite(ATLAS, "Armory");
+    /** Armory icon, level-aware (Task #8/#13, 2026-08-11) - real art for both levels now lives in
+     *  NEW_BUILDINGS_ATLAS alongside Arena/Outlook/Spellsmith; the old economy_buildings.atlas
+     *  "Armory" region this replaced is no longer referenced. */
+    public static TextureRegion getArmoryShopSprite(int level) {
+        return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, level >= 2 ? "ArmoryLevel2" : "ArmoryLevel1");
     }
 
     public static boolean isProducingType(int type) {

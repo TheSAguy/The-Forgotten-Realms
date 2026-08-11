@@ -303,7 +303,12 @@ public class ArenaScene extends UIScene implements IAfterMatch {
             EnemyData enemyData = null;
             while (enemyData == null)
                 enemyData = WorldData.getEnemy(data.enemyPool[rand.nextInt(data.enemyPool.length)]);
-            EnemySprite enemy = new EnemySprite(enemyData);
+            // Arena matches disable ante (user spec 2026-08-11) - clone rather than mutate the
+            // shared roster EnemyData, same pattern the Capitol-defense duel uses for its own
+            // one-off gamesPerMatch override, so this enemy's non-Arena appearances are unaffected.
+            EnemyData arenaEnemyData = new EnemyData(enemyData);
+            arenaEnemyData.noAnte = true;
+            EnemySprite enemy = new EnemySprite(arenaEnemyData);
             enemies.add(enemy);
             fighters.add(new ArenaRecord(new Image(enemy.getAvatar()), enemyData.getName()));
         }

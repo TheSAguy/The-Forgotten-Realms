@@ -6218,3 +6218,63 @@ the fuller specs land. The persisted level + sprite-selection half is real, test
 infrastructure either way, not a stub.
 
 Compiled and verified after every step. **Not yet playtested** (new art, new persisted field).
+
+## Corrected Armory art, Ante disabled for Arena, Armory coin removal, guard odds (2026-08-11)
+
+**Armory Level 1/2 art, corrected IDs.** The Level 1 IDs the user gave earlier that day (148/149/
+177/178) turned out to have one wrong digit (should have been 176, not 178) - confirmed by
+re-cropping with the fix: 148/149/176/177 forms a clean, aligned 32x32 block (unlike the earlier
+staggered attempt, this one visually reads as one coherent gated building on first look, no
+transparency-composite trick needed). Level 2 (new, IDs 658/659/686/689) had the same kind of
+single-digit issue - 689 composited into two disconnected pieces exactly like the original L1
+problem; 687 (one column left) forms a clean 32x32 fortress-look block instead, visually confirmed
+before committing to it. **Flagging this pattern back to the user**: both wrong-ID incidents this
+session were single-digit slips in a 4-ID group, both caught by the same "does this composite into
+one coherent building" visual check - worth double-checking any future multi-ID art callout the
+same way before trusting it blindly. Both pieces now live in `new_buildings.atlas` alongside
+Arena/Outlook/Spellsmith (`ArmoryLevel1`/`ArmoryLevel2` regions, sheet now 160x32) -
+`EconomyBuildings.getArmoryShopSprite(int level)` replaces the old no-arg version and now reads
+from `NEW_BUILDINGS_ATLAS` instead of the old `economy_buildings.atlas` "Armory" region (which is
+no longer referenced anywhere); `ShopActor.java`'s draw call updated to pass
+`stage.getChanges().getBuildingLevel(objectId)` through, same pattern Arena already uses.
+
+**Ante disabled for Arena matches only.** The engine-wide `UI_ANTE` preference (off by default,
+player-toggleable in Settings, applies to every duel via `DuelScene`'s `rules.setPlayForAnte(...)`)
+stays untouched globally - the user wants it off specifically for the Arena, not everywhere. New
+`EnemyData.noAnte` (false by default, copy-constructor wired), set `true` only on a per-fight clone
+of the roster `EnemyData` in `ArenaScene.loadArenaData()` - same clone-don't-mutate pattern the
+Capitol-defense duel already established for its own one-off `gamesPerMatch` override, so this
+enemy's ordinary (non-Arena) appearances elsewhere are unaffected. `DuelScene`'s ante line now reads
+`!enemy.getData().noAnte && <the existing preference check>`.
+
+**Armory item pools: the 3 starting Challenge Coins removed.** User: "Bronze, Silver and Gold...
+they should not be part of the pool to buy in any of the Armories." The actual item names are
+"Challenge Coin" (gold), "Silver Challenge Coin", "Bronze Challenge Coin" (`items.json`) - found in
+exactly 2 `shops.json` pools, both with an identical 26-item list: the generic player-town
+"Equipment" shop and "ArmoryCommon" (the Capitol's own). Removed all 3 from both (23 items remain
+in each pool, `count: 6` unchanged - picks 6 of the smaller remaining pool now). No other Armory-
+family shop (`ArmoryUncommon`/`Rare`/`Mythic`, the 5 AI capitals' own `*Equipment`/`*Items`) had
+coins in their pools to begin with - confirmed via a literal-string search across the whole file
+before concluding this covered every instance.
+
+**Guard fight odds formula (`MOD_SCOPE.md` #22).** User confirmed: no damage-carries-over mechanic,
+proceed with tier-vs-tier odds. New `TerritoryControl.guardFightAttackerWinChance(String
+attackerTier, String defenderTier)`, public (the existing single-tier `attackerWinChance()` stays
+private, a genuinely different calculation for a different situation - see below). Reuses the
+Item Economy round's own Common/Uncommon/Rare/Mythic = 1/2/4/8 power weighting (not a new scale)
+via `attackerPower / (attackerPower + defenderPower)` - same-tier matchups land at a clean 50/50,
+and as an unforced sanity check, the 3-tier-gap case (Common attacker vs Mythic defender, 11%)
+lands close to `attackerWinChance()`'s own independently-set 10% for the equivalent single-tier
+case - two systems built on different days agreeing without being forced to. Full odds table
+reported to the user directly (not duplicated here - see chat). **Not yet wired to an actual guard
+fight** - this is the odds function only; hiring, persistence, the map indicator, and hooking a
+guard check into `TerritoryControl.onMageArrived()`'s capture flow are still `MOD_SCOPE.md` #22's
+open work, now unblocked (Armory L1/L2 art was the last blocker) but not started this round.
+
+**Guard tier icons shrunk to 8x8** (`guard_apprentice/adept/master/challenger_8x8.png`, nearest-
+neighbor from the existing 16x16 extraction) per the user's own estimate from their mockup -
+visually confirmed still legible/distinguishable by color at that size before finalizing. Both
+16x16 originals and the 8x8 versions are kept on disk; only the 8x8 ones are meant for the actual
+map-indicator use.
+
+Compiled and verified after every step. **Not yet playtested** (new art, new Ante behavior).
