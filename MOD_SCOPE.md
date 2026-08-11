@@ -1491,31 +1491,35 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `In Progress` (2026-08-11: art + level plumbing + Ante-off built; full Level 2 spec now given, gameplay not yet built)
+### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, and Ante-off all built; Level 2 gameplay itself not yet built)
 - **"No ant in Arena" resolved**: means Ante (the mechanic where match winner takes a card from the
   loser's deck - "ant" was a typo missing the "e"), which is on by default for every match
-  currently. **Built (2026-08-11)**: Ante is now force-disabled for Arena matches specifically
-  (new `EnemyData.noAnte`, set on a per-fight clone in `ArenaScene.loadArenaData()` - the player's
+  currently. **Built**: Ante is now force-disabled for Arena matches specifically (new
+  `EnemyData.noAnte`, set on a per-fight clone in `ArenaScene.loadArenaData()` - the player's
   global Ante setting is untouched, still applies to every non-Arena duel).
-- **Full Level 2 spec given 2026-08-11**: Level 1 keeps working exactly as now; add an upgrade
-  button "somewhere that makes sense." Level 2 offers **two** modes: "Regular" (identical to
-  Level 1) and "Challenge" - high-level mages/Challengers/Mini-bosses/bosses, best-of-1 (not
-  best-of-3), entry cost ~3x, and a reward-rarity distribution skewed hard toward the top ("No
-  Commons, Low Uncommons, High Rare, reasonable Mythic"). **Possible 3rd mode floated, feasibility
-  asked**: a player-vs-player deck test, where the player picks 2 of their own saved decks and
-  watches them fight (one AI-piloted per side, no human input) to compare performance - plausible
-  (Forge's underlying match engine already supports two AI-controlled players, unrelated to
-  Adventure mode's own always-one-human `DuelScene` setup), but would need a genuinely new
-  scene/UI (deck-pair picker, spectator match view, result summary) - not a small add-on if wanted.
-  **None of the Level 2 gameplay (mode split, Challenge pool/costs/rewards, deck-test) is built
-  yet** - only the upgrade plumbing and Ante-off piece above are done.
-- **Built so far**: real Level 1 art (buildings.png IDs 378/379, composited into a 16x32 vertical
+- **Art - built**: real Level 1 art (buildings.png IDs 378/379, composited into a 16x32 vertical
   stack per the user's spec - see `MOD_CHANGELOG.md` for why this needed compositing rather than a
-  plain crop) alongside the existing, untouched Level 2 art. New shared building-level plumbing
+  plain crop) alongside the existing, untouched Level 2 art.
+- **Upgrade trigger - built.** Arena had no pre-entry menu at all before this (collision went
+  straight into `ArenaScene`) - new `EconomyBuildings.openArenaEntryDialog()`, built against
+  `MapStage`'s own persistent dialog (same convention as the Bank/Exchange dialogs), shows "Enter
+  Arena" plus "Upgrade to Level 2 (100g)" below Level 2. Shared plumbing
   (`PointOfInterestChanges.getBuildingLevel()`/`setBuildingLevel()`, `EconomyBuildings.
-  getArenaSprite(level)`, `BUILDING_UPGRADE_COST` = 100g placeholder) - reusable by Armory's own
-  upgrade (#22) too. **The actual upgrade button/trigger UI for either Arena or Armory is still
-  unbuilt** - the plumbing is ready, nothing calls `setBuildingLevel()` yet from any player action.
+  getArenaSprite(level)`, `BUILDING_UPGRADE_COST`) is the same infrastructure Armory's own upgrade
+  (#22) already uses. Known cosmetic-only limitation: the overworld icon updates on next
+  visit, not instantly (it's set once at map-load, not re-evaluated live).
+- **Full Level 2 gameplay spec given 2026-08-11, not yet built.** Level 2 offers **two** modes:
+  "Regular" (identical to Level 1) and "Challenge" - high-level mages/Challengers/Mini-bosses/
+  bosses, best-of-1 (not best-of-3), entry cost ~3x (300g, current Capitol Arena's `entryFee` is
+  100g), and a reward-rarity distribution skewed hard toward the top ("No Commons, Low Uncommons,
+  High Rare, reasonable Mythic" - no specific percentages given yet). **3rd mode confirmed for this
+  round, corrected from an earlier miscommunication**: a player-vs-own-deck test - the player picks
+  2 of their own saved decks, **pilots one themselves** (an ordinary duel from their side), AI
+  pilots the other (not a full AI-vs-AI spectator match, which is what an earlier summary of this
+  wrongly said) - meaningfully simpler to build than first scoped, since it's just an ordinary
+  `DuelScene` match where the opponent's deck happens to be player-supplied instead of a canonical
+  enemy `.dck` file. None of this Level 2 gameplay (mode split, Challenge pool/costs/rewards,
+  deck-test) is built yet - only the art/trigger/Ante-off pieces above are done.
 
 ### 21. Speed Up All Monsters — `Not Started`
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across

@@ -6436,3 +6436,28 @@ constantly for every visible guarded POI, so getting this wrong would have reint
 bug class immediately.
 
 Compiled and verified after every step. **Not yet playtested.**
+
+## Arena upgrade button (2026-08-11)
+
+Closes out the plumbing from earlier today (`MOD_SCOPE.md` #20) - Arena's Level 1/2 art and the
+shared building-level persistence existed, but nothing triggered an upgrade. Unlike Armory,
+Arena had no pre-entry menu at all (collision went straight into `ArenaScene`), so "add a button
+somewhere that makes sense" needed a genuinely new stop rather than reusing an existing screen.
+
+New `EconomyBuildings.openArenaEntryDialog(MapStage, objectId, Runnable onEnterArena)` - built
+against `MapStage`'s own persistent dialog (`stage.getDialog()`/`showDialog()`/`hideDialog()`),
+the same convention the Bank/Exchange dialogs use, a natural fit since (unlike Armory's RewardScene
+button) this collision happens inside `MapStage`'s own context to begin with. Shows "Enter Arena"
+always, "Upgrade to Level 2 (100g)" only below Level 2 (cost-gated, refreshes in place on
+purchase). `MapStage`'s `"arena"` case now wraps its old direct-entry logic (parse `ArenaData`,
+load, switch scene) in a `Runnable` passed as `onEnterArena`, run only when the player actually
+picks "Enter Arena" - the collision itself just opens the dialog now.
+
+**Known limitation, documented rather than chased further**: the overworld Arena icon is set once
+at map-load (`OnCollide` construction time), not re-evaluated live - it won't visually flip to
+Level 2 art until the player next leaves and re-enters the town. The upgrade's actual effect
+(cost paid, level persisted, dialog immediately offering "Enter Arena" at the new level) is
+correct right away regardless - purely a one-map-icon cosmetic lag, same category of limitation
+already accepted for Armory's icon in the very first Task #8 plumbing round.
+
+Compiled and verified. **Not yet playtested.**

@@ -163,6 +163,51 @@ public class EconomyBuildings {
     // upgrade (Arena today; Armory once its level 1 art and Guard-hiring mechanic land, Task #13).
     public static final int BUILDING_UPGRADE_COST = 100;
 
+    /**
+     * Arena entry dialog (2026-08-11, Task #8/#20) - Arena had no pre-entry menu at all before
+     * this (collision went straight into ArenaScene), so "add an upgrade button somewhere that
+     * makes sense" needed a new stop here rather than reusing an existing screen the way Armory's
+     * RewardScene page already did. Built against MapStage's own persistent dialog (`stage.
+     * getDialog()`/`showDialog()`/`hideDialog()`), same convention the Bank/Exchange dialogs use -
+     * natural fit since, unlike Armory, this collision happens IN MapStage's own context.
+     * onEnterArena is the exact ArenaData-load-and-switch-scene logic the old direct-entry
+     * OnCollide used to run unconditionally; now it only runs after "Enter Arena" is chosen.
+     * Known limitation: the overworld Arena icon is set once at map-load (OnCollide construction
+     * time, not re-evaluated live), so it won't visually flip to Level 2 art until the player
+     * next leaves and re-enters this town/capital - cosmetic only, the upgrade itself takes effect
+     * immediately (Level 2 art shown as soon as this dialog is reopened, and the discount/behavior
+     * is correct right away).
+     */
+    public static void openArenaEntryDialog(MapStage stage, int objectId, Runnable onEnterArena) {
+        refreshArenaEntryDialog(stage, objectId, onEnterArena);
+        stage.showDialog();
+    }
+
+    private static void refreshArenaEntryDialog(MapStage stage, int objectId, Runnable onEnterArena) {
+        Dialog dialog = stage.getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+
+        int level = stage.getChanges().getBuildingLevel(objectId);
+        addContentRow(dialog, "Arena (Level " + level + ")");
+
+        addButtonRow(dialog, "Enter Arena", true, () -> {
+            stage.hideDialog();
+            onEnterArena.run();
+        });
+        if (level < 2) {
+            boolean canAfford = AdventurePlayer.current().getGold() >= BUILDING_UPGRADE_COST;
+            addButtonRow(dialog, "Upgrade to Level 2 (" + BUILDING_UPGRADE_COST + "g)", canAfford, () -> {
+                AdventurePlayer.current().takeGold(BUILDING_UPGRADE_COST);
+                stage.getChanges().setBuildingLevel(objectId, 2);
+                refreshArenaEntryDialog(stage, objectId, onEnterArena);
+            });
+        }
+        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+    }
+
     // ---- Armory Guards (2026-08-11, MOD_SCOPE.md #22) ----
     // Tiers reuse EnemyData.tier's own internal strings (Common/Uncommon/Rare/Mythic - see
     // TerritoryControl.guardFightAttackerWinChance()); these are the display-only mapping to the

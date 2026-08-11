@@ -723,9 +723,11 @@ public class MapStage extends GameStage {
                         // be rebuilt like any other building; outside wasteland towns the gate is
                         // inert and this behaves exactly as before.
                         addMapActor(obj, new OnCollide(() -> {
-                            ArenaData arenaData = JSONStringLoader.parse(ArenaData.class, prop.get("arena").toString(), "");
-                            ArenaScene.instance().loadArenaData(arenaData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong());
-                            Forge.switchScene(ArenaScene.instance());
+                            EconomyBuildings.openArenaEntryDialog(this, id, () -> {
+                                ArenaData arenaData = JSONStringLoader.parse(ArenaData.class, prop.get("arena").toString(), "");
+                                ArenaScene.instance().loadArenaData(arenaData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong());
+                                Forge.switchScene(ArenaScene.instance());
+                            });
                         }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id))));
                         break;
                     case "exit":
