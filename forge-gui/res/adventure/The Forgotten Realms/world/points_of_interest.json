@@ -4317,8 +4317,8 @@
 		"displayName": "Kenrith's Court",
 		"type": "castle",
 		"count": 1,
-		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
-		"sprite": "Building134",
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Fort",
 		"map": "../The Forgotten Realms/maps/map/fort/Kenriths_Court.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [

@@ -34,21 +34,24 @@ randomizable - fixed with pooled rewards), a duplicate castle-look icon on the m
 Prison shared Emrakul's sprite), plus small Armory UI/wording polish and reputation-number
 tier-coloring on World Standings.
 
-**Not fully resolved - needs the user's own follow-up while playing today:**
-- The user reported **three** castle/capitol-style icons in neutral/player territory; this round
-  only tracked down two (Emrakul, the intended singleton, and Eldrazi Prison, now fixed to a Cave
-  icon instead). If a third one is still visible after pulling this round, get its exact name/
-  location (walk up to it, check the label) before investigating further - the leading unconfirmed
-  guess is that it's actually one of the 5 real AI castles now sitting visually inside the
-  Capitol's own greatly-expanded territory (post fog-of-war fix, that territory can legitimately
-  reach ~450 tiles out), not a genuine duplicate. Don't assume that guess is right without checking.
-- Separately, six other new "Story"-tagged POIs from the last merge (Tarnation, Wizard Palace,
+**Update (same day, 2026-08-11): the 3rd castle icon is resolved.** The user supplied screenshots
++ the in-dungeon flavor dialog text, which identified it as `Kenrith's Court` (one of the 6
+Story-tagged POIs mentioned in the second bullet below) - its `Building134` sprite visually reads
+as a small castle/tower despite the last round's name-only guess that it didn't. Fixed the same
+way as Eldrazi Prison (swapped to the proven `Fort` region from `common/maps/tileset/
+buildings.atlas`, `type` deliberately left as `"castle"`). Full root-cause writeup in the "Third
+castle-look icon identified and fixed: Kenrith's Court" entry further down this file (chronological
+order - it's near the end, after this note).
+
+**Still not resolved - needs the user's own follow-up while playing today:**
+- Six new "Story"-tagged POIs from the last merge (Tarnation, Wizard Palace,
   Squirrel Farm, Gitrog Bog, Church of Valgavoth, Kenrith's Court) are placed randomly across
-  their ENTIRE assigned color biome at world-gen, not confined near that color's castle keep -
-  this is unrelated to the icon bug above (none of them use a castle-looking sprite, so they don't
-  cause the same visual confusion) but is a real gap if it turns out to matter for how "neutral
-  vs. AI territory" is supposed to read on the map. Not fixed this round - flagged in case it comes
-  up during today's session.
+  their ENTIRE assigned color biome at world-gen, not confined near that color's castle keep. This
+  is a separate, still-open question from the icon fix above (Kenrith's Court's icon no longer
+  looks like a duplicate capital, but it - and the other 5 - can still land anywhere in their
+  color's biome, not just near that color's castle) - a real gap if it turns out to matter for how
+  "neutral vs. AI territory" is supposed to read on the map. Not fixed this round - flagged in case
+  it comes up during today's session.
 
 ## The mod plane: "The Forgotten Realms"
 
@@ -5939,3 +5942,51 @@ colored purely by sign (`[GREEN]` for positive, `[RED]` for negative, plain "0" 
 independent of the actual 5-tier Status a color's number maps to. Changed to color by TIER instead,
 per user spec: `[GREEN]` Partner, `[CYAN]` Happy ("light blue"), plain Neutral (unchanged), `[ORANGE]`
 Unhappy, `[RED]` War.
+
+## Third castle-look icon identified and fixed: Kenrith's Court (2026-08-11)
+
+Closes the handoff note's open item - the user supplied screenshots of the 3rd castle-style icon
+plus the in-dungeon flavor dialog ("Strange magical energies flow within this place... All
+opponents get: Battlefield: 1x Mace of the Valiant, 1x Virtue of Loyalty"), which pinpointed the
+exact file: `grep`-ing that dialog text landed on `Kenriths_Court.tmx`, one of the 6 new
+Story-tagged POIs the last round already flagged as "placed randomly across their entire assigned
+biome" (`points_of_interest.json`: `type: "castle"`, placed only in `white.json`'s POI pool).
+
+**Different root cause from Eldrazi Prison, same visual symptom.** The Eldrazi Prison bug was a
+literal duplicate - it reused Emrakul's exact `colorless_castle` region, so two POIs rendered the
+identical pixel-for-pixel unique landmark sprite. Kenrith's Court has no such collision (`sprite:
+"Building134"` is used by nothing else in the plane's `points_of_interest.json` - confirmed via
+grep, count 1). The real problem: the previous round's note characterized all 6 new Story
+castle-type POIs' sprites as "non-castle-looking" (`ruinedcity`, `DjinnPalace`, `farm`, `Mystical
+Bog`, `Valvagoth's Lair`, `Building134`) based on the region *names* alone, without opening the
+actual art - the user's screenshot proves `Building134` visually reads as a small turreted
+tower/keep, close enough to a real capital's silhouette to read as "an unexplained 3rd castle
+sitting on repainted-neutral wasteland with no town around it and a wild dragon standing next to
+it" (that dragon is the dungeon's own guard-creature icon, not a bug).
+
+**Fix, deliberately the same shape as the Eldrazi Prison fix:** swapped only `spriteAtlas`/`sprite`
+to an already-proven, zero-new-art-risk region - `../common/maps/tileset/buildings.atlas`'s `Fort`
+(verified working via 7 existing baseline dungeon entries that already render it correctly:
+"Tundra Fort," "Mages' Fort," "Cultists' Outpost," "Mercenary Barracks," etc. - a small fortified
+camp, not a multi-tower castle), matching the actual `maps/map/fort/` folder this POI's own map
+lives in. **`type` deliberately left as `"castle"`, unchanged - mirrors Eldrazi Prison's own entry,
+which also still reads `"castle"` after its fix.** This is a narrowly-scoped icon fix, not a
+reclassification, on purpose, for the same reason the last round scoped its fix the same way.
+Known, unchanged side effects of leaving `type: "castle"` in place (confirmed by reading
+`WorldBackground.java`'s `isPoiTypeWithWiderRadius`-equivalent check and `GameHUD.java`'s
+`updateBGM()`): this POI still gets the wider 11-tile discovery-flash radius instead of the
+6-tile dungeon tier, and still plays the Castle music track (not Cave/Dungeon) once the player
+steps inside - cosmetic inconsistencies, not incorrect-enough to justify widening this fix's scope
+without being asked. `isEssentialPoi()` and `findNearbyForeignColor()` were also checked
+(`World.java`, `TerritoryControl.java`) - both unaffected either way, since the Story tag and the
+name-pattern mismatch already make `type` irrelevant to what those two functions do.
+
+**Investigation into the "3 castles" report is now complete** (Emrakul, the one intended
+singleton; Eldrazi Prison, fixed last round; Kenrith's Court, fixed here) - unless a 4th
+still shows up after this pull.
+
+**Separately confirmed, not yet fixed:** all 6 flagged Story POIs (Tarnation, Wizard Palace,
+Squirrel Farm, Gitrog Bog, Church of Valgavoth, Kenrith's Court) remain placed anywhere across
+their color's entire biome rather than confined near that color's castle keep - this fix only
+addresses Kenrith's Court's *icon* looking like a duplicate capital, not the underlying
+placement-radius question the last round already flagged as open (`MOD_SCOPE.md`).
