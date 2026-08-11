@@ -25,6 +25,7 @@ import forge.Forge;
 import forge.adventure.character.*;
 import forge.adventure.data.*;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.*;
 import forge.adventure.util.*;
@@ -584,7 +585,19 @@ public class MapStage extends GameStage {
                                 forge.adventure.world.World world = Current.world();
                                 Vector2 poiPos = AdventureQuestController.instance().mostRecentPOI.getPosition();
                                 int currentBiome = forge.adventure.world.World.highestBiome(world.getBiome((int) poiPos.x / world.getTileSize(), (int) poiPos.y / world.getTileSize()));
-                                EN = world.getData().GetBiomes().get(currentBiome).getEnemy(1.0f);
+                                EN = world.getData().GetBiomes().get(currentBiome).getEnemy(Current.player().getStatistic().rank());
+                            } else if (!EN.boss && EN.questTags.length == 0) {
+                                // Content-level POI re-theme (MOD_SCOPE.md #7, user request
+                                // 2026-08-10): if this dungeon's land has changed hands since
+                                // world-gen, swap ordinary (non-boss, non-quest) encounters for a
+                                // same-difficulty-ceiling pick from the CURRENT owner's roster
+                                // instead of whatever color originally authored this placement.
+                                PointOfInterest mostRecentPOI = AdventureQuestController.instance().mostRecentPOI;
+                                if (mostRecentPOI != null) {
+                                    EnemyData reThemed = TerritoryControl.reThemedEnemyFor(Current.world(), mostRecentPOI, EN.difficulty);
+                                    if (reThemed != null)
+                                        EN = reThemed;
+                                }
                             }
                             EnemySprite mob = new EnemySprite(id, EN);
                             Object dialogObject = prop.get("dialog"); //Check if the enemy has a dialogue attached to it.
@@ -772,15 +785,24 @@ public class MapStage extends GameStage {
                             restockPrice = 7;
                         } else {
                             int rarity = WorldSave.getCurrentSave().getWorld().getRandom().nextInt(100);
-                            if (rarity > 95 & prop.containsKey("mythicShopList")) {
+                            // Item economy (2026-08-10): per-shop rarity-mix override - every other
+                            // shop keeps the original global split (thresholds 95/85/55, roughly
+                            // common/uncommon/rare/mythic 56/30/10/4) unless THIS shop object sets
+                            // its own via these optional TMX properties (e.g. the Capitol Armory's
+                            // 30/60/8/2 - solve backward: mythic >2% -> threshold 97, rare cumulative
+                            // >10% -> 89, uncommon cumulative >70% -> 29).
+                            int mythicThreshold = prop.containsKey("mythicThreshold") ? Integer.parseInt(prop.get("mythicThreshold").toString()) : 95;
+                            int rareThreshold = prop.containsKey("rareThreshold") ? Integer.parseInt(prop.get("rareThreshold").toString()) : 85;
+                            int uncommonThreshold = prop.containsKey("uncommonThreshold") ? Integer.parseInt(prop.get("uncommonThreshold").toString()) : 55;
+                            if (rarity > mythicThreshold & prop.containsKey("mythicShopList")) {
                                 shopList = prop.get("mythicShopList").toString();
                                 restockPrice = 5;
                             }
-                            if (shopList.isEmpty() && (rarity > 85 & prop.containsKey("rareShopList"))) {
+                            if (shopList.isEmpty() && (rarity > rareThreshold & prop.containsKey("rareShopList"))) {
                                 shopList = prop.get("rareShopList").toString();
                                 restockPrice = 4;
                             }
-                            if (shopList.isEmpty() && (rarity > 55 & prop.containsKey("uncommonShopList"))) {
+                            if (shopList.isEmpty() && (rarity > uncommonThreshold & prop.containsKey("uncommonShopList"))) {
                                 shopList = prop.get("uncommonShopList").toString();
                                 restockPrice = 3;
                             }
@@ -796,7 +818,12 @@ public class MapStage extends GameStage {
 
                         }
 
-                        if (prop.containsKey("noRestock") && (boolean) prop.get("noRestock")) {
+                        // Item economy (2026-08-10): a noRestock shop (Armory, land shops) has no
+                        // player-paid restock button, so without its own refresh mechanism it
+                        // would roll its stock exactly once, ever - see the weekly-seed branch at
+                        // this method's shop-seed selection below.
+                        boolean noRestock = prop.containsKey("noRestock") && (boolean) prop.get("noRestock");
+                        if (noRestock) {
                             restockPrice = 0;
                         }
 
@@ -841,7 +868,13 @@ public class MapStage extends GameStage {
                         }
                         shopsAlreadyPresent.add(data.name);
                         Array<Reward> ret = new Array<>();
-                        WorldSave.getCurrentSave().getWorld().getRandom().setSeed(changes.getShopSeed(id));
+                        // noRestock shops (Armory, land shops) reseed automatically once a week
+                        // instead of being frozen on their first-ever roll - see
+                        // PointOfInterestChanges.getWeeklyShopSeed().
+                        long shopSeed = noRestock
+                                ? changes.getWeeklyShopSeed(id, WorldSave.getCurrentSave().getWorld().getCurrentDay())
+                                : changes.getShopSeed(id);
+                        WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
                         for (RewardData rdata : new Array.ArrayIterator<>(data.rewards)) {
                             ret.addAll(rdata.generate(false, false));
                         }

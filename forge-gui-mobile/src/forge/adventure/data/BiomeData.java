@@ -4,7 +4,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.Array;
 
 import forge.adventure.util.AdventureQuestController;
-import forge.adventure.util.Current;
 import forge.util.Aggregates;
 import forge.util.MyRandom;
 
@@ -103,7 +102,6 @@ public class BiomeData implements Serializable {
 
     public EnemyData getEnemy(float difficultyFactor) {
         float totalDistribution = 0.0f;
-        difficultyFactor = Current.player().getStatistic().rank(); // compare difficulty data to how many wins you have on your save
         List<EnemyData> filteredEnemies = new ArrayList<>();
         for (EnemyData data : enemyList ){
             if (data.difficulty <= difficultyFactor) { 

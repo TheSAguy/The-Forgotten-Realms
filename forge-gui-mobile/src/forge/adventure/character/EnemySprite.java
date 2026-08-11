@@ -100,6 +100,11 @@ public class EnemySprite extends CharacterSprite implements Steerable<Vector2> {
     // of the enemy's display name, so it can't break if that name ever changes.
     public PointOfInterest territoryTarget;
     public String territoryColor;
+    // Territory Control (MOD_SCOPE.md #7): the in-game day (World.getCurrentDay()) this mage was
+    // last fought and LOST to. A losing fight no longer removes an attack mage (it survives and
+    // keeps traveling) - this just blocks re-engaging the same mage again the same day, checked in
+    // WorldStage.onActing()'s collision loop. -1 = never engaged. Irrelevant for ordinary enemies.
+    public int lastDuelDay = -1;
 
     public EnemySprite(EnemyData enemyData) {
         this(0,enemyData);

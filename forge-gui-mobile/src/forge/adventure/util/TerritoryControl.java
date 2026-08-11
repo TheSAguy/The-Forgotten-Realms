@@ -2,6 +2,7 @@ package forge.adventure.util;
 
 import com.badlogic.gdx.math.Vector2;
 import forge.adventure.character.EnemySprite;
+import forge.adventure.data.BiomeData;
 import forge.adventure.data.DifficultyData;
 import forge.adventure.data.ConfigData;
 import forge.adventure.data.EnemyData;
@@ -20,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * Dynamic Territory Control (MOD_SCOPE.md #7), first slice: independently for each of the 5 AI
@@ -43,6 +45,91 @@ public class TerritoryControl {
         COLOR_TOWN_NOUN.put("black", "Swamp");
         COLOR_TOWN_NOUN.put("red", "Mountain");
         COLOR_TOWN_NOUN.put("green", "Forest");
+    }
+
+    // Cross-color attack targeting (MOD_SCOPE.md #7, activated 2026-08-10) - the same standard MTG
+    // color-pie wheel ColorReputation.java keeps its own copy of (see that class's comment for why
+    // it's deliberately duplicated rather than shared: this class must keep working with
+    // colorReputationEnabled off, same as that one must keep working with territoryControlEnabled
+    // off). A color may only attack its two ENEMIES' towns, never an ally's or its own.
+    private static final Map<String, String[]> ALLIES = new HashMap<>();
+    private static final Map<String, String[]> ENEMIES = new HashMap<>();
+    static {
+        ALLIES.put("white", new String[]{"green", "blue"});
+        ALLIES.put("blue", new String[]{"white", "black"});
+        ALLIES.put("black", new String[]{"blue", "red"});
+        ALLIES.put("red", new String[]{"black", "green"});
+        ALLIES.put("green", new String[]{"red", "white"});
+
+        ENEMIES.put("white", new String[]{"black", "red"});
+        ENEMIES.put("blue", new String[]{"red", "green"});
+        ENEMIES.put("black", new String[]{"green", "white"});
+        ENEMIES.put("red", new String[]{"white", "blue"});
+        ENEMIES.put("green", new String[]{"blue", "black"});
+    }
+
+    private static boolean isEnemyColor(String color, String other) {
+        String[] enemies = ENEMIES.get(color);
+        if (enemies == null || other == null)
+            return false;
+        for (String enemy : enemies)
+            if (enemy.equals(other))
+                return true;
+        return false;
+    }
+
+    // Very-rare War-tier boss encounters (user request 2026-08-10): the 38 boss-flagged Shandalar
+    // Old Border imports never got a dungeon home built for them (24 of their 34 source files
+    // collide by name with content already imported elsewhere, and 9 are mid-chain rooms needing
+    // their own preceding levels - a real, separately-scoped task, not attempted here). Surfaced
+    // instead as an extremely rare roaming encounter, gated on the player being genuinely At War
+    // with that boss's color - keyed by hand from each boss's real `colors` tag (a multicolor boss
+    // appears under every color it contains, same "contains" convention the roaming-pool wiring
+    // fix already used). Renamed entries reflect the cross-plane collision fixes from that same
+    // round (e.g. "Karona (Boss)", not "Karona" - that bare name is Realm of Legends' own,
+    // unrelated, non-boss version).
+    private static final Map<String, String[]> WAR_TIER_BOSSES = new HashMap<>();
+    static {
+        WAR_TIER_BOSSES.put("white", new String[]{
+                "Karona (Boss)", "Sorceress Queen Kaja", "King Kane Ferguson", "Elf Queen Guay",
+                "The Sainted One", "Arzakon, Shandalar's Doom", "Baron Von Gant", "Baron Levilain",
+                "Dark Ages Preacher", "Serra the Benevolent", "Bazaar Keeper", "Arcades Sabboth",
+                "Chromium (Boss)", "Palladia-Mors (Boss)"});
+        WAR_TIER_BOSSES.put("blue", new String[]{
+                "Karona (Boss)", "Sorceress Queen Kaja", "Goblin King Phil", "King Kane Ferguson",
+                "Elf Queen Guay", "The Astral Visionary", "Arzakon, Shandalar's Doom",
+                "Urza Planeswalker", "Recaller of Ancestry", "Twister of Time", "Time Walker",
+                "Bazaar Keeper", "Arcades Sabboth", "Chromium (Boss)", "Nicol Bolas (Boss)"});
+        WAR_TIER_BOSSES.put("black", new String[]{
+                "Karona (Boss)", "King Rohgahh", "Goblin King Phil", "King Kane Ferguson",
+                "Valyx the Tormentor", "The Lichlord of Azar", "Arzakon, Shandalar's Doom",
+                "Tibalt's Torturer", "Uncle Istvan", "Swamp Queen Tojira", "Chainer Dementia Master",
+                "Cateran Overlord", "Twister of Time", "Bazaar Keeper", "Chromium (Boss)",
+                "Nicol Bolas (Boss)", "Vaevictis Asmadi"});
+        WAR_TIER_BOSSES.put("red", new String[]{
+                "Karona (Boss)", "King Rohgahh", "Sorceress Queen Kaja", "Goblin King Phil",
+                "King Kane Ferguson", "The Dragon Lord", "Arzakon, Shandalar's Doom",
+                "Slivdrazi Monstrosity", "Tibalt's Torturer", "Chandler", "Joven", "Bazaar Keeper",
+                "Nicol Bolas (Boss)", "Palladia-Mors (Boss)", "Vaevictis Asmadi"});
+        WAR_TIER_BOSSES.put("green", new String[]{
+                "Karona (Boss)", "King Kane Ferguson", "Elf Queen Guay", "The Great Druid",
+                "Arzakon, Shandalar's Doom", "Gorilla Chief", "Slivdrazi Monstrosity",
+                "Kogla (Boss)", "Gaea, the Worldsoul", "Recaller of Ancestry", "Bazaar Keeper",
+                "Arcades Sabboth", "Palladia-Mors (Boss)", "Vaevictis Asmadi"});
+    }
+
+    // Base chance a WAR_TIER_BOSSES roll fires at all, checked by the caller only once it's
+    // already confirmed War-tier standing with the roll's color - "very rare," per the user's own
+    // words, layered on top of an already-rare condition (War tier itself, and whatever chance
+    // brought this spawn roll to that color's territory in the first place).
+    public static final float WAR_TIER_BOSS_CHANCE = 0.04f;
+
+    /** A random War-tier boss for this color, or null if the color has none or the roll misses. */
+    public static EnemyData rollWarTierBoss(String color, Random rand) {
+        String[] pool = WAR_TIER_BOSSES.get(color);
+        if (pool == null || pool.length == 0 || rand.nextFloat() >= WAR_TIER_BOSS_CHANCE)
+            return null;
+        return WorldData.getEnemy(pool[rand.nextInt(pool.length)]);
     }
 
     private static final int MIN_ATTACK_DAYS = 2;
@@ -84,6 +171,13 @@ public class TerritoryControl {
     // seeded at capture (onMageArrived() for AI, TownRestoration's restore path for the player).
     // A planned "outlook" building will later raise this further per town.
     public static final int TOWN_MAX_TERRITORY_RADIUS = 15;
+
+    // Roaming-spawn intrusion radius (user request 2026-08-10: "if a colored city is in the area,
+    // that color might spawn in a certain radius"). Deliberately larger than CASTLE_KEEP_RADIUS_TILES
+    // - a border town/capital should already start bleeding its color's monsters into the
+    // surrounding land before the player is technically standing inside that color's own claimed
+    // territory, not only once they cross the line.
+    public static final int SPAWN_INTRUSION_RADIUS_TILES = 40;
 
     private TerritoryControl() {}
 
@@ -569,12 +663,12 @@ public class TerritoryControl {
             if (isColorTownOrCapital(poi.getData(), color))
                 ownedSources.add(poi);
         }
-        List<PointOfInterest> towns = findNeutralTowns(world);
-        if (towns.isEmpty())
+        List<PointOfInterest> attackable = findAttackableTowns(world, color);
+        if (attackable.isEmpty())
             return; // nothing left to capture - the natural "done" state, quietly no-op forever
 
-        towns.sort(Comparator.comparingDouble(t -> distToNearestSource(t, ownedSources)));
-        int candidateCount = Math.min(NEAREST_CANDIDATES, towns.size());
+        attackable.sort(Comparator.comparingDouble(t -> distToNearestSource(t, ownedSources)));
+        int candidateCount = Math.min(NEAREST_CANDIDATES, attackable.size());
         // Color reputation (MOD_SCOPE.md #1) consequence, the user's chosen meaning of "less/
         // more likely to be attacked": among the nearest candidates, a PLAYER-OWNED town's odds
         // of being picked scale with the player's standing with the dispatching color (Partner
@@ -582,24 +676,47 @@ public class TerritoryControl {
         // towns in the candidate set this is exactly the old uniform pick. (This is the
         // reputation gate the original targeting design deferred - "eventually meant to be
         // gated by a reputation scale once #1 exists".)
-        float[] weights = new float[candidateCount];
+        List<PointOfInterest> candidates = new ArrayList<>(attackable.subList(0, candidateCount));
+        List<Float> weights = new ArrayList<>();
         float totalWeight = 0f;
-        for (int i = 0; i < candidateCount; i++) {
+        for (PointOfInterest candidate : candidates) {
             boolean playerOwned = TownRestoration.isTownRestored(
-                    WorldSave.getCurrentSave().peekPointOfInterestChanges(towns.get(i).getID()));
-            weights[i] = playerOwned ? ColorReputation.getPlayerTownAttackWeight(color) : 1f;
-            totalWeight += weights[i];
+                    WorldSave.getCurrentSave().peekPointOfInterestChanges(candidate.getID()));
+            float weight = playerOwned ? ColorReputation.getPlayerTownAttackWeight(color) : 1f;
+            weights.add(weight);
+            totalWeight += weight;
+        }
+        // Color reputation (MOD_SCOPE.md #1) Capitol targeting (user request 2026-08-10): the
+        // player's Capitol is never a normal candidate (it's neither neutral nor an enemy-color
+        // town), and is fully exempt from this color's attacks at Partner/Happy. At War it becomes
+        // attackable via a flat weight bonus equal to 5% of the pool's total - stacking with the
+        // ordinary reputation multiplier above (user decision) - added as a 6th candidate, or ON
+        // TOP of its existing weight if it already landed among the 5 nearest by distance (defensive;
+        // in practice it never does, since "Player Capitol" matches neither isWastelandTown() nor
+        // an enemy-color town check). Neutral/Unhappy leave the Capitol untouched - only War and
+        // Partner/Happy have user-specified rules.
+        PointOfInterest capitol = TownRestoration.findCapitol();
+        if (capitol != null && ColorReputation.getStatus(color) == ColorReputation.Status.WAR) {
+            float bonus = totalWeight / 19f; // solves bonus / (totalWeight + bonus) == 0.05
+            int existingIndex = candidates.indexOf(capitol);
+            if (existingIndex >= 0)
+                weights.set(existingIndex, weights.get(existingIndex) + bonus);
+            else {
+                candidates.add(capitol);
+                weights.add(bonus);
+            }
+            totalWeight += bonus;
         }
         float roll = world.getRandom().nextFloat() * totalWeight;
-        int pick = candidateCount - 1;
-        for (int i = 0; i < candidateCount; i++) {
-            roll -= weights[i];
+        int pick = candidates.size() - 1;
+        for (int i = 0; i < candidates.size(); i++) {
+            roll -= weights.get(i);
             if (roll <= 0f) {
                 pick = i;
                 break;
             }
         }
-        PointOfInterest target = towns.get(pick);
+        PointOfInterest target = candidates.get(pick);
 
         String enemyName = "Adept " + capitalize(color) + " Wizard";
         EnemyData enemyData = WorldData.getEnemy(enemyName);
@@ -662,13 +779,156 @@ public class TerritoryControl {
         return null;
     }
 
-    private static List<PointOfInterest> findNeutralTowns(World world) {
+    // Attacker's win chance when a mage capturing an enemy-color town resolves (onMageArrived()),
+    // scaled by the mage's deck-rarity difficulty tier (EnemyData.tier, user request 2026-08-10 -
+    // "we could use this to determine the chances to win a town fight"; replaces the original flat
+    // 50/50 coin flip). A Common-tier mage reaching a town is a real but weak threat; a Mythic-tier
+    // one should feel like a serious loss if it isn't intercepted first.
+    private static float attackerWinChance(String tier) {
+        if (tier == null)
+            return 0.5f;
+        switch (tier) {
+            case "Common": return 0.10f;
+            case "Uncommon": return 0.30f;
+            case "Rare": return 0.70f;
+            case "Mythic": return 0.90f;
+            default: return 0.5f;
+        }
+    }
+
+    // Roaming-spawn intrusion (MOD_SCOPE.md #7 follow-up, user request 2026-08-10): the nearest
+    // OTHER color's town/capital/castle within SPAWN_INTRUSION_RADIUS_TILES of pos, or null if
+    // none. excludeColor lets the caller skip the biome's own color - standing in your own
+    // color's land next to your own capital isn't an "intrusion." Player-owned towns never match
+    // (their name no longer starts with any color noun once transformInto() renames them), so
+    // they can't accidentally trigger this either - consistent with reputation treating
+    // player-owned towns as colorless.
+    public static String findNearbyForeignColor(World world, Vector2 pos, String excludeColor) {
+        float radiusWorld = SPAWN_INTRUSION_RADIUS_TILES * (float) world.getTileSize();
+        String nearestColor = null;
+        float nearestDist = radiusWorld;
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            PointOfInterestData data = poi.getData();
+            if (data.name == null)
+                continue;
+            String type = data.type;
+            if (!"town".equals(type) && !"capital".equals(type) && !"castle".equals(type))
+                continue;
+            String color = colorOfPoiName(data.name, type);
+            if (color == null || color.equals(excludeColor))
+                continue;
+            float dist = poi.getPosition().dst(pos);
+            if (dist < nearestDist) {
+                nearestDist = dist;
+                nearestColor = color;
+            }
+        }
+        return nearestColor;
+    }
+
+    // Content-level POI re-theme (MOD_SCOPE.md #7, user request 2026-08-10 - settles the
+    // long-open "should special POIs change based on who controls the surrounding territory"
+    // question from when Territory Control first shipped, in favor of re-theming rather than
+    // leaving dungeons static forever). Which color's biome originally placed this POI at
+    // world-gen - checked against each biome's raw pointsOfInterest[] name list, independent of
+    // who owns the surrounding land NOW.
+    private static String homeColorOfPoi(World world, String poiName) {
+        if (poiName == null)
+            return null;
+        for (BiomeData biome : world.getData().GetBiomes()) {
+            if (biome.pointsOfInterest == null)
+                continue;
+            for (String name : biome.pointsOfInterest) {
+                if (poiName.equals(name))
+                    return biome.name;
+            }
+        }
+        return null;
+    }
+
+    // Current color of the land this POI sits on right now (may differ from homeColorOfPoi() once
+    // territory has changed hands) - same tile-ownership lookup WorldStage's roaming spawner uses.
+    private static String currentColorAtPoi(World world, PointOfInterest poi) {
+        Vector2 pos = poi.getPosition();
+        int biomeIndex = World.highestBiome(world.getBiome((int) pos.x / world.getTileSize(), (int) pos.y / world.getTileSize()));
+        List<BiomeData> biomes = world.getData().GetBiomes();
+        if (biomeIndex < 0 || biomeIndex >= biomes.size())
+            return null;
+        return biomes.get(biomeIndex).name;
+    }
+
+    /**
+     * A same-difficulty-ceiling replacement enemy from the CURRENT owner of poi's territory, for
+     * MapStage's hardcoded per-dungeon-object enemy placements - or null if the land hasn't
+     * changed hands since world-gen (or nothing applies), meaning the caller should keep its
+     * originally-authored enemy as-is. Deliberately doesn't check boss/quest status itself - only
+     * the caller knows this specific encounter's own EnemyData, and boss/quest encounters are
+     * often logic-critical or a scripted fight that shouldn't be silently swapped.
+     */
+    public static EnemyData reThemedEnemyFor(World world, PointOfInterest poi, float originalDifficultyCeiling) {
+        if (!ColorReputation.isEnabled() || poi == null)
+            return null;
+        String homeColor = homeColorOfPoi(world, poi.getData().name);
+        String currentColor = currentColorAtPoi(world, poi);
+        if (homeColor == null || currentColor == null || homeColor.equals(currentColor))
+            return null;
+        for (BiomeData biome : world.getData().GetBiomes()) {
+            if (currentColor.equals(biome.name)) {
+                EnemyData result = biome.getEnemy(originalDifficultyCeiling);
+                if (result != null) {
+                    // Diagnostic-only logging (user request 2026-08-10, "hard to test in-game") -
+                    // greppable in forge.log as "[TFR-ReTheme]".
+                    System.out.println("[TFR-ReTheme] " + poi.getData().name + " (home=" + homeColor
+                            + ", now=" + currentColor + ") -> " + result.getName());
+                }
+                return result;
+            }
+        }
+        return null;
+    }
+
+    // "Plains Town X"/"Plains Capital"/"Plains Castle" -> white, etc. Castle names are an exact
+    // "<Color> Castle" match (findCastle() above); town/capital names only need the color noun as
+    // a prefix (matches ColorReputation.colorOfTown()'s equivalent town/capital check).
+    private static String colorOfPoiName(String name, String type) {
+        for (Map.Entry<String, String> entry : COLOR_TOWN_NOUN.entrySet()) {
+            String noun = entry.getValue();
+            if ("castle".equals(type) ? name.equals(noun + " Castle") : name.startsWith(noun))
+                return entry.getKey();
+        }
+        return null;
+    }
+
+    // dispatch() candidates: every neutral town (incl. player-restored ones, deliberately - see
+    // MOD_SCOPE.md #7) plus every ordinary TOWN (never a CAPITAL - a captured AI capital has no
+    // defined consequence/equivalent in this design, so cross-color targeting is deliberately
+    // scoped to towns only, matching how the pre-existing neutral-capture path already only ever
+    // handles "Waste Town", not "Waste Capital") owned by one of `color`'s two enemies.
+    private static List<PointOfInterest> findAttackableTowns(World world, String color) {
         List<PointOfInterest> towns = new ArrayList<>();
         for (PointOfInterest poi : world.getAllPointOfInterest()) {
-            if (TownRestoration.isWastelandTown(poi.getData()))
+            PointOfInterestData data = poi.getData();
+            if (TownRestoration.isWastelandTown(data)) {
+                towns.add(poi);
+                continue;
+            }
+            String owner = colorOfOwnedTownForCombat(data);
+            if (owner != null && isEnemyColor(color, owner))
                 towns.add(poi);
         }
         return towns;
+    }
+
+    // Which of the 5 AI colors currently owns this TOWN (not capital - see findAttackableTowns()),
+    // or null if it isn't recognizably any color's town right now.
+    private static String colorOfOwnedTownForCombat(PointOfInterestData data) {
+        if (data.name == null)
+            return null;
+        for (Map.Entry<String, String> entry : COLOR_TOWN_NOUN.entrySet()) {
+            if (data.name.startsWith(entry.getValue() + " Town"))
+                return entry.getKey();
+        }
+        return null;
     }
 
     private static String capitalize(String s) {
@@ -827,22 +1087,93 @@ public class TerritoryControl {
         System.out.println("[TerritoryControl] road (" + owner + "): " + route + " (" + tiles + " new tile(s))");
     }
 
+    // Capitol defense (MOD_SCOPE.md #7 forced duel, user request 2026-08-10): set by
+    // onMageArrived() when the target IS the player's Capitol, instead of running the ordinary
+    // capture flow below. Consumed by checkPendingCapitolDefense(), called from GameStage.act()
+    // every frame - fires the actual forced duel at the next moment it's safe to interrupt
+    // (not mid-dialog, mid-duel-transition, or paused), regardless of which of WorldStage/
+    // MapStage the player is currently on. The mage sprite itself is removed from the map by
+    // WorldStage's normal arrival handling right after this method returns, same as any other
+    // capture - only its EnemyData/territoryColor need to survive that, which this reference does.
+    private static EnemySprite pendingCapitolDefenseMage;
+
+    /** Called every frame (GameStage.act(), both WorldStage and MapStage) once it's safe to
+     *  interrupt whatever the player is doing. No-op unless a mage reached the Capitol since the
+     *  last check. */
+    public static void checkPendingCapitolDefense() {
+        if (pendingCapitolDefenseMage == null)
+            return;
+        EnemySprite mage = pendingCapitolDefenseMage;
+        pendingCapitolDefenseMage = null;
+        WorldStage.getInstance().startForcedCapitolDuel(mage);
+    }
+
     /** Called by WorldStage when a mage's territoryTarget position has been reached. */
     public static void onMageArrived(EnemySprite mage) {
         PointOfInterest target = mage.territoryTarget;
         if (target == null || mage.territoryColor == null)
             return;
-        // Race condition (documented in MOD_SCOPE.md #7): another color's mage, or this same
-        // color's own earlier one, may have already captured this town first. Just a state check,
-        // not a lock - whichever mage's arrival is processed first wins, the loser's is a no-op.
-        if (!TownRestoration.isWastelandTown(target.getData()))
-            return;
 
-        PointOfInterestData newData = matchingTownData(target.getData(), mage.territoryColor);
+        // Capitol defense (see field comment above): a mage reaching the player's own Capitol
+        // never goes through the ordinary capture flow below - it queues a forced last-chance
+        // duel instead. Checked by canonical data.name (immune to the Capitol's "Camelot"
+        // displayName), same identification pattern every capital lookup in this class uses.
+        if (TownRestoration.CAPITOL_POI_NAME.equals(target.getData().name)) {
+            pendingCapitolDefenseMage = mage;
+            GameHUD.getInstance().addNotification("[RED]" + capitalize(mage.territoryColor) + "'s mage has reached your Capitol!", true);
+            return;
+        }
+
+        World world = WorldSave.getCurrentSave().getWorld();
+        boolean targetNeutral = TownRestoration.isWastelandTown(target.getData());
+        String targetOwnerColor = targetNeutral ? null : colorOfOwnedTownForCombat(target.getData());
+
+        PointOfInterestData newData;
+        String repaintColor;
+        boolean isRevert = false;
+        String revertedFromColor = null;
+
+        if (targetNeutral) {
+            newData = matchingTownData(target.getData(), mage.territoryColor);
+            repaintColor = mage.territoryColor;
+        } else if (targetOwnerColor == null || targetOwnerColor.equals(mage.territoryColor)) {
+            // Race condition (documented in MOD_SCOPE.md #7): the target isn't recognizably any
+            // color's town right now (already something else - e.g. a capital), or it's already
+            // this mage's own color (another of its own mages, or this same one, got there
+            // first). Just a state check, not a lock - whichever mage's arrival is processed
+            // first wins, the loser's is a no-op.
+            return;
+        } else if (!isEnemyColor(mage.territoryColor, targetOwnerColor)) {
+            // Cross-color targeting (MOD_SCOPE.md #7, user request 2026-08-10): an ALLY of the
+            // attacker (or the target owner itself, handled above) took this town since the mage
+            // set out - it's no longer a valid target for this color's wheel. Silent fizzle, no
+            // capture, no notification (user request).
+            return;
+        } else {
+            // Still a valid enemy-color target: tier-weighted flip-to-attacker or
+            // revert-to-neutral (design from MOD_SCOPE.md #7, activated alongside cross-color
+            // targeting; reweighted 2026-08-10 by the attacking mage's deck-rarity tier, once
+            // mage tiers existed - replaces the original flat 50/50 coin flip).
+            float captureChance = attackerWinChance(mage.getData().tier);
+            boolean attackerWins = world.getRandom().nextFloat() < captureChance;
+            // Diagnostic-only logging (user request 2026-08-10, "hard to test in-game") -
+            // greppable in forge.log as "[TFR-CaptureOdds]".
+            System.out.println("[TFR-CaptureOdds] " + mage.territoryColor + " mage (tier=" + mage.getData().tier
+                    + ", chance=" + captureChance + ") attacking " + target.getDisplayName() + " (" + targetOwnerColor
+                    + ") -> " + (attackerWins ? "CAPTURED" : "REVERTED to neutral"));
+            if (attackerWins) {
+                newData = matchingTownData(target.getData(), mage.territoryColor);
+                repaintColor = mage.territoryColor;
+            } else {
+                newData = matchingWasteData(target.getData(), targetOwnerColor);
+                repaintColor = "colorless";
+                isRevert = true;
+                revertedFromColor = targetOwnerColor;
+            }
+        }
         if (newData == null)
             return;
 
-        World world = WorldSave.getCurrentSave().getWorld();
         String displayName = target.getDisplayName();
         // Read while the OLD id is still valid (transformInto() re-keys the changes lookup) -
         // losing a restored town costs the player its share of the town-count life bonus.
@@ -865,27 +1196,39 @@ public class TerritoryControl {
         // (order bug found by the pre-commit review).
         world.setTownTerritoryRadius(target.getID(), repaintRadius);
         world.rebuildPlayerTownVision();
-        world.repaintBiomeAroundTown(target, mage.territoryColor, repaintRadius,
+        world.repaintBiomeAroundTown(target, repaintColor, repaintRadius,
                 WorldStage.getInstance()::refreshBackgroundTile,
                 WorldStage.getInstance()::reloadBackgroundChunkObjects);
         // AFTER the repaint - repaint preserves road bits, and the road endpoints key off the
-        // town's post-transform identity.
-        connectCapturedTownByRoad(world, target, mage.territoryColor);
+        // town's post-transform identity. Safe to call for a "colorless" revert too -
+        // connectCapturedTownByRoad() no-ops cleanly (COLOR_TOWN_NOUN has no "colorless" entry,
+        // so it finds no same-owner network to connect to).
+        connectCapturedTownByRoad(world, target, repaintColor);
         if (wasPlayerOwned)
             TownRestoration.updateTownLifeBonus(true);
 
-        String message = displayName + " has fallen to " + capitalize(mage.territoryColor) + "!";
+        String message = isRevert
+                ? displayName + " breaks free from " + capitalize(revertedFromColor) + " - reverts to neutral!"
+                : displayName + " has fallen to " + capitalize(mage.territoryColor) + "!";
         System.out.println("[TerritoryControl] " + message);
         GameHUD.getInstance().addNotification(message);
     }
 
     // "Waste Town Identity" + "green" -> "Forest Town Identity" - keeps the same Generic/Identity/
-    // Tribal sub-variant the neutral town already was, just re-themed to the capturing color.
-    private static PointOfInterestData matchingTownData(PointOfInterestData wasteData, String color) {
+    // Tribal sub-variant the source town already was, just re-themed to the capturing color.
+    // Generalized 2026-08-10 for cross-color captures (was Waste-Town-only, matched by prefix) -
+    // now matches "<AnyNoun> Town <suffix>" by locating " Town " directly, so it works whether the
+    // source is neutral ("Waste Town X") or another color's town ("Swamp Town X"). Deliberately
+    // TOWN-only, never CAPITAL (see findAttackableTowns()) - a captured capital has no cross-color
+    // equivalent to swap to.
+    private static PointOfInterestData matchingTownData(PointOfInterestData fromData, String color) {
         String noun = COLOR_TOWN_NOUN.get(color);
-        if (noun == null || wasteData.name == null || !wasteData.name.startsWith("Waste Town"))
+        if (noun == null || fromData.name == null)
             return null;
-        String suffix = wasteData.name.substring("Waste Town".length()).trim();
+        int townIdx = fromData.name.indexOf(" Town ");
+        if (townIdx < 0)
+            return null;
+        String suffix = fromData.name.substring(townIdx + " Town ".length());
         return PointOfInterestData.getPointOfInterest(noun + " Town " + suffix);
     }
 

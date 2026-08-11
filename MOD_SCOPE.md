@@ -111,6 +111,27 @@ Helping a color angers its two enemies, not its allies.
     funnel where win/Arena/event status are all knowable), `WorldStandingsScene.java` +
     `world_standings.json` (UI), `ConfigData.java` + plane `config.json` (flag). Engine-file
     edits recorded in `CORE_ENGINE_CHANGES.md`.
+- **Round of tweaks (2026-08-10, not yet playtested):**
+  - **Tier ranges adjusted** per user spec: Neutral widened to -29..29 (was -19..19), Happy is now
+    30..79 (was 20..79), Unhappy is now -30..-79 (was -20..-79). Partner (≥80) and War (≤-80)
+    thresholds unchanged.
+  - **Killing a Territory Control attack mage (#7) is worth 2x** the normal duel-win reputation
+    swing, on top of stopping whatever town it was going for - detected via
+    `EnemySprite.territoryColor != null` at the same `DuelScene.afterGameEnd()` funnel every other
+    reputation event already goes through. Mutually exclusive with the existing boss 3x in
+    practice (mages aren't tagged boss).
+  - **Inn healing now reputation-gated**: War-tier towns bar the paid heal option outright
+    (`ColorReputation.isHealBarred()`); Partner-tier towns grey it out for the opposite reason -
+    see the free overheal below, a purchase would be redundant. Happy/Neutral/Unhappy unchanged
+    (Unhappy explicitly still allowed - an earlier draft of this idea had Unhappy barred too,
+    dropped by the user before building).
+  - **Partner-tier free overheal**: entering any Partner-tier color's town or Capitol auto-grants
+    life = maxLife+2 (`AdventurePlayer.grantPartnerOverheal()`), simplified per the user to trigger
+    on town ENTRY, not specifically visiting the Inn. "Lose it if you don't use it": cleared back
+    to maxLife on the next duel (`DuelScene.GameEnd()`, same funnel `clearBlessing()` already
+    uses) or on entering any non-Partner town/capital first, whichever comes first
+    (`TileMapScene.enter()`). Deliberately a separate flag/mechanism from the pre-existing paid
+    `potionOfFalseLife()` (no flag, untouched by any of this) rather than reusing it.
 
 ### 2. Central Wasteland & Town Reconstruction — `In Progress`
 - First slice built: towns in the colorless "Wastes" biome (existing stand-in for "the middle
@@ -178,7 +199,7 @@ Helping a color angers its two enemies, not its allies.
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, fixed a day-reset bug and minimap staleness, then capped captured-town protection radius and fixed a stale-doodad-cache-on-load bug, not yet playtested)
+### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, fixed a day-reset bug and minimap staleness, then capped captured-town protection radius and fixed a stale-doodad-cache-on-load bug; 2026-08-10 - cross-color targeting activated, mages persist through a loss, Capitol defense forced duel built, not yet playtested)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -696,6 +717,37 @@ needs its own design pass before any of this gets built:**
   into the new biome's closest named equivalent (`World.translateStructure()` and friends) -
   preserves the WFC-generated shape exactly, no re-derivation of placement needed. See "Terrain
   Switch-Out" below for the full writeup.
+- **Cross-color targeting activated, mage persistence changed, Capitol defense built (2026-08-10,
+  not yet playtested)** - closes out several items this section had long left unbuilt:
+  - **Colors now attack each other's towns**, not just neutral ones - a color's `dispatch()`
+    candidate pool now also includes ordinary TOWNS (never CAPITALS - no defined consequence
+    exists for a captured AI capital) owned by either of its two ENEMY colors on the standard
+    wheel (top of this doc), mixed with neutral candidates and picked purely by distance, no type
+    preference. Reaching a still-enemy-owned town is a 50/50 flip-to-attacker-or-revert-to-neutral
+    (the original, previously-unbuilt design above) - **note for a later pass (user request):
+    revisit this flat coin flip once mage tiers/strength exist, weight the odds instead.** If the
+    town changed hands to an ALLY of the attacker before the mage arrives, it fizzles silently
+    (no capture, no message) rather than fighting for it.
+  - **Losing to an attack mage no longer removes it.** It survives, keeps traveling toward its
+    target, and simply can't be re-engaged again until the next in-game day
+    (`EnemySprite.lastDuelDay`, checked in `WorldStage.onActing()`'s collision loop) - winning
+    still kills it and stops the attack, same as before.
+  - **Capitol targeting**: the player's own Capitol is never a normal candidate, and is fully
+    exempt from a color's attacks while Partner or Happy with it. At War specifically it becomes
+    attackable via a flat weight bonus worth 5% of the candidate pool's total - stacking with the
+    existing player-town reputation multiplier - on top of the ordinary 5 nearest (so 95%/5% in
+    the common case; the 5% bonus adds to whatever share it'd already have if it happened to also
+    land among the 5 nearest, though in practice it never does).
+  - **Capitol defense**: a mage that reaches the Capitol no longer captures it via the ordinary
+    flow - it queues a forced best-of-3 duel (`WorldStage.startForcedCapitolDuel()`, a one-shot
+    `EnemyData` clone with `gamesPerMatch=3` so ordinary mage encounters elsewhere stay best-of-1),
+    fired at the next safe moment regardless of whether the player is on the overworld or inside a
+    town (`GameStage.act()`, shared by both). **Losing ends the run** - closes out #13's
+    long-open "game-over-on-loss still open" item. No permadeath mechanic exists in this codebase
+    to hook into, so this is new: a blocking defeat dialog, then back to the main menu with the
+    save left untouched (not deleted) - worth a look once playtested to see if that's the right
+    weight for it. Winning defeats the mage normally (2x mage-kill reputation bonus applies, loot
+    drops as usual).
 
 ### 8. Town Fortifications — `Not Started`
 - Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete
@@ -902,14 +954,17 @@ needs its own design pass before any of this gets built:**
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
 
-### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; game-over-on-loss still open)
+### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7)
 - Once the player owns 5 towns, they can upgrade **one** of them into their Capitol - only 1
   allowed at a time. Needs a "which 5 towns count as owned" definition, which depends on #7
   (Dynamic Territory Control) existing first - "owns a town" isn't a concept the game has yet
   outside the player's always-safe Spawn/home base.
-- **Losing the Capitol ends the game.** Ties into #7's capture-resolution logic (a captured town
-  either flips to the attacker or reverts to neutral) and #8 (Town Fortifications) - the Capitol
-  is presumably the single highest-value thing Fortifications exist to protect.
+- **Losing the Capitol ends the game - built 2026-08-10, not yet playtested, see #7's "Capitol
+  defense" entry for the mechanism.** Turned out different from the original sketch here: rather
+  than the ordinary capture-resolution flow (flip-or-revert) ever touching the Capitol at all, a
+  mage that reaches it triggers a forced best-of-3 duel instead - lose that duel and the run ends,
+  win and the mage is defeated normally. #8 (Town Fortifications) still doesn't exist, so there's
+  currently no way to make that duel less likely to happen in the first place - only to win it.
 - **Certain buildings only buildable in the Capitol, not any town** - user's list so far: Bank,
   Archeologist (send an expedition/exploration party out - new building, not built at all yet,
   needs its own design pass), Exchange. **Open question, needs the user's call before this is
@@ -960,6 +1015,16 @@ needs its own design pass before any of this gets built:**
   spot returning - dungeons genuinely move. Loss-despawn hook moved to the real match-loss handler
   (the old exitDungeon hook never fired for concedes/ordinary losses). NEW-WORLD-ONLY for the 5x
   pool; old saves rotate within their existing instances.
+- **Content-variety research done, not yet implemented (2026-08-10)**: full audit of what
+  non-quest filler dungeon/cave content could be added to the pool, both from this plane's own
+  unwired POI entries and from the other bundled Adventure planes (Crystal_Kingdoms, Shandalar Old
+  Border, Realm of Legends, Innistrad, Amonkhet). Bottom line: 17 entries already exist in this
+  plane's own `points_of_interest.json` but were never wired into any `biomes/*.json` file (free,
+  zero asset cost - includes `Valor's Reach Arena`, mod-specific art nobody ever turned on); 11
+  more genuinely-new candidates found across Old Border (7) and Innistrad (4), needing asset
+  copying; Crystal_Kingdoms and Realm of Legends contributed nothing usable (pure re-listings and
+  100%-Story-tagged content respectively). Full per-entry inventory, exact file paths, and an
+  implementation checklist in `DUNGEON_POOL_RESEARCH.md` - read that first, don't re-derive.
 
 ### 16. Side-Quest Timers - `Built (2026-08-08), not yet playtested`
 - Every non-story quest fails 30 in-game days after acceptance (notification on failure); the
@@ -1073,3 +1138,244 @@ pattern/assets, not literal copy-paste, unless noted otherwise.
   entry-bar/toll mechanics from towns out to the terrain itself).
 - Depends on: #7 (territory ownership per tile - exists), #1 (reputation tiers - exists),
   #13 (player territory - exists). This item is the payoff layer on top of all three.
+
+### 18. Item Economy — `Built (2026-08-10), not yet playtested`
+Started from a full item-catalog audit (spreadsheet export, user annotated it) covering
+obtainability, a proposed Common/Uncommon/Rare/Mythic tier system, and a weekly-refresh Armory
+concept. Built out over one long round:
+- **Catalog cleanup**: removed all items whose own description read "This item has been removed/
+  discontinued", all Commander-specific items (not used in this mod), and ~15 unfixable quest
+  items (see next bullet) - 76 items total (664 -> 588), full list in `MOD_CHANGELOG.md`.
+- **Quest-item obtainability audit + fixes**: every quest item traced to confirm it's actually
+  reachable in-game, not just present in `items.json`. Imported 17 dungeon files (+ 2 sprite
+  atlases) from the bundled "Realm of Legends" plane to fix items with no working source (verified
+  tileset-safe, no path collisions, before copying - same standard as every other cross-plane
+  borrow this mod has done). A handful of quest items judged not worth a dedicated new dungeon for
+  were removed instead, with the tradeoff noted in `MOD_CHANGELOG.md`.
+- **Rarity field**: every item now carries `rarity` (Common/Uncommon/Rare/Mythic - **"Mythic," not
+  "Legendary,"** matching MTG's own naming, per explicit standing instruction), usable for shop
+  gating and weighted drop tables.
+- **Land-art shops**: the ~60 "Landscape Sketchbook" items (grant alternate land art in the
+  deckbuilder) route through the Capitol's existing land shops, which already refresh weekly via
+  the pre-existing `landSketchbookShop` reward type.
+- **Weekly-refreshing Armory shops** (new `PointOfInterestChanges.getWeeklyShopSeed()` - shops
+  flagged `noRestock` now auto-reseed every 7 in-game days instead of never): player-town Armories
+  sell a random rotation of Obtainable-Common items; the Capitol Armory sells all 4 tiers, weighted
+  30% Common / 60% Uncommon / 8% Rare / 2% Mythic per week (`MapStage.java` gained optional
+  per-shop `uncommonThreshold`/`rareThreshold`/`mythicThreshold` TMX overrides for this).
+- **Arena prize pools rebuilt**: the non-quest, non-obtainable item pool (447 items) was split
+  across the 5 AI Capitals (Mythic excluded, ~85 items/color, rarity-balanced) added as a 50%-
+  weighted bonus layer on top of each arena's existing prizes. The player's own Capitol Arena got
+  the union of the 5 AI arenas' original prizes (all 5 colors, not just white) plus the *entire*
+  447-item non-obtainable pool at the same 30/60/8/2 weighting. (Weighting is approximated via
+  independent per-entry fire probabilities, not true mutual exclusivity - the engine's `RewardData`
+  has no built-in weighted-choice primitive; flagged as a pragmatic tradeoff, not a hidden one.)
+- **Boss drops**: 12 existing bosses that had zero item reward (Dark Enchanter, Emrakul, Kozilek,
+  Ancient Silver Dragon, Guardian Angel, Myr Superion, Sliver Queen, Sorin, The Hydra of Shandalaar,
+  Torturer, Valyx Feaster of Torment, Wounded Sliver - all confirmed actually reachable in this
+  plane, unlike 5 other candidates that turned out to be orphaned/debug-only enemy data everywhere,
+  not just here) now guarantee one random item from the non-obtainable Mythic pool (21 items) on
+  top of their existing card/gold/life rewards. Considered importing "Shandalar Old Border"'s own
+  separate bestiary for more boss targets - skipped: the arena pools above already make all 21
+  Mythic items obtainable on their own, so the ROI didn't justify importing an entire second
+  plane's dungeon set untested.
+- **Two real pre-existing bugs found and fixed while auditing obtainability**: the Eldrazi Prison
+  treasure reward referenced `"Eldrazi Rune"` (capital R) while the item is named `"Eldrazi rune"`
+  (lowercase) - silently never granted anything. And the "Quick Travel Mart" (OmenStones) shop -
+  sells 8 teleport-stone quest items - existed in the source dungeon (`Omenport.tmx`, object
+  already wired to `commonShopList="OmenStones"`, dialogue already references it) but the shop's
+  own data entry was never copied into this plane's `shops.json`, so the shop was silently empty.
+  Both fixed directly.
+- **Six broken cross-plane dungeon exits found and fixed** (latent crash risk, not yet hit by
+  playtesting): several dungeons imported from Realm of Legends had internal `teleport` doors
+  still pointing at `../Realm of Legends/...` paths for deeper levels that were never copied over
+  (Eldrazi Prison's 5 Eldrazi-titan boss chambers + a "Hall of the Unifier", Tarnation's level 2,
+  Church of Valgavoth's level 2, Wizard Palace's level 2) - walking into one would have tried to
+  load a file that doesn't exist on disk. Disabled those doors (empty `teleport` = exits the
+  dungeon instead, same as other intentionally-unbuilt exits already in these files) rather than
+  importing 7 more untested dungeon files for a bonus task. One pair (Gitrog Bog levels 1↔2) had
+  both ends already present in this plane - repointed to `../The Forgotten Realms/...` instead of
+  disabling, since that one actually works once fixed. The Eldrazi Prison hub in particular is a
+  real 7-branch boss dungeon only 1/8 built out here - worth a dedicated import pass later if
+  wanted, not done this round.
+- **Result**: final obtainability re-audit (scanning `shops.json` + `quests.json` + every
+  `.tmx`/`.tx` map file + `enemies.json` for each item's name) shows all 588 items in this plane's
+  catalog are now obtainable through some in-game path - the original audit's working hypothesis
+  ("everything left non-obtainable is non-quest") held, and this round's shop/arena/boss work
+  closed the non-quest gap too.
+
+### 19. Roaming-Enemy Bestiary + Mage Difficulty Tiers — `Built (2026-08-10), not yet playtested`
+User-driven: player territory's roaming spawns felt dead once Wasteland is fully replaced by
+player-owned land, the bundled non-Shandalar planes have a huge unused bestiary, and there was no
+real difficulty/tier system to gate any of it by. All three tackled together since they turned out
+to depend on each other.
+
+- **Player territory had zero roaming spawns** - `player.json`'s `enemies` array was literally
+  `[]`. Given a real (`WorldStage.handleMonsterSpawn()` pulls live from whichever biome currently
+  owns the player's tile), this silently meant nothing ever spawned there. Fixed with a real
+  61-enemy list: Wasteland/Colorless's own 49 (a genuine mixed-color roster already - wizards of
+  all 5 colors, golems, animals, bandits) plus 12 more truly-colorless creatures pulled from the
+  wider merged roster that weren't already in that list.
+- **Full cross-plane bestiary import** (user: "let's import them all, take your time and check for
+  any issues"): diffed every bundled plane's `enemies.json` against `common`'s 464-enemy baseline
+  for new, color-tagged entries - Innistrad (23), Realm of Legends (870), Shandalar Old Border
+  (118) - 1,011 candidates. Scoped the real asset cost before copying anything: sprite art needed
+  **zero new files** (every referenced atlas already exists in `common`, confirmed for all 3
+  planes), so the real cost was ~1,000 `.dck` deck files (each plane keeps its own `decks/`
+  folder), now copied into this plane's own new `decks/` tree.
+  - **Issues found and handled during the import** (not silently ignored): 6 enemies excluded
+    (Realm of Legends' "Borborygmos and Fblthp" + 4 "Fblthp, Lost in the..." variants + "Haktos" -
+    their deck files don't exist anywhere, no confident substitute); 1 deck path corrected
+    (Perrie's typo'd `perrie.dck` -> the real `perrie_the_pulverizer.dck`); 2 sprite paths
+    corrected (Innistrad's Watcher in the Web/Immerwolf were missing a subfolder segment - the real
+    art exists in `common`); 8 enemies renamed for cross-plane name collisions (7 Realm of
+    Legends/Shandalar Old Border pairs - same MTG legend represented two different ways, kept
+    Realm of Legends' plain name since it's the big generic pool, suffixed the other `(Boss)`/
+    `(Elite)` matching its own source-plane deck folder; 1 Innistrad/Realm of Legends pair on "The
+    Gitrog Monster," suffixed Innistrad's `(Innistrad)`). Net: 1,005 new enemies, 1,469 total.
+  - Considered importing "Shandalar Old Border" specifically for more *bosses* too (a separate,
+    earlier ask) - already covered by this same import (its 118 are included above), so no
+    additional work needed there.
+- **Mage difficulty/tier system** (user proposal: derive it from each mage's deck's card-rarity
+  ratio, gave a rough weighting scheme to build from). Built as **Common/Uncommon/Rare/Mythic**
+  (user's pick, 4 tiers - matches MTG's own rarity words and the item-tier naming from #18, and
+  lines up with a ladder that was already implicit in the base roster's naming: Apprentice/Adept/
+  Master/Challenger). Weighted 1/2/4/8 per Common/Uncommon/Rare/Mythic card (doubling scale so a
+  single Mythic meaningfully shifts a deck's average even among many commons), averaged per deck
+  **excluding basic lands** (counting land toward the ratio would just measure "how many lands does
+  this deck run," not power level), bucketed at <2.0/2.0-3.0/3.0-4.5/>=4.5. A one-off CLI tool
+  (`forge.lda.DeckRarityLookup`, same bootstrap as the item-economy round's `RarityLookup`, deleted
+  after use) batch-resolved real card rarity for all 1,548 resolvable decks.
+  - **Real finding, corrected before shipping**: initially recomputed difficulty for the *entire*
+    roster uniformly, but a sanity check against the pre-existing hand-tuned Apprentice/Adept/
+    Master/Challenger ladder caught a mismatch - "Challenger" decks (real official MTG precon
+    product, deliberately efficient/affordable, not rare-loaded) scored low on pure card-rarity
+    despite being the base game's own hardest AI tier by design. Course-corrected: preserved every
+    pre-existing enemy's original hand-tuned `difficulty` exactly (453 of 464), only applying the
+    new formula to enemies that never had a value at all (all 1,005 imports + 11 pre-existing
+    blanks). Re-checked after the fix - the full existing ladder now maps cleanly onto the new tier
+    names in order for both tested colors.
+  - **Real bug found and fixed while wiring this up**: `BiomeData.getEnemy(float
+    difficultyFactor)` silently discarded whatever was passed in and substituted the player's win
+    rank instead - meaning difficulty gating never actually reflected anything except overall
+    progression, no matter what a caller intended. Fixed to respect its parameter; callers still
+    pass player rank as the base signal (unchanged feel), now genuinely usable by other systems.
+- **Roaming-spawn proximity/reputation intrusion** (user: "if a colored city is in the area, that
+  color might spawn... if you're at war with a color they might spawn"): new
+  `TerritoryControl.findNearbyForeignColor()` finds the nearest OTHER color's town/capital/castle
+  within 40 tiles; `WorldStage.handleMonsterSpawn()` rolls a 25% base chance (per spawn attempt) to
+  substitute that color's biome for the current one, scaled by `ColorReputation` standing with that
+  color: 0x at Partner (never intrudes), 0.5x Happy, 1x Neutral, 1.5x Unhappy, 2.5x War. A War-tier
+  border is genuinely dangerous to linger near; a Partner-tier one never bleeds in at all.
+- **Town-fight capture odds now tier-weighted** (user: "we could use this to determine the chances
+  to win a town fight... currently always 50/50"): `TerritoryControl.onMageArrived()`'s flip-to-
+  attacker-or-revert-to-neutral roll (had an explicit TODO for exactly this since the reputation
+  round) now uses the attacking mage's tier - Common 10% / Uncommon 30% / Rare 70% / Mythic 90% -
+  instead of a flat coin flip.
+- **Content-level POI re-theme, settling the long-open question from #7** (user: "I think they
+  should re-theme and any colorless/wasteland POIs should be player terrain enabled"). Dungeon
+  enemies are hardcoded per-object by name in each map file, not drawn from a biome pool - so
+  re-theming doesn't need duplicate map content (the "5x the content" cost #7 originally flagged
+  and declined). Instead, `MapStage`'s existing named-enemy lookup now checks
+  `TerritoryControl.reThemedEnemyFor()`: if a POI's *current* land owner differs from whichever
+  color's biome originally placed it at world-gen, substitute a same-difficulty-ceiling pick from
+  the current owner's roster - `player` included, so a captured dungeon re-themes to the player's
+  own roster too. Boss and quest-tagged encounters are exempt (often logic-critical or a scripted
+  fight - shouldn't silently change).
+- **Post-round audit (2026-08-10, user request "is there anything we might have missed"), two real
+  gaps found and mostly fixed:**
+  - **The 1,005 newly-imported enemies were never actually wired into any spawn pool** - present
+    in `enemies.json` with full data, but referenced by zero biome `enemies[]` roaming lists and
+    zero arena `enemyPool`s. Only 121 (12%) were reachable at all, purely by coincidence (named
+    inside dungeons imported earlier). Fixed: all 967 non-boss new enemies added to every color
+    biome whose letter appears in their `colors` tag (the same "contains," not "starts-with," rule
+    already used by the pre-existing roster - confirmed by sampling `white.json`'s existing list
+    before writing this). The 38 boss-flagged Shandalar Old Border imports are deliberately left
+    unwired - they're not roaming material, and building 38 new boss dungeons for them is real
+    future-work scope, not a quick fix.
+  - **284 of the new enemies' own item-type rewards reference 88 item names this plane doesn't
+    have** - `RewardData`'s item case silently no-ops (console-logs "Missing item," doesn't crash)
+    when this happens, so it wasn't caught by anything short of directly cross-referencing every
+    reward against the catalog. Categorized by checking each missing name's own definition in its
+    source plane: 36 are quest-flagged trophy items ("X's Trophy" / "Kill Trophy" - "give to
+    Chevill for a reward" - referencing quest content this plane doesn't have) and 3 are dangling
+    references that don't exist in ANY bundled plane's item catalog (one is a literal template
+    placeholder, "Name of Item") - correctly left alone, matching the same judgment call already
+    made for the Hexkey/Shard/Cartouche/Key/Statue-part items earlier this round. The remaining 49
+    are self-contained equipment with no external dependency - imported 40 of them (all tagged
+    `Rare`, a judgment-call default for boss-exclusive gear); the other 9 turned out to be
+    Commander-specific (cross-checked their `startBattleWithCard` edition codes against every
+    `Type=Commander` edition file) and were, independently, *already* in this round's own
+    76-item-removed list - both signals agreeing is a good sign the categorization is sound. Net:
+    48 item references remain intentionally unresolved (silent no-op on those specific reward
+    slots only - every affected enemy has other working reward types alongside).
+- **Boss drop odds corrected (2026-08-10, same-day follow-up)**: user felt a *guaranteed* Mythic
+  drop from the 12 boss fix above undersold "Mythic" as a rarity word - changed to 90% Rare / 10%
+  Mythic (same independent-probability-per-entry approximation used everywhere else this round;
+  reused the original 86-item non-obtainable Rare pool + the same 21-item Mythic pool, both
+  reverified still fully valid against the current 628-item catalog). Also checked whether any
+  *other* boss has an existing multi-item random reward pool worth adding these to - answer: no.
+  Every other boss-with-an-item-reward in the pre-existing roster (23 of them) gives exactly one
+  fixed signature item - 5 are literally the colored "Key" quest items (Akroma→White Key, Ghalta→
+  Green Key, etc.), the rest are character-named unique flavor items (Chandra's Stone, Teferi's
+  Staff, Zedruu's Lantern...). Diluting those with a chance at generic loot would work against
+  their own design, so left alone - the 12 already fixed were the only real multi-item pools that
+  existed.
+- **The 38 orphaned Shandalar Old Border bosses, resolved without a dungeon import (2026-08-10,
+  same-day follow-up)**: user asked whether these had dungeons in their source plane at all. They
+  do - 37 of 38 (only "Slivdrazi Monstrosity" is orphaned even in Shandalar Old Border's own data).
+  Checked feasibility of importing those 37 dungeons directly: zero depend on anything outside
+  `common`'s shared tileset, but 24 of the 34 unique files needed collide by filename with content
+  already at that path (verified directly - `common`'s own `grove_5_foresttitan.tmx` is a
+  completely different, boss-less filler dungeon that just happens to share a name with Shandalar
+  Old Border's real "Elf Queen Guay" boss room), and 9 are mid-chain rooms needing their own
+  preceding levels imported too (same situation as the Eldrazi Prison hub). A real, separately-
+  scoped task, not a quick fix. Given the user's own bosses have a fairly even color spread (checked
+  directly: 3-6 per mono color, 17 more across multicolor/5-color), asked instead: **surface them as
+  extremely rare roaming encounters in their own color's territory, gated on the player being
+  genuinely At War with that color** - no dungeon needed at all, since a rare boss encounter is a
+  natural fit for the existing roaming-spawn system rather than requiring scripted dungeon content.
+  Built as `TerritoryControl.WAR_TIER_BOSSES` (a hand-curated `color -> boss names` map, multicolor
+  bosses appearing under every color they contain, same convention the roaming-pool wiring fix
+  already used) + `rollWarTierBoss()` (a `WAR_TIER_BOSS_CHANCE` of 4% - "very rare," the user's own
+  words, layered on top of an already-rare condition). `WorldStage.handleMonsterSpawn()` checks this
+  first, once the roll's effective color (after the existing intrusion-substitution check) is
+  confirmed War-tier via `ColorReputation.getStatus()`; a miss falls through to the ordinary pick,
+  same as any other roll. Since "Slivdrazi Monstrosity" no longer needs a dungeon home either, all
+  38 are included, not just the 37 with one. Not yet playtested.
+- **Final pre-playtest audit (2026-08-10, user request "one last check")**: ran a from-scratch
+  reachability pass across the whole catalog rather than trusting earlier partial checks - every
+  item (628), every enemy (1,469), every quest item (63, confirmed each resolves to a real source
+  and traced the dungeon-sourced ones by hand to confirm none sit behind a broken/missing path).
+  Two real things found and fixed, one false alarm ruled out:
+  - **11 enemies (`Graaz`, `Hope of Ghirapur`, `Karn`, `Liberator`, `Omarthis`, `Syr Ginger`, `The
+    Dawning Archaic`, `The Peregrine Dynamo`, `Traxos`, `Ulamog`, `Zhulodok`) were completely
+    unreachable** - tagged `colors:"C"` (a different colorless marker than the blank-string
+    convention the earlier `player.json`/roaming-pool fixes checked for), so they fell through
+    every wiring pass done so far. Added all 11 to both `colorless.json` and `player.json`'s
+    roaming pools, same treatment the blank-color enemies already got.
+  - **A JSON-escaping false alarm, ruled out rather than "fixed"**: the first obtainability pass
+    flagged 14 of the 40 recently-imported trophy items as unreachable - every one of them has an
+    apostrophe in its name (`Attendant's Prayerbook`, `Windwalker's Blessing`, etc.). Root cause:
+    `items.json`'s own name field round-tripped through `ConvertTo-Json` at some point and stores
+    a literal apostrophe, while `enemies.json`'s reference to that same name (never re-serialized
+    the same way) stores the JSON-escaped `'` form - a plain substring search for one doesn't
+    find the other. Confirmed by direct byte inspection, not assumption. Rebuilt the audit script
+    to check both forms; all 14 resolved cleanly, and this doubles as confirmation the "None of
+    these need missing dungeons" question is fully settled too, once verified independently that
+    every dungeon-sourced quest item's own reward object sits on an already-reachable floor (spot-
+    checked `Victor's Key` directly - its "Victor" enemy sits on `Church_of_Valgavoth_1.tmx`'s main
+    floor, unrelated to that file's own already-disabled dead-end door from an earlier round) and
+    that zero teleport targets anywhere in this plane point at a file that doesn't exist (verified
+    against the actual runtime resolution `TileMapScene.load()` uses - `Config.getFilePath()`,
+    simple prefix-concatenation from the plane root, not a path relative to the referencing file -
+    confirmed against a known-working stock example, `grolnok.tmx`, before trusting the result).
+  - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
+    real, reachable source.**
+
+### 20. Upgradable Arena — `Not Started`
+- User idea, not yet scoped or discussed in detail.
+
+### 21. Speed Up All Monsters — `Not Started`
+- User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
+  the roaming-enemy roster.

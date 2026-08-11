@@ -17,6 +17,11 @@ public class PointOfInterestChanges implements SaveFileContent  {
     private final HashMap<Integer, HashSet<Integer>> cardsBought = new HashMap<>();
     private final java.util.Map<String, Byte> mapFlags = new HashMap<>();
     private final java.util.Map<Integer, Long> shopSeeds = new HashMap<>();
+    // Weekly shop refresh (item economy, 2026-08-10): the in-game day a noRestock shop's seed was
+    // last (re)rolled - see getWeeklyShopSeed(). Separate from shopSeeds' own lazy-init so an
+    // ordinary (non-noRestock) shop, which never calls getWeeklyShopSeed(), never gets an entry
+    // here at all.
+    private final java.util.Map<Integer, Integer> shopLastRefreshDay = new HashMap<>();
     //private final java.util.Map<Integer, Float> shopModifiers = new HashMap<>();
     private final java.util.Map<Integer, Integer> reputation = new HashMap<>();
     private Boolean isBookmarked;
@@ -103,6 +108,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
             if (obj instanceof java.util.Map)
                 pinnedShopNames.putAll((java.util.Map<Integer, String>) obj);
         }
+        shopLastRefreshDay.clear();
+        if (data.containsKey("shopLastRefreshDay")) {
+            Object obj = data.readObject("shopLastRefreshDay");
+            if (obj instanceof java.util.Map)
+                shopLastRefreshDay.putAll((java.util.Map<Integer, Integer>) obj);
+        }
     }
 
     @Override
@@ -118,6 +129,7 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("economyBuildingObjectIds", economyBuildingObjectIds);
         data.store("bankBalance", bankBalance);
         data.storeObject("pinnedShopNames", new HashMap<>(pinnedShopNames));
+        data.storeObject("shopLastRefreshDay", new HashMap<>(shopLastRefreshDay));
         return data;
     }
 
@@ -167,6 +179,24 @@ public class PointOfInterestChanges implements SaveFileContent  {
     public void generateNewShopSeed(int objectID){
         shopSeeds.put(objectID, shopSeeds.containsKey(objectID)? new Random(shopSeeds.get(objectID)).nextLong() : Current.world().getRandom().nextLong());
         cardsBought.put(objectID, new HashSet<>()); //Allows cards to appear in slots of previous purchases
+    }
+
+    /**
+     * Item economy (2026-08-10): the seed for a "noRestock" shop (the Armory, land shops) that
+     * would otherwise never change - no restock button exists for these (see MapStage's shop-load
+     * case, restockPrice forced to 0 whenever noRestock is set), so without this they'd roll their
+     * stock exactly once, ever, per shop instance. Auto-reseeds once every 7 in-game days instead
+     * of on player-paid demand - same generateNewShopSeed() under the hood, just triggered by the
+     * calendar rather than a button. First call for a given shop both seeds and stamps the day, so
+     * a freshly-discovered shop doesn't immediately "expire" on its very next 7-day boundary.
+     */
+    public long getWeeklyShopSeed(int objectID, int currentDay) {
+        Integer lastRefresh = shopLastRefreshDay.get(objectID);
+        if (lastRefresh == null || currentDay - lastRefresh >= 7) {
+            generateNewShopSeed(objectID);
+            shopLastRefreshDay.put(objectID, currentDay);
+        }
+        return getShopSeed(objectID);
     }
 
     public void setRotatingShopSeed(int objectID, long seed){

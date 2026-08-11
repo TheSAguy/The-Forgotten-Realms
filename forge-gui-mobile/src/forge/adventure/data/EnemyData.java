@@ -32,6 +32,12 @@ public class EnemyData implements Serializable {
     public boolean randomizeDeck = false;
     public float spawnRate;
     public float difficulty;
+    // Common/Uncommon/Rare/Mythic - deck-rarity-derived difficulty tier (2026-08-10, user
+    // request), parallel to ItemData.rarity's naming. `difficulty` stays the mechanical gating
+    // value BiomeData.getEnemy() actually compares against (0.1/1/2/3, matching this tier);
+    // `tier` is the readable label other systems (town-fight capture odds) switch on directly
+    // instead of comparing floats.
+    public String tier = "Common";
     public float speed;
     public float scale = 1.0f;
     public int life;
@@ -62,6 +68,7 @@ public class EnemyData implements Serializable {
         spawnRate       = enemyData.spawnRate;
         copyPlayerDeck  = enemyData.copyPlayerDeck;
         difficulty      = enemyData.difficulty;
+        tier            = enemyData.tier;
         speed           = enemyData.speed;
         scale           = enemyData.scale;
         life            = enemyData.life;

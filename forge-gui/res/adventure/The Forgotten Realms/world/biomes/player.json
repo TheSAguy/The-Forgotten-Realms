@@ -1,132 +1,207 @@
 {
-"startPointX": 0.5,
-"startPointY": 0.5,
-"noiseWeight": 0.3,
-"distWeight": 1,
-"name": "player",
-"tilesetAtlas": "world/tilesets/player_terrain.atlas",
-"tilesetName": "Player",
-"terrain": [
-	{
-		"spriteName": "Player_1",
-		"max": 0.2,
-		"resolution": 5
-	},
-	{
-		"spriteName": "Player_2",
-		"min": 0.8,
-		"max": 1,
-		"resolution": 5
-	}
-],
-"width": 0,
-"height": 0,
-"color": "d4af37",
-"spriteNames": [
-	"Stone",
-	"Gravel",
-	"Stump",
-	"Bush",
-	"Flower"
-],
-"pointsOfInterest": [],
-"enemies": [],
-"structures": [
-	{
-		"N": 2,
-		"x": 0.5,
-		"y": 0.5,
-		"structureAtlasPath": "world/structures/player_structures.atlas",
-		"sourcePath": "world/structures/models/colorless.png",
-		"maskPath": "world/structures/masks/circle.png",
-		"height": 0.25,
-		"width": 0.25,
-		"symmetry": 8,
-		"mappingInfo": [
-			{
-				"name": "crater",
-				"color": "808080",
-				"collision": true
-			},
-			{
-				"name": "tree",
-				"color": "ff0000",
-				"collision": true
-			},
-			{
-				"name": "tree2",
-				"color": "00ff00",
-				"collision": true
-			},
-			{
-				"name": "tree3",
-				"color": "0000ff",
-				"collision": true
-			},
-			{
-				"name": "tree4",
-				"color": "00ffff",
-				"collision": true
-			},
-			{
-				"name": "rock",
-				"color": "ff00ff",
-				"collision": true
-			},
-			{
-				"name": "mountain",
-				"color": "000000",
-				"collision": true
-			}
-		]
-	},
-	{
-		"N": 2,
-		"x": 0.5,
-		"y": 0.5,
-		"structureAtlasPath": "world/structures/player_structures.atlas",
-		"sourcePath": "world/structures/models/colorless.png",
-		"maskPath": "world/structures/masks/ring.png",
-		"height": 0.5,
-		"width": 0.5,
-		"symmetry": 8,
-		"mappingInfo": [
-			{
-				"name": "hole",
-				"color": "808080",
-				"collision": true
-			},
-			{
-				"name": "tree",
-				"color": "ff0000",
-				"collision": true
-			},
-			{
-				"name": "tree2",
-				"color": "00ff00",
-				"collision": true
-			},
-			{
-				"name": "tree3",
-				"color": "0000ff",
-				"collision": true
-			},
-			{
-				"name": "tree4",
-				"color": "00ffff",
-				"collision": true
-			},
-			{
-				"name": "rock",
-				"color": "ff00ff",
-				"collision": true
-			},
-			{
-				"name": "mountain",
-				"color": "000000",
-				"collision": true
-			}
-		]
-	}
-]
+    "startPointX":  0.5,
+    "startPointY":  0.5,
+    "noiseWeight":  0.3,
+    "distWeight":  1,
+    "name":  "player",
+    "tilesetAtlas":  "world/tilesets/player_terrain.atlas",
+    "tilesetName":  "Player",
+    "terrain":  [
+                    {
+                        "spriteName":  "Player_1",
+                        "max":  0.2,
+                        "resolution":  5
+                    },
+                    {
+                        "spriteName":  "Player_2",
+                        "min":  0.8,
+                        "max":  1,
+                        "resolution":  5
+                    }
+                ],
+    "width":  0,
+    "height":  0,
+    "color":  "d4af37",
+    "spriteNames":  [
+                        "Stone",
+                        "Gravel",
+                        "Stump",
+                        "Bush",
+                        "Flower"
+                    ],
+    "pointsOfInterest":  [
+
+                         ],
+    "enemies":  [
+                    "Adept Black Wizard",
+                    "Adept Blue Wizard",
+                    "Adept Green Wizard",
+                    "Adept Red Wizard",
+                    "Adept White Wizard",
+                    "Ancient Demon",
+                    "Angelic Page",
+                    "Apprentice Black Wizard",
+                    "Apprentice Blue Wizard",
+                    "Apprentice Green Wizard",
+                    "Apprentice Red Wizard",
+                    "Apprentice White Wizard",
+                    "Bandit",
+                    "Bloodied Skeleton",
+                    "Caracal",
+                    "Cephalid",
+                    "Challenger 20",
+                    "Challenger 21",
+                    "Challenger 22",
+                    "Clay Golem",
+                    "Construct",
+                    "Corrupted Blue Wizard",
+                    "Corrupted Cleric",
+                    "Corrupted Green Wizard",
+                    "Corrupted Red Wizard",
+                    "Dog",
+                    "Doppelganger",
+                    "Eldrazi",
+                    "Elf Vagabond",
+                    "Falcon",
+                    "Fox",
+                    "Gargoyle",
+                    "Gargoyle 2",
+                    "Geonid Death-Cap",
+                    "Goblin Rager",
+                    "Golem",
+                    "Homarid",
+                    "Human Looter",
+                    "Jellyfish",
+                    "Juggernaut",
+                    "Khenra Warrior",
+                    "Maelstrom Angel",
+                    "Minor Demon",
+                    "Mummy",
+                    "Nezumi Leader",
+                    "Nezumi Ninja",
+                    "Octopus",
+                    "Ooze",
+                    "Owl",
+                    "Pharaoh",
+                    "Pirate",
+                    "Plant",
+                    "Raven",
+                    "Scorpion",
+                    "Sliver",
+                    "Snail",
+                    "Wandering Giant",
+                    "Wandering Treefolk",
+                    "Weak Demon",
+                    "Wild Rat",
+                    "Worm",
+                    "Graaz",
+                    "Hope of Ghirapur",
+                    "Karn",
+                    "Liberator",
+                    "Omarthis",
+                    "Syr Ginger",
+                    "The Dawning Archaic",
+                    "The Peregrine Dynamo",
+                    "Traxos",
+                    "Ulamog",
+                    "Zhulodok"
+                ],
+    "structures":  [
+                       {
+                           "N":  2,
+                           "x":  0.5,
+                           "y":  0.5,
+                           "structureAtlasPath":  "world/structures/player_structures.atlas",
+                           "sourcePath":  "world/structures/models/colorless.png",
+                           "maskPath":  "world/structures/masks/circle.png",
+                           "height":  0.25,
+                           "width":  0.25,
+                           "symmetry":  8,
+                           "mappingInfo":  [
+                                               {
+                                                   "name":  "crater",
+                                                   "color":  "808080",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "tree",
+                                                   "color":  "ff0000",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "tree2",
+                                                   "color":  "00ff00",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "tree3",
+                                                   "color":  "0000ff",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "tree4",
+                                                   "color":  "00ffff",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "rock",
+                                                   "color":  "ff00ff",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "mountain",
+                                                   "color":  "000000",
+                                                   "collision":  true
+                                               }
+                                           ]
+                       },
+                       {
+                           "N":  2,
+                           "x":  0.5,
+                           "y":  0.5,
+                           "structureAtlasPath":  "world/structures/player_structures.atlas",
+                           "sourcePath":  "world/structures/models/colorless.png",
+                           "maskPath":  "world/structures/masks/ring.png",
+                           "height":  0.5,
+                           "width":  0.5,
+                           "symmetry":  8,
+                           "mappingInfo":  [
+                                               {
+                                                   "name":  "hole",
+                                                   "color":  "808080",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "tree",
+                                                   "color":  "ff0000",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "tree2",
+                                                   "color":  "00ff00",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "tree3",
+                                                   "color":  "0000ff",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "tree4",
+                                                   "color":  "00ffff",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "rock",
+                                                   "color":  "ff00ff",
+                                                   "collision":  true
+                                               },
+                                               {
+                                                   "name":  "mountain",
+                                                   "color":  "000000",
+                                                   "collision":  true
+                                               }
+                                           ]
+                       }
+                   ]
 }
