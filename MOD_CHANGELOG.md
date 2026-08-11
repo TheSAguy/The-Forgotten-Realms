@@ -5444,3 +5444,62 @@ Zedruu's Lantern, etc.) - clearly intentional one-of-a-kind signature drops, not
 pools. Recommended leaving them alone rather than diluting a named legend's own signature item with
 a chance at generic loot - the 12 already fixed remain the only real multi-item boss reward pools
 in the game.
+
+## The 38 orphaned Shandalar Old Border bosses: rare War-tier roaming encounters, no dungeon needed (2026-08-10)
+
+User asked whether the 38 boss-flagged Shandalar Old Border imports (left unwired by the roaming-
+pool fix earlier this round, since bosses deliberately aren't roaming material) actually had
+dungeons in their source plane, and if so why not just reuse those.
+
+**Investigated directly rather than assuming.** Scanned every `.tmx` file under Shandalar Old
+Border's own `maps/` folder for each of the 38 boss names: 37 of 38 have a specific room
+(`Karona`→`karona_chamber.tmx`, `Nicol Bolas`→`cave_nicol_bolas.tmx`, etc.) - only "Slivdrazi
+Monstrosity" is placed nowhere, even in its own source plane (a pre-existing gap there too, not
+introduced by this mod). Also confirmed zero of the 38 appear in any of Shandalar Old Border's own
+biome `enemies[]` roaming lists - they're 100% dungeon-bound in their own source, which is exactly
+why the earlier roaming-pool wiring fix correctly excluded all boss-flagged imports; the gap was
+never that decision, it was that the dungeon side of the fix was never done.
+
+**Checked feasibility of importing those 37 dungeons directly** (same tileset-safety/collision
+discipline as every other cross-plane import this mod has done): all 34 unique files needed depend
+only on `common`'s shared tileset (zero risk there), but **24 of the 34 collide by filename** with
+content already at that exact relative path - verified this wasn't a false alarm by diffing one
+directly: `common/maps/map/grove/grove_5_foresttitan.tmx` (7,815 bytes, generic Forest Giant/
+Elephant/Rhino filler, no boss) vs. Shandalar Old Border's own `grove_5_foresttitan.tmx` (11,223
+bytes, containing "Elf Queen Guay" and a "Forest Titan" sub-boss) - genuinely different dungeons
+that happen to share a filename, not the same file in two places. Copying as-is would silently
+replace whatever's already reachable at that path rather than adding something new. **9 of the 34
+are also mid-chain rooms** (e.g. `vampirecastle_grave_1.tmx` teleports back to `vampirecastle_1.tmx`,
+which this plane doesn't have), the same situation as the Eldrazi Prison hub from the item-economy
+round - importing only the boss room leaves it unreachable without its preceding levels too. Real,
+legitimate content, but a separately-scoped task on the order of the original 17-dungeon import, not
+a quick addition.
+
+**Built as a rare roaming encounter instead**, per the user's own proposal once the color spread
+came back reasonably even (checked: 3-6 per mono color, plus 17 more spread across multicolor/
+5-color combinations) - no dungeon needed at all, since "a rare boss you might run into" is a
+natural fit for the roaming-spawn system this mod already has, unlike a scripted dungeon fight.
+
+- New `TerritoryControl.WAR_TIER_BOSSES` (`Map<String, String[]>`, hand-curated from the verified
+  38-boss/color list) - each boss appears under every color letter its own `colors` tag contains,
+  same "contains" convention the roaming-pool wiring fix already established. Renamed entries use
+  their post-collision-fix names from earlier this round (`"Karona (Boss)"`, not the bare `"Karona"`
+  that name resolves to now - Realm of Legends' own unrelated, non-boss version).
+- New `TerritoryControl.rollWarTierBoss(String color, Random rand)` - `WAR_TIER_BOSS_CHANCE` (4%,
+  "very rare" per the user's own words, checked only once War-tier standing is already confirmed)
+  gates a uniform-random pick from that color's pool, resolved to a real `EnemyData` via the
+  existing `WorldData.getEnemy(String)` lookup (same mechanism `MapStage`'s named-enemy placement
+  already uses).
+- `WorldStage.handleMonsterSpawn()` checks this immediately after the existing intrusion-
+  substitution logic settles on this roll's effective color - `ColorReputation.getStatus(data.name)
+  == Status.WAR` gates the check at all (a non-AI-color biome name like `"player"`/`"waste"` safely
+  reads as Neutral via `AdventurePlayer.getColorReputationHalfPoints()`'s `getOrDefault(color, 0)` -
+  confirmed before relying on it, no extra guard needed). A miss (wrong tier, or the 4% roll itself
+  misses) falls straight through to the ordinary `data.getEnemy()` pick, same spawn roll, no
+  behavior change for anyone not At War with anyone.
+- Since this mechanism needs no dungeon at all, **"Slivdrazi Monstrosity" is included alongside the
+  other 37** - the one thing excluding it (no dungeon home in either plane) is no longer a
+  constraint under this design.
+
+Compiled clean. Not yet playtested - needs a save with War-tier reputation against at least one
+color to actually trigger.

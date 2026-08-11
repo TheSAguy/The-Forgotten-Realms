@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * Dynamic Territory Control (MOD_SCOPE.md #7), first slice: independently for each of the 5 AI
@@ -75,6 +76,60 @@ public class TerritoryControl {
             if (enemy.equals(other))
                 return true;
         return false;
+    }
+
+    // Very-rare War-tier boss encounters (user request 2026-08-10): the 38 boss-flagged Shandalar
+    // Old Border imports never got a dungeon home built for them (24 of their 34 source files
+    // collide by name with content already imported elsewhere, and 9 are mid-chain rooms needing
+    // their own preceding levels - a real, separately-scoped task, not attempted here). Surfaced
+    // instead as an extremely rare roaming encounter, gated on the player being genuinely At War
+    // with that boss's color - keyed by hand from each boss's real `colors` tag (a multicolor boss
+    // appears under every color it contains, same "contains" convention the roaming-pool wiring
+    // fix already used). Renamed entries reflect the cross-plane collision fixes from that same
+    // round (e.g. "Karona (Boss)", not "Karona" - that bare name is Realm of Legends' own,
+    // unrelated, non-boss version).
+    private static final Map<String, String[]> WAR_TIER_BOSSES = new HashMap<>();
+    static {
+        WAR_TIER_BOSSES.put("white", new String[]{
+                "Karona (Boss)", "Sorceress Queen Kaja", "King Kane Ferguson", "Elf Queen Guay",
+                "The Sainted One", "Arzakon, Shandalar's Doom", "Baron Von Gant", "Baron Levilain",
+                "Dark Ages Preacher", "Serra the Benevolent", "Bazaar Keeper", "Arcades Sabboth",
+                "Chromium (Boss)", "Palladia-Mors (Boss)"});
+        WAR_TIER_BOSSES.put("blue", new String[]{
+                "Karona (Boss)", "Sorceress Queen Kaja", "Goblin King Phil", "King Kane Ferguson",
+                "Elf Queen Guay", "The Astral Visionary", "Arzakon, Shandalar's Doom",
+                "Urza Planeswalker", "Recaller of Ancestry", "Twister of Time", "Time Walker",
+                "Bazaar Keeper", "Arcades Sabboth", "Chromium (Boss)", "Nicol Bolas (Boss)"});
+        WAR_TIER_BOSSES.put("black", new String[]{
+                "Karona (Boss)", "King Rohgahh", "Goblin King Phil", "King Kane Ferguson",
+                "Valyx the Tormentor", "The Lichlord of Azar", "Arzakon, Shandalar's Doom",
+                "Tibalt's Torturer", "Uncle Istvan", "Swamp Queen Tojira", "Chainer Dementia Master",
+                "Cateran Overlord", "Twister of Time", "Bazaar Keeper", "Chromium (Boss)",
+                "Nicol Bolas (Boss)", "Vaevictis Asmadi"});
+        WAR_TIER_BOSSES.put("red", new String[]{
+                "Karona (Boss)", "King Rohgahh", "Sorceress Queen Kaja", "Goblin King Phil",
+                "King Kane Ferguson", "The Dragon Lord", "Arzakon, Shandalar's Doom",
+                "Slivdrazi Monstrosity", "Tibalt's Torturer", "Chandler", "Joven", "Bazaar Keeper",
+                "Nicol Bolas (Boss)", "Palladia-Mors (Boss)", "Vaevictis Asmadi"});
+        WAR_TIER_BOSSES.put("green", new String[]{
+                "Karona (Boss)", "King Kane Ferguson", "Elf Queen Guay", "The Great Druid",
+                "Arzakon, Shandalar's Doom", "Gorilla Chief", "Slivdrazi Monstrosity",
+                "Kogla (Boss)", "Gaea, the Worldsoul", "Recaller of Ancestry", "Bazaar Keeper",
+                "Arcades Sabboth", "Palladia-Mors (Boss)", "Vaevictis Asmadi"});
+    }
+
+    // Base chance a WAR_TIER_BOSSES roll fires at all, checked by the caller only once it's
+    // already confirmed War-tier standing with the roll's color - "very rare," per the user's own
+    // words, layered on top of an already-rare condition (War tier itself, and whatever chance
+    // brought this spawn roll to that color's territory in the first place).
+    public static final float WAR_TIER_BOSS_CHANCE = 0.04f;
+
+    /** A random War-tier boss for this color, or null if the color has none or the roll misses. */
+    public static EnemyData rollWarTierBoss(String color, Random rand) {
+        String[] pool = WAR_TIER_BOSSES.get(color);
+        if (pool == null || pool.length == 0 || rand.nextFloat() >= WAR_TIER_BOSS_CHANCE)
+            return null;
+        return WorldData.getEnemy(pool[rand.nextInt(pool.length)]);
     }
 
     private static final int MIN_ATTACK_DAYS = 2;

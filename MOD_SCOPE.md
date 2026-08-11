@@ -1311,3 +1311,25 @@ to depend on each other.
   Staff, Zedruu's Lantern...). Diluting those with a chance at generic loot would work against
   their own design, so left alone - the 12 already fixed were the only real multi-item pools that
   existed.
+- **The 38 orphaned Shandalar Old Border bosses, resolved without a dungeon import (2026-08-10,
+  same-day follow-up)**: user asked whether these had dungeons in their source plane at all. They
+  do - 37 of 38 (only "Slivdrazi Monstrosity" is orphaned even in Shandalar Old Border's own data).
+  Checked feasibility of importing those 37 dungeons directly: zero depend on anything outside
+  `common`'s shared tileset, but 24 of the 34 unique files needed collide by filename with content
+  already at that path (verified directly - `common`'s own `grove_5_foresttitan.tmx` is a
+  completely different, boss-less filler dungeon that just happens to share a name with Shandalar
+  Old Border's real "Elf Queen Guay" boss room), and 9 are mid-chain rooms needing their own
+  preceding levels imported too (same situation as the Eldrazi Prison hub). A real, separately-
+  scoped task, not a quick fix. Given the user's own bosses have a fairly even color spread (checked
+  directly: 3-6 per mono color, 17 more across multicolor/5-color), asked instead: **surface them as
+  extremely rare roaming encounters in their own color's territory, gated on the player being
+  genuinely At War with that color** - no dungeon needed at all, since a rare boss encounter is a
+  natural fit for the existing roaming-spawn system rather than requiring scripted dungeon content.
+  Built as `TerritoryControl.WAR_TIER_BOSSES` (a hand-curated `color -> boss names` map, multicolor
+  bosses appearing under every color they contain, same convention the roaming-pool wiring fix
+  already used) + `rollWarTierBoss()` (a `WAR_TIER_BOSS_CHANCE` of 4% - "very rare," the user's own
+  words, layered on top of an already-rare condition). `WorldStage.handleMonsterSpawn()` checks this
+  first, once the roll's effective color (after the existing intrusion-substitution check) is
+  confirmed War-tier via `ColorReputation.getStatus()`; a miss falls through to the ordinary pick,
+  same as any other roll. Since "Slivdrazi Monstrosity" no longer needs a dungeon home either, all
+  38 are included, not just the 37 with one. Not yet playtested.

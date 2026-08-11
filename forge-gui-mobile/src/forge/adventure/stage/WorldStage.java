@@ -691,7 +691,17 @@ public class WorldStage extends GameStage implements SaveFileContent {
         // is still the base signal (unchanged progression feel), the intrusion substitution above
         // is a separate, independent axis (which biome's list to draw from, not how hard within it).
         float difficultyFactor = Current.player().getStatistic().rank();
-        EnemyData enemyData = data.getEnemy(difficultyFactor);
+
+        // Very-rare War-tier boss encounter (user request 2026-08-10): only once the effective
+        // color for THIS roll (post-intrusion above) is one the player is genuinely At War with -
+        // "in those colored areas, when the player is at war with that color." Falls through to
+        // the ordinary pick below on a miss, same as any other roll.
+        EnemyData enemyData = null;
+        if (ColorReputation.isEnabled() && ColorReputation.getStatus(data.name) == ColorReputation.Status.WAR) {
+            enemyData = TerritoryControl.rollWarTierBoss(data.name, rand);
+        }
+        if (enemyData == null)
+            enemyData = data.getEnemy(difficultyFactor);
         EnemyData extraSpawnForQuests = data.getExtraSpawnEnemy(difficultyFactor);
         if (extraSpawnForQuests != null) {
             float spawnPicker = rand.nextFloat();
