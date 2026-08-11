@@ -581,8 +581,20 @@ public class TerritoryControl {
         // terrain should also spread, just like the AI's"): the player's territory grows from
         // Camelot at the same daily rate toward the same cap, painted as the "player" biome,
         // contested by the same pull rules. Radius state rides colorTerritoryRadius under the
-        // "player" key; it's also mirrored onto the Capitol's own town-radius entry so the
-        // fog-of-war Revealed cache tracks the full held disc.
+        // "player" key. Deliberately does NOT force-reveal fog of war over the grown disc (see the
+        // removed revealArea() call below, 2026-08-11 fix) - an AI castle's own identical daily
+        // growth loop just above never did that either, and for good reason: territory OWNERSHIP
+        // (this block) and fog-of-war DISCOVERY are separate concepts. The Capitol's radius grows
+        // to MAX_TERRITORY_RADIUS (450) over time same as an AI castle, and forcing that whole
+        // disc "explored" regardless of whether the player ever set foot there defeated the point
+        // of fog of war entirely (user report: "a huge Stage 2 FoW circle" appeared around the
+        // Capitol, "could be a 450 radius circle" - confirmed exact match against this radius).
+        // The Capitol's own immediate vicinity still reveals correctly without this: genuinely
+        // OWNED ground already renders non-black via isPersistentlyRevealed()'s ownership-bit
+        // check once explored, and EconomyBuildings.onOutlookChanged() already does a real,
+        // ONE-TIME, correctly-bounded revealArea() (capped at getTownVisionRadiusTiles() - fixed
+        // CASTLE_KEEP_RADIUS_TILES, x3 with Outlook - not this ever-growing territory radius) when
+        // the Capitol's Outlook is built.
         PointOfInterest capitol = null;
         for (PointOfInterest poi : playerTowns) {
             if (TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name)) {
@@ -616,11 +628,13 @@ public class TerritoryControl {
                         WorldStage.getInstance()::reloadBackgroundChunkObjects);
                 if (newRadius > currentRadius)
                     world.setColorTerritoryRadius("player", newRadius);
-                world.setTownTerritoryRadius(capitol.getID(), newRadius);
+                // No setTownTerritoryRadius()/revealArea() here (removed 2026-08-11) - see the
+                // block comment above. getTownVisionRadiusTiles() and this method's own pull-
+                // source list (above) both already special-case the Capitol to the fixed
+                // CASTLE_KEEP_RADIUS_TILES instead of reading townTerritoryRadius, so writing it
+                // here was dead for the Capitol's own id; rebuildPlayerTownVision() alone is
+                // enough to keep that fixed-radius vision circle current.
                 world.rebuildPlayerTownVision();
-                world.revealArea((int) (capitol.getPosition().x / world.getTileSize()),
-                        (int) (capitol.getPosition().y / world.getTileSize()),
-                        newRadius, WorldStage.getInstance()::refreshBackgroundTile);
                 System.out.println("[TerritoryControl] player: Capitol territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS
                         + ", claimed " + claimed + " tile(s) this tick" + (sourcesChanged ? " (full re-contest)" : ""));
             }

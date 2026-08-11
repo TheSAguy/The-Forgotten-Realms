@@ -98,10 +98,11 @@ Helping a color angers its two enemies, not its allies.
   - **Starting deck seeds reputation** (+10 per deck-identity color, +5 its allies, -10 its
     enemies - applied per color for multicolor starters, nothing for colorless; user's pick).
     Hook in `AdventurePlayer.create()` only - identity changes later in a run don't re-seed.
-  - **World Standings page**: new Reputation column after Town Count with real column headers,
-    green positive / red negative / plain 0 per the user's own mockup; blank for the Player and
-    Colorless rows. Rows stay in town-count order (headers are labels, not sort toggles - user
-    okay'd deferring sortability).
+  - **World Standings page**: new Reputation column after Town Count with real column headers;
+    blank for the Player and Colorless rows. Rows stay in town-count order (headers are labels,
+    not sort toggles - user okay'd deferring sortability). **Number color re-tuned (2026-08-11)**
+    from plain sign-based (green positive/red negative/plain 0) to tier-based per user spec: Red
+    War, Orange Unhappy, Green Partner, light blue (Cyan) Happy, Neutral stays plain.
   - **Uncapped for now** (user's pick) - capping breaks net-zero, so caps need their own design
     when consequences arrive.
   - Opt-in via `colorReputationEnabled` (ConfigData + the plane's config.json), independent of
@@ -132,6 +133,14 @@ Helping a color angers its two enemies, not its allies.
     uses) or on entering any non-Partner town/capital first, whichever comes first
     (`TileMapScene.enter()`). Deliberately a separate flag/mechanism from the pre-existing paid
     `potionOfFalseLife()` (no flag, untouched by any of this) rather than reusing it.
+  - **Real bug, playtest-caught and fixed (2026-08-11): the free heal itself was never actually
+    gated by reputation.** `TileMapScene.enter()`'s pre-existing, unconditional `fullHeal()` call
+    (predates the reputation system) kept firing on every town/capital entry regardless of tier -
+    the Bless logic above only ever controlled the +2 BONUS on top of it, not the base heal, so
+    Unhappy/War-tier towns still fully restored the player's life (user report: "still getting
+    life restored... unhappy/at war with"). New `ColorReputation.isFreeHealBlocked()` (Unhappy or
+    War, distinct from the Inn-specific `isHealBarred()` above which stays War-only) now also
+    gates the base heal.
 
 ### 2. Central Wasteland & Town Reconstruction — `In Progress`
 - First slice built: towns in the colorless "Wastes" biome (existing stand-in for "the middle
@@ -174,6 +183,21 @@ Helping a color angers its two enemies, not its allies.
   reveal" layer in `World.java` (separate from the persistent known/visible tiers - purely
   cosmetic, doesn't affect what's actually explored). Only fires for genuinely new discoveries -
   re-approaching an already-known town doesn't re-flash.
+- **Four playtest fixes to the discovery-burst mechanic, same code path, all 2026-08-11:**
+  reserved (inactive) Dungeon Rotation reserve-pool slots were lifting fog exactly like a real,
+  currently-active dungeon (now skipped via `getActive()`); the reveal radius is now two-tiered
+  (town/capital/castle keeps the original 11, dungeon/cave/sideboss drops to ~50%, 6, per user
+  spec); the proximity check is now measured from a POI's bounding-rectangle CENTER instead of its
+  raw top-left position (a large town/capital sprite's corner could sit many tiles from where the
+  player can actually stand, which was the real reason towns rarely lifted fog while small dungeon
+  icons reliably did); and a real, unrelated bug where the Capitol's daily Territory Expansion
+  growth (up to 450 tiles, matches an AI castle's own cap) was force-marking its entire growing
+  disc as permanently "explored" regardless of whether the player had ever been there - by day 33
+  this had force-revealed nearly the whole reachable map as a giant, unintended Stage-2 circle. The
+  redundant `revealArea()` call causing it (in `TerritoryControl.java`'s Capitol-expansion block,
+  not present in the 5 AI castles' otherwise-identical loop) was removed; territory
+  ownership/color-painting growth is unaffected, only the forced fog reveal stops. Full root-cause
+  detail for all four in `MOD_CHANGELOG.md`.
 
 ### 4. Progressive Set Unlocks — `Not Started`
 - ~100+ MTG expansions exist; player starts with access to a small subset (e.g. ~10).
@@ -833,7 +857,13 @@ needs its own design pass before any of this gets built:**
   still has no `Reward.Type` and isn't obtainable via a Tiled reward object. Still not
   obtainable via shops or the `give item` console command.
 
-### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09; real Outlook/Arena/Spellsmith art + animated Teleporter + Arena color diversity 2026-08-10, not yet playtested)
+### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09; real Outlook/Arena/Spellsmith art + animated Teleporter + Arena color diversity 2026-08-10; AI capital Armory weekly restock content fixed 2026-08-11, not yet playtested)
+- **AI capitals' Armory shops now visibly restock weekly too (2026-08-11).** The weekly-reseed
+  mechanism itself (`PointOfInterestChanges.getWeeklyShopSeed()`) already fired correctly for every
+  town including AI-owned capitals - the actual gap was that the 5 AI colors' Equipment/Items shop
+  data (`shops.json`) was 100% fixed single-item slots with nothing for a reseed to randomize, so
+  the exact same items appeared every week regardless. Converted each into a randomized pool drawn
+  from that same shop's own existing item names (no new/unaudited items introduced).
 - **Outlook (2026-08-09):** doubles a town's fog-of-war vision radius - vision only, not the
   town's actual owned/claimable territory radius (deliberate per user spec: a scouting building,
   not a land-grab one). 100 gold, one per town, same rebuild-menu mechanism as the other 6.
@@ -984,7 +1014,16 @@ needs its own design pass before any of this gets built:**
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
 
-### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7; Armory + dedicated Booster shop made permanent fixed slots same day)
+### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7; Armory + dedicated Booster shop made permanent fixed slots same day; 2026-08-11: Armory UI polish, see below)
+- **Armory UI polish (2026-08-11, two small user requests):** the restore dialog's label changed
+  from "Repair Armory" to the user's exact requested wording, "Restore Armory". The Armory's own
+  shop screen now shows a small "Restocks weekly" note (new `RewardScene.armoryRestockNote()`,
+  keyed off `EconomyBuildings.isArmoryShop()`) so the player knows it refreshes on a weekly reseed
+  rather than via the paid restock button - applies uniformly to the player's Capitol AND all 5 AI
+  capitals' Armory-equivalent shops. **Also fixed while here**: `isArmoryShop()` had silently
+  stopped recognizing the player's own Capitol Armory the moment its shop list was renamed to
+  `ArmoryCommon`/`Uncommon`/`Rare`/`Mythic` by the 2026-08-10 item economy round (the check only
+  matched names ending in "Equipment"/"Items") - now also matches names starting with "Armory".
 - **Armory and dedicated Booster shop are now permanent, reserved slots (2026-08-10) - the same
   protection the 6 land shops already had.** User report: "if you build [Armory] first in the
   Town, then upgrade it works, if you don't build it first, then a shop can take its place and you

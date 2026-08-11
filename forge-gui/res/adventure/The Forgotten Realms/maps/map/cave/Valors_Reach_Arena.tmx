@@ -116,7 +116,7 @@
    </properties>
   </object>
   <object id="73" template="../../../../common/maps/obj/manashards.tx" x="911.333" y="262.182"/>
-  <object id="82" template="../../obj/treasure.tx" x="870.583" y="228.833">
+  <object id="82" template="../../../../common/maps/obj/treasure.tx" x="870.583" y="228.833">
    <properties>
     <property name="reward">[
 {

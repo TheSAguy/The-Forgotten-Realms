@@ -102,9 +102,6 @@ public class TileMapScene extends HudScene {
     public void enter() {
         super.enter();
         if (isAutoHealLocation()) {
-            // auto heal
-            if (Current.player().fullHeal())
-                autoheal = true; // to play sound/effect on act
             // Color reputation (MOD_SCOPE.md #1): entering a Partner-tier color's town/capital
             // (not player-owned - those match no color, see ColorReputation.colorOfTown()) grants
             // a free overheal to maxLife+2; entering any other town/capital (including a
@@ -113,6 +110,14 @@ public class TileMapScene extends HudScene {
             String repColor = ColorReputation.colorOfTown(rootPoint.getData());
             boolean playerOwned = repColor != null && TownRestoration.isTownRestored(
                     WorldSave.getCurrentSave().peekPointOfInterestChanges(rootPoint.getID()));
+            // The base free heal below used to be unconditional - user report 2026-08-11: "still
+            // getting life restored when visiting a town... unhappy/at war with" (the reputation
+            // check further down only ever governed the Partner BONUS, never the base heal itself
+            // - see ColorReputation.isFreeHealBlocked()'s own comment). Player-owned towns are
+            // exempt from every color effect, same as everywhere else in this system.
+            boolean healBlocked = repColor != null && !playerOwned && ColorReputation.isFreeHealBlocked(repColor);
+            if (!healBlocked && Current.player().fullHeal())
+                autoheal = true; // to play sound/effect on act
             if (repColor != null && !playerOwned && ColorReputation.getStatus(repColor) == ColorReputation.Status.PARTNER)
                 Current.player().grantPartnerOverheal();
             else

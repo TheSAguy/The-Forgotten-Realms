@@ -107,6 +107,17 @@ public class RewardScene extends UIScene {
                 }, this::removeDialog));
     }
 
+    // Armory shops (Capitol's ArmoryCommon/Uncommon/Rare/Mythic tiers, and the 5 AI capitals'
+    // *Equipment/*Items shops) restock via a weekly reseed instead of the ordinary paid restock
+    // button (user request 2026-08-11: "add a note on the Armory screen informing the player it
+    // will restock/new inventory weekly"). Appended straight into the shop header's gradient text
+    // rather than a new label, since that's the only shop-name display RewardScene already has.
+    private String armoryRestockNote() {
+        if (shopActor == null || !EconomyBuildings.isArmoryShop(shopActor.getShopData()))
+            return "";
+        return "\n[%50]Restocks weekly";
+    }
+
     @Override
     public void connected(Controller controller) {
         super.connected(controller);
@@ -421,7 +432,7 @@ public class RewardScene extends UIScene {
             String shopName = shopActor.getDescription();
             if (shopName != null && !shopName.isEmpty()) {
                 headerLabel.setVisible(true);
-                headerLabel.setText("[%?SHINY]{GRADIENT}" + shopName + "{ENDGRADIENT}");
+                headerLabel.setText("[%?SHINY]{GRADIENT}" + shopName + armoryRestockNote() + "{ENDGRADIENT}");
                 headerLabel.skipToTheEnd();
             } else {
                 headerLabel.setVisible(false);
@@ -456,7 +467,7 @@ public class RewardScene extends UIScene {
                 String shopName = shopActor.getDescription();
                 if ((shopName != null && !shopName.isEmpty())) {
                     headerLabel.setVisible(true);
-                    headerLabel.setText("[%?SHINY]{GRADIENT}" + shopName + "{ENDGRADIENT}");
+                    headerLabel.setText("[%?SHINY]{GRADIENT}" + shopName + armoryRestockNote() + "{ENDGRADIENT}");
                     headerLabel.skipToTheEnd();
                 }
 

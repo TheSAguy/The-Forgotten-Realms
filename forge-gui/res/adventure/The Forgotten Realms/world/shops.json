@@ -622,152 +622,97 @@
 },{                                      
 "name":"WhiteEquipment",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",   
-"sprite":"EquipmentShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Life Amulet"  },
-    { "type": "item","count":1, "itemName": "Gold Armor"  },
-    { "type": "item","count":1, "itemName": "Mirror Shield"  },
-    { "type": "item","count":1, "itemName": "Entrancing Lyre"  },
-    { "type": "item","count":1, "itemName": "Nine-Ringed Bo"  },
-    { "type": "item","count":1, "itemName": "Kite Shield"  }
-    
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":3, "itemNames": ["Life Amulet","Gold Armor","Mirror Shield","Entrancing Lyre","Nine-Ringed Bo","Kite Shield"]  }
+
     ]
 
 },{                                      
 "name":"WhiteItems",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",   
-"sprite":"ItemShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "White rune"  },
-    { "type": "item","count":1, "itemName": "White Staff"  },
-	{ "type": "item","count":1, "itemName": "Cursed Treasure"  },
-	{ "type": "item","count":1, "itemName": "Farmer's Tools"  },
-	{ "type": "item","count":1, "itemName": "Piper's Charm"  },
-	{ "type": "item","count":1, "itemName": "Sleep Wand"  },
-	{ "type": "item","count":1, "itemName": "Hill Giant Club"  },
+"sprite":"ItemShop",
+  "rewards": [
+    { "type": "item","count":4, "itemNames": ["White rune","White Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1    }
-    
+
     ]
 
 },{                                      
 "name":"RedEquipment",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",   
-"sprite":"EquipmentShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Axt"  },
-    { "type": "item","count":1, "itemName": "Aladdin's Ring"  },
-    { "type": "item","count":1, "itemName": "Flame Sword"  },
-    { "type": "item","count":1, "itemName": "Heavy Arbalest"  },
-    { "type": "item","count":1, "itemName": "Jeweled Amulet"  },
-    { "type": "item","count":1, "itemName": "Ring of Immortals"  }
-    
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":3, "itemNames": ["Axt","Aladdin's Ring","Flame Sword","Heavy Arbalest","Jeweled Amulet","Ring of Immortals"]  }
+
     ]
 
 },{                                      
 "name":"RedItems",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",    
-"sprite":"ItemShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Red rune"  },
-    { "type": "item","count":1, "itemName": "Red Staff"  },
-	{ "type": "item","count":1, "itemName": "Cursed Treasure"  },
-	{ "type": "item","count":1, "itemName": "Farmer's Tools"  },
-	{ "type": "item","count":1, "itemName": "Piper's Charm"  },
-	{ "type": "item","count":1, "itemName": "Sleep Wand"  },
-	{ "type": "item","count":1, "itemName": "Hill Giant Club"  },
+"sprite":"ItemShop",
+  "rewards": [
+    { "type": "item","count":4, "itemNames": ["Red rune","Red Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1    }
     ]
 
 },{                                      
 "name":"BlueEquipment",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",   
-"sprite":"EquipmentShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Traveler's Amulet"  },
-    { "type": "item","count":1, "itemName": "Magic Shard"  },
-    { "type": "item","count":1, "itemName": "Spell Book"  },
-    { "type": "item","count":1, "itemName": "Mithril Armor"  },
-    { "type": "item","count":1, "itemName": "Mithril Boots"  },
-    { "type": "item","count":1, "itemName": "Mithril Shield"  }
-    
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":3, "itemNames": ["Traveler's Amulet","Magic Shard","Spell Book","Mithril Armor","Mithril Boots","Mithril Shield"]  }
+
     ]
 
 },{                                      
 "name":"BlueItems",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",    
-"sprite":"ItemShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Blue rune"  },
-    { "type": "item","count":1, "itemName": "Blue Staff"  },
-	{ "type": "item","count":1, "itemName": "Cursed Treasure"  },
-	{ "type": "item","count":1, "itemName": "Farmer's Tools"  },
-	{ "type": "item","count":1, "itemName": "Piper's Charm"  },
-	{ "type": "item","count":1, "itemName": "Sleep Wand"  },
-	{ "type": "item","count":1, "itemName": "Hill Giant Club"  },
+"sprite":"ItemShop",
+  "rewards": [
+    { "type": "item","count":4, "itemNames": ["Blue rune","Blue Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1    }
-    
+
     ]
 
 },
 {                                      
 "name":"BlackEquipment",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",   
-"sprite":"EquipmentShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Death Ring"  },
-    { "type": "item","count":1, "itemName": "Dark Amulet"  },
-    { "type": "item","count":1, "itemName": "Mad Staff"  },
-    { "type": "item","count":1, "itemName": "Dark Armor"  },
-    { "type": "item","count":1, "itemName": "Dark Boots"  },
-    { "type": "item","count":1, "itemName": "Dark Shield"  }
-    
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":3, "itemNames": ["Death Ring","Dark Amulet","Mad Staff","Dark Armor","Dark Boots","Dark Shield"]  }
+
     ]
 
 },{                                      
 "name":"BlackItems",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",    
-"sprite":"ItemShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Black rune"  },
-    { "type": "item","count":1, "itemName": "Black Staff"  },
-	{ "type": "item","count":1, "itemName": "Cursed Treasure"  },
-	{ "type": "item","count":1, "itemName": "Farmer's Tools"  },
-	{ "type": "item","count":1, "itemName": "Piper's Charm"  },
-	{ "type": "item","count":1, "itemName": "Sleep Wand"  },
-	{ "type": "item","count":1, "itemName": "Hill Giant Club"  },
+"sprite":"ItemShop",
+  "rewards": [
+    { "type": "item","count":4, "itemNames": ["Black rune","Black Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1    }
-    
+
     ]
 
 },
 {                                      
 "name":"GreenEquipment",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",   
-"sprite":"EquipmentShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Jungle Shield"  },
-    { "type": "item","count":1, "itemName": "Ring of Three Wishes"  },
-    { "type": "item","count":1, "itemName": "Heart-Piercer"  },
-    { "type": "item","count":1, "itemName": "Wood Bow"  },
-    { "type": "item","count":1, "itemName": "Steel Sword"  },
-    { "type": "item","count":1, "itemName": "Unerring Sling"  }
-    
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":3, "itemNames": ["Jungle Shield","Ring of Three Wishes","Heart-Piercer","Wood Bow","Steel Sword","Unerring Sling"]  }
+
     ]
 
 },{                                      
 "name":"GreenItems",                  
 "spriteAtlas":"maps/tileset/buildings.atlas",    
-"sprite":"ItemShop",   
-  "rewards": [ 
-    { "type": "item","count":1, "itemName": "Green rune"  },
-    { "type": "item","count":1, "itemName": "Green Staff"  },
-	{ "type": "item","count":1, "itemName": "Cursed Treasure"  },
-	{ "type": "item","count":1, "itemName": "Farmer's Tools"  },
-	{ "type": "item","count":1, "itemName": "Piper's Charm"  },
-	{ "type": "item","count":1, "itemName": "Sleep Wand"  },
-	{ "type": "item","count":1, "itemName": "Hill Giant Club"  },
+"sprite":"ItemShop",
+  "rewards": [
+    { "type": "item","count":4, "itemNames": ["Green rune","Green Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1   }
-    
+
     ]
 
 },{

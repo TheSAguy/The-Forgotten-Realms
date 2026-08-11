@@ -57,7 +57,7 @@
    </properties>
   </object>
   <object id="75" template="../../../../common/maps/obj/gold.tx" x="110" y="461.667"/>
-  <object id="76" template="../../obj/treasure.tx" x="209.834" y="299.5">
+  <object id="76" template="../../../../common/maps/obj/treasure.tx" x="209.834" y="299.5">
    <properties>
     <property name="reward">[{
   &quot;type&quot;: &quot;card&quot;,

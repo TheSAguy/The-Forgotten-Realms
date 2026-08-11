@@ -315,7 +315,7 @@
 </property>
    </properties>
   </object>
-  <object id="309" template="../../obj/treasure.tx" x="60.9936" y="71.9537">
+  <object id="309" template="../../../../common/maps/obj/treasure.tx" x="60.9936" y="71.9537">
    <properties>
     <property name="reward">[{
   &quot;type&quot;: &quot;randomCard&quot;,

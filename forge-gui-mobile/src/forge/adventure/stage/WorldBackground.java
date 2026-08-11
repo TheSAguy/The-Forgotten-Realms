@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.GridPoint2;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.utils.Array;
 import forge.adventure.pointofintrest.PointOfInterest;
@@ -35,8 +36,18 @@ public class WorldBackground extends Actor {
 
     // Bonus reveal radius applied around a point of interest the first time the player gets
     // within normal vision range of it - discovering a town uncovers the area around it, not just
-    // the tile the player happens to be standing on.
-    private static final int DISCOVERY_REVEAL_RADIUS = 11; // 75% of the original 15
+    // the tile the player happens to be standing on. Split into two tiers (user spec 2026-08-11,
+    // "the dungeon lift radius should not be as big as a town radius"): town/capital/castle POIs
+    // keep the original value, everything else (dungeon/cave/sideboss*) gets roughly half.
+    private static final int DISCOVERY_REVEAL_RADIUS_TOWN = 11; // 75% of the original 15
+    private static final int DISCOVERY_REVEAL_RADIUS_DUNGEON = 6; // ~50% of the town radius
+
+    // Town/capital/castle POIs get the larger discovery radius above; everything else (dungeon,
+    // cave, sidebossEasy/Moderate/Hard, etc) gets the smaller one.
+    private static boolean isTownLikePoi(PointOfInterest poi) {
+        String type = poi.getData().type;
+        return "town".equalsIgnoreCase(type) || "capital".equalsIgnoreCase(type) || "castle".equalsIgnoreCase(type);
+    }
 
     // Throttles the per-frame "keep the visible-vs-hazed boundary accurate" repatch below to only
     // run when the player has actually moved to a new tile, not every single rendered frame.
@@ -78,8 +89,23 @@ public class WorldBackground extends Actor {
 
         GridPoint2 pos = translateFromWorldToChunk(playerX, playerY);
         for (PointOfInterest poi : world.getPointsOfInterest(pos.x, pos.y)) {
-            int poiTileX = (int) (poi.getPosition().x / tileSize);
-            int poiTileY = (int) (poi.getPosition().y / tileSize);
+            // Dungeon rotation (MOD_SCOPE.md #15) overprovisions rotatable dungeons/caves 5x and
+            // holds most of them inactive as a reserve pool with nothing actually there yet (see
+            // DungeonRotation.java) - user report 2026-08-11: fog was lifting near those empty
+            // reserve spots exactly like a real, currently-active dungeon. getActive() is false
+            // for a reserve slot (and for nothing else - every non-rotating POI type is always
+            // active), so skipping inactive POIs here fixes it with no effect on towns/capitals.
+            if (!poi.getActive())
+                continue;
+            // Centered on the POI's actual footprint (rectangle center), not its raw top-left
+            // position - a large town/capital sprite's top-left corner can sit many tiles from
+            // where the player can actually stand, which was silently making the vision-radius
+            // gate below far harder to satisfy for big POIs than for a small 1-tile dungeon icon
+            // (user report 2026-08-11: "getting near a town still does not lift FoW... but
+            // dungeons do").
+            Rectangle bounds = poi.getBoundingRectangle();
+            int poiTileX = (int) ((bounds.x + bounds.width / 2f) / tileSize);
+            int poiTileY = (int) ((bounds.y + bounds.height / 2f) / tileSize);
             int dx = poiTileX - playerTileX;
             int dy = poiTileY - playerTileY;
             if (dx * dx + dy * dy <= visionRadius * visionRadius) {
@@ -89,7 +115,8 @@ public class WorldBackground extends Actor {
                 // there. revealArea()'s callback only fires for tiles that were NOT already
                 // explored, so this only flags the genuinely newly-discovered ring - already-
                 // explored tiles near a POI (e.g. re-approaching a known town) don't re-flash.
-                world.revealArea(poiTileX, poiTileY, DISCOVERY_REVEAL_RADIUS, (tx, ty) -> {
+                int discoveryRadius = isTownLikePoi(poi) ? DISCOVERY_REVEAL_RADIUS_TOWN : DISCOVERY_REVEAL_RADIUS_DUNGEON;
+                world.revealArea(poiTileX, poiTileY, discoveryRadius, (tx, ty) -> {
                     world.temporarilyReveal(tx, ty);
                     onTileRevealed(tx, ty);
                 });

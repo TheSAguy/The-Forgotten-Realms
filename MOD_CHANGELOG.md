@@ -5734,3 +5734,166 @@ property with a proper 4-tier `ArmoryCommon`/`ArmoryUncommon`/`ArmoryRare`/`Armo
 (plus thresholds) - resolved by keeping the tiered lists and adding this round's `noMigrate` flag
 alongside them, combining both rather than picking one side. Every other touched file (`TownRestoration.java`,
 `PointOfInterestChanges.java`) auto-merged without conflict.
+
+## Cross-machine playtest round: 8 real findings from forge.log + in-game report (2026-08-11)
+
+User played a session with all of the previous round's merged content (reputation/item-economy/
+bestiary work) and reported back a detailed list, plus asked for a `forge.log` review against
+`PLAYTEST_LOG_CHECKLIST.md`. Investigated everything before touching code - a background
+diagnosis workflow (3 parallel read-only agents) covered the reputation/weekly-restock/duplicate-
+icon reports while the FoW cluster and log review were done directly, then fixes applied for real
+findings only.
+
+**Log review**: `forge.log` (`%APPDATA%\Forge\forge.log`, ~128KB) showed 44 `[TFR-Spawn]` lines
+(all `tier=Common` - a young save, expected; one `colors=C` colorless spawn confirming that fix
+still works), zero `[TFR-Intrusion]`/`[TFR-WarBoss]`/`[TFR-ReTheme]`/`[TFR-CaptureOdds]` lines
+(each has narrow trigger conditions per the checklist - not evidence of breakage without knowing
+the player's actual reputation/capture history that session). **Real finding surfaced by the log,
+not the checklist**: 5 repeated `Error loading map...` / `FileNotFoundException` blocks for
+`.../The Forgotten Realms/maps/obj/treasure.tx`, thrown from `WorldStage.loadPOI()` - i.e. every
+time the player collided with certain POIs, entering them crashed the map load. Traced to 6 of the
+7 new dungeon tmx files this session's earlier merge brought in (`Tarnation_1.tmx`,
+`Valors_Reach_Arena.tmx`, `Kenriths_Court.tmx`, `Omenport.tmx`, `Squirrel_Farm.tmx`,
+`Wizard_Palace_1.tmx`) referencing `treasure.tx` via `template="../../obj/treasure.tx"` - a path
+that only resolves if `treasure.tx` existed locally under `The Forgotten Realms/maps/obj/`, which
+it never did (only `common/maps/obj/treasure.tx` exists). The 7th file in that same batch,
+`Eldrazi_Prison_0.tmx`, already used the CORRECT convention
+(`template="../../../../common/maps/obj/treasure.tx"`) - used as the reference to fix the other 6
+via `sed`, no new file needed.
+
+**FoW discovery-burst cluster (4 reports, all in `WorldBackground.draw()`'s POI loop, fixed
+together):**
+- **"Fog lifts near reserved (empty) dungeon spots, not just active ones"**: Dungeon Rotation
+  (#15) overprovisions rotatable dungeons/caves 5x and holds most of them `active=false` as a
+  reserve pool with nothing actually there (see `DungeonRotation.java`) - the discovery-burst loop
+  iterated every POI in the chunk with no `getActive()` check at all, so reserve slots lifted fog
+  identically to a real, currently-active dungeon. Fixed with one `if (!poi.getActive()) continue;`
+  - inert for every non-rotating POI type (towns/capitals/etc are always active), so no other
+    behavior changes.
+- **"Dungeon lift radius should be ~50% of a town's"**: `DISCOVERY_REVEAL_RADIUS` (a single
+  constant, 11, applied to every POI type) split into `DISCOVERY_REVEAL_RADIUS_TOWN` (11,
+  unchanged - town/capital/castle) and `DISCOVERY_REVEAL_RADIUS_DUNGEON` (6, ~50% - everything
+  else, i.e. dungeon/cave/sidebossEasy/Moderate/Hard), selected via a new `isTownLikePoi()` type
+  check.
+- **"Towns don't lift fog to stage 2 around them, but dungeons do"**: root-caused to how the
+  distance check was computed, not a town-vs-dungeon logic gap - both types went through
+  identical code. `poiTileX/Y` was `poi.getPosition()` (the sprite's raw TOP-LEFT corner), and the
+  vision-radius gate (`dx*dx+dy*dy <= visionRadius*visionRadius`, `visionRadius` currently only 3
+  tiles) measured from that corner. A small 1-tile dungeon/cave icon's top-left is trivially close
+  to wherever the player stands; a large town/capital sprite's top-left can sit many tiles from the
+  player's actual position at the entrance, silently making the gate far harder to satisfy. Fixed
+  by computing `poiTileX/Y` from `poi.getBoundingRectangle()`'s CENTER instead - also better-
+  centers the reveal burst itself on the POI, not skewed toward its top-left corner.
+- **"A huge, ~450-radius Stage 2 circle appeared around the Capitol by day 33"** - the real find of
+  this round. User's own hunch ("could be a 450 radius circle") was exactly right.
+  `TerritoryControl.processTerritoryExpansion()`'s Capitol-expansion block (added 2026-08-08 late,
+  "once the player builds a Capitol, his terrain should also spread, just like the AI's") grows the
+  Capitol's OWNERSHIP radius toward `MAX_TERRITORY_RADIUS` (450) same as an AI castle - correct,
+  intentional, unrelated to this bug. But alongside that, it ALSO called
+  `world.revealArea(capitolPosition, newRadius, ...)` every single expansion tick, explicitly
+  marking the ENTIRE growing 0-to-450-tile disc `explored[][]=true` (the permanent "known terrain"
+  flag `getBiomeSprite()` gates ALL rendering on, checked before fog-of-war's hazy/bright tier even
+  applies) - regardless of whether the player had ever set foot anywhere near it. By day 33 the
+  radius had climbed the whole way to the 450 cap (confirmed via `forge.log`'s
+  `"player: Capitol territory radius now 450/450"` lines, radius growing ~9/day), so nearly the
+  entire reachable map around the Capitol was force-revealed. The 5 AI castles' own, structurally
+  identical daily-expansion loop (a few lines above in the same method) does NOT do this - it only
+  calls `claimWastelandRing()`/`setColorTerritoryRadius()`, no `revealArea()` - by design, since
+  fog-of-war is a player-perspective concept and AI territory growth shouldn't auto-reveal the
+  player's map. The Capitol block's extra call was therefore a genuine inconsistency, not a
+  deliberate design choice, reintroducing (via a completely different call site) the exact class of
+  bug a 2026-08-09 fix (`getTownVisionRadiusTiles()`'s `isCapitol` branch, see that method's own
+  long comment) had already fixed for the OTHER place this same mistake could have been made.
+  **Fix**: removed the `revealArea()` call (and the now-dead `setTownTerritoryRadius(capitol.getID(),
+  newRadius)` write alongside it - confirmed unused for the Capitol's own id in both
+  `getTownVisionRadiusTiles()` and this same method's pull-source list, which both already
+  special-case the Capitol to the fixed `CASTLE_KEEP_RADIUS_TILES` instead). Territory
+  ownership/color-painting growth to 450 is completely unaffected - only the forced fog reveal
+  stops. The Capitol's own immediate vicinity (60 tiles with Outlook, 20 without) still reveals
+  correctly and permanently via the pre-existing, correctly-bounded, ONE-TIME
+  `EconomyBuildings.onOutlookChanged()` call, untouched by this fix.
+
+**Reputation: life still restored visiting War/Unhappy towns** - confirmed via the diagnosis
+workflow with exact line numbers. `TileMapScene.enter()`'s `isAutoHealLocation()` block had TWO
+layered mechanisms: the ORIGINAL, pre-reputation `Current.player().fullHeal()` call
+(unconditional - always resets `life = maxLife` on entering any town/capital), and the NEWER
+Color-Reputation "Bless" logic added right after it, which only ever decided whether to grant an
+EXTRA Partner-tier +2 overheal on top - it never gated the base heal itself. So every tier
+(Partner/Happy/Neutral/Unhappy/War) got the full base heal regardless; reputation only controlled
+the bonus. (War-tier towns are barred outright per `ColorReputation.isEntryBarred()`, but War-tier
+CAPITALS deliberately bypass that via the gold-toll dialog and remain enterable - and Unhappy was
+never barred at all - so both were freely reachable to trigger this.) **Fix**: new
+`ColorReputation.isFreeHealBlocked(color)` (true for UNHAPPY or WAR - deliberately a separate
+method from the existing WAR-only `isHealBarred()`, which gates the Inn's PAID potion and stays
+Unhappy-permissive by design) now also gates the base `fullHeal()` call, sharing the same
+`repColor`/`playerOwned`/status lookup the Partner-bonus branch already computed. Player-owned
+towns remain exempt from every color effect, unchanged.
+
+**Weekly Armory restock not visibly changing for AI capitals** - the diagnosis workflow confirmed
+the reroll MECHANISM itself (`PointOfInterestChanges.getWeeklyShopSeed()`, pull-based - reseeds the
+instant a player re-enters a `noRestock`-flagged shop 7+ in-game days after its last seed) fires
+correctly and identically for AI-owned towns; the 5 AI capitals' Armory-equivalent shops
+(`GreenEquipment`/`GreenItems` and the White/Red/Blue/Black counterparts) all correctly carry
+`noRestock="true"`. The actual gap: those 10 `shops.json` entries were 100% fixed single-item slots
+(`{"type":"item","count":1,"itemName":"X"}`, zero use of the RNG-driven `itemNames` plural field) -
+`RewardData.generate()`'s `itemName` (singular) branch has no randomness at all, so reseeding the
+shop's `Random` changed nothing observable; the exact same 6-7 named items appeared every week,
+forever. This is old, pre-item-economy-round shop data that the 2026-08-10 Armory rebuild never
+touched (it explicitly scoped to the generic player-town `Equipment` shop and the Capitol's own
+`ArmoryCommon`/`Uncommon`/`Rare`/`Mythic` entries only). **Fix**: converted each of the 10 AI
+Equipment/Items shops' item slots into one `itemNames` pool entry (reusing that shop's own EXISTING
+6-7 item names, zero new/unaudited items introduced - `count` set to roughly half the pool, e.g. 3
+of 6 or 4 of 7, so a reseed visibly changes which subset shows) via targeted text edits, not a
+blind JSON reformat (the file's original hand-authored spacing/tabs would have produced a 13,000+
+line diff otherwise - reverted a first attempt that did exactly that). **Separately caught while
+investigating**: `EconomyBuildings.isArmoryShop()` (checked `name.endsWith("Equipment")` or
+`.endsWith("Items")`) silently stopped matching the player's OWN Capitol Armory the moment its shop
+list was renamed to `ArmoryCommon`/etc during the merge (none of those names end in "Equipment" or
+"Items") - would have broken the Armory-specific repair dialog/icon/destroy-exclusion for the
+player's Capitol specifically. Fixed by also matching `name.startsWith("Armory")`.
+
+**Duplicate castle/temple icons on the minimap, one causing a stuck screen** - two-part diagnosis.
+**Part 1 (the freeze)**: already covered by the treasure.tx fix above - `Eldrazi_Prison_0.tmx` was
+one of the originally-broken 7 files (though it happened to already use the correct template path
+itself; the fix applies regardless since the file loads cleanly either way). **Part 2 (3 castle-
+looking icons where 1 was expected)**: the 5 new "main_story capital" tmx files from the merge
+(forest/island/mountain/plains/swamp_capital.tmx) are NOT the cause - they're governed by the same
+`TerritoryControl.neutralizeAfterGeneration()`/`ensureCapital()` machinery that's guaranteed exactly
+one capital per color since 2026-08-08. The real cause: that same merge separately added ~15 new
+`Story`-tagged POIs, several `type:"castle"`, placed randomly across their ENTIRE assigned biome
+(ordinary POI placement has no awareness of a color's small kept-territory circle - only the later
+`neutralizeAfterGeneration()` sweep enforces that, and it only reskins/moves POIs matching an exact
+"`<Color> Capital`"/"`<Color> Town`" name pattern, deliberately leaving every other POI type,
+including these, wherever world-gen placed them). Confirmed via direct data read: **only one of
+these, "Eldrazi Prison"** (`points_of_interest.json`, placed directly in `colorless.json` - i.e.
+neutral/central territory, exactly where the user was looking), uses `sprite: "colorless_castle"` -
+the SAME region name Emrakul's own (the one legitimate, singleton "temple"-equivalent neutral
+castle icon) uses, from a different atlas but visually the same "castle" look. The other 6 new
+Story castle-type POIs (Tarnation/Wizard Palace/Squirrel Farm/Gitrog Bog/Church of
+Valgavoth/Kenrith's Court) use entirely distinct, non-castle-looking sprites (`ruinedcity`,
+`DjinnPalace`, `farm`, `Mystical Bog`, `Valvagoth's Lair`, `Building134`) and are placed in their
+OWN color's biome, not neutral territory - not part of this specific report. **Fix**: changed
+Eldrazi Prison's `sprite` from `colorless_castle` to `Cave` (already a valid, already-proven region
+in its own `sprites/buildings.atlas`, used by dozens of existing colorless cave POIs - no new art,
+zero atlas-region risk) - it's a `maps/map/cave/` dungeon, a cave icon reads correctly and no
+longer collides with Emrakul's look. **Not fully resolved**: the user mentioned a "3rd" castle-like
+icon; only two are accounted for by this investigation (Emrakul + Eldrazi Prison). Flagged back to
+the user rather than guessed at further - needs the exact name/location of that 3rd icon to
+investigate, and it's possible (not confirmed) it's simply one of the 5 real AI castles now sitting
+visually "inside" the Capitol's own greatly-expanded territory (see the FoW circle fix above - by
+day 33 that radius reached 450, easily far enough to visually reach a nearby AI castle's own small
+kept circle) rather than a genuine duplicate.
+
+**Armory UI polish (2 small user requests)**: `EconomyBuildings.buildSimpleRepairDialog()`'s Armory
+label changed from "Repair Armory" to the user's exact requested wording, "Restore Armory".
+`RewardScene`'s shop header gained a new `armoryRestockNote()` - appends "Restocks weekly" (small
+text, same gradient-wrapped header) whenever `EconomyBuildings.isArmoryShop()` is true, so the
+Armory screen itself tells the player (and by extension, since the same shop-header code path is
+shared, this applies uniformly to the player's Capitol AND all 5 AI capitals) that its inventory
+refreshes weekly instead of via the paid restock button.
+
+**World Standings reputation number colors** - `WorldStandingsScene`'s reputation column was
+colored purely by sign (`[GREEN]` for positive, `[RED]` for negative, plain "0" otherwise),
+independent of the actual 5-tier Status a color's number maps to. Changed to color by TIER instead,
+per user spec: `[GREEN]` Partner, `[CYAN]` Happy ("light blue"), plain Neutral (unchanged), `[ORANGE]`
+Unhappy, `[RED]` War.

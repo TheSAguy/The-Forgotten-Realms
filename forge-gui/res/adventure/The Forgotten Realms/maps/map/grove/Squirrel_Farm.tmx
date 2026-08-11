@@ -39,7 +39,7 @@
     <property name="teleport" value=""/>
    </properties>
   </object>
-  <object id="48" template="../../obj/treasure.tx" x="447.956" y="56.4352">
+  <object id="48" template="../../../../common/maps/obj/treasure.tx" x="447.956" y="56.4352">
    <properties>
     <property name="reward">[{
   &quot;type&quot;: &quot;randomCard&quot;,

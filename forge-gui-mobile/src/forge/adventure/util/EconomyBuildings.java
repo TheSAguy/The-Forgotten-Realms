@@ -158,8 +158,13 @@ public class EconomyBuildings {
     }
 
     public static boolean isArmoryShop(ShopData data) {
+        // "Armory<Rarity>" (ArmoryCommon/Uncommon/Rare/Mythic - the Capitol's own rarity-tiered
+        // shop names, added by the 2026-08-10 item economy overhaul) needs its own check
+        // alongside the older "*Equipment"/"*Items" suffix match (still used by the 5 AI
+        // capitals' and generic player-town shops) - found 2026-08-11 while this suffix check
+        // was silently no longer matching the player's own Capitol Armory.
         return data != null && data.name != null
-                && (data.name.endsWith("Equipment") || data.name.endsWith("Items"));
+                && (data.name.endsWith("Equipment") || data.name.endsWith("Items") || data.name.startsWith("Armory"));
     }
 
     public static boolean isSpecialShop(ShopData data) {
@@ -656,7 +661,7 @@ public class EconomyBuildings {
         if (landShop != null)
             what = "Repair " + landShop;
         else if (isArmoryShop(data))
-            what = "Repair Armory";
+            what = "Restore Armory"; // user's exact wording, 2026-08-11 - the Capitol's reserved slot
         else if (isBoosterShop(data))
             what = "Repair Booster Shop";
         else

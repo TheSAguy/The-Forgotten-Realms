@@ -162,6 +162,19 @@ public class ColorReputation {
         return isEnabled() && color != null && getStatus(color) == Status.WAR;
     }
 
+    /** True when this color's Unhappy-or-worse standing blocks the FREE full-life heal a town/
+     *  capital entry would otherwise grant (user report 2026-08-11: "still getting life restored
+     *  when visiting a town... unhappy/at war with"). Deliberately its own method, not a reuse of
+     *  isHealBarred() - that one is WAR-only by design and gates the Inn's PAID potion, which
+     *  stays purchasable at Unhappy; this gates the free auto-heal on entry, which the user wants
+     *  blocked at Unhappy too, not just War. */
+    public static boolean isFreeHealBlocked(String color) {
+        if (!isEnabled() || color == null)
+            return false;
+        Status status = getStatus(color);
+        return status == Status.UNHAPPY || status == Status.WAR;
+    }
+
     /**
      * Debug/console support (`give rep <color> <amount>`): shifts one color by a display-value
      * amount while PRESERVING the net-zero invariant - the negation is spread evenly across the

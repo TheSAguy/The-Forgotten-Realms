@@ -4390,7 +4390,7 @@
 		"type": "castle",
 		"count": 1,
 		"spriteAtlas": "../The Forgotten Realms/sprites/buildings.atlas",
-		"sprite": "colorless_castle",
+		"sprite": "Cave",
 		"map": "../The Forgotten Realms/maps/map/cave/Eldrazi_Prison_0.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [

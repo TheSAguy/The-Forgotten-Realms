@@ -280,7 +280,15 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   reveal (#3) shows up immediately instead of only on map reload. FoW discovery-flash round
   (2026-08-10): the POI-discovery `revealArea()` call now flags each newly-revealed tile via
   `World.temporarilyReveal()` in its callback, and `draw()` calls the new
-  `World.tickTemporaryReveals()` once per frame to decay/repaint expired flashes (#3).
+  `World.tickTemporaryReveals()` once per frame to decay/repaint expired flashes (#3). Playtest
+  round (2026-08-11, three bugs in the same loop): skips POIs with `getActive() == false`
+  (Dungeon Rotation's reserve pool - was lifting fog around empty reserve slots, #15); split
+  `DISCOVERY_REVEAL_RADIUS` into a town/capital/castle tier (unchanged, 11) and a smaller
+  dungeon/cave/sideboss tier (6, ~50%); centers the vision-radius proximity check and the reveal
+  burst on the POI's bounding-rectangle CENTER instead of its raw top-left position - a large
+  town/capital sprite's top-left corner could sit many tiles from where the player can actually
+  stand, silently making the discovery trigger far harder to reach for big POIs than small ones
+  (explains "dungeons lift fog, towns don't").
 - **`forge-gui-mobile/src/forge/adventure/stage/MapSprite.java`** — overworld POI icons (towns/
   castles) now hide until the tile under their *center* has been explored (fog of war, #3) -
   previously checked the sprite's bottom-left corner, which could leave multi-tile buildings'
@@ -304,6 +312,14 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   round (2026-08-10): new `removePinnedShopName(objectId)` - lets `TownRestoration.
   repairCapitolState()` strip a stale pin an older migration left on Armory/Booster so those slots
   self-correct back to their tmx-defined shop type on an existing save (#13).
+- **`forge-gui-mobile/src/forge/adventure/scene/TileMapScene.java`** — `enter()`'s
+  `isAutoHealLocation()` block grants a Partner-tier free overheal (#1, from the other machine's
+  2026-08-10 round). Playtest round (2026-08-11) fixed a real bug found there: the base
+  `Current.player().fullHeal()` a few lines above was unconditional - the reputation check only
+  ever gated the Partner BONUS on top of it, never the base heal itself, so life was still fully
+  restored entering an Unhappy- or War-tier town (user report: "still getting life restored...
+  unhappy/at war with"). Now shares one `repColor`/`playerOwned`/status-derived gate
+  (`ColorReputation.isFreeHealBlocked()`, new) with the Partner-bonus check just below it.
 
 ### Towns, shops, and buildings (Town Reconstruction / Economy Buildings, #2 & #10)
 - **`forge-gui-mobile/src/forge/adventure/character/ShopActor.java`** — heaviest content-logic
@@ -322,6 +338,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   the generic building-sprite path, picking `EconomyBuildings.getTeleporterClosedSprite()` or the
   current frame of `getTeleporterActiveAnimation()` (based on `isTeleporterNetworkActive()`) via a
   new per-actor `teleporterAnimTime` clock ticked in `act()`.
+- **`forge-gui-mobile/src/forge/adventure/scene/RewardScene.java`** — already hosted the Destroy
+  button (see ShopActor's entry above). Playtest round (2026-08-11): new `armoryRestockNote()`
+  appends a small "Restocks weekly" line to the shop header for Armory-type shops
+  (`EconomyBuildings.isArmoryShop()`) - user request, since Armory shops restock via the weekly
+  reseed instead of the ordinary paid restock button and had no on-screen indication of that.
 - **`forge-gui-mobile/src/forge/adventure/character/OnCollide.java`** — added an optional
   town-restoration-gated constructor overload (Job Board building specifically) - the original
   single-arg constructor is unchanged/still used everywhere else unmodified. Capitol-polish

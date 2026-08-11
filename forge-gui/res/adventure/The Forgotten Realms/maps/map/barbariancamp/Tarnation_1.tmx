@@ -39,7 +39,7 @@
   </data>
  </layer>
  <objectgroup id="4" name="Objects">
-  <object id="48" template="../../obj/treasure.tx" x="237.083" y="370.25">
+  <object id="48" template="../../../../common/maps/obj/treasure.tx" x="237.083" y="370.25">
    <properties>
     <property name="reward">[
   {
@@ -157,7 +157,7 @@
 </property>
    </properties>
   </object>
-  <object id="110" template="../../obj/treasure.tx" x="207.212" y="355.455">
+  <object id="110" template="../../../../common/maps/obj/treasure.tx" x="207.212" y="355.455">
    <properties>
     <property name="reward">[
   {
@@ -176,7 +176,7 @@
 </property>
    </properties>
   </object>
-  <object id="111" template="../../obj/treasure.tx" x="48.6667" y="156.667">
+  <object id="111" template="../../../../common/maps/obj/treasure.tx" x="48.6667" y="156.667">
    <properties>
     <property name="reward">[
   {

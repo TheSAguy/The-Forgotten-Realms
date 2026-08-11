@@ -123,7 +123,19 @@ public class WorldStandingsScene extends UIScene {
                     if (c.equals(colorKey)) { isAiColor = true; break; }
                 if (isAiColor) {
                     int rep = ColorReputation.displayValue(Current.player().getColorReputationHalfPoints(colorKey));
-                    String text = rep > 0 ? "[GREEN]+" + rep : rep < 0 ? "[RED]" + rep : "0";
+                    String number = rep > 0 ? "+" + rep : String.valueOf(rep);
+                    // Colored by reputation TIER, not just sign (user request 2026-08-11): Red
+                    // for War, Orange for Unhappy, Green for Partner, light blue (Cyan) for
+                    // Happy - Neutral stays plain, matching the previous "0" case.
+                    String colorTag;
+                    switch (ColorReputation.getStatus(colorKey)) {
+                        case PARTNER: colorTag = "[GREEN]"; break;
+                        case HAPPY: colorTag = "[CYAN]"; break;
+                        case UNHAPPY: colorTag = "[ORANGE]"; break;
+                        case WAR: colorTag = "[RED]"; break;
+                        default: colorTag = ""; break;
+                    }
+                    String text = colorTag + number;
                     TypingLabel repLabel = Controls.newTypingLabel(text);
                     repLabel.setColor(Color.BLACK);
                     repLabel.skipToTheEnd();

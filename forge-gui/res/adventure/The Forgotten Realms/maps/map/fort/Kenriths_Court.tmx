@@ -39,7 +39,7 @@
   </data>
  </layer>
  <objectgroup id="4" name="Objects">
-  <object id="48" template="../../obj/treasure.tx" x="268.275" y="85">
+  <object id="48" template="../../../../common/maps/obj/treasure.tx" x="268.275" y="85">
    <properties>
     <property name="reward">[{
   &quot;type&quot;: &quot;randomCard&quot;,
@@ -347,7 +347,7 @@ Your manasight stone glows brightly, sensing a truly mighty legend in this place
 ]</property>
    </properties>
   </object>
-  <object id="132" template="../../obj/treasure.tx" x="179.667" y="85">
+  <object id="132" template="../../../../common/maps/obj/treasure.tx" x="179.667" y="85">
    <properties>
     <property name="reward">[{
   &quot;type&quot;: &quot;randomCard&quot;,
