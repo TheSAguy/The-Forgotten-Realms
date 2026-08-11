@@ -16,8 +16,10 @@ import forge.adventure.data.*;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestMap;
 import forge.adventure.scene.Scene;
+import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.util.Config;
+import forge.adventure.util.Current;
 import forge.adventure.util.DungeonRotation;
 import forge.adventure.util.EconomyBuildings;
 import forge.adventure.util.Paths;
@@ -63,6 +65,11 @@ public class World implements Disposable, SaveFileContent {
     private Pixmap fogOfWarPixmap;
     private Pixmap fogTilePixmap;
     private int visionRadius = 3; // half of the original 6 - items will raise this later
+    // FoW Stage 2 (2026-08-11 user spec): once 80% of the map is explored, reveal the rest
+    // outright. One-shot, persisted - without this flag, an already-100%-explored save would
+    // re-trigger (and re-notify) the check every day forever, since the 80% threshold would keep
+    // trivially re-passing. See checkFogOfWarStage2().
+    private boolean fogOfWarStage2Revealed = false;
 
     // Day/night cycle: dayProgress is the fraction of the current day elapsed, in [0,1), where
     // 0 = midnight. It only advances via advanceTime(), which WorldStage calls once per frame
@@ -285,6 +292,7 @@ public class World implements Disposable, SaveFileContent {
         // default to 0, so fall back to the same fresh-world start used by the field initializers.
         dayProgress = saveFileData.containsKey("dayProgress") ? saveFileData.readFloat("dayProgress") : 0.375f;
         dayCount = saveFileData.containsKey("dayCount") ? saveFileData.readInt("dayCount") : 1;
+        fogOfWarStage2Revealed = saveFileData.containsKey("fogOfWarStage2Revealed") && saveFileData.readBool("fogOfWarStage2Revealed");
 
         colorNextAttackDay.clear();
         if (saveFileData.containsKey("colorNextAttackDay")) {
@@ -362,6 +370,7 @@ public class World implements Disposable, SaveFileContent {
         data.storeObject("explored", explored);
         data.store("dayProgress", dayProgress);
         data.store("dayCount", dayCount);
+        data.store("fogOfWarStage2Revealed", fogOfWarStage2Revealed);
         data.storeObject("colorTerritoryRadius", colorTerritoryRadius);
         data.storeObject("townTerritoryRadius", townTerritoryRadius);
         data.storeObject("resourceSpawns", new ArrayList<>(resourceSpawns));
@@ -2783,6 +2792,43 @@ public class World implements Disposable, SaveFileContent {
         }
     }
 
+    /**
+     * FoW Stage 2 (2026-08-11 user spec): "if 80% of the world map is discovered, reveal the
+     * entire map." Called once per in-game day (WorldStage's daily tick, alongside Territory
+     * Control/Dungeon Rotation's own once-a-day checks) rather than every frame - a full
+     * width*height scan is cheap at that cadence, not at 60fps. onTileRevealed lets the caller
+     * (WorldStage.refreshBackgroundTile) patch any already-built ground chunks in place, same
+     * bridge revealArea() already uses - deliberately NOT routed through temporarilyReveal()'s
+     * discovery-flash layer (#3), since a whole-map flash reads as noise, not a moment worth
+     * calling out; tiles just settle straight into their ordinary known/dimmed tier.
+     */
+    public void checkFogOfWarStage2(BiConsumer<Integer, Integer> onTileRevealed) {
+        if (!isFogOfWarEnabled() || explored == null || fogOfWarStage2Revealed)
+            return;
+        int total = width * height;
+        if (total <= 0)
+            return;
+        int exploredCount = 0;
+        for (int x = 0; x < width; x++)
+            for (int y = 0; y < height; y++)
+                if (explored[x][y])
+                    exploredCount++;
+        if (exploredCount / (double) total < 0.80)
+            return;
+        fogOfWarStage2Revealed = true;
+        for (int x = 0; x < width; x++) {
+            for (int rawY = 0; rawY < height; rawY++) {
+                if (explored[x][rawY])
+                    continue;
+                explored[x][rawY] = true;
+                if (onTileRevealed != null)
+                    onTileRevealed.accept(x, height - rawY - 1); // rawY -> world Y, inverse of revealArea()'s rawY math
+            }
+        }
+        rebuildFogOfWarPixmap();
+        GameHUD.getInstance().addNotification("[CYAN]Enough of the realm is known that its full shape reveals itself to you - the map is now fully explored.");
+    }
+
     public boolean isExploredWorld(int x, int y) {
         if (!isFogOfWarEnabled() || explored == null)
             return true;
@@ -2835,8 +2881,32 @@ public class World implements Disposable, SaveFileContent {
         return hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR;
     }
 
+    // FoW player vision radius scales with difficulty (2026-08-11 user spec): `visionRadius`
+    // itself stays the Normal/Hard baseline (still the item-upgradeable value #3's own comment
+    // refers to) with a difficulty offset applied on top - Easy sees one tile further, Insane one
+    // tile less, the two middle tiers unchanged. Deliberately not the linear per-step scale
+    // TerritoryControl.maxActiveMagesPerColor() uses elsewhere - this one ties Normal/Hard
+    // together on purpose, first/last tier treated as Easy/Insane regardless of how many
+    // difficulties are actually configured.
     public int getVisionRadius() {
-        return visionRadius;
+        return visionRadius + visionRadiusDifficultyOffset();
+    }
+
+    private int visionRadiusDifficultyOffset() {
+        DifficultyData playerDifficulty = Current.player().getDifficulty();
+        DifficultyData[] allDifficulties = Config.instance().getConfigData().difficulties;
+        if (playerDifficulty == null || playerDifficulty.name == null || allDifficulties == null || allDifficulties.length == 0)
+            return 0;
+        for (int i = 0; i < allDifficulties.length; i++) {
+            if (playerDifficulty.name.equals(allDifficulties[i].name)) {
+                if (i == 0)
+                    return 1;
+                if (i == allDifficulties.length - 1)
+                    return -1;
+                return 0;
+            }
+        }
+        return 0;
     }
 
     public void setVisionRadius(int visionRadius) {

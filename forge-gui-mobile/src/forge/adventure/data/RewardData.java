@@ -4,6 +4,7 @@ import com.badlogic.gdx.utils.Array;
 import forge.ImageKeys;
 import forge.StaticData;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.util.*;
 import forge.adventure.world.WorldSave;
 import forge.card.CardDb;
@@ -343,16 +344,45 @@ public class RewardData implements Serializable {
                     break;
                 case "mana": //backwards compatibility for reward data
                 case "shards":
-                    ret.add(new Reward(Reward.Type.Shards, count + addedCount));
+                    ret.add(new Reward(shardsSubstituteType(rewardRandom), count + addedCount));
                     break;
                 // Mod addition (The Forgotten Realms, 2026-08-10): Stone as a walkover-pickup
                 // reward type, mirroring "shards" above - see Reward.Type.Stone.
                 case "stone":
                     ret.add(new Reward(Reward.Type.Stone, count + addedCount));
                     break;
+                // Mod addition (The Forgotten Realms, 2026-08-11): Wood as a walkover-pickup
+                // reward type, mirroring "stone" above - see Reward.Type.Wood.
+                case "wood":
+                    ret.add(new Reward(Reward.Type.Wood, count + addedCount));
+                    break;
             }
         }
         return ret;
+    }
+
+    // Resource loot variety (2026-08-11 user request, opt-in resourceLootVarietyEnabled - same
+    // "must not affect Shandalar or any other stock plane" rule every mod feature follows):
+    // "go through all Caves and replace 25% of Shards with Stone, and 25% of Shards in Forts with
+    // Wood." Deliberately a per-pickup 25% ROLL rather than pre-selecting a fixed 25% of map
+    // objects - converges to the same ~25% split over many pickups without needing to hand-edit
+    // (or copy out of common/, which would break the plane-isolation rule) every cave/fort .tmx
+    // file. "Cave" vs "Fort" is read from the CURRENT dungeon's own map path (mostRecentPOI, the
+    // same context TerritoryControl.reThemedEnemyFor() already reads for enemy re-theming) since
+    // that's the real cave/fort distinction in this game's content - the POI `type` field is not
+    // reliable here (most Fort dungeons are type "dungeon", same as plenty of non-Fort dungeons).
+    private static Reward.Type shardsSubstituteType(Random rewardRandom) {
+        if (!Config.instance().getConfigData().resourceLootVarietyEnabled || rewardRandom.nextFloat() >= 0.25f)
+            return Reward.Type.Shards;
+        PointOfInterest current = AdventureQuestController.instance().mostRecentPOI;
+        String mapPath = current == null || current.getData() == null ? null : current.getData().map;
+        if (mapPath == null)
+            return Reward.Type.Shards;
+        if (mapPath.contains("/cave/"))
+            return Reward.Type.Stone;
+        if (mapPath.contains("/fort/"))
+            return Reward.Type.Wood;
+        return Reward.Type.Shards;
     }
 
     static public List<PaperCard> generateAllCards(Iterable<RewardData> dataList, boolean isForEnemy) {

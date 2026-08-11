@@ -239,6 +239,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 TerritoryControl.processDaysPassed(dayAfter - dayBefore, dayAfter);
                 DungeonRotation.processDaysPassed(dayAfter);
                 QuestExpiry.processDaysPassed(dayAfter);
+                world.checkFogOfWarStage2(this::refreshBackgroundTile);
             }
             // Per frame while moving, not just on day change - pickups are walk-over, so the
             // collection check has to track the player's live position (cheap; see its comment).

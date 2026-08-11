@@ -108,12 +108,17 @@ public class RewardScene extends UIScene {
     }
 
     // Armory shops (Capitol's ArmoryCommon/Uncommon/Rare/Mythic tiers, and the 5 AI capitals'
-    // *Equipment/*Items shops) restock via a weekly reseed instead of the ordinary paid restock
-    // button (user request 2026-08-11: "add a note on the Armory screen informing the player it
-    // will restock/new inventory weekly"). Appended straight into the shop header's gradient text
-    // rather than a new label, since that's the only shop-name display RewardScene already has.
+    // *Equipment/*Items shops) and the Capitol's 6 fixed land shops both restock via a weekly
+    // reseed instead of the ordinary paid restock button (user request 2026-08-11: "add a note on
+    // the Armory screen informing the player it will restock/new inventory weekly" - extended the
+    // same day to land shops, which share the identical noRestock mechanism). Appended straight
+    // into the shop header's gradient text rather than a new label, since that's the only
+    // shop-name display RewardScene already has.
     private String armoryRestockNote() {
-        if (shopActor == null || !EconomyBuildings.isArmoryShop(shopActor.getShopData()))
+        if (shopActor == null)
+            return "";
+        ShopData data = shopActor.getShopData();
+        if (!EconomyBuildings.isArmoryShop(data) && !EconomyBuildings.isLandShop(data))
             return "";
         return "\n[%50]Restocks weekly";
     }

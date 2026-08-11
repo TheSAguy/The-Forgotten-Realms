@@ -198,6 +198,13 @@ Helping a color angers its two enemies, not its allies.
   not present in the 5 AI castles' otherwise-identical loop) was removed; territory
   ownership/color-painting growth is unaffected, only the forced fog reveal stops. Full root-cause
   detail for all four in `MOD_CHANGELOG.md`.
+- **Vision radius now scales with difficulty (2026-08-11 user spec)**: the existing 3-tile baseline
+  is for Normal/Hard specifically now, Easy sees 4, Insane sees 2 - not the linear per-difficulty-
+  step scale used elsewhere (mage cap), deliberately ties the two middle tiers together.
+- **Stage 2 added (2026-08-11)**: once 80% of the map has been explored, the rest reveals outright
+  instead of requiring the player to walk every last tile. Checked once per in-game day, one-shot
+  (won't re-notify once already triggered). Deliberately skips the discovery-flash cosmetic layer
+  above - a whole-map flash would read as noise.
 
 ### 4. Progressive Set Unlocks — `Not Started`
 - ~100+ MTG expansions exist; player starts with access to a small subset (e.g. ~10).
@@ -853,9 +860,21 @@ needs its own design pass before any of this gets built:**
   #10's Buildings entry for why extending the stock card-flip reward system wasn't worth it for
   two resources with no `items.atlas` art of their own). **`Reward.Type.Stone` now exists**
   (added 2026-08-10 for the Spawn pickup below) but this combat-variance path still bypasses it
-  deliberately - no reason to route through the card-flip UI for a quiet background grant. Wood
-  still has no `Reward.Type` and isn't obtainable via a Tiled reward object. Still not
-  obtainable via shops or the `give item` console command.
+  deliberately - no reason to route through the card-flip UI for a quiet background grant.
+  **`Reward.Type.Wood` now also exists (added 2026-08-11)** - see the Dungeon Loot Variety entry
+  under #10 for its first real use. Still not obtainable via shops or the `give item` console
+  command.
+- **Dungeon Loot Variety (2026-08-11 user request)**: opt-in `resourceLootVarietyEnabled` makes
+  Cave-type dungeons' existing Shard pickups roll a 25% chance to grant Stone instead, and
+  Fort-type dungeons the same 25% chance to grant Wood instead - determined from the current
+  dungeon's own map path (`/cave/` vs `/fort/`), not the POI `type` field (unreliable - most Fort
+  dungeons are `type: "dungeon"`, same as plenty of non-Fort ones). Deliberately implemented as a
+  per-pickup code-level substitution rather than editing the underlying `manashards.tx` walkover
+  objects directly - almost all cave/fort dungeons are shared `common/` map files also used by
+  Shandalar and every other bundled plane, so editing them would leak a mod feature into stock
+  planes. **Known limitation**: the pickup still visually looks like a shard crystal even when it
+  grants Stone/Wood - a real sprite reskin would need copying the affected maps into this plane
+  first (with all the internal-relative-path-rewrite risk that implies), not done this round.
 
 ### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09; real Outlook/Arena/Spellsmith art + animated Teleporter + Arena color diversity 2026-08-10; AI capital Armory weekly restock content fixed 2026-08-11, not yet playtested)
 - **AI capitals' Armory shops now visibly restock weekly too (2026-08-11).** The weekly-reseed
@@ -864,6 +883,14 @@ needs its own design pass before any of this gets built:**
   data (`shops.json`) was 100% fixed single-item slots with nothing for a reseed to randomize, so
   the exact same items appeared every week regardless. Converted each into a randomized pool drawn
   from that same shop's own existing item names (no new/unaudited items introduced).
+- **Land shops now show a "Restocks weekly" note too (2026-08-11)**, same treatment as Armory -
+  `EconomyBuildings.isLandShop()` (checks the 6 known land-shop names) added alongside the existing
+  Armory check in `RewardScene`'s shared restock-note method.
+- **Open question, not yet resolved:** the user separately asked to hide the Capitol's land-shop
+  build option until the player has visited that color's AI capital - investigated and found the 6
+  land shops are `fixedShop`+`noRestock` (unconditionally always-present, no build/repair dialog
+  exists for them at all currently), which doesn't match the "can't be built" framing. Needs the
+  user to clarify the actual intended mechanism before this can be built.
 - **Outlook (2026-08-09):** doubles a town's fog-of-war vision radius - vision only, not the
   town's actual owned/claimable territory radius (deliberate per user spec: a scouting building,
   not a land-grab one). 100 gold, one per town, same rebuild-menu mechanism as the other 6.

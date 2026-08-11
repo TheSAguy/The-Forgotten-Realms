@@ -5990,3 +5990,79 @@ Squirrel Farm, Gitrog Bog, Church of Valgavoth, Kenrith's Court) remain placed a
 their color's entire biome rather than confined near that color's castle keep - this fix only
 addresses Kenrith's Court's *icon* looking like a duplicate capital, not the underlying
 placement-radius question the last round already flagged as open (`MOD_SCOPE.md`).
+
+## Batch round: FoW difficulty/Stage 2, land shop notice, Stone/Wood loot (2026-08-11)
+
+Four independently-shippable items from the same user batch (a larger list, several items still
+pending clarification - see `MOD_SCOPE.md`'s open-questions notes on each). Compiled and verified
+after every step, not just once at the end.
+
+**FoW player vision radius now scales with difficulty.** `World.getVisionRadius()` still returns
+the stored `visionRadius` field as its Normal/Hard baseline (unchanged from before - still the
+item-upgradeable value #3's own comment describes), now with a difficulty offset added on top via
+new `visionRadiusDifficultyOffset()`: +1 tile on the easiest configured difficulty, -1 on the
+hardest, 0 for everything in between - deliberately not the linear per-step scale
+`TerritoryControl.maxActiveMagesPerColor()` uses elsewhere (that one scales every step; this one
+ties the two middle tiers together per exact user spec: "current be for normal/hard, one bigger
+for easy, one smaller for insane"). Reads first/last index of `Config.instance().getConfigData().
+difficulties` rather than hardcoding the difficulty count, so it stays correct if the difficulty
+list is ever reconfigured.
+
+**FoW Stage 2: 80%-explored triggers a full map reveal.** New `World.checkFogOfWarStage2()`,
+called once per in-game day from `WorldStage`'s existing daily-tick block (alongside Territory
+Control/Dungeon Rotation's own once-a-day checks - a full `width*height` scan is cheap at that
+cadence, not at 60fps). One-shot via a new persisted `fogOfWarStage2Revealed` flag - without it, an
+already-100%-explored save would re-trigger the notification every day forever, since the 80%
+threshold would keep trivially re-passing. Deliberately does NOT route through the discovery-flash
+layer (#3, added 2026-08-10) - a whole-map flash reads as noise, not a moment worth calling out;
+revealed tiles settle straight into their ordinary dimmed/known tier. Already-loaded ground chunks
+patch live via the same `WorldStage.refreshBackgroundTile` bridge `revealArea()` uses.
+
+**Land shops now show the same "Restocks weekly" note Armory got.** Investigated first since the
+user's note ("Land shops in capitol can't be built till you have visited that color's capitol")
+didn't match anything in the code - the Capitol's 6 land shops (`player_capital.tmx`, `commonShopList`
+values `Plains`/`Forest`/`Mountain`/`Swamp`/`Island`/`Land`) are `fixedShop`+`noRestock`, meaning
+they're unconditionally always-present with no build/repair dialog at all - there's no existing
+"can't be built" gate to hide. That part is still open, flagged back to the user in `MOD_SCOPE.md`
+rather than guessed at. The weekly-notice part was unambiguous and shipped: new
+`EconomyBuildings.isLandShop(ShopData)` (checks `data.name` against the 6 known land-shop names,
+which do exist as real `shops.json` entries e.g. `"name":"Plains"`), and `RewardScene`'s
+`armoryRestockNote()` now fires for `isArmoryShop() || isLandShop()` instead of Armory alone (kept
+the method name rather than a rename, both call sites already just needed the one shared check).
+
+**Stone/Wood loot added to Caves/Forts, without touching common's shared dungeon maps.** User
+spec: "go through all Caves and replace 25% of Shards with Stone and 25% of Shards in Forts with
+Wood." The natural map-level approach (editing the `manashards.tx` walkover-pickup objects placed
+directly in each cave/fort `.tmx`) was rejected after investigation: nearly all of this plane's
+cave/fort dungeons are `../common/maps/map/{cave,fort}/*.tmx` - shared files also used by
+Shandalar, Crystal Kingdoms, and every other bundled plane. Editing them directly would leak a mod
+feature into stock planes, violating the standing "opt-in per-plane, never unconditional" rule; and
+copying all ~54 affected files into this plane first (to edit local copies) would need every
+internal relative path rewritten plane-by-plane (the exact class of bug the 2026-08-10 Realm of
+Legends import already hit once with broken door references) for a purely-cosmetic-adjacent
+change. Implemented in code instead, gated by a brand new opt-in flag (`resourceLootVarietyEnabled`,
+`ConfigData.java` + this plane's `config.json`, off everywhere else by construction): new
+`RewardData.shardsSubstituteType()` intercepts the existing `"shards"` reward case and, only when
+the flag is on, rolls a 25% chance to substitute `Stone` or `Wood` instead of `Shards` - which one
+depends on the CURRENT dungeon's own map path (`AdventureQuestController.mostRecentPOI`, the same
+context `TerritoryControl.reThemedEnemyFor()` already reads for enemy re-theming): `/cave/` in the
+path -> Stone, `/fort/` in the path -> Wood, anything else -> unchanged Shards. Deliberately a
+per-pickup probability roll instead of pre-selecting a fixed 25% of objects - converges to the same
+~25% split over many pickups with zero file editing. `Reward.Type.Wood` is new (mirrors the
+existing `Stone` type added 2026-08-10 for the same walkover-pickup system); `AdventurePlayer`'s
+reward-apply switch and `MapStage`'s single-reward status-message switch both got a `Wood` case,
+reusing the already-built `AdventurePlayer.addWood()`/`getWood()` (existed already from the Lumber
+Mill economy building - "Wood" is the canonical resource word per the user's own 2026-08-08
+decision, the building keeps the name "Lumber Mill"). Wood shares Stone's existing "no
+font-registered bracket icon" treatment in the pickup status message (plain text, no icon glyph -
+same crash-avoidance reasoning already documented for Stone).
+
+**Known limitation, flagged rather than silently shipped:** the pickup still visually looks like a
+shard crystal (the `manashards.tx` sprite is untouched) even on the 25% of pickups that grant
+Stone/Wood instead - the substitution is invisible until the player actually walks over it and
+reads the reward popup. A real map-level reskin (new Stone/Wood pickup sprites, placed as actual
+distinct objects) would need the file-copying approach above, deliberately not done here. Revisit
+if the mismatch bothers the user in practice.
+
+Compiled and verified (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`) after every
+individual change in this round, not just once at the end. **Not yet playtested.**

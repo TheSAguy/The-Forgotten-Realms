@@ -302,6 +302,7 @@
     "colorReputationEnabled": true,
     "resourceSpawnsEnabled": true,
     "dungeonRotationEnabled": true,
-    "sideQuestTimerEnabled": true
+    "sideQuestTimerEnabled": true,
+    "resourceLootVarietyEnabled": true
 }
 

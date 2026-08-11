@@ -167,6 +167,18 @@ public class EconomyBuildings {
                 && (data.name.endsWith("Equipment") || data.name.endsWith("Items") || data.name.startsWith("Armory"));
     }
 
+    // The Capitol's 6 fixed basic-land shops (player_capital.tmx, commonShopList "Plains"/
+    // "Forest"/"Mountain"/"Swamp"/"Island"/"Land" - each a single-name list, so the resolved
+    // ShopData.name is always exactly one of these 6 shops.json entries). Also noRestock=true,
+    // same weekly-reseed mechanism as Armory (2026-08-11 user request: same "Restocks weekly"
+    // note Armory already got).
+    private static final java.util.Set<String> LAND_SHOP_NAMES = new java.util.HashSet<>(java.util.Arrays.asList(
+            "Plains", "Island", "Swamp", "Mountain", "Forest", "Land"));
+
+    public static boolean isLandShop(ShopData data) {
+        return data != null && data.name != null && LAND_SHOP_NAMES.contains(data.name);
+    }
+
     public static boolean isSpecialShop(ShopData data) {
         return isBoosterShop(data) || isArmoryShop(data);
     }
