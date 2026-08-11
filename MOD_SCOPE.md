@@ -1524,6 +1524,9 @@ to depend on each other.
 ### 21. Speed Up All Monsters — `Not Started`
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
   the roaming-enemy roster.
+- Re-raised 2026-08-11 as "Enemy movement speed" - treating as the same ask rather than a separate
+  item (not created as its own numbered entry) since the description matches exactly; flag if a
+  genuinely different idea was meant.
 
 ### 22. Armory Guard Hiring (Level 2 unlock) — `Built (2026-08-11), not yet playtested`
 Full loop is real and reachable in-game from a fresh save: Armory starts Level 1 (unchanged
@@ -1581,3 +1584,8 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   already-extracted 8x8 tier PNGs, sourced from `common/maps/tileset/dungeon.png` IDs 83/84/86/88
   per the user's mockup), drawn in `PointOfInterestMapSprite.draw()` - the strongest guard's icon
   only, bottom-left corner, even at a 2-guard Capitol. Fully closes out this scope item.
+
+### 23. Gold Icon in Bank — `Not Started`
+- User idea (2026-08-11), not yet scoped or discussed in detail - presumably the Bank dialog's
+  balance/deposit/withdraw rows (`EconomyBuildings.refreshBankDialog()`), which are plain text
+  right now (`"Deposited: N gold"`, etc.) with no actual gold icon alongside the number.
