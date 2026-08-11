@@ -5333,3 +5333,83 @@ The manual-classpath-assembly workaround from the Item Economy round (glob `~/.m
 exclude known-conflicting Guava/commons-lang3 versions, `@argfile`) remains the reliable path for
 any future one-off CLI tool in `forge-lda` - don't re-attempt `dependency:build-classpath` first,
 go straight to the manual assembly.
+
+## Post-round audit: bestiary wiring + missing item references (2026-08-10)
+
+User request after the previous round: "is there anything we might have missed... did we add the
+new items, non-quest items to any other loot tables besides the arena and Armory." Investigated
+both directly rather than guessing. Two real gaps found; one fixed in full, one mostly fixed with
+the remainder correctly left alone.
+
+**Gap 1: the 1,005 newly-imported enemies were never wired into any spawn pool.** Verified by
+diffing `enemies.json` against the pre-import HEAD commit to get the exact new-enemy name set,
+then checking that set against every biome's `enemies[]` array, every dungeon `.tmx` file, and
+every arena `enemyPool`. Result: **zero** referenced in any biome roaming pool or arena pool; only
+121 (12%) reachable at all, and only by coincidence (named inside dungeons imported during the
+earlier item-economy round, unrelated to this round's own wiring). The other 884 existed in the
+data catalog - real deck, real sprite, real tier - with nothing in the game world ever spawning
+them. This directly undercuts "implement them into the corresponding colors," the core of the
+original ask.
+
+Fixed by sampling the existing convention first rather than inventing a new one: `white.json`'s
+current `enemies[]` list already mixes mono-white entries with anything whose `colors` string
+*contains* "W" anywhere (`UW`, `GW`, `WR`, even the 5-color `WUBRG` Challenger precons appear in
+all 5 lists) - a "contains," not "starts-with," rule. Applied the identical rule to all 967
+non-boss new enemies (the 38 boss-flagged Shandalar Old Border imports are excluded from roaming
+placement on purpose - scripted/dungeon material, not ambient danger): for each enemy, for each
+single-letter color in its `colors` field, added its name to that color biome's `enemies[]` array
+if not already present. Result: white +388 (442 total), blue +401 (445), black +413 (460), red
++412 (465), green +407 (460) - the ~2:1 ratio of additions to enemies reflects how many of the
+imports are 2-3 color combinations landing in multiple lists at once, same as the pre-existing
+roster's own pattern. Verified: all 5 files still valid JSON, a known 5-color enemy (Karona) landed
+in all 5 lists, zero boss-flagged enemies leaked into any roaming pool.
+
+**Gap 2: 284 of the new enemies' own item rewards reference 88 items this plane's catalog doesn't
+have.** `RewardData`'s `"item"` case (`ItemListData.getItem(itemName)`) silently no-ops and only
+`System.err`-logs "Missing item" when a referenced name doesn't resolve - never crashes, so this
+kind of gap doesn't surface without directly cross-referencing every reward entry against the
+catalog, which nothing had done for the new import specifically. Extracted every `itemName`/
+`itemNames` entry from the 1,005 new enemies' `rewards` arrays, checked against the 588-item
+catalog: 88 distinct names missing.
+
+Categorized each of the 88 by looking up its own definition in whichever source plane it came from
+(not guessing from the name alone):
+- **36 are quest-flagged trophy items** - every `"<Name>'s Trophy"` item and `"Kill Trophy"` itself
+  turned out to be `questItem: true` in its source definition, with a description like "A celestial
+  trophy proving your victory over The Astral Visionary" or (for Kill Trophy specifically) "Give to
+  Chevill for a reward" - referencing quest-delivery content (an NPC, a quest chain) this plane
+  doesn't have. Left alone - same category and same reasoning as the Eldrazi Pentakey Shards/
+  Hexkeys/Cartouches/Ur-Dragon Keys/Warding Statue parts already excluded earlier this round.
+- **3 are dangling references with no definition in any bundled plane at all** (`Charmed Apple`,
+  `Helix Helm`, and `Name of Item` - the last one a literal unfilled template placeholder in
+  whichever enemy references it, "Falco Spara") - a pre-existing authoring gap in the source data,
+  not something to invent a fix for.
+- **49 are self-contained equipment with no external dependency** (a real mechanical `effect`,
+  `questItem` unset). Before importing any of them, checked each one's `startBattleWithCard`/
+  `startBattleWithCardInCommandZone` card reference against every edition file tagged
+  `Type=Commander` (same check the original item-economy audit used) - 9 came back Commander-
+  specific (`Commander's Robes`→`CM1`, `Opal Cloak`→`C13`, `Heirloom Blade`→`C17`, `Reliquary
+  Robes`→`C14`, `Nest Warden's Armor`→`C20`, `Student's Robes`→`C21`, `Fortune Teller's Hat`/
+  `Gourmand's Hat`→`BLC`, `Witch's Cloak`→`C21`) - and, independently, all 9 were *already* present
+  in this round's own 76-item-removed list from the earlier Commander-cleanup pass. Both checks
+  agreeing on the same 9 names is a good sanity signal the categorization logic is sound, not
+  coincidence. Imported the remaining **40** into `items.json` (628 total now), each tagged
+  `rarity: "Rare"` - a judgment-call default (boss-exclusive gear, no `cost` field to derive a
+  cost-tier from, and no finer per-item signal available without individually balancing 40 items by
+  hand). One edition code worth double-checking before trusting it, `PAST` (used by 3 of the 40 -
+  `Rainbow Spear`, `Faerie Dragon Egg`, `Prismatic Egg`) - confirmed real (`Astral Cards.txt`), not
+  a broken/placeholder code.
+- **Net result**: 48 of the original 88 missing references remain unresolved on purpose (36
+  quest-blocked + 3 dangling + 9 Commander-excluded) - each affected reward entry silently no-ops
+  for that specific slot only, every one of those enemies still has other working reward types
+  (gold/card/deckCard/life/shards) alongside it, so this doesn't break an encounter, just quietly
+  drops one possible drop from the table.
+
+**Answering the "any other loot tables" question directly**: the item-economy round's non-
+obtainable pool was placed in exactly three places - the 5 AI arena + player's own arena prize
+pools (6 total), the Capitol Armory's 4 rarity-tier shops + the player-town Armory, and 12 bosses'
+Mythic-tier drops. Verified all three are still intact after this round's `enemies.json` surgery
+(spot-checked all 12 boss entries directly - each still carries its original `item` reward entry
+with the full 21-item Mythic pool, untouched by the merge). No other pre-existing shop or loot
+table was touched with that pool, which is correct, not a gap - the arena system alone already gave
+100% catalog obtainability by the end of the previous round.

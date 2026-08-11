@@ -7075,5 +7075,509 @@
         "iconName":  "StrangeKey",
         "questItem":  true,
         "rarity":  "Common"
+    },
+    {
+        "name":  "Crown of the False God",
+        "equipmentSlot":  "Neck",
+        "iconName":  "CrownoftheFalseGod",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Temple of the False God|SCG"
+                                               ]
+                   },
+        "description":  "Grants a the false god\u0027s power, giving 2 mana once you have five lands.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Kobold King\u0027s Blade",
+        "equipmentSlot":  "Right",
+        "iconName":  "KoboldKingsBlade",
+        "effect":  {
+                       "changeStartCards":  -1,
+                       "startBattleWithCard":  [
+                                                   "Crimson Kobolds|LEG",
+                                                   "Crookshank Kobolds|LEG",
+                                                   "Kobolds of Kher Keep|LEG"
+                                               ]
+                   },
+        "description":  "-1 hand size. Start with three different Kobolds in play.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Crown of the Vale",
+        "equipmentSlot":  "Neck",
+        "iconName":  "CrownOfTheVale",
+        "effect":  {
+                       "lifeModifier":  -4,
+                       "startBattleWithCard":  [
+                                                   "Rainbow Vale|FEM"
+                                               ]
+                   },
+        "description":  "-4 Max Life. Tap for any color. Gives itself to your opponent.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Tasty Tome",
+        "equipmentSlot":  "Left",
+        "iconName":  "TastyTome",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Orcish Librarian|ICE"
+                                               ]
+                   },
+        "description":  "A 1/1 Orc. Tap to look at top 8 and rearrange 4, exile 4.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Shield of Air",
+        "equipmentSlot":  "Left",
+        "iconName":  "ShieldOfAir",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Wall of Air|5ED"
+                                               ],
+                       "lifeModifier":  -6
+                   },
+        "description":  "-6 life. A 1/5 flying Wall.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Attendant\u0027s Prayerbook",
+        "equipmentSlot":  "Left",
+        "iconName":  "AttendantsPrayerbook",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Silent Attendant|INV"
+                                               ]
+                   },
+        "description":  "A 0/2 cleric that taps to gain 1 life.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Tome of the Trove",
+        "equipmentSlot":  "Left",
+        "iconName":  "TomeoftheTrove",
+        "effect":  {
+                       "lifeModifier":  -4,
+                       "startBattleWithCard":  [
+                                                   "Treasure Trove|EXO"
+                                               ]
+                   },
+        "description":  "-4 life. Pay 2UU to draw a card.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Grovetender\u0027s Robes",
+        "equipmentSlot":  "Body",
+        "iconName":  "GrovetendersRobes",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Afiya Grove|MIR"
+                                               ]
+                   },
+        "description":  "Enters with 3 +1/+1 counters. Move one to a creature each upkeep.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Rainbow Spear",
+        "equipmentSlot":  "Right",
+        "iconName":  "RainbowSpear",
+        "effect":  {
+                       "lifeModifier":  -2,
+                       "startBattleWithCard":  [
+                                                   "Rainbow Knights|PAST"
+                                               ]
+                   },
+        "description":  "-2 life. A 2/1 that can pay to give first strike or a random pump.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Windwalker\u0027s Blessing",
+        "description":  "A blessing from the winds grants permanent swiftness. +35% movement speed.",
+        "equipmentSlot":  "Blessing",
+        "iconName":  "MovementSpeed",
+        "effect":  {
+                       "moveSpeed":  1.35
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Staff of Azar",
+        "equipmentSlot":  "Left",
+        "iconName":  "StaffOfAzar",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Necropolis of Azar|AST"
+                                               ]
+                   },
+        "description":  "Collects corpses. Pay 5 to turn them into 1d3/1d3 swampwalkers.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Goblin Trumpet",
+        "equipmentSlot":  "Left",
+        "iconName":  "GoblinTrumpet",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Goblin Polka Band|UGL"
+                                               ]
+                   },
+        "description":  "A 1/1 goblin that can randomly tap creatures for lots of mana.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Faerie Dragon Egg",
+        "equipmentSlot":  "Right",
+        "iconName":  "FaerieDragonEgg",
+        "effect":  {
+                       "lifeModifier":  -3,
+                       "startBattleWithCard":  [
+                                                   "Faerie Dragon|PAST"
+                                               ]
+                   },
+        "description":  "-3 life. A 1/3 flying dragon. Pay 1GG for a totally random effect.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Prismatic Egg",
+        "equipmentSlot":  "Right",
+        "iconName":  "PrismaticEgg",
+        "effect":  {
+                       "lifeModifier":  -4,
+                       "startBattleWithCard":  [
+                                                   "Prismatic Dragon|PAST"
+                                               ]
+                   },
+        "description":  "-4 life. A 2/3 flying Dragon. Randomly changes color each turn.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Celestial Prism",
+        "description":  "Pay 2 and tap to convert one mana to any color. +2 max life.",
+        "equipmentSlot":  "Neck",
+        "iconName":  "CelestialPrism",
+        "effect":  {
+                       "lifeModifier":  2,
+                       "startBattleWithCard":  [
+                                                   "Celestial Prism|LEA"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Guard\u0027s Shield",
+        "description":  "+2 Life. Start with a 2/2 white Soldier token.",
+        "equipmentSlot":  "Left",
+        "iconName":  "GuardsShield",
+        "effect":  {
+                       "lifeModifier":  2,
+                       "startBattleWithCard":  [
+                                                   "Security Detail|MMQ"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Miller\u0027s Shoes",
+        "equipmentSlot":  "Boots",
+        "iconName":  "MillersShoes",
+        "effect":  {
+                       "lifeModifier":  2,
+                       "startBattleWithCard":  [
+                                                   "Millstone|ATQ"
+                                               ]
+                   },
+        "description":  "+2 life. Pay 2 and tap to mill opponent 2 cards.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Ley Line Walker Boots",
+        "equipmentSlot":  "Boots",
+        "iconName":  "LeyLineWalkerBoots",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Ley Line|MMQ"
+                                               ]
+                   },
+        "description":  "Gives each player a +1/+1 counter each turn.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Shield of the Hivelord",
+        "description":  "Grants you command of a sliver giving +0/+1.",
+        "equipmentSlot":  "Left",
+        "iconName":  "ShieldOfTheHivelord",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Plated Sliver|LGN"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Torturer\u0027s Hood",
+        "equipmentSlot":  "Neck",
+        "iconName":  "TorturersHood",
+        "effect":  {
+                       "lifeModifier":  -3,
+                       "startBattleWithCard":  [
+                                                   "Wheel of Torture|ULG"
+                                               ]
+                   },
+        "description":  "-3 life. Opponent loses life for each card under 3 at their upkeep.",
+        "cost":  12000,
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Staff of the Ages",
+        "equipmentSlot":  "Left",
+        "iconName":  "StaffoftheAges",
+        "effect":  {
+                       "lifeModifier":  3,
+                       "startBattleWithCard":  [
+                                                   "Staff of the Ages|ICE"
+                                               ]
+                   },
+        "description":  "+3 life. Creatures with landwalk can be blocked normally.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Spyglass",
+        "description":  "-1 life. A 1/1 Orc Rogue. Tap to look at opponent\u0027s top 3 cards.",
+        "equipmentSlot":  "Right",
+        "iconName":  "Spyglass",
+        "effect":  {
+                       "lifeModifier":  -1,
+                       "startBattleWithCard":  [
+                                                   "Orcish Spy|FEM"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Ferret Food",
+        "description":  "A pouch of treats giving a 1/1 that\u0027s a 1/3 that taps down on attack.",
+        "equipmentSlot":  "Left",
+        "iconName":  "FerretFood",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Joven\u0027s Ferrets|HML"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Shaman\u0027s Staff",
+        "equipmentSlot":  "Right",
+        "iconName":  "ShamansStaff",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Gorilla Shaman|ALL"
+                                               ]
+                   },
+        "description":  "A 1/1 Ape. Pay XX1 to destroy artifact with cost X.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Istvan\u0027s Axe",
+        "description":  "-6 life. A 1/3 who can\u0027t be damaged by creatures.",
+        "equipmentSlot":  "Right",
+        "iconName":  "IstvansAxe",
+        "effect":  {
+                       "lifeModifier":  -6,
+                       "startBattleWithCard":  [
+                                                   "Uncle Istvan|DRK"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Holy Symbol",
+        "description":  "A 1/1 Cleric. Tap to destroy an Aura on your creature.",
+        "equipmentSlot":  "Right",
+        "iconName":  "HallowedSigil",
+        "cost":  5000,
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Miracle Worker|DRK"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Breathstealer\u0027s Blade",
+        "description":  "-2 life. A 2/2. Pay B to give +1/-1.",
+        "equipmentSlot":  "Right",
+        "iconName":  "BreathstealersBlade",
+        "effect":  {
+                       "lifeModifier":  -2,
+                       "startBattleWithCard":  [
+                                                   "Breathstealer|MIR"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Ichor Knife",
+        "description":  "A 3/1 haste that returns from graveyard by exiling a black creature.",
+        "equipmentSlot":  "Right",
+        "iconName":  "IchorKnife",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Ichorid|TOR"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Bog Glider Glove",
+        "equipmentSlot":  "Right",
+        "iconName":  "BogGliderGlove",
+        "effect":  {
+                       "lifeModifier":  -2,
+                       "startBattleWithCard":  [
+                                                   "Bog Glider|PCY"
+                                               ]
+                   },
+        "description":  "-2 life. A 1/1 flier. Tap and sac a swamp for a free 2 cost mercenary.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Urza\u0027s Armor",
+        "equipmentSlot":  "Body",
+        "iconName":  "UrzasArmor",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Urza\u0027s Armor|USG"
+                                               ]
+                   },
+        "description":  "Prevent 1 damage from each damage source dealt to you.",
+        "cost":  12000,
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Amulet of Gaea",
+        "equipmentSlot":  "Neck",
+        "iconName":  "AmuletOfGaea",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Pulse of Llanowar|INV"
+                                               ]
+                   },
+        "description":  "Allows your basics to tap for any color.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Serra\u0027s Prayer Book",
+        "equipmentSlot":  "Right",
+        "iconName":  "SerrasPrayerBook",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Serra\u0027s Liturgy|USG"
+                                               ]
+                   },
+        "description":  "Gains verse counters. Remove to destroy artifacts or enchantments.",
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Krampus\u0027s Horns",
+        "description":  "Start with Charcoal Diamond in play. -1 starting hand, -6 Max Life.",
+        "equipmentSlot":  "Neck",
+        "iconName":  "KrampussHorns",
+        "effect":  {
+                       "changeStartCards":  -1,
+                       "lifeModifier":  -6,
+                       "startBattleWithCard":  [
+                                                   "Charcoal Diamond|MIR"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Santa\u0027s Hat",
+        "description":  "Start with Jack-in-the-Mox in play. -1 starting hand.",
+        "equipmentSlot":  "Neck",
+        "iconName":  "SantasHat",
+        "effect":  {
+                       "changeStartCards":  -1,
+                       "startBattleWithCard":  [
+                                                   "Jack-in-the-Mox|UGL"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Crooked Scales",
+        "description":  "Pay 3 and tap to flip a coin. Win: destroy target creature. Lose: opponent may destroy one of yours.",
+        "equipmentSlot":  "Right",
+        "iconName":  "CrookedScales",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Crooked Scales|MMQ"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Kry Greaves",
+        "description":  "Pay 2 to boost your creature\u0027s toughness.",
+        "equipmentSlot":  "Boots",
+        "iconName":  "KryGreaves",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Kry Shield|LEG"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Immortal Anklet",
+        "description":  "Pay 3 and tap to counter a spell targeting a permanent you control.",
+        "equipmentSlot":  "Boots",
+        "iconName":  "ImmortalAnklet",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Ring of Immortals|LEG"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Marble Mace",
+        "description":  "A 3/3 artifact creature that lures walls. -5 Max Life.",
+        "equipmentSlot":  "Right",
+        "iconName":  "MarbleMace",
+        "effect":  {
+                       "lifeModifier":  -5,
+                       "startBattleWithCard":  [
+                                                   "Marble Priest|LEG"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Life Matrix",
+        "description":  "Pay 4 to give a creature regeneration.",
+        "equipmentSlot":  "Neck",
+        "iconName":  "LifeMatrix",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Life Matrix|LEG"
+                                               ]
+                   },
+        "rarity":  "Rare"
+    },
+    {
+        "name":  "Gauntlets of Chaos",
+        "description":  "Pay 5 to swap an artifact, creature, or land.",
+        "equipmentSlot":  "Right",
+        "iconName":  "GauntletsofChaos",
+        "effect":  {
+                       "startBattleWithCard":  [
+                                                   "Gauntlets of Chaos|LEG"
+                                               ]
+                   },
+        "cost":  12000,
+        "rarity":  "Rare"
     }
 ]

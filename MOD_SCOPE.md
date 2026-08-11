@@ -1272,3 +1272,30 @@ to depend on each other.
   the current owner's roster - `player` included, so a captured dungeon re-themes to the player's
   own roster too. Boss and quest-tagged encounters are exempt (often logic-critical or a scripted
   fight - shouldn't silently change).
+- **Post-round audit (2026-08-10, user request "is there anything we might have missed"), two real
+  gaps found and mostly fixed:**
+  - **The 1,005 newly-imported enemies were never actually wired into any spawn pool** - present
+    in `enemies.json` with full data, but referenced by zero biome `enemies[]` roaming lists and
+    zero arena `enemyPool`s. Only 121 (12%) were reachable at all, purely by coincidence (named
+    inside dungeons imported earlier). Fixed: all 967 non-boss new enemies added to every color
+    biome whose letter appears in their `colors` tag (the same "contains," not "starts-with," rule
+    already used by the pre-existing roster - confirmed by sampling `white.json`'s existing list
+    before writing this). The 38 boss-flagged Shandalar Old Border imports are deliberately left
+    unwired - they're not roaming material, and building 38 new boss dungeons for them is real
+    future-work scope, not a quick fix.
+  - **284 of the new enemies' own item-type rewards reference 88 item names this plane doesn't
+    have** - `RewardData`'s item case silently no-ops (console-logs "Missing item," doesn't crash)
+    when this happens, so it wasn't caught by anything short of directly cross-referencing every
+    reward against the catalog. Categorized by checking each missing name's own definition in its
+    source plane: 36 are quest-flagged trophy items ("X's Trophy" / "Kill Trophy" - "give to
+    Chevill for a reward" - referencing quest content this plane doesn't have) and 3 are dangling
+    references that don't exist in ANY bundled plane's item catalog (one is a literal template
+    placeholder, "Name of Item") - correctly left alone, matching the same judgment call already
+    made for the Hexkey/Shard/Cartouche/Key/Statue-part items earlier this round. The remaining 49
+    are self-contained equipment with no external dependency - imported 40 of them (all tagged
+    `Rare`, a judgment-call default for boss-exclusive gear); the other 9 turned out to be
+    Commander-specific (cross-checked their `startBattleWithCard` edition codes against every
+    `Type=Commander` edition file) and were, independently, *already* in this round's own
+    76-item-removed list - both signals agreeing is a good sign the categorization is sound. Net:
+    48 item references remain intentionally unresolved (silent no-op on those specific reward
+    slots only - every affected enemy has other working reward types alongside).
