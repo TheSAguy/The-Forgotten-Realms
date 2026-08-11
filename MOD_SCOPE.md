@@ -1333,3 +1333,10 @@ to depend on each other.
   confirmed War-tier via `ColorReputation.getStatus()`; a miss falls through to the ordinary pick,
   same as any other roll. Since "Slivdrazi Monstrosity" no longer needs a dungeon home either, all
   38 are included, not just the 37 with one. Not yet playtested.
+
+### 20. Upgradable Arena — `Not Started`
+- User idea, not yet scoped or discussed in detail.
+
+### 21. Speed Up All Monsters — `Not Started`
+- User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
+  the roaming-enemy roster.
