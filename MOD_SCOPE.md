@@ -1299,3 +1299,15 @@ to depend on each other.
     76-item-removed list - both signals agreeing is a good sign the categorization is sound. Net:
     48 item references remain intentionally unresolved (silent no-op on those specific reward
     slots only - every affected enemy has other working reward types alongside).
+- **Boss drop odds corrected (2026-08-10, same-day follow-up)**: user felt a *guaranteed* Mythic
+  drop from the 12 boss fix above undersold "Mythic" as a rarity word - changed to 90% Rare / 10%
+  Mythic (same independent-probability-per-entry approximation used everywhere else this round;
+  reused the original 86-item non-obtainable Rare pool + the same 21-item Mythic pool, both
+  reverified still fully valid against the current 628-item catalog). Also checked whether any
+  *other* boss has an existing multi-item random reward pool worth adding these to - answer: no.
+  Every other boss-with-an-item-reward in the pre-existing roster (23 of them) gives exactly one
+  fixed signature item - 5 are literally the colored "Key" quest items (Akroma→White Key, Ghalta→
+  Green Key, etc.), the rest are character-named unique flavor items (Chandra's Stone, Teferi's
+  Staff, Zedruu's Lantern...). Diluting those with a chance at generic loot would work against
+  their own design, so left alone - the 12 already fixed were the only real multi-item pools that
+  existed.

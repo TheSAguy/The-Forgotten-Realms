@@ -5413,3 +5413,34 @@ Mythic-tier drops. Verified all three are still intact after this round's `enemi
 with the full 21-item Mythic pool, untouched by the merge). No other pre-existing shop or loot
 table was touched with that pool, which is correct, not a gap - the arena system alone already gave
 100% catalog obtainability by the end of the previous round.
+
+## Boss drop odds corrected: 90% Rare / 10% Mythic, not guaranteed Mythic (2026-08-10)
+
+User feedback on the 12-boss fix from the previous round: a *guaranteed* Mythic drop undersells
+what "Mythic" is supposed to mean as a rarity word - asked for something closer to 90% Rare / 10%
+Mythic instead.
+
+Replaced each of the 12 bosses' single `{"type":"item","probability":1,...}` entry (the full
+21-item non-obtainable Mythic pool, always fires) with two entries: `probability: 0.9` drawing from
+the original 86-item non-obtainable Rare pool, `probability: 0.1` drawing from the same unchanged
+21-item Mythic pool - the same independent-probability-per-entry approximation already used for the
+Armory/Arena weighting earlier this round (not true mutual exclusivity - both can fire, or neither
+can - same tradeoff, not re-litigated since it's already been explained and accepted). Re-verified
+both pools before reusing them: all 86 Rare + 21 Mythic names still resolve against the current
+628-item catalog (no accidental removals since they were built). `Dark Enchanter`/`Emrakul`/
+`Kozilek`/`Ancient Silver Dragon`/`Guardian Angel`/`Myr Superion`/`Sliver Queen`/`Sorin`/`The Hydra
+of Shandalaar`/`Torturer`/`Valyx Feaster of Torment`/`Wounded Sliver` all updated identically;
+total enemy count unchanged (1,469), validated as clean JSON.
+
+Also checked the user's follow-up question - any *other* boss with an existing random/multi-item
+reward pool worth adding more items to. Queried every pre-existing boss (the original 464-enemy
+roster, not the new imports) with a `type:"item"` reward: 35 total, of which 23 give exactly one
+fixed item every time (`poolSize: 1`) and the other 12 are the ones just fixed above (`poolSize: 86`/
+`21`). None of the 23 single-item bosses have ever had a real pool - 5 of them are literally the
+colored "Key" quest items (`Akroma`→White Key, `Ghalta`→Green Key, `Griselbrand`→Black Key,
+`Lathliss`→Red Key, `Lorthos`→Blue Key), the rest are character-named unique flavor items
+(`Chandra`→Chandra's Stone, `Garruk`→Garruk's Mighty Axe, `Teferi`→Teferi's Staff, `Zedruu`→
+Zedruu's Lantern, etc.) - clearly intentional one-of-a-kind signature drops, not incomplete random
+pools. Recommended leaving them alone rather than diluting a named legend's own signature item with
+a chance at generic loot - the 12 already fixed remain the only real multi-item boss reward pools
+in the game.
