@@ -1124,16 +1124,21 @@ needs its own design pass before any of this gets built:**
   spot returning - dungeons genuinely move. Loss-despawn hook moved to the real match-loss handler
   (the old exitDungeon hook never fired for concedes/ordinary losses). NEW-WORLD-ONLY for the 5x
   pool; old saves rotate within their existing instances.
-- **Content-variety research done, not yet implemented (2026-08-10)**: full audit of what
+- **Content-variety research (2026-08-10), implemented (2026-08-11).** Full audit of what
   non-quest filler dungeon/cave content could be added to the pool, both from this plane's own
-  unwired POI entries and from the other bundled Adventure planes (Crystal_Kingdoms, Shandalar Old
-  Border, Realm of Legends, Innistrad, Amonkhet). Bottom line: 17 entries already exist in this
-  plane's own `points_of_interest.json` but were never wired into any `biomes/*.json` file (free,
-  zero asset cost - includes `Valor's Reach Arena`, mod-specific art nobody ever turned on); 11
-  more genuinely-new candidates found across Old Border (7) and Innistrad (4), needing asset
-  copying; Crystal_Kingdoms and Realm of Legends contributed nothing usable (pure re-listings and
-  100%-Story-tagged content respectively). Full per-entry inventory, exact file paths, and an
-  implementation checklist in `DUNGEON_POOL_RESEARCH.md` - read that first, don't re-derive.
+  unwired POI entries and from the other bundled Adventure planes - see `DUNGEON_POOL_RESEARCH.md`
+  for the original per-entry inventory. **All 28 candidates are now live**: 16 free entries (this
+  plane's own already-defined-but-unplaced POIs, including `Valor's Reach Arena`, mod-specific art
+  nobody had turned on) wired into their matching biome files; 4 imported from Innistrad
+  (`inn_Cave_river`/`inn_dark_forest`/`inn_forgotten_lodge_1`/`inn_lodge_1`, new `maps/map/
+  hunting_lodge/` folder) and 8 from Shandalar Old Border (`DemonsBargain`/`AncientDiamondMine`/
+  `RiddlesLair`/5x `DragonsLair<Color>`, new `maps/map/lair/` folder) - both imports copy assets
+  into this plane's own folders, common's and the source planes' own files untouched. Pool now has
+  229 `cave`/`dungeon` POI entries (up from 217). Full implementation detail, including 2 real
+  pre-existing data bugs found and fixed along the way (a broken sprite path, three `questTags`
+  arrays with literal `null` junk in them) and a correction to the research doc's own "17 free"
+  count (a text-matching false positive from JSON-escaped apostrophes), in `MOD_CHANGELOG.md`.
+  **Not yet playtested** - first real test of importing Innistrad content specifically.
 
 ### 16. Side-Quest Timers - `Built (2026-08-08), not yet playtested`
 - Every non-story quest fails 30 in-game days after acceptance (notification on failure); the

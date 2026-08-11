@@ -544,7 +544,10 @@
                              "Tibalts Fortress",
                              "Zedruu City",
                              "Lavaforge Kobold",
-                             "Quest_ShardMines"
+                             "Quest_ShardMines",
+                             "CaveRJ",
+                             "Maze3",
+                             "DragonsLairRed"
                          ],
     "structures":  [
                        {

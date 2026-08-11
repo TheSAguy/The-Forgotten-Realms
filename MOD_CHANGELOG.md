@@ -6066,3 +6066,91 @@ if the mismatch bothers the user in practice.
 
 Compiled and verified (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`) after every
 individual change in this round, not just once at the end. **Not yet playtested.**
+
+## Dungeon pool: all 28 DUNGEON_POOL_RESEARCH.md candidates implemented (2026-08-11)
+
+Followed the plan from `DUNGEON_POOL_RESEARCH.md` exactly - no new research, just execution. Split
+into two parts, each independently verified.
+
+**Part 1: the 16 free entries** (this plane's own `points_of_interest.json` already had 17
+`cave`/`dungeon` entries no `biomes/*.json` file ever referenced - DEBUGZONE correctly excluded,
+16 real). Wired each into the biome file matching its `BiomeX` questTag, or `colorless.json` if
+untagged (matches the existing "Aerie"-style precedent for generic filler): `CaveBA` -> black,
+`CaveGB`/`GroveFaerieDragon` -> green, `CaveRJ`/`Maze3` -> red, the rest (`CaveCD`, `Fort`, all 8
+`MageTowerC*`, `Oasis`) -> colorless. **Two real data bugs found and fixed along the way**: `Fort`
+("The Frozen Ruins") had a broken `spriteAtlas` path (`"maps/tileset/buildings.atlas"`, missing the
+`../common/` prefix - same bug class as Crystal_Kingdoms' `UnhallowedAbbey` flagged in the research
+doc) and no `questTags` at all - fixed the path and gave it the same tags its map-sharing sibling
+`Fort1` already uses. Three separate POI entries (`MageTowerC6`, `MageTower7Church`, `MageTowerU5`)
+had a literal `null, null` pair polluting their `questTags` array (pre-existing, unrelated to this
+round's own edits) - cleaned all three while in the file, though only `MageTowerC6` was actually in
+scope for wiring. **Correction to the research doc's own methodology**: a second read of
+`DUNGEON_POOL_RESEARCH.md`'s "17 free" claim during implementation found 2 of them (`Lich's
+Mirror`, `Valor's Reach Arena`) were false positives - the original orphan-scan used plain-text
+substring matching against biome file contents, which misses JSON-escaped apostrophes (`Valor's`
+serializes as `Valor's`) and silently produced 2 wrong "orphaned" results. Re-ran the scan
+using actual JSON parsing (PowerShell `ConvertFrom-Json` against both files, not text search)
+before touching anything - both were already correctly placed, left untouched. Lesson for future
+JSON-vs-biome-file cross-referencing in this repo: always parse, never grep-match on names that
+might contain an apostrophe.
+
+**Part 2: the 11 asset-requiring imports.** Innistrad's 4 (`inn_Cave_river`, `inn_dark_forest`,
+`inn_forgotten_lodge_1`, `inn_lodge_1`) and Shandalar Old Border's 8 (`DemonsBargain`,
+`AncientDiamondMine`, `RiddlesLair`, and all 5 `DragonsLair<Color>` - one more than the research
+doc's "7" estimate; re-auditing during implementation found all 5 legitimately clean, not just the
+originally-sampled subset). Both source planes' assets copied into this plane's own `maps/`
+tree (never edited common's or the source planes' own files) - same standing "opt-in, plane-local"
+rule as every other mod feature.
+
+- **Innistrad import** (`maps/map/cave/` + new `maps/map/hunting_lodge/` folder): copied 4 `.tmx`
+  files plus their full tileset dependency chain (`inn_main.tsx`/`.png`,
+  `INN_dungen_crawler_tileset.tsx` + its `INN_tiles/dungen_crawler.png`, `Inn_Dungeon.tsx`/`.png`,
+  `inn_dungeon_floor.tsx`/`.png`, and Innistrad's own local `buildings.tsx`/`.png` - renamed to
+  `inn_buildings_src.tsx`/`.png` on copy specifically to avoid any naming ambiguity with common's
+  unrelated `buildings.tsx`, with both the renamed `.tsx`'s internal `<image>` reference and
+  `inn_buildings.atlas`'s header line updated to match). Every relative path in the 4 `.tmx` files
+  needed rewriting - Innistrad nests an extra `Innistrad/` folder inside `maps/map/` that this
+  plane's flatter `maps/map/cave/`+`maps/map/hunting_lodge/` structure doesn't have, so every
+  original path was exactly one directory level too deep (`../../../tileset/X` -> `../../tileset/X`,
+  `../../../../../common/...` -> `../../../../common/...` - checked object `template=` references
+  too, not just `<tileset>` lines, since those also carry the same depth-relative paths - dozens of
+  `enemy.tx`/`gold.tx`/`waypoint.tx`/etc references per file, fixed with one `replace_all` per file
+  rather than one at a time). **One broken door found and disabled**, same treatment the 2026-08-10
+  Realm of Legends import gave its own broken doors: `inn_cave_river_entrance.tmx` had a `teleport`
+  pointing at `inn_cave_river_lair.tmx`, a deeper level never scoped for import - cleared to `""`
+  rather than chasing an unbounded import chain (confirmed via `EntryActor.onPlayerCollide()`, same
+  as before, that an empty `targetMap` just exits cleanly). All 4 POI entries added with real
+  `displayName`s (source Innistrad data had none - `PointOfInterestData.getDisplayName()` would
+  have silently shown the literal internal `name` string in-game otherwise), `count` deliberately
+  reduced from Innistrad's own 10-18 down to 2 each (that plane's own world-gen tuning doesn't
+  transfer meaningfully to this plane's much larger map - a judgment call, revisit if these feel
+  over- or under-represented). All wired into `colorless.json` (source data's own `BiomeColorless`
+  tag).
+- **Shandalar Old Border import** (new `maps/map/lair/` folder) turned out simpler than expected:
+  all 8 `.tmx` files' `<tileset>` AND object `template=` references already point at shared
+  `common/maps/tileset/` and `common/maps/obj/` files directly (this specific `lair/` map family
+  never had its own locally-customized tileset, unlike the boss-encounter maps the research doc
+  found genuinely customized art for) - copied unchanged, zero path rewriting needed, verified by
+  checking the new destination depth (`maps/map/lair/`) exactly matches the source depth. All 8
+  teleport doors were already empty - no broken-door cleanup needed either. Even the `spriteAtlas`
+  question resolved for free: Old Border's own `sprites/buildings.atlas` turned out to be nothing
+  but a redirector to the identical shared `common/maps/tileset/buildings.png` with an identical
+  `Cave` region (`xy: 192,272 size: 32,32` - byte-identical to common's own `buildings.atlas`
+  entry) - so the new POI entries just reference `../common/maps/tileset/buildings.atlas` directly,
+  the same already-proven pattern dozens of existing baseline cave POIs use, no new atlas file
+  needed at all. Added the `Hostile` tag to all 7 that were missing it (`AncientDiamondMine` already
+  had it); the 5 `DragonsLair<Color>` entries also got a `BiomeX` tag matching their own name
+  (source data had none) and were wired into that specific color's biome file instead of
+  `colorless.json` - a deliberate choice beyond the research doc's plan, since "White Dragon's Lair"
+  living in White's territory reads better than dumping all 5 into neutral ground. `DemonsBargain`/
+  `AncientDiamondMine`/`RiddlesLair` stayed untagged/generic -> `colorless.json`.
+
+**Verification**: every touched `points_of_interest.json` and `biomes/*.json` file re-validated as
+parseable JSON after each edit (not just at the end); all 5 edited/copied `.tmx`/`.tsx` files
+re-validated as well-formed XML; every relative path in the new content resolved against the real
+filesystem before considering it done (not just visually inspected). Final tally: 229 `cave`/
+`dungeon` POI entries now exist in this plane (up from 217), only `DEBUGZONE` remains
+intentionally unplaced. **Not yet playtested** - this is the first real test of importing
+content from Innistrad specifically (previous cross-plane imports were all from Realm of Legends
+or Shandalar Old Border), and the `hunting_lodge`/`lair` folders are new additions to this plane's
+map-folder taxonomy worth a quick sanity walk-through.

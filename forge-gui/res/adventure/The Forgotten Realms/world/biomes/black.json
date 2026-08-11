@@ -540,7 +540,9 @@
                              "Grolnoks Bog",
                              "Lich\u0027s Mirror",
                              "DemonTower",
-                             "CaveZombie"
+                             "CaveZombie",
+                             "CaveBA",
+                             "DragonsLairBlack"
                          ],
     "structures":  [
                        {

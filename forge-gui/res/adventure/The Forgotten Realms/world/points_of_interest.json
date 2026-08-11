@@ -1903,10 +1903,16 @@
 		"displayName": "The Frozen Ruins",
 		"type": "dungeon",
 		"count": 1,
-		"spriteAtlas": "maps/tileset/buildings.atlas",
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
 		"map": "../common/maps/map/fort/fort_colorless_1_snow.tmx",
-		"radiusFactor": 0.8
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Hostile",
+			"Dungeon",
+			"Fort",
+			"Sidequest"
+		]
 	},
 	{
 		"name": "Fort1",
@@ -2698,8 +2704,7 @@
 			"MageTower",
 			"Dungeon",
 			"Hostile",
-			null,
-			null
+			"BiomeColorless"
 		]
 	},
 	{
@@ -2714,9 +2719,7 @@
 		"questTags": [
 			"MageTower",
 			"Dungeon",
-			"Hostile",
-			null,
-			null
+			"Hostile"
 		]
 	},
 	{
@@ -2866,9 +2869,7 @@
 		"questTags": [
 			"MageTower",
 			"Hostile",
-			"Dungeon",
-			null,
-			null
+			"Dungeon"
 		]
 	},
 	{
@@ -4395,5 +4396,179 @@
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Story"]
+	},
+	{
+		"name": "inn_Cave_river",
+		"displayName": "River Cave",
+		"type": "cave",
+		"count": 2,
+		"spriteAtlas": "../The Forgotten Realms/maps/tileset/inn_buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/cave/inn_cave_river_entrance.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Hostile",
+			"Cave",
+			"BiomeColorless",
+			"Sidequest"
+		]
+	},
+	{
+		"name": "inn_dark_forest",
+		"displayName": "Dark Forest",
+		"type": "cave",
+		"count": 2,
+		"spriteAtlas": "../The Forgotten Realms/maps/tileset/inn_buildings.atlas",
+		"sprite": "dark_forest",
+		"map": "../The Forgotten Realms/maps/map/cave/dark_forest.tmx",
+		"radiusFactor": 0.4,
+		"questTags": [
+			"Hostile",
+			"Cave",
+			"BiomeColorless",
+			"Sidequest"
+		]
+	},
+	{
+		"name": "inn_forgotten_lodge_1",
+		"displayName": "Forgotten Hunting Lodge",
+		"type": "dungeon",
+		"count": 2,
+		"spriteAtlas": "../The Forgotten Realms/maps/tileset/inn_buildings.atlas",
+		"sprite": "lodge_1",
+		"map": "../The Forgotten Realms/maps/map/hunting_lodge/inn_forgotten_lodge_1.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Hostile",
+			"Dungeon",
+			"BiomeColorless",
+			"Sidequest"
+		]
+	},
+	{
+		"name": "inn_lodge_1",
+		"displayName": "Hunting Lodge",
+		"type": "dungeon",
+		"count": 2,
+		"spriteAtlas": "../The Forgotten Realms/maps/tileset/inn_buildings.atlas",
+		"sprite": "lodge_1",
+		"map": "../The Forgotten Realms/maps/map/hunting_lodge/inn_lodge_1.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Hostile",
+			"Dungeon",
+			"BiomeColorless",
+			"Sidequest"
+		]
+	},
+	{
+		"name": "DemonsBargain",
+		"displayName": "Demon's Bargain",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/lair/demons_bargain.tmx",
+		"radiusFactor": 0.6,
+		"questTags": [
+			"Hostile"
+		]
+	},
+	{
+		"name": "AncientDiamondMine",
+		"displayName": "Ancient Diamond Mine",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/lair/ancient_diamond_mine.tmx",
+		"radiusFactor": 0.6,
+		"questTags": [
+			"DiamondMine",
+			"Hostile"
+		]
+	},
+	{
+		"name": "RiddlesLair",
+		"displayName": "Sphinx's Sanctum",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/lair/riddles_lair.tmx",
+		"radiusFactor": 0.6,
+		"questTags": [
+			"Hostile"
+		]
+	},
+	{
+		"name": "DragonsLairWhite",
+		"displayName": "Dragon's Lair",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/lair/dragons_lair_white.tmx",
+		"radiusFactor": 0.6,
+		"questTags": [
+			"Hostile",
+			"BiomeWhite"
+		]
+	},
+	{
+		"name": "DragonsLairBlue",
+		"displayName": "Dragon's Lair",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/lair/dragons_lair_blue.tmx",
+		"radiusFactor": 0.6,
+		"questTags": [
+			"Hostile",
+			"BiomeBlue"
+		]
+	},
+	{
+		"name": "DragonsLairBlack",
+		"displayName": "Dragon's Lair",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/lair/dragons_lair_black.tmx",
+		"radiusFactor": 0.6,
+		"questTags": [
+			"Hostile",
+			"BiomeBlack"
+		]
+	},
+	{
+		"name": "DragonsLairRed",
+		"displayName": "Dragon's Lair",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/lair/dragons_lair_red.tmx",
+		"radiusFactor": 0.6,
+		"questTags": [
+			"Hostile",
+			"BiomeRed"
+		]
+	},
+	{
+		"name": "DragonsLairGreen",
+		"displayName": "Dragon's Lair",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/lair/dragons_lair_green.tmx",
+		"radiusFactor": 0.6,
+		"questTags": [
+			"Hostile",
+			"BiomeGreen"
+		]
 	}
 ]

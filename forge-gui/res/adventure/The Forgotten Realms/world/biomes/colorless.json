@@ -145,7 +145,25 @@
                              "Quest_APortalToNowhere",
                              "Quest_DigSite",
                              "Quest_PrimalJungle",
-                             "Quest_BanditCave"
+                             "Quest_BanditCave",
+                             "CaveCD",
+                             "Fort",
+                             "MageTowerC",
+                             "MageTowerC2",
+                             "MageTowerC3",
+                             "MageTowerC4",
+                             "MageTowerC5",
+                             "MageTowerC6",
+                             "MageTowerC8",
+                             "MageTowerCE",
+                             "Oasis",
+                             "inn_Cave_river",
+                             "inn_dark_forest",
+                             "inn_forgotten_lodge_1",
+                             "inn_lodge_1",
+                             "DemonsBargain",
+                             "AncientDiamondMine",
+                             "RiddlesLair"
                          ],
     "structures":  [
                        {

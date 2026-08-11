@@ -534,7 +534,10 @@
                              "CopperhostForest",
                              "Garruk Forest",
                              "Scarecrow Farm",
-                             "Quest_FrostbittenCavern"
+                             "Quest_FrostbittenCavern",
+                             "CaveGB",
+                             "GroveFaerieDragon",
+                             "DragonsLairGreen"
                          ],
     "structures":  [
                        {
