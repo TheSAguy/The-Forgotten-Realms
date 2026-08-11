@@ -9,6 +9,7 @@ import forge.adventure.data.EnemyData;
 import forge.adventure.data.PointOfInterestData;
 import forge.adventure.data.WorldData;
 import forge.adventure.pointofintrest.PointOfInterest;
+import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.world.World;
@@ -838,6 +839,46 @@ public class TerritoryControl {
         return attackerPower / (attackerPower + defenderPower);
     }
 
+    /**
+     * Resolves any active guards at target before an attack proceeds (user spec 2026-08-11,
+     * refined after follow-up: strongest guard fights first; a win against one guard does NOT
+     * weaken the attacker for the next - each fight is an independent fresh roll at full
+     * strength; a Capitol's 2 guards are fought in sequence, both must fall before the attacker
+     * reaches the Capitol duel itself). Returns true if the attacker broke through every guard
+     * (or there were none), false if a guard repelled the attack - the caller must not proceed to
+     * capture/duel in that case; the mage is simply spent.
+     */
+    private static boolean resolveGuardDefense(EnemySprite mage, PointOfInterest target) {
+        PointOfInterestChanges changes = WorldSave.getCurrentSave().getPointOfInterestChanges(target.getID());
+        if (changes == null)
+            return true;
+        while (changes.getGuardCount() > 0) {
+            int strongestIndex = 0;
+            for (int i = 1; i < changes.getGuardCount(); i++) {
+                if (tierPower(changes.getGuardTier(i)) > tierPower(changes.getGuardTier(strongestIndex)))
+                    strongestIndex = i;
+            }
+            String guardTier = changes.getGuardTier(strongestIndex);
+            float attackerChance = guardFightAttackerWinChance(mage.getData().tier, guardTier);
+            boolean attackerWins = WorldSave.getCurrentSave().getWorld().getRandom().nextFloat() < attackerChance;
+            // Diagnostic-only logging, same convention as [TFR-CaptureOdds] - greppable in forge.log.
+            System.out.println("[TFR-GuardFight] " + mage.territoryColor + " mage (tier=" + mage.getData().tier
+                    + ") vs " + EconomyBuildings.guardTierDisplayName(guardTier) + " guard at "
+                    + target.getDisplayName() + " (chance=" + attackerChance + ") -> "
+                    + (attackerWins ? "ATTACKER WINS, guard falls" : "GUARD WINS, attacker repelled"));
+            if (!attackerWins) {
+                GameHUD.getInstance().addNotification("[GREEN]Your " + EconomyBuildings.guardTierDisplayName(guardTier)
+                        + " guard repelled " + capitalize(mage.territoryColor) + "'s attack at "
+                        + target.getDisplayName() + "!", true);
+                return false;
+            }
+            changes.removeGuardAt(strongestIndex);
+            GameHUD.getInstance().addNotification("[RED]Your " + EconomyBuildings.guardTierDisplayName(guardTier)
+                    + " guard fell defending " + target.getDisplayName() + "!", true);
+        }
+        return true;
+    }
+
     // Roaming-spawn intrusion (MOD_SCOPE.md #7 follow-up, user request 2026-08-10): the nearest
     // OTHER color's town/capital/castle within SPAWN_INTRUSION_RADIUS_TILES of pos, or null if
     // none. excludeColor lets the caller skip the biome's own color - standing in your own
@@ -1161,6 +1202,11 @@ public class TerritoryControl {
         // duel instead. Checked by canonical data.name (immune to the Capitol's "Camelot"
         // displayName), same identification pattern every capital lookup in this class uses.
         if (TownRestoration.CAPITOL_POI_NAME.equals(target.getData().name)) {
+            // Guard defense (MOD_SCOPE.md #22, 2026-08-11): both of the Capitol's guards (if
+            // hired) must fall before a mage reaches the forced duel at all - resolveGuardDefense()
+            // already fights them strongest-first with no weakening between fights.
+            if (!resolveGuardDefense(mage, target))
+                return;
             pendingCapitolDefenseMage = mage;
             GameHUD.getInstance().addNotification("[RED]" + capitalize(mage.territoryColor) + "'s mage has reached your Capitol!", true);
             return;
@@ -1176,6 +1222,29 @@ public class TerritoryControl {
         String revertedFromColor = null;
 
         if (targetNeutral) {
+            // Guard defense + a fair fight for player-owned towns (MOD_SCOPE.md #22, 2026-08-11 -
+            // corrects a real gap this same day's research found: isWastelandTown() is a static
+            // property of the town's ORIGINAL biome, true for player-owned wasteland-origin towns
+            // too, so without this check every player town would fall through to the unconditional
+            // flip below exactly like genuinely-unclaimed territory - no roll, no defense at all).
+            // Truly-neutral/never-claimed towns are UNCHANGED - this only branches for towns the
+            // player has actually restored.
+            boolean playerOwnedNow = TownRestoration.isTownRestored(
+                    WorldSave.getCurrentSave().peekPointOfInterestChanges(target.getID()));
+            if (playerOwnedNow) {
+                if (!resolveGuardDefense(mage, target))
+                    return;
+                float captureChance = attackerWinChance(mage.getData().tier);
+                boolean attackerWins = world.getRandom().nextFloat() < captureChance;
+                System.out.println("[TFR-CaptureOdds] " + mage.territoryColor + " mage (tier=" + mage.getData().tier
+                        + ", chance=" + captureChance + ") attacking player-owned " + target.getDisplayName()
+                        + " -> " + (attackerWins ? "CAPTURED" : "REPELLED"));
+                if (!attackerWins) {
+                    GameHUD.getInstance().addNotification("[GREEN]You repelled " + capitalize(mage.territoryColor)
+                            + "'s attack on " + target.getDisplayName() + "!", true);
+                    return;
+                }
+            }
             newData = matchingTownData(target.getData(), mage.territoryColor);
             repaintColor = mage.territoryColor;
         } else if (targetOwnerColor == null || targetOwnerColor.equals(mage.territoryColor)) {

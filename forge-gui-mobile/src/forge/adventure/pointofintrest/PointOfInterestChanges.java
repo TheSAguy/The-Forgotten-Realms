@@ -43,6 +43,14 @@ public class PointOfInterestChanges implements SaveFileContent  {
     // #8/#13). Missing entry means level 1 (base) - a not-yet-upgraded building or a pre-existing
     // save needs no migration, getBuildingLevel() already defaults correctly.
     private final java.util.Map<Integer, Integer> buildingLevels = new HashMap<>();
+    // Armory Guards (2026-08-11, MOD_SCOPE.md #22) - one entry per active guard at this town's/
+    // capitol's Armory. Parallel lists (tier + the in-game day salary was last paid), matching
+    // every other simple-collection field in this class rather than a custom GuardData POJO.
+    // Tier strings match EnemyData.tier's own values (Common/Uncommon/Rare/Mythic) - "Apprentice/
+    // Adept/Master/Challenger" is a display-only mapping, same convention as mage tiers already
+    // use (see EconomyBuildings.guardTierDisplayName()).
+    private final java.util.List<String> guardTiers = new ArrayList<>();
+    private final java.util.List<Integer> guardLastPaidDay = new ArrayList<>();
 
     public static class Map extends HashMap<String,PointOfInterestChanges> implements SaveFileContent {
         @Override
@@ -124,6 +132,18 @@ public class PointOfInterestChanges implements SaveFileContent  {
             if (obj instanceof java.util.Map)
                 buildingLevels.putAll((java.util.Map<Integer, Integer>) obj);
         }
+        guardTiers.clear();
+        if (data.containsKey("guardTiers")) {
+            Object obj = data.readObject("guardTiers");
+            if (obj instanceof java.util.List)
+                guardTiers.addAll((java.util.List<String>) obj);
+        }
+        guardLastPaidDay.clear();
+        if (data.containsKey("guardLastPaidDay")) {
+            Object obj = data.readObject("guardLastPaidDay");
+            if (obj instanceof java.util.List)
+                guardLastPaidDay.addAll((java.util.List<Integer>) obj);
+        }
     }
 
     @Override
@@ -141,6 +161,8 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("pinnedShopNames", new HashMap<>(pinnedShopNames));
         data.storeObject("shopLastRefreshDay", new HashMap<>(shopLastRefreshDay));
         data.storeObject("buildingLevels", new HashMap<>(buildingLevels));
+        data.storeObject("guardTiers", new ArrayList<>(guardTiers));
+        data.storeObject("guardLastPaidDay", new ArrayList<>(guardLastPaidDay));
         return data;
     }
 
@@ -151,6 +173,37 @@ public class PointOfInterestChanges implements SaveFileContent  {
 
     public void setBuildingLevel(int objectId, int level) {
         buildingLevels.put(objectId, level);
+    }
+
+    // ---- Armory Guards (2026-08-11, MOD_SCOPE.md #22) ----
+
+    public int getGuardCount() {
+        return guardTiers.size();
+    }
+
+    public String getGuardTier(int index) {
+        return guardTiers.get(index);
+    }
+
+    public int getGuardLastPaidDay(int index) {
+        return guardLastPaidDay.get(index);
+    }
+
+    public void setGuardLastPaidDay(int index, int day) {
+        guardLastPaidDay.set(index, day);
+    }
+
+    public void hireGuard(String tier, int currentDay) {
+        guardTiers.add(tier);
+        guardLastPaidDay.add(currentDay);
+    }
+
+    /** Removes a guard by tier fight order (dismissed by the player, killed in combat, or
+     *  disbanded for missed salary) - callers resolve the index themselves (e.g. strongest-first
+     *  for combat, see TerritoryControl). */
+    public void removeGuardAt(int index) {
+        guardTiers.remove(index);
+        guardLastPaidDay.remove(index);
     }
 
     public String getPinnedShopName(int objectId) {

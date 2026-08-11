@@ -17,6 +17,7 @@ import forge.adventure.data.ShopData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
+import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.MapStage;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.world.WorldSave;
@@ -121,6 +122,44 @@ public class EconomyBuildings {
     // Placeholder cost per user spec 2026-08-11 ("some 100g for now") - shared by every building
     // upgrade (Arena today; Armory once its level 1 art and Guard-hiring mechanic land, Task #13).
     public static final int BUILDING_UPGRADE_COST = 100;
+
+    // ---- Armory Guards (2026-08-11, MOD_SCOPE.md #22) ----
+    // Tiers reuse EnemyData.tier's own internal strings (Common/Uncommon/Rare/Mythic - see
+    // TerritoryControl.guardFightAttackerWinChance()); these are the display-only mapping to the
+    // "Apprentice/Adept/Master/Challenger" wording the user (and the mage-tier system) uses.
+    public static final String[] GUARD_TIERS_ASCENDING = {"Common", "Uncommon", "Rare", "Mythic"};
+
+    public static String guardTierDisplayName(String tier) {
+        if (tier == null)
+            return "Apprentice";
+        switch (tier) {
+            case "Uncommon": return "Adept";
+            case "Rare": return "Master";
+            case "Mythic": return "Challenger";
+            default: return "Apprentice";
+        }
+    }
+
+    // Weekly salary, also paid upfront on hire (user spec exact numbers, 2026-08-11).
+    public static int guardWeeklyGoldCost(String tier) {
+        if (tier == null)
+            return 50;
+        switch (tier) {
+            case "Uncommon": return 100;
+            case "Rare": return 150;
+            case "Mythic": return 200;
+            default: return 50;
+        }
+    }
+
+    public static int guardWeeklyShardCost(String tier) {
+        return "Mythic".equals(tier) ? 5 : 0;
+    }
+
+    // 1 guard per ordinary town, 2 for the Capitol (user spec).
+    public static int maxGuardsForTown(String poiName) {
+        return forge.adventure.util.TownRestoration.CAPITOL_POI_NAME.equals(poiName) ? 2 : 1;
+    }
 
     // Teleporter art (2026-08-10, user spec): reuses the stock "portal4" (blue) animated portal
     // already shipped for the game's own dungeon entrances (sprites/portal4.atlas / the shared
@@ -976,6 +1015,34 @@ public class EconomyBuildings {
                             changes.addBankBalance(interest);
                     }
                 }
+            }
+            // Guard weekly salary (2026-08-11, MOD_SCOPE.md #22) - not tied to an economy-building-
+            // type registration like the loop above, checked directly off guard state. Back-to-front
+            // so a mid-loop disband (removeGuardAt) doesn't skip the next guard. A while loop per
+            // guard (not a single if) so a long fast-forward that skips several due weeks at once
+            // still charges/disbands correctly, same reasoning as the Bank interest periods above.
+            for (int i = changes.getGuardCount() - 1; i >= 0; i--) {
+                String tier = changes.getGuardTier(i);
+                int lastPaid = changes.getGuardLastPaidDay(i);
+                boolean disbanded = false;
+                while (newDayCount - lastPaid >= 7) {
+                    int goldCost = guardWeeklyGoldCost(tier);
+                    int shardCost = guardWeeklyShardCost(tier);
+                    if (AdventurePlayer.current().getGold() >= goldCost && AdventurePlayer.current().getShards() >= shardCost) {
+                        AdventurePlayer.current().takeGold(goldCost);
+                        if (shardCost > 0)
+                            AdventurePlayer.current().takeShards(shardCost);
+                        lastPaid += 7;
+                    } else {
+                        GameHUD.getInstance().addNotification("[RED]Your " + guardTierDisplayName(tier)
+                                + " guard was disbanded - salary went unpaid!", true);
+                        changes.removeGuardAt(i);
+                        disbanded = true;
+                        break;
+                    }
+                }
+                if (!disbanded)
+                    changes.setGuardLastPaidDay(i, lastPaid);
             }
         }
     }

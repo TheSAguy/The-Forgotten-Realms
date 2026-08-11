@@ -6278,3 +6278,62 @@ visually confirmed still legible/distinguishable by color at that size before fi
 map-indicator use.
 
 Compiled and verified after every step. **Not yet playtested** (new art, new Ante behavior).
+
+## Armory Guard system, part 1: data model, salary, combat resolution (2026-08-11)
+
+Four design questions resolved with the user before starting (asked via structured multiple
+choice, not guessed): guards defend player-owned ordinary towns too (not just the Capitol - see
+the corrected research finding below); the Capitol's 2 guards fight strongest-first, in full
+sequence, no weakening carried between fights; players can Dismiss a guard manually, not just let
+it lapse; the deck-test 3rd Arena mode is confirmed for this round (clarified: player pilots one
+deck, AI pilots the other - matches the original spec, an earlier summary of it back to the user
+was worded wrong).
+
+**Correction to this same day's earlier research.** Told the user "only the Capitol can be
+attacked" - checking `onMageArrived()`'s actual branches before building on that claim found it
+was wrong. `TownRestoration.isWastelandTown(data)` is a STATIC property of a town's ORIGINAL biome
+tag (`BiomeColorless` in its template data), true for player-owned wasteland-origin towns exactly
+as much as for genuinely-unclaimed ones - `onMageArrived()`'s `targetNeutral` branch already
+treated both identically: an unconditional flip to the mage's color, zero roll, zero defense. The
+"(Player Owned!)" forge.log warning already logged during dispatch target selection
+(`TerritoryControl.dispatch()`) confirms this was a known-but-unaddressed scenario, not a
+theoretical one. Real gap wasn't attackability - it was fairness/defense once attacked.
+
+**Data model** (`PointOfInterestChanges.java`): parallel `guardTiers`/`guardLastPaidDay` lists
+(not a custom POJO - matches every other simple-collection field in this class already), tier
+strings reuse `EnemyData.tier`'s own Common/Uncommon/Rare/Mythic values rather than a new scale.
+`getGuardCount()`/`getGuardTier()`/`hireGuard()`/`removeGuardAt()`/`get`/`setGuardLastPaidDay()`.
+
+**Costs and display names** (`EconomyBuildings.java`): `guardWeeklyGoldCost()`/
+`guardWeeklyShardCost()` (50/100/150/200g, +5 shards only at Mythic/Challenger, exact user spec),
+`guardTierDisplayName()` (Common->Apprentice, etc. - the same flavor-name mapping the mage-tier
+system already established, not a new one), `maxGuardsForTown()` (1 ordinary, 2 for
+`TownRestoration.CAPITOL_POI_NAME` specifically).
+
+**Weekly salary tick**, folded into `EconomyBuildings.processDaysPassed()`'s existing per-town
+sweep (same `WorldSave.getAllPointOfInterestChanges()` loop the mine/bank-interest logic already
+iterates, rather than a second full pass) - a `while` loop per guard, not a single `if`, so a long
+fast-forward that skips several due weeks at once still charges/disbands correctly (same reasoning
+the Bank interest period-counting already uses). Insufficient gold OR shards at any due week
+disbands that guard immediately with a notification.
+
+**Combat resolution** (`TerritoryControl.java`): new `resolveGuardDefense(EnemySprite mage,
+PointOfInterest target)` - loops picking the CURRENTLY-strongest remaining guard each iteration
+(trivial with at most 2 guards, no need for a stable pre-sorted index list), rolls
+`guardFightAttackerWinChance()`, guard loss removes it and continues to the next (fresh roll, no
+carried weakening - literal user spec), guard win stops the whole attack (mage spent, caller
+returns without proceeding). Wired into `onMageArrived()` at both points that needed it: before
+queuing the Capitol's forced duel, and inside the `targetNeutral` branch specifically when
+`TownRestoration.isTownRestored()` confirms the target is player-owned (leaves genuinely-neutral,
+never-claimed wasteland towns completely unchanged - same unconditional-flip behavior as before,
+by design, since that's not what the user asked to change). The post-guard roll for ordinary towns
+reuses the exact same `attackerWinChance(tier)` formula the AI-vs-AI capture path already uses,
+for consistency rather than inventing a third odds system.
+
+**Not yet built (next chunk)**: the actual Hire/Dismiss UI (button placement, tier picker), the
+Arena/Armory upgrade button that unlocks Level 2 in the first place, and the map indicator icon
+actually being drawn near a guarded town/capitol. All of the above is real, compiled,
+save-persisted infrastructure - genuinely reachable once the UI exists, not a stub - but nothing
+calls `hireGuard()` from a player action yet.
+
+Compiled and verified after every step. **Not yet playtested.**
