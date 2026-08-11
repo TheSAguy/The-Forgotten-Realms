@@ -1333,6 +1333,35 @@ to depend on each other.
   confirmed War-tier via `ColorReputation.getStatus()`; a miss falls through to the ordinary pick,
   same as any other roll. Since "Slivdrazi Monstrosity" no longer needs a dungeon home either, all
   38 are included, not just the 37 with one. Not yet playtested.
+- **Final pre-playtest audit (2026-08-10, user request "one last check")**: ran a from-scratch
+  reachability pass across the whole catalog rather than trusting earlier partial checks - every
+  item (628), every enemy (1,469), every quest item (63, confirmed each resolves to a real source
+  and traced the dungeon-sourced ones by hand to confirm none sit behind a broken/missing path).
+  Two real things found and fixed, one false alarm ruled out:
+  - **11 enemies (`Graaz`, `Hope of Ghirapur`, `Karn`, `Liberator`, `Omarthis`, `Syr Ginger`, `The
+    Dawning Archaic`, `The Peregrine Dynamo`, `Traxos`, `Ulamog`, `Zhulodok`) were completely
+    unreachable** - tagged `colors:"C"` (a different colorless marker than the blank-string
+    convention the earlier `player.json`/roaming-pool fixes checked for), so they fell through
+    every wiring pass done so far. Added all 11 to both `colorless.json` and `player.json`'s
+    roaming pools, same treatment the blank-color enemies already got.
+  - **A JSON-escaping false alarm, ruled out rather than "fixed"**: the first obtainability pass
+    flagged 14 of the 40 recently-imported trophy items as unreachable - every one of them has an
+    apostrophe in its name (`Attendant's Prayerbook`, `Windwalker's Blessing`, etc.). Root cause:
+    `items.json`'s own name field round-tripped through `ConvertTo-Json` at some point and stores
+    a literal apostrophe, while `enemies.json`'s reference to that same name (never re-serialized
+    the same way) stores the JSON-escaped `'` form - a plain substring search for one doesn't
+    find the other. Confirmed by direct byte inspection, not assumption. Rebuilt the audit script
+    to check both forms; all 14 resolved cleanly, and this doubles as confirmation the "None of
+    these need missing dungeons" question is fully settled too, once verified independently that
+    every dungeon-sourced quest item's own reward object sits on an already-reachable floor (spot-
+    checked `Victor's Key` directly - its "Victor" enemy sits on `Church_of_Valgavoth_1.tmx`'s main
+    floor, unrelated to that file's own already-disabled dead-end door from an earlier round) and
+    that zero teleport targets anywhere in this plane point at a file that doesn't exist (verified
+    against the actual runtime resolution `TileMapScene.load()` uses - `Config.getFilePath()`,
+    simple prefix-concatenation from the plane root, not a path relative to the referencing file -
+    confirmed against a known-working stock example, `grolnok.tmx`, before trusting the result).
+  - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
+    real, reachable source.**
 
 ### 20. Upgradable Arena — `Not Started`
 - User idea, not yet scoped or discussed in detail.

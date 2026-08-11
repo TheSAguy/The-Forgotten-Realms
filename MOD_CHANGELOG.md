@@ -5503,3 +5503,72 @@ natural fit for the roaming-spawn system this mod already has, unlike a scripted
 
 Compiled clean. Not yet playtested - needs a save with War-tier reputation against at least one
 color to actually trigger.
+
+## Final pre-playtest audit: 0 items unobtainable, 0 enemies unspawnable (2026-08-10)
+
+User's last check before playtesting: any items not obtainable, any enemies not spawn-able, and
+confirmation that every quest item has a real quest with no missing dungeons behind it. Ran a
+from-scratch audit rather than trusting the partial checks from earlier rounds, since obtainability
+had been checked piecemeal (arena/Armory pools, boss rewards, the 40-item import) but never
+re-verified as one whole pass since the roaming-bestiary import landed.
+
+**Item obtainability**: scanned all 628 items against `shops.json` + `quests.json` + every `.tmx`/
+`.tx` map file + `enemies.json`. First pass flagged 14 - every one of the 40 trophy items imported
+two rounds ago that has an apostrophe in its name (`Attendant's Prayerbook`, `Breathstealer's
+Blade`, `Windwalker's Blessing`, etc.). Traced this to a real but harmless mechanical cause rather
+than assuming it was a genuine gap: `items.json`'s own copy of each name stores a literal
+apostrophe (round-tripped through `ConvertTo-Json` at some point), while `enemies.json`'s reference
+to the same name (from the original Shandalar Old Border merge, never re-serialized the same way)
+stores it JSON-escaped as `'` - confirmed directly by inspecting the raw file bytes around one
+match rather than guessing. A plain substring search for `"Attendant's Prayerbook"` never matches
+text containing `"Attendant's Prayerbook"`. Rebuilt the check to test both the literal and
+escaped forms - all 14 resolved cleanly. **Final count: 0 of 628 items unobtainable.**
+
+**Enemy spawn-ability**: built a comprehensive reachability check covering every known spawn path -
+biome roaming pools (`white`/`blue`/`black`/`red`/`green`/`colorless`/`player` `enemies[]` arrays),
+named references in any dungeon `.tmx` object or arena `enemyPool`, the new `WAR_TIER_BOSSES` map
+(hardcoded in Java, supplied by hand since it's not in any JSON file), `EnemyData.questTags`-based
+quest-spawn eligibility (`AdventureQuestController.getExtraQuestSpawns()` draws from the *entire*
+roster filtered by tag match against an active quest's `Defeat` objective, not a fixed placement -
+confirmed by reading the method before counting on it), and `nextEnemy` chain targets (a boss's
+next-form enemy is reachable once its parent is, even with no separate placement of its own).
+
+Found a real, previously-undiscovered gap: **11 enemies (`Graaz`, `Hope of Ghirapur`, `Karn`,
+`Liberator`, `Omarthis`, `Syr Ginger`, `The Dawning Archaic`, `The Peregrine Dynamo`, `Traxos`,
+`Ulamog`, `Zhulodok`) were completely unreachable** - all tagged `colors:"C"`, a different
+colorless-marker convention than the blank-string (`colors:""`) one both the `player.json` roster
+build and the roaming-pool wiring fix specifically checked for, so all 11 silently fell through
+every earlier pass. `Ulamog`/`Zhulodok` here are Realm of Legends' own lightweight "legendary
+creature" entries (`decks/legends/ulamog.dck`) - unrelated to (and not blocked by) the still-
+disabled Eldrazi Prison boss-chamber doors from an earlier round, which lead to entirely different,
+never-imported files. Fixed by adding all 11 (none boss-flagged, confirmed before touching them) to
+both `colorless.json` and `player.json`'s `enemies[]` arrays, the same treatment blank-color
+enemies already got. **Final count: 0 of 1,469 enemies unreachable** (up from 1,193 in a biome pool
+before the fix to 1,204 after - exactly the 11 added).
+
+**Quest items**: all 63 `questItem:true` items resolve to at least one real source (0 orphaned).
+Worth noting for future reference: `questItem` doesn't actually gate a delivery-quest mechanic in
+this engine at all - checked every read site in the Java code first rather than assuming. It's a
+UI/protection flag only (`InventoryScene` disables its delete button, `AdventurePlayer` strips
+quest items on some reset conditions, `ItemListData` excludes them from the Sketchbook
+auto-collection). The one real item-requirement mechanism that exists,
+`AdventureQuestStage.itemNames` (a `"Fetch"` objective checking `Current.player().countItem()`), is
+used exactly once in the whole `quests.json` (the base "Landscape Sketchbook," a real working
+dig-site reward). Every other quest item's real "quest" is simply being a named, protected reward
+from a specific piece of content - a dungeon treasure, a boss kill, a direct-use utility
+(`commandOnUse`, like the teleport Omenstones) - which is the correct, intentional design for this
+engine's quest-item concept, not a gap.
+
+**"None of these need missing dungeons," confirmed two ways**: (1) `grep -rl "Realm of Legends"`
+across this plane's `maps/` returns empty - zero remaining broken cross-plane references, full
+stop. (2) Traced every dungeon-sourced quest item to its exact file and spot-checked the
+highest-risk one directly - `Victor's Key` (in `Church_of_Valgavoth_1.tmx`, a file whose own
+deeper-level door was disabled two rounds ago for being broken) comes from defeating "Victor," an
+ordinary enemy placed on that dungeon's main accessible floor, entirely unrelated to the disabled
+door. A first pass of this same check flagged the Gitrog Bog pair's own teleport link (fixed two
+rounds ago) as broken too - traced this before trusting it and found it was *my own verification
+script's* wrong assumption, not a real bug: `TileMapScene.load()` resolves `teleport` values via
+`Config.getFilePath()` (`prefix + path`, where `prefix` is the current plane's root), not a path
+relative to the referencing file the way `<tileset source>` paths are - confirmed against a
+known-working stock example (`grolnok.tmx`'s own same-folder teleport uses the identical
+`../common/maps/map/grolnok/grolnok_f1.tmx` style already). The original fix was correct all along.
