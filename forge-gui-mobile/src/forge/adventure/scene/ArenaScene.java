@@ -129,7 +129,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         // RewardScene's guardsButton/upgradeButton already use. Positioned above the done button,
         // stacked (upgrade above toggle) - at most one is ever visible at a time (upgrade before
         // Level 2, toggle after), so they never actually overlap on screen.
-        arenaUpgradeButton = Controls.newTextButton("Upgrade to Level 2 (" + EconomyBuildings.BUILDING_UPGRADE_COST + "g)", this::promptUpgradeArena);
+        arenaUpgradeButton = Controls.newTextButton("Upgrade to Level 2 (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])", this::promptUpgradeArena);
         arenaUpgradeButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
         arenaUpgradeButton.setPosition(doneButton.getX() + doneButton.getWidth() - arenaUpgradeButton.getWidth(),
                 doneButton.getY() + doneButton.getHeight() + 10f);
@@ -186,6 +186,9 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         boolean midMatch = arenaStarted || roundsWon != 0;
         int level = arenaBuildingLevel();
         arenaUpgradeButton.setVisible(!midMatch && level < 2);
+        // Text refreshed here too (round 4, difficulty price multiplier), not just at
+        // construction - the label was previously baked in once from the raw constant.
+        arenaUpgradeButton.setText("Upgrade to Level 2 (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])");
         boolean toggleAvailable = !midMatch && level >= 2 && challengeArenaJson != null;
         arenaModeToggleButton.setVisible(toggleAvailable);
         if (toggleAvailable)
@@ -199,11 +202,11 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     private void promptUpgradeArena() {
         if (arenaMapStage == null || arenaMapStage.getChanges() == null)
             return;
-        int cost = EconomyBuildings.BUILDING_UPGRADE_COST;
+        int cost = EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST); // round 4
         if (AdventurePlayer.current().getGold() < cost)
             return;
         showDialog(createGenericDialog("", "Upgrade this Arena to Level 2 for " + cost
-                        + " gold?\nUnlocks the Challenging Arena.",
+                        + " [+Gold]?\nUnlocks the Challenging Arena.",
                 Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
                     removeDialog();
                     AdventurePlayer.current().takeGold(cost);

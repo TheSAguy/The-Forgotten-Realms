@@ -6943,3 +6943,71 @@ unused-import catch - an `import forge.deck.Deck;` added speculatively, never ac
 `Deck` is only ever handled via the already-typed `EnemyData.fixedDeck`/`AdventurePlayer.getDeck()`
 return values, no local variable of that type). Deployed via jar splice only - no resource/asset
 files changed this round, pure Java.
+
+## Resource icons on cost menus, difficulty price multiplier (2026-08-11, round 4)
+
+User asked for gold icons on the Bank's Deposit/Withdraw amounts (originally scoped as its own
+`#23`), then in the same message expanded it: apply the same treatment across every building/shop
+dialog, "follow the Exchange menu's pattern", plus a brand-new difficulty price multiplier (Easy
+25% cheaper, Hard 25% more, Insane 50% more than Normal). Given the surface area (every cost dialog
+in the mod, plus a new cross-cutting mechanic), scoped with the user via AskUserQuestion before
+touching code: full icon rollout now (not just Bank); multiplier applies to building repair/
+construction/upgrade costs and guard hiring costs, explicitly not card/item shop prices; and it
+does not stack with reputation pricing - it only ever touches costs that have no reputation
+modifier today.
+
+**Icons turned out simpler than expected.** The plan going in was to mirror the Exchange dialog's
+`buildTradeRow()` (real `Image` actors appended onto a `TextraButton`), since that's the mod's own
+established "icon after an amount" pattern. Checking first, though: `[+Gold]` and `[+Shards]` are
+already real, working font-markup tags - `Controls.getTextraFont()` registers `items.atlas` icons
+under those exact names, and they're already used in several places in the codebase
+(`InventoryScene.java`'s `useButton.setText(... + "[+Shards]")`, `ItemData.java`,
+`ShardTraderScene.java`, and this mod's own `EconomyBuildings.refreshBankDialog()` title,
+`"[+Gold]Bank"`, which is why that one dialog already half-had an icon). Every cost touched this
+round is gold-only or gold+shards, so plain markup directly in the existing button/label text
+(`amount + " [+Gold]"`) does the job with zero new plumbing - Exchange's Image-actor approach exists
+specifically because Wood/Stone have no font-registered icon (a gap noted in an existing
+`MapStage.java` comment), which doesn't apply to anything in this round. Rolled out to: Bank
+(deposit/withdraw amounts, balance display), Guard hiring costs (weekly gold/shard cost, shown per
+tier), Job Board restore, individual shop rebuild, Capitol upgrade, new-economy-building
+construction cost, Arena/Armory Level 2 upgrade cost, Archaeologist expedition cost.
+
+**Difficulty price multiplier - `EconomyBuildings.difficultyPriceMultiplier()`/`scaledCost(int)`.**
+Mirrors the index-lookup-against-`config.json`'s-`difficulties[]`-array pattern two other systems
+already established (`World.visionRadiusDifficultyOffset()`, #3's FoW vision scaling;
+`TerritoryControl.maxActiveMagesPerColor()`, #7's per-color mage cap) rather than inventing a new
+one. Confirmed directly, not assumed, that `The Forgotten Realms/config.json` defines exactly 4
+difficulty tiers in the order Easy/Normal/Hard/Insane - `0.75f + 0.25f * index` therefore lands
+exactly on the user's 4 requested numbers (0.75/1.00/1.25/1.50) as a single flat linear step, no
+special-casing needed. `scaledCost()` returns `Math.round(baseCost * difficultyPriceMultiplier())`;
+both methods are null-safe (return a 1.0x no-op multiplier) if difficulty data isn't loaded yet,
+same defensive pattern the two precedent methods use.
+
+Wired into every base cost constant this round touches: `EconomyBuildings.BUILD_COST`,
+`BUILDING_UPGRADE_COST`, `ARCHAEOLOGIST_EXPEDITION_COST`, `guardWeeklyGoldCost()`/
+`guardWeeklyShardCost()` (a single scaling point here automatically covers both the upfront hire
+payment and every later weekly salary deduction, since both read the same two functions), and
+`TownRestoration.RESTORE_TOWN_COST`/`REBUILD_SHOP_COST`/`CAPITOL_UPGRADE_COST`. In every case the
+scaled value is computed ONCE per dialog-build call into a local `cost` variable, then reused for
+the displayed label, the affordability check, and the actual gold deduction - never three separate
+calls that could theoretically disagree (not a real risk today since difficulty doesn't change
+mid-session, but cheap correctness insurance regardless). Deliberately NOT wired into: Bank
+deposit/withdraw (moving the player's own money isn't a "cost" to scale), the Exchange's buy/sell
+rates (a symmetric trade, not a one-directional cost - scaling both directions would fight itself),
+and card/item shop prices (`ShopActor.getPriceModifier()`'s existing reputation-tier scaling, #1,
+covers those and the user explicitly excluded them from this round's scope).
+
+**Two stale-label bugs found and fixed while wiring this up, not present before this round (they're
+introduced by the multiplier existing at all).** `ArenaScene.arenaUpgradeButton` and
+`RewardScene.upgradeButton` (Armory) both set their button text ONCE at construction time from the
+raw cost constant, then only ever toggled visibility afterward - fine when the cost was a fixed
+100g, but would now show a stale (wrong-difficulty) number forever once the multiplier made the
+real cost different per difficulty. Both now also re-`setText()` wherever their visibility already
+gets refreshed (`ArenaScene.refreshArenaBuildingButtons()`, `RewardScene`'s shop-page refresh),
+using the same freshly-`scaledCost()`'d value.
+
+Compiled clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o -q`, no errors, no checkstyle
+issues). Deployed via jar splice only - no resource/asset files changed, pure Java. Not yet
+playtested - needs a real save on each of the 4 difficulty tiers to confirm the numbers actually
+differ in-game; this session has no way to run the libGDX desktop client directly to eyeball the
+icon rendering either, only compile/deploy.

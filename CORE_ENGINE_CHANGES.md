@@ -569,7 +569,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   override (`DuelScene.afterGameEnd()`'s automatic `IAfterMatch` callback fires for ANY duel
   launched while this scene was active, not just bracket duels) - when true, skips all bracket-
   advancement logic entirely instead of indexing into bracket state that has nothing to do with a
-  Deck Tester match.
+  Deck Tester match. **Pricing round (2026-08-11, round 4):** `arenaUpgradeButton`'s cost now flows
+  through `EconomyBuildings.scaledCost()` (difficulty price multiplier) with `[+Gold]` markup
+  instead of the raw `BUILDING_UPGRADE_COST` constant - at 3 sites: the constructor's initial label,
+  `promptUpgradeArena()`'s cost variable, and (new) a text refresh inside
+  `refreshArenaBuildingButtons()` itself, since the label previously never updated after
+  construction and would otherwise go stale once the cost became difficulty-dependent.
 - **`forge-gui-mobile/src/forge/adventure/character/EnemySprite.java`** — added `territoryTarget`/
   `territoryColor` fields (#7, null for every ordinary enemy - only set on a Territory Control
   mage). Combat gold variance (2026-08-09, #9): new `applyGoldVariance()`, called at the end of
@@ -620,7 +625,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   added to the shared ui/items.json every plane loads; positioned above the done button), shown
   only for `type == Shop` when `ShopActor.isDestroyable()` (mod-plane wasteland shops only -
   inert everywhere else), confirm dialog via the existing `createGenericDialog()`, destruction
-  routed through `EconomyBuildings.destroyShopFromRewardScene()`.
+  routed through `EconomyBuildings.destroyShopFromRewardScene()`. **Pricing round (2026-08-11,
+  round 4):** same treatment as `ArenaScene.java`'s own entry above - `upgradeButton`'s (Armory)
+  cost now flows through `EconomyBuildings.scaledCost()` with `[+Gold]` markup at 3 sites
+  (constructor, `promptUpgradeArmory()`, and a new text refresh alongside the existing visibility
+  refresh in the shop-page switch, fixing the same "label never updates after construction" gap).
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Player Capitol round
   (2026-08-08 late night): the "arena" object case switched to the gated 3-arg OnCollide
   constructor (inn/spellsmith already used it) so an arena in a wasteland town/capital starts as

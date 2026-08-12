@@ -1647,7 +1647,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   **Enlarged (2026-08-11, round 3)**: drawn at a fixed 12x12 instead of the source art's native 8x8
   (user: "a little small... let's try 12x12") - source crop unchanged, just scaled up at draw time.
 
-### 23. Resource Icons on Building/Shop Menus — `Not Started` (re-raised + expanded 2026-08-11, round 3)
+### 23. Resource Icons on Building/Shop Menus — `Built (2026-08-11, round 4)`
 - Original ask (2026-08-11): a gold icon next to the Bank's Deposit/Withdraw amounts
   (`EconomyBuildings.refreshBankDialog()`), plain text right now (`"Deposited: N gold"`).
 - **Expanded same day, round 3**: apply the same treatment - resource icon(s) inline after every
@@ -1671,8 +1671,36 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   per-difficulty scaling patterns already used elsewhere - e.g. FoW vision radius tiers, per-color
   mage caps), and whether it composes with the reputation-tier price modifiers `ShopActor.
   getPriceModifier()` already applies (#1) or is a separate multiplicative layer.
-- Needs its own scoping pass with the user before implementation - large surface area (every
-  building dialog) plus a new cross-cutting pricing mechanic, not a small follow-up.
+- **Scoped and built same day, round 4.** Clarified with the user (AskUserQuestion) before
+  building: icons roll out to every dialog now (not just Bank); the difficulty multiplier applies
+  to building repair/construction/upgrade costs AND guard hiring costs, explicitly NOT to card/
+  item shop prices; and it does NOT stack with reputation pricing - it only touches costs that have
+  no reputation modifier today, so there's no double-penalty question to resolve.
+  - **Icons**: turned out simpler than the Exchange dialog's own approach once checked - `[+Gold]`/
+    `[+Shards]` are already real, working font-markup tags (`Controls.getTextraFont()`'s registered
+    items.atlas icons, already used elsewhere in the codebase - `InventoryScene`, `ShardTraderScene`,
+    `ItemData`, this mod's own Bank dialog title). Every cost this round is gold-only or gold+shards,
+    so plain markup in the button/label text (`amount + " [+Gold]"`) was enough - no new Image-actor
+    plumbing needed. (Exchange's Image-actor approach exists only because Wood/Stone have no
+    font-registered icon - irrelevant here.) Rolled out to: Bank (deposit/withdraw amounts, balance
+    display - not difficulty-scaled, moving your own money isn't a "cost"), Guard hiring (weekly
+    gold/shard cost - both hire-upfront and the recurring salary, since both read the same
+    function), Job Board restore, individual shop rebuild, Capitol upgrade, new-building
+    construction cost, Arena/Armory Level 2 upgrade, Archaeologist expedition cost.
+  - **Difficulty multiplier**: `EconomyBuildings.difficultyPriceMultiplier()`/`scaledCost(int)` -
+    same index-lookup-against-config's-difficulties[]-array pattern already established by
+    `World.visionRadiusDifficultyOffset()` (#3) and `TerritoryControl.maxActiveMagesPerColor()`
+    (#7), confirmed directly (not assumed) that the plane's `config.json` defines exactly 4 tiers,
+    Easy/Normal/Hard/Insane in that order - `0.75 + 0.25*index` lands exactly on the user's 4
+    numbers (0.75/1.00/1.25/1.50) as a flat linear step. Wired into every cost listed above (Bank
+    deposits/withdrawals and the Exchange's buy/sell rates deliberately excluded - see the user's
+    own scoping answer). Two button labels (`ArenaScene.arenaUpgradeButton`, `RewardScene.
+    upgradeButton` for the Armory) previously baked their cost into the label text ONCE at
+    construction from the raw constant and never refreshed it - both now also re-set their text
+    wherever their visibility already gets refreshed, so the displayed number can't go stale.
+  - Not yet playtested - needs a real save on each of the 4 difficulty tiers to confirm the numbers
+    actually differ in-game (visual verification wasn't possible from this session - no way to run
+    the libGDX desktop client directly, only compile/deploy).
 
 ### 24. Archaeologist Building — `Built (2026-08-11); redesigned + real art + cost added same day (playtest round 2), not yet playtested`
 - **User spec (verbatim, 2026-08-11)**: "Archeologist building. Capitol only building. - sends out

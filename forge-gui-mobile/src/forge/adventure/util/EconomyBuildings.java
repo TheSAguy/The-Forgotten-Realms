@@ -15,6 +15,7 @@ import com.github.tommyettinger.textra.TypingLabel;
 import forge.Forge;
 import forge.adventure.character.ShopActor;
 import forge.adventure.data.DialogData;
+import forge.adventure.data.DifficultyData;
 import forge.adventure.data.ItemData;
 import forge.adventure.data.ItemListData;
 import forge.adventure.data.RewardData;
@@ -194,6 +195,31 @@ public class EconomyBuildings {
     // upgrade (Arena today; Armory once its level 1 art and Guard-hiring mechanic land, Task #13).
     public static final int BUILDING_UPGRADE_COST = 100;
 
+    // Difficulty price multiplier (user spec 2026-08-11, round 4): building repair/construction/
+    // upgrade costs and guard hiring costs scale with difficulty - Easy 25% cheaper, Normal
+    // baseline, Hard 25% more, Insane 50% more. Deliberately NOT applied to card/item shop prices
+    // (ShopActor.getPriceModifier() already has its own reputation-tier scaling, #1) or the
+    // Exchange/Bank resource trades (symmetric buy/sell, not a one-directional "cost"). Same
+    // index-lookup pattern as World.visionRadiusDifficultyOffset()/TerritoryControl.
+    // maxActiveMagesPerColor() - the plane's own config.json defines exactly 4 tiers, confirmed
+    // directly (Easy/Normal/Hard/Insane, in that order) rather than assumed, so a flat linear step
+    // of +0.25 per index lands exactly on the user's 4 numbers (0.75/1.00/1.25/1.50).
+    public static float difficultyPriceMultiplier() {
+        DifficultyData playerDifficulty = AdventurePlayer.current().getDifficulty();
+        DifficultyData[] allDifficulties = Config.instance().getConfigData().difficulties;
+        if (playerDifficulty == null || playerDifficulty.name == null || allDifficulties == null)
+            return 1f;
+        for (int i = 0; i < allDifficulties.length; i++) {
+            if (playerDifficulty.name.equals(allDifficulties[i].name))
+                return 0.75f + 0.25f * i;
+        }
+        return 1f;
+    }
+
+    public static int scaledCost(int baseCost) {
+        return Math.round(baseCost * difficultyPriceMultiplier());
+    }
+
     // Arena entry (2026-08-11, Task #8/#20): originally a pre-entry MapStage gating dialog
     // (Enter Arena/Enter Challenge Arena/Upgrade), replaced the same day by the user's own
     // follow-up request to move Upgrade + a Normal/Challenging toggle INTO the Arena screen
@@ -240,9 +266,12 @@ public class EconomyBuildings {
 
         if (sentDay < 0) {
             addContentRow(dialog, "Send an expedition to dig up cards you don't yet own.");
-            boolean canAfford = AdventurePlayer.current().getGold() >= ARCHAEOLOGIST_EXPEDITION_COST;
-            addButtonRow(dialog, "Send Expedition (" + ARCHAEOLOGIST_EXPEDITION_COST + "g)", canAfford, () -> {
-                AdventurePlayer.current().takeGold(ARCHAEOLOGIST_EXPEDITION_COST);
+            // Difficulty-scaled (round 4) - one local value shared by the affordability check,
+            // the label, and the actual deduction below, so all three always agree.
+            int cost = scaledCost(ARCHAEOLOGIST_EXPEDITION_COST);
+            boolean canAfford = AdventurePlayer.current().getGold() >= cost;
+            addButtonRow(dialog, "Send Expedition (" + cost + " [+Gold])", canAfford, () -> {
+                AdventurePlayer.current().takeGold(cost);
                 changes.setArchaeologistExpeditionSentDay(WorldSave.getCurrentSave().getWorld().getCurrentDay());
                 refreshArchaeologistDialog(stage, objectId);
             });
@@ -337,20 +366,22 @@ public class EconomyBuildings {
         }
     }
 
-    // Weekly salary, also paid upfront on hire (user spec exact numbers, 2026-08-11).
+    // Weekly salary, also paid upfront on hire (user spec exact numbers, 2026-08-11). Both scaled
+    // by difficultyPriceMultiplier() (round 4) - a single point of scaling covers the upfront hire
+    // payment and every later weekly deduction, since both read this same function.
     public static int guardWeeklyGoldCost(String tier) {
         if (tier == null)
-            return 50;
+            return scaledCost(50);
         switch (tier) {
-            case "Uncommon": return 100;
-            case "Rare": return 150;
-            case "Mythic": return 200;
-            default: return 50;
+            case "Uncommon": return scaledCost(100);
+            case "Rare": return scaledCost(150);
+            case "Mythic": return scaledCost(200);
+            default: return scaledCost(50);
         }
     }
 
     public static int guardWeeklyShardCost(String tier) {
-        return "Mythic".equals(tier) ? 5 : 0;
+        return "Mythic".equals(tier) ? scaledCost(5) : 0;
     }
 
     // 1 guard per ordinary town, 2 for the Capitol (user spec).
@@ -375,7 +406,7 @@ public class EconomyBuildings {
         addContentRow(dialog, "Guards: " + currentCount + "/" + maxGuards);
         for (int i = 0; i < currentCount; i++)
             addContentRow(dialog, "- " + guardTierDisplayName(changes.getGuardTier(i)));
-        addContentRow(dialog, "Your gold: " + AdventurePlayer.current().getGold() + "   Your shards: " + AdventurePlayer.current().getShards());
+        addContentRow(dialog, "Your gold: " + AdventurePlayer.current().getGold() + " [+Gold]   Your shards: " + AdventurePlayer.current().getShards() + " [+Shards]");
 
         // Half-size buttons, 2 per row (user request 2026-08-11 - the dialog was too tall at one
         // full-width button per tier/guard). addHalfButton() below tracks column parity itself so
@@ -384,7 +415,13 @@ public class EconomyBuildings {
         for (String tier : GUARD_TIERS_ASCENDING) {
             int goldCost = guardWeeklyGoldCost(tier);
             int shardCost = guardWeeklyShardCost(tier);
-            String costText = goldCost + " gold" + (shardCost > 0 ? " + " + shardCost + " shards" : "") + "/week";
+            // Resource icons after each amount (2026-08-11, round 4 - "follow the Exchange
+            // menu's pattern"), via the same [+Gold]/[+Shards] font markup this mod's Bank dialog
+            // and stock scenes (InventoryScene, ShardTraderScene) already use for these two
+            // specific resources - simpler than Exchange's Image-actor approach, which exists only
+            // because Wood/Stone have no font-registered icon (irrelevant here, guards are
+            // gold/shards only).
+            String costText = goldCost + " [+Gold]" + (shardCost > 0 ? " + " + shardCost + " [+Shards]" : "") + "/week";
             boolean canAfford = AdventurePlayer.current().getGold() >= goldCost && AdventurePlayer.current().getShards() >= shardCost;
             boolean hasRoom = currentCount < maxGuards;
             addHalfButton(dialog, column, "Hire " + guardTierDisplayName(tier) + " (" + costText + ")", hasRoom && canAfford, () -> {
@@ -755,9 +792,9 @@ public class EconomyBuildings {
         destroyBuilding(actor.getMapStage(), actor.getObjectId());
     }
 
-    private static DialogData.ActionData spendGoldAction() {
+    private static DialogData.ActionData spendGoldAction(int cost) {
         DialogData.ActionData action = new DialogData.ActionData();
-        action.addGold = -BUILD_COST;
+        action.addGold = -cost;
         return action;
     }
 
@@ -823,20 +860,23 @@ public class EconomyBuildings {
     // condition though, since that's a structural exclusion, not an affordability one.
     private static DialogData buildOption(int type, int objectId) {
         DialogData option = new DialogData();
-        String label = buildingName(type) + " (" + BUILD_COST + " gold)";
+        // Difficulty-scaled (round 4) - computed once here so the label, affordability check, and
+        // actual deduction below all agree on the same number.
+        int cost = scaledCost(BUILD_COST);
+        String label = buildingName(type) + " (" + cost + " [+Gold])";
         // The 5-total cap is otherwise invisible until it silently stops offering the option -
         // show progress the same way the Capitol upgrade button shows its town count (user spec
         // 2026-08-09).
         if (type == TELEPORTER)
-            label = buildingName(type) + " (" + BUILD_COST + " gold, "
+            label = buildingName(type) + " (" + cost + " [+Gold], "
                     + (countTownTeleporters() + (capitolHasTeleporter() ? 1 : 0)) + "/" + (MAX_TOWN_TELEPORTERS + 1) + " built)";
         option.name = label;
-        option.isDisabled = AdventurePlayer.current().getGold() < BUILD_COST;
+        option.isDisabled = AdventurePlayer.current().getGold() < cost;
         if (type == NONE) {
-            option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId)};
+            option.action = new DialogData.ActionData[]{spendGoldAction(cost), setShopRebuiltAction(objectId)};
         } else {
             option.condition = new DialogData.ConditionData[]{noBuildingOfTypeYetCondition(type)};
-            option.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId), setEconomyTypeAction(type), setBuiltFlagAction(type)};
+            option.action = new DialogData.ActionData[]{spendGoldAction(cost), setShopRebuiltAction(objectId), setEconomyTypeAction(type), setBuiltFlagAction(type)};
         }
         return option;
     }
@@ -1004,9 +1044,10 @@ public class EconomyBuildings {
             what = "Repair Shop";
 
         DialogData repair = new DialogData();
-        repair.name = what + " (" + BUILD_COST + " gold)";
-        repair.isDisabled = AdventurePlayer.current().getGold() < BUILD_COST;
-        repair.action = new DialogData.ActionData[]{spendGoldAction(), setShopRebuiltAction(objectId)};
+        int cost = scaledCost(BUILD_COST); // difficulty-scaled (round 4)
+        repair.name = what + " (" + cost + " [+Gold])";
+        repair.isDisabled = AdventurePlayer.current().getGold() < cost;
+        repair.action = new DialogData.ActionData[]{spendGoldAction(cost), setShopRebuiltAction(objectId)};
 
         DialogData notNow = new DialogData();
         notNow.name = "Not now";
@@ -1077,11 +1118,14 @@ public class EconomyBuildings {
 
         AdventurePlayer player = AdventurePlayer.current();
         addContentRow(dialog, "[+Gold]Bank");
-        addContentRow(dialog, "Deposited: " + changes.getBankBalance() + " gold");
+        addContentRow(dialog, "Deposited: " + changes.getBankBalance() + " [+Gold]");
         addContentRow(dialog, "[%80]" + Math.round(INTEREST_RATE * 100) + "% interest every " + INTEREST_PERIOD_DAYS + " days[%]");
-        addContentRow(dialog, "Your gold: " + player.getGold());
+        addContentRow(dialog, "Your gold: " + player.getGold() + " [+Gold]");
 
-        addButtonRow(dialog, "Deposit " + BANK_DENOMINATION, player.getGold() >= BANK_DENOMINATION, () -> {
+        // Icons after each amount (2026-08-11, round 4 - "follow the Exchange menu's pattern"),
+        // via [+Gold] font markup - not difficulty-scaled, deposits/withdrawals move the player's
+        // own money rather than costing anything.
+        addButtonRow(dialog, "Deposit " + BANK_DENOMINATION + " [+Gold]", player.getGold() >= BANK_DENOMINATION, () -> {
             player.takeGold(BANK_DENOMINATION);
             changes.addBankBalance(BANK_DENOMINATION);
             refreshBankDialog(stage, changes, objectId);
@@ -1092,7 +1136,7 @@ public class EconomyBuildings {
             changes.addBankBalance(all);
             refreshBankDialog(stage, changes, objectId);
         });
-        addButtonRow(dialog, "Withdraw " + BANK_DENOMINATION, changes.getBankBalance() >= BANK_DENOMINATION, () -> {
+        addButtonRow(dialog, "Withdraw " + BANK_DENOMINATION + " [+Gold]", changes.getBankBalance() >= BANK_DENOMINATION, () -> {
             changes.addBankBalance(-BANK_DENOMINATION);
             player.giveGold(BANK_DENOMINATION);
             refreshBankDialog(stage, changes, objectId);

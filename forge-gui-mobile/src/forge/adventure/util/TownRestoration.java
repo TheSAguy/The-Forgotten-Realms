@@ -258,14 +258,17 @@ public class TownRestoration {
     }
 
     public static MapDialog buildRestoreTownDialog(MapStage stage, int objectId) {
+        // Difficulty-scaled (round 4, EconomyBuildings.scaledCost()) - computed once so the
+        // description, button label, gold-check condition, and actual deduction all agree.
+        int cost = EconomyBuildings.scaledCost(RESTORE_TOWN_COST);
         DialogData root = new DialogData();
         root.text = "The Job Board lies buried in rubble. Restoring the town here will cost "
-                + RESTORE_TOWN_COST + " gold.";
+                + cost + " [+Gold].";
 
         DialogData yes = new DialogData();
-        yes.name = "Restore town (" + RESTORE_TOWN_COST + " gold)";
-        yes.condition = new DialogData.ConditionData[]{hasGoldCondition(RESTORE_TOWN_COST)};
-        yes.action = new DialogData.ActionData[]{spendGoldAction(RESTORE_TOWN_COST), setFlagAction(TOWN_RESTORED_FLAG)};
+        yes.name = "Restore town (" + cost + " [+Gold])";
+        yes.condition = new DialogData.ConditionData[]{hasGoldCondition(cost)};
+        yes.action = new DialogData.ActionData[]{spendGoldAction(cost), setFlagAction(TOWN_RESTORED_FLAG)};
 
         DialogData no = new DialogData();
         no.name = "Not now";
@@ -275,13 +278,14 @@ public class TownRestoration {
     }
 
     public static MapDialog buildRebuildShopDialog(MapStage stage, int objectId) {
+        int cost = EconomyBuildings.scaledCost(REBUILD_SHOP_COST); // difficulty-scaled (round 4)
         DialogData root = new DialogData();
-        root.text = "This shop is buried in rubble. Rebuilding it will cost " + REBUILD_SHOP_COST + " gold.";
+        root.text = "This shop is buried in rubble. Rebuilding it will cost " + cost + " [+Gold].";
 
         DialogData yes = new DialogData();
-        yes.name = "Rebuild (" + REBUILD_SHOP_COST + " gold)";
-        yes.condition = new DialogData.ConditionData[]{hasGoldCondition(REBUILD_SHOP_COST)};
-        yes.action = new DialogData.ActionData[]{spendGoldAction(REBUILD_SHOP_COST), setFlagAction(shopRebuiltFlag(objectId))};
+        yes.name = "Rebuild (" + cost + " [+Gold])";
+        yes.condition = new DialogData.ConditionData[]{hasGoldCondition(cost)};
+        yes.action = new DialogData.ActionData[]{spendGoldAction(cost), setFlagAction(shopRebuiltFlag(objectId))};
 
         DialogData no = new DialogData();
         no.name = "Not now";
@@ -343,12 +347,16 @@ public class TownRestoration {
                 needMore.setDisabled(true);
                 dialog.getButtonTable().add(needMore).width(240f).row();
             } else {
+                // Difficulty-scaled (round 4) - one local value shared by the label and the
+                // affordability check; upgradeToCapitol() itself re-derives the same scaled cost
+                // when it actually spends the gold (see its own comment).
+                int cost = EconomyBuildings.scaledCost(CAPITOL_UPGRADE_COST);
                 com.github.tommyettinger.textra.TextraButton upgrade = Controls.newTextButton(
-                        "Upgrade to Capitol (" + CAPITOL_UPGRADE_COST + " gold)", () -> {
+                        "Upgrade to Capitol (" + cost + " [+Gold])", () -> {
                             stage.hideDialog();
                             upgradeToCapitol(stage);
                         });
-                upgrade.setDisabled(Current.player().getGold() < CAPITOL_UPGRADE_COST);
+                upgrade.setDisabled(Current.player().getGold() < cost);
                 dialog.getButtonTable().add(upgrade).width(240f).row();
             }
         }
@@ -450,7 +458,7 @@ public class TownRestoration {
         }
         Integer oldRadius = world.getTownTerritoryRadius(point.getID());
 
-        Current.player().takeGold(CAPITOL_UPGRADE_COST);
+        Current.player().takeGold(EconomyBuildings.scaledCost(CAPITOL_UPGRADE_COST)); // difficulty-scaled (round 4)
         point.transformInto(capitolData, world.getRandom()); // template name -> displayName "Camelot"
 
         PointOfInterestChanges newChanges = WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID());
