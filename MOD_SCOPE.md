@@ -1046,6 +1046,9 @@ needs its own design pass before any of this gets built:**
 
 ### 12. Random Events — `Not Started`
 - General random world events (could tie into the Time System's periodic-event hook, #6).
+- Re-raised 2026-08-11 (wishlist batch) as "Random events" - treating as the same ask, not a new
+  entry, since the description matches exactly. Still needs its own design pass: what kinds of
+  events (economic, combat, weather/terrain, quest-triggering?), how often, opt-in or automatic.
 
 ### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7; Armory + dedicated Booster shop made permanent fixed slots same day; 2026-08-11: Armory UI polish, see below)
 - **Armory UI polish (2026-08-11, two small user requests):** the restore dialog's label changed
@@ -1568,6 +1571,13 @@ to depend on each other.
 - Re-raised 2026-08-11 as "Enemy movement speed" - treating as the same ask rather than a separate
   item (not created as its own numbered entry) since the description matches exactly; flag if a
   genuinely different idea was meant.
+- **Refined same day, wishlist batch, round 5**: "Increase the speed of enemies by tier" - a
+  tier-scaled version rather than a flat blanket speed-up (tougher enemies move faster, not every
+  roaming enemy uniformly). Ties naturally into the existing `EnemyData.tier`/mage-difficulty-tier
+  system (#19, Common/Uncommon/Rare/Mythic - "Apprentice/Adept/Master/Challenger") rather than
+  needing a new tier concept of its own. Not yet scoped: exact per-tier speed values, and whether
+  this covers Territory Control mages too (#7 - they already move at a fixed pace toward their
+  target) or only ordinary roaming/overworld enemies.
 
 ### 22. Armory Guard Hiring (Level 2 unlock) — `Built (2026-08-11), not yet playtested`
 Full loop is real and reachable in-game from a fresh save: Armory starts Level 1 (unchanged
@@ -1757,3 +1767,126 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
 - ~~Map placement checked against the collision layer at (208, 140) on `player_capital.tmx`,
   never visually confirmed.~~ Moot - there's no fixed map placement anymore (see the
   Utility-submenu redesign above), so this question no longer applies.
+
+### 25. Player Deck-Building Engine — `Not Started`
+- User idea (2026-08-11, wishlist batch): "Building your own engine to play your decks." Not yet
+  scoped or discussed in detail - reads as wanting in-game tools to construct/tune a deck around a
+  specific strategy ("an engine"), distinct from #20's Deck Tester (which pits two ALREADY-BUILT
+  saved decks against each other, no construction help involved). Could mean anything from deck-
+  archetype suggestions to a guided deckbuilding wizard - needs a scoping conversation before
+  design, ideally against `AdventureDeckEditor.java` (the mod's existing in-game deck editor) to
+  see what's already there versus what this would add.
+
+### 26. Research: External Feature Requests — `Not Started` (research task, not a build task)
+- User ask (2026-08-11, wishlist batch): "Look online for features requests." Distinct from every
+  other item on this list - this is a research task (search Forge's own community channels: GitHub
+  issues/discussions on Card-Forge/forge, the Forge subreddit/forums, Discord if accessible) rather
+  than something to design and build directly. Scope still open: whether findings should feed
+  straight into this wishlist as new numbered entries, or come back as a separate report first for
+  the user to triage before anything gets added.
+
+### 27. Simulate Level 2 Arena Battles — `Not Started`
+- User idea (2026-08-11, wishlist batch): "Simulate lvl 2 arena battles." Ties to #20 (Upgradable
+  Arena) - not yet clear whether this means an auto-resolve/fast-forward option for a Challenge
+  Arena bracket (skip watching every fight play out), a balance-testing tool (run N simulated
+  brackets and report win rates for tuning the Challenge pool), or something else. Needs
+  clarification before scoping.
+
+### 28. Promo Write-Up — `Not Started` (writing task, not a build task)
+- User ask (2026-08-11, wishlist batch): "Do promo write up." A marketing/announcement write-up for
+  the mod (for a release post, Discord, Reddit, wherever it'd be shared), not a code change. Should
+  probably wait until #39 (easy deployment/sharing) is further along, so there's something concrete
+  to point people at.
+
+### 29. Extra Attacking Mage per 10 Player Cities — `Not Started`
+- User spec (2026-08-11, wishlist batch): "Add 1 extra attacking mage per 10 players cities." Ties
+  into #7 (Dynamic Territory Control)'s existing per-color simultaneous-mage cap
+  (`TerritoryControl.maxActiveMagesPerColor()`, currently scales 2/3/4/5 with difficulty tier only).
+  This would add a second scaling axis - the more towns/capitals the PLAYER personally owns, the
+  more attacking mages are active at once (across all 5 colors, or per-color? not yet clarified) -
+  presumably a rubber-band mechanic so a dominant player faces escalating pressure. Needs scoping:
+  does "10 player cities" mean total owned towns+capitals, and does the bonus mage count apply per
+  color or as a shared global increment.
+
+### 30. AI-Generated Decks for Arena Enemies — `Not Started`
+- User idea (2026-08-11, wishlist batch): "AI deck builds - add to arena." Arena enemies currently
+  draw from a fixed `.dck`-file pool per `ArenaData.enemyPool` (#20), unlike ordinary duels which
+  can already use the genetic-AI deckbuilder (`Config.getConfigData().enableGeneticAI`,
+  `EnemyData.generateDeck()`'s `canUseGeneticAI` branch, #19's own mage-tier work touches this same
+  code). This would extend genetic/AI-generated decks into Arena brackets too, for more deck
+  variety fight-to-fight instead of the same fixed pool every run. Needs scoping: every Arena fight,
+  or just Challenge Arena; and whether pool variety is the actual complaint or something else.
+
+### 31. Custom Building Ruin Art Variety — `Not Started`
+- User idea (2026-08-11, wishlist batch): "Custom building ruins." Ties directly to #2 (Central
+  Wasteland & Town Reconstruction), which already has real hand-made ruin art for both the town-icon
+  level (16 variants) and the shop level (64 variants, `RubbleOverlay`/destroyed-shop art) - not yet
+  clear whether this wants MORE variety on top of the existing sets, ruin art for building types
+  that still fall back to the generic Job Board rubble overlay (per #2, the Job Board itself has no
+  dedicated art yet), or something else entirely (e.g. ruins that visually reflect the building type
+  that stood there, not just a generic broken-shop look). Needs clarification.
+
+### 32. Shop Type Re-Roll — `Not Started`
+- User idea (2026-08-11, wishlist batch): "Shop type re-roll." Ties to #10 (Economy Buildings) - a
+  way to change which shop type occupies an already-built slot (e.g. swap a built Gold Mine for a
+  Bank) rather than the current one-shot choice made at build time. Needs scoping: paid or free,
+  any cooldown/limit, and whether "shop" here means the 6 special economy-building types (#10) or
+  also the ordinary ambient Card/Item/Booster shops that spawn with a town.
+
+### 33. Early Armory Inventory Re-Roll — `Not Started`
+- User idea (2026-08-11, wishlist batch): "Re-roll armory inventory early." The Armory's item stock
+  currently restocks automatically once a week (#18's Item Economy, `EconomyBuildings`'s weekly-
+  restock sweep, MOD_CHANGELOG's "Weekly shop restock" work) - this would let the player pay to
+  force an early restock instead of waiting out the week. Needs scoping: gold cost, and whether it
+  resets the weekly timer (so the NEXT free restock is delayed) or just adds a bonus roll on top.
+
+### 34. Update Mod Intro Text — `Not Started` (writing task)
+- User ask (2026-08-11, wishlist batch): "Update mod intro text." The player-facing text shown when
+  starting/selecting "The Forgotten Realms" plane (New Game screen and/or a title/lore blurb) -
+  needs the actual current text located and a replacement drafted with the user, not scoped further
+  yet.
+
+### 35. Rename Capitol to "Orazca" — `Not Started`
+- User spec (2026-08-11, wishlist batch): "Capitol name Orazca." The player's Capitol currently has
+  internal name `"Player Capitol"` (`TownRestoration.CAPITOL_POI_NAME`, #13) with displayName
+  "Camelot" set at upgrade time (`upgradeToCapitol()`'s `transformInto()` call, #13). Checked
+  earlier this session: "Orazca" isn't used as a place/building name anywhere in this plane - it
+  only appears inside a few starter `.dck` files as individual Magic card names (Ixalan cards like
+  *Kumena, Tyrant of Orazca*), and separately as an unrelated Conquest-mode plane elsewhere in
+  Forge - so renaming is a plain, conflict-free swap of that one displayName string, no other
+  cleanup needed.
+
+### 36. More Terrain Customization — `Not Started`
+- User idea (2026-08-11, wishlist batch): "More terrain customization." Ties to #7's "Terrain
+  Switch-Out" work (structure/doodad reskinning when territory changes hands) and the underlying
+  biome terrain system generally - not yet clear whether this means more terrain VARIETY (new
+  structure/doodad sets per biome), player-facing terrain editing/decoration tools, or something
+  else. Needs clarification before scoping.
+
+### 37. Graph on Info Screen — `Not Started`
+- User idea (2026-08-11, wishlist batch): "Graph on Info Screen." Which "Info Screen" and which
+  data isn't yet specified - candidates already in the mod: `WorldStandingsScene` (#7, per-color
+  town count/reputation/status table) or `PlayerStatisticScene` (existing stock stats screen). A
+  graph implies something tracked OVER TIME (reputation trend, territory size trend, gold/day?),
+  which isn't currently logged as a time series anywhere in the mod - would need a new persisted
+  history buffer before any graph could plot real data. Needs clarification on both the screen and
+  the metric before scoping.
+
+### 38. Reputation Tier Explanation on Info Screen — `Not Started`
+- User idea (2026-08-11, wishlist batch): "Explanation of Reputation tiers on Info Screen." Likely
+  `WorldStandingsScene` (#7), which already shows each color's live Reputation number/tier color
+  but never explains what the 5 tiers (Partner/Happy/Neutral/Unhappy/War, #1) actually DO -
+  straightforward in spirit to #20's just-built Outlook info-dialog text (explain a mechanic in
+  plain language instead of leaving the player to infer it) - could reuse #1's own tier table
+  (price modifiers, targeting-odds shifts, entry bars) as the source text almost verbatim.
+
+### 39. Easy Mod Deployment/Sharing — `Not Started`
+- User idea (2026-08-11, wishlist batch): "Mod deployment/sharing made easy." Today's deploy process
+  (per `CLAUDE.md`/this session's own established loop) is manual and dev-oriented: compile, splice
+  the compiled `forge/adventure` package into an already-installed Forge jar via `jar uf`, then
+  mirror `forge-gui/res/adventure/The Forgotten Realms/` on top of an existing install - nothing a
+  non-technical player could do. This would need something closer to a single distributable
+  package/installer another player could drop onto a stock Forge install (or a from-scratch bundled
+  build) without needing Maven/a JDK/manual jar surgery. Needs scoping: are we packaging for players
+  who already own/run stock Forge, or a fully standalone build; ties naturally into #28 (promo
+  write-up) once this exists, since there'd finally be something easy to point people at.
