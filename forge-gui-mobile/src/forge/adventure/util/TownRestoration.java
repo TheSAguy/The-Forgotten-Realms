@@ -471,9 +471,17 @@ public class TownRestoration {
             newChanges.getMapFlags().put("shopRebuilt_" + slot, (byte) 1);
             // Pin the capital slot to the exact shop the source town's slot held (same order).
             if (rebuiltIdIter.hasNext()) {
-                String shopName = rebuiltShopNames.get(rebuiltIdIter.next());
+                int oldId = rebuiltIdIter.next();
+                String shopName = rebuiltShopNames.get(oldId);
                 if (shopName != null)
                     newChanges.setPinnedShopName(slot, shopName);
+                // Carry the building's upgrade level across too (user report 2026-08-11: an
+                // upgraded Armory reverted to Level 1 after the Capitol upgrade) - same id-remap
+                // pattern as the shop-name pin just above, since the slot's Tiled object id
+                // changes across the migration and buildingLevels is keyed by that id.
+                int level = oldChanges.getBuildingLevel(oldId);
+                if (level > 1)
+                    newChanges.setBuildingLevel(slot, level);
             }
         }
         // The Inn came with the town (a restored town's inn was already working) - it starts

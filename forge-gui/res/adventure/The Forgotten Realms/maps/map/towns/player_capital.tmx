@@ -17961,7 +17961,6 @@
 }</property>
    </properties>
   </object>
-  <object id="102" template="../../obj/archaeologist.tx" x="208" y="140" />
   <object id="63" template="../../../../common/maps/obj/shop.tx" x="80" y="253">
    <properties>
     <property name="commonShopList" value="ArmoryCommon" />

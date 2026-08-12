@@ -1,5 +1,5 @@
 new_buildings.png
-size: 160,32
+size: 208,32
 format: RGBA8888
 filter: Nearest,Nearest
 repeat: none
@@ -14,10 +14,13 @@ Spellsmith
   size: 32, 32
 ArenaLevel1
   xy: 80, 0
-  size: 16, 32
+  size: 32, 16
 ArmoryLevel1
-  xy: 96, 0
+  xy: 112, 0
   size: 32, 32
 ArmoryLevel2
-  xy: 128, 0
+  xy: 144, 0
+  size: 32, 32
+Archaeologist
+  xy: 176, 0
   size: 32, 32

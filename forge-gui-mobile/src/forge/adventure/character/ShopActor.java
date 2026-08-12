@@ -120,6 +120,9 @@ public class ShopActor extends MapActor {
             case EconomyBuildings.TELEPORTER:
                 EconomyBuildings.openTeleporterDialog(stage, objectId);
                 return;
+            case EconomyBuildings.ARCHAEOLOGIST:
+                EconomyBuildings.openArchaeologistDialog(stage, objectId);
+                return;
             default:
                 // Straight into the shop - a destroyable shop's Destroy Building button lives on
                 // the RewardScene page itself (user revision 2026-08-09; a first version's

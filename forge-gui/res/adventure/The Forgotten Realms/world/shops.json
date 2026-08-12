@@ -633,7 +633,7 @@
 "spriteAtlas":"maps/tileset/buildings.atlas",   
 "sprite":"ItemShop",
   "rewards": [
-    { "type": "item","count":4, "itemNames": ["White rune","White Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
+    { "type": "item","count":4, "itemNames": ["White Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1    }
 
     ]
@@ -652,7 +652,7 @@
 "spriteAtlas":"maps/tileset/buildings.atlas",    
 "sprite":"ItemShop",
   "rewards": [
-    { "type": "item","count":4, "itemNames": ["Red rune","Red Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
+    { "type": "item","count":4, "itemNames": ["Red Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1    }
     ]
 
@@ -670,7 +670,7 @@
 "spriteAtlas":"maps/tileset/buildings.atlas",    
 "sprite":"ItemShop",
   "rewards": [
-    { "type": "item","count":4, "itemNames": ["Blue rune","Blue Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
+    { "type": "item","count":4, "itemNames": ["Blue Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1    }
 
     ]
@@ -690,7 +690,7 @@
 "spriteAtlas":"maps/tileset/buildings.atlas",    
 "sprite":"ItemShop",
   "rewards": [
-    { "type": "item","count":4, "itemNames": ["Black rune","Black Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
+    { "type": "item","count":4, "itemNames": ["Black Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1    }
 
     ]
@@ -710,7 +710,7 @@
 "spriteAtlas":"maps/tileset/buildings.atlas",    
 "sprite":"ItemShop",
   "rewards": [
-    { "type": "item","count":4, "itemNames": ["Green rune","Green Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
+    { "type": "item","count":4, "itemNames": ["Green Staff","Cursed Treasure","Farmer's Tools","Piper's Charm","Sleep Wand","Hill Giant Club"]  },
     { "type": "life","count":1   }
 
     ]
@@ -720,8 +720,6 @@
 "spriteAtlas":"maps/tileset/buildings.atlas",
 "sprite":"EquipmentShop",
   "rewards": [
-    { "type": "item","count":1, "itemName": "Aerie Omenstone"  },
-    { "type": "item","count":1, "itemName": "Ghost rune"  },
     { "type": "item","count":1, "itemName": "Manasight Stone"  },
     { "type": "item","count":1, "itemName": "Staff of Flight"  },
     { "type": "item","count":1, "itemName": "Staff of Healing"  },

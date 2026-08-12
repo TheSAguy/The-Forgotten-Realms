@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.ui.Cell;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
@@ -57,6 +58,12 @@ public class EconomyBuildings {
     // as the original 6 - see buildOption()/builtFlag() - just two more type ids.
     public static final int OUTLOOK = 7;
     public static final int TELEPORTER = 8;
+    // Archaeologist (2026-08-11) - moved from a standalone Tiled map object to a Utility-submenu
+    // economy building (user request), same one-per-town machinery, but Capitol-only (see
+    // buildChooseBuildingDialog()'s isCapitol gate) - the expedition-timer field it drives
+    // (PointOfInterestChanges.archaeologistExpeditionSentDay) is a single, non-objectId-keyed
+    // field by design, "never more than one per save".
+    public static final int ARCHAEOLOGIST = 9;
 
     // Byte-safe map flag (0-6) used only to gate "one economy building per town" declaratively
     // and to discriminate which option the player picked in buildChooseBuildingDialog(). The
@@ -131,6 +138,7 @@ public class EconomyBuildings {
             case EXCHANGE: return "Exchange";
             case OUTLOOK: return "Outlook";
             case TELEPORTER: return "Teleporter";
+            case ARCHAEOLOGIST: return "Archaeologist";
             default: return "Card Shop";
         }
     }
@@ -159,6 +167,8 @@ public class EconomyBuildings {
     public static TextureRegion getBuildingSprite(int type) {
         if (type == OUTLOOK)
             return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Outlook");
+        if (type == ARCHAEOLOGIST)
+            return getArchaeologistSprite();
         String region = atlasRegion(type);
         if (region == null)
             return null;
@@ -167,92 +177,52 @@ public class EconomyBuildings {
 
     /** Rebuilt-Arena icon for the Capitol's gated Arena building (see OnCollide.draw()) - level 2
      *  (paid upgrade, Task #8) keeps the original art, level 1 (default/base) uses the smaller
-     *  16x32 art the user provided alongside it. */
+     *  landscape (32x16) art alongside it. */
     public static TextureRegion getArenaSprite(int level) {
         return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, level >= 2 ? "Arena" : "ArenaLevel1");
+    }
+
+    /** Real Spellsmith art (buildings.png IDs 432/433/460/461, a 2x2 block) - added to
+     *  new_buildings.atlas in an earlier round, but MapStage's "spellsmith" case was never
+     *  actually updated to call this and kept using the generic SpecialShop placeholder instead
+     *  (found 2026-08-11 - the art was correct, the wiring wasn't; see MapStage.java's case). */
+    public static TextureRegion getSpellsmithSprite() {
+        return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Spellsmith");
     }
 
     // Placeholder cost per user spec 2026-08-11 ("some 100g for now") - shared by every building
     // upgrade (Arena today; Armory once its level 1 art and Guard-hiring mechanic land, Task #13).
     public static final int BUILDING_UPGRADE_COST = 100;
 
-    /**
-     * Arena entry dialog (2026-08-11, Task #8/#20) - Arena had no pre-entry menu at all before
-     * this (collision went straight into ArenaScene), so "add an upgrade button somewhere that
-     * makes sense" needed a new stop here rather than reusing an existing screen the way Armory's
-     * RewardScene page already did. Built against MapStage's own persistent dialog (`stage.
-     * getDialog()`/`showDialog()`/`hideDialog()`), same convention the Bank/Exchange dialogs use -
-     * natural fit since, unlike Armory, this collision happens IN MapStage's own context.
-     * onEnterArena is the exact ArenaData-load-and-switch-scene logic the old direct-entry
-     * OnCollide used to run unconditionally; now it only runs after "Enter Arena" is chosen.
-     * Known limitation: the overworld Arena icon is set once at map-load (OnCollide construction
-     * time, not re-evaluated live), so it won't visually flip to Level 2 art until the player
-     * next leaves and re-enters this town/capital - cosmetic only, the upgrade itself takes effect
-     * immediately (Level 2 art shown as soon as this dialog is reopened, and the discount/behavior
-     * is correct right away).
-     */
-    public static void openArenaEntryDialog(MapStage stage, int objectId, Runnable onEnterArena, Runnable onEnterChallenge) {
-        refreshArenaEntryDialog(stage, objectId, onEnterArena, onEnterChallenge);
-        stage.showDialog();
-    }
-
-    /** onEnterChallenge is null wherever this town's arena has no "arenaChallenge" TMX property
-     *  (every arena but the player Capitol's, 2026-08-11 Arena Level 2 Challenge round) - the
-     *  button below is skipped entirely in that case regardless of level, rather than assuming
-     *  every arena object has a Challenge pool defined. */
-    private static void refreshArenaEntryDialog(MapStage stage, int objectId, Runnable onEnterArena, Runnable onEnterChallenge) {
-        Dialog dialog = stage.getDialog();
-        dialog.getContentTable().clear();
-        dialog.getButtonTable().clear();
-        dialog.clearListeners();
-
-        int level = stage.getChanges().getBuildingLevel(objectId);
-        addContentRow(dialog, "Arena (Level " + level + ")");
-
-        addButtonRow(dialog, "Enter Arena", true, () -> {
-            stage.hideDialog();
-            onEnterArena.run();
-        });
-        if (level >= 2 && onEnterChallenge != null) {
-            addButtonRow(dialog, "Enter Challenge Arena", true, () -> {
-                stage.hideDialog();
-                onEnterChallenge.run();
-            });
-        }
-        if (level < 2) {
-            boolean canAfford = AdventurePlayer.current().getGold() >= BUILDING_UPGRADE_COST;
-            addButtonRow(dialog, "Upgrade to Level 2 (" + BUILDING_UPGRADE_COST + "g)", canAfford, () -> {
-                AdventurePlayer.current().takeGold(BUILDING_UPGRADE_COST);
-                stage.getChanges().setBuildingLevel(objectId, 2);
-                refreshArenaEntryDialog(stage, objectId, onEnterArena, onEnterChallenge);
-            });
-        }
-        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
-        dialog.setKeepWithinStage(true);
-    }
+    // Arena entry (2026-08-11, Task #8/#20): originally a pre-entry MapStage gating dialog
+    // (Enter Arena/Enter Challenge Arena/Upgrade), replaced the same day by the user's own
+    // follow-up request to move Upgrade + a Normal/Challenging toggle INTO the Arena screen
+    // itself instead - see ArenaScene.enterArenaBuilding()/promptUpgradeArena()/
+    // toggleArenaMode(), and MapStage's "arena" case for the new (much simpler) collision hook.
 
     // ---- Archaeologist (2026-08-11, user spec) ----
-    // Capitol-only building (new `archaeologist.tx` template, mirroring arena.tx/spellsmith.tx -
-    // gated by the same OnCollide rebuild mechanic those use, see MapStage's "archaeologist" case).
-    // Sends a 7-day expedition that returns 5 cards the player doesn't already own (by name - see
-    // ownedCardNames() below), no Mythic Rare, plus a 25% chance of an additional booster pack and
-    // a 5% chance of an additional non-Mythic item. No real art identified for this building yet -
-    // tile 751 (the id an old code comment speculatively reserved for "Archaeologist") turned out on
-    // inspection to be part of an unrelated teal guardian-temple sprite, not archaeology-themed at
-    // all, so this uses the generic SpecialShop icon as a placeholder for now, same as Spellsmith
-    // originally did before real art was found for it.
+    // Capitol-only building - moved from a standalone Tiled map object to a Utility-submenu
+    // economy building (2026-08-11, user request: "I don't want a stand alone building... put it
+    // under the Utility sub menu so it can be built on one of the pre-existing destroyed building
+    // spots"), same one-per-town machinery as Outlook/Teleporter (see ARCHAEOLOGIST above/
+    // buildOption()/builtFlag()). Sends an expedition that returns 5 cards the player doesn't
+    // already own (by name - see ownedCardNames() below), no Mythic Rare, one from each of 5
+    // different sets (user spec 2026-08-11), plus a 25% chance of an additional booster pack and
+    // a 5% chance of an additional non-Mythic item.
     public static final int ARCHAEOLOGIST_EXPEDITION_DAYS = 7;
     private static final float ARCHAEOLOGIST_BOOSTER_CHANCE = 0.25f;
     private static final float ARCHAEOLOGIST_ITEM_CHANCE = 0.05f;
+    // User spec 2026-08-11: "make it 1000g to send out an expedition" (was free).
+    private static final int ARCHAEOLOGIST_EXPEDITION_COST = 1000;
 
+    /** Real art (buildings.png IDs 722/723/750/751, a 2x2 block, user-specified 2026-08-11) -
+     *  replaces the earlier placeholder (the generic SpecialShop icon, used while ID 751 alone
+     *  looked unrelated - the full 2x2 block reads as a distinct, if guardian-statue-like,
+     *  structure). */
     public static TextureRegion getArchaeologistSprite() {
-        return getSpecialShopSprite();
+        return Config.instance().getAtlasSprite(NEW_BUILDINGS_ATLAS, "Archaeologist");
     }
 
-    /** Cost to send an expedition: not specified by the user - defaulting to FREE (flagged in
-     *  MOD_CHANGELOG.md/MOD_SCOPE.md as an assumption, not a confirmed design decision) rather
-     *  than guessing a gold amount with no basis. Easy to add a cost here later if the user wants
-     *  one once the 7-day cadence has been playtested. */
     public static void openArchaeologistDialog(MapStage stage, int objectId) {
         refreshArchaeologistDialog(stage, objectId);
         stage.showDialog();
@@ -270,7 +240,9 @@ public class EconomyBuildings {
 
         if (sentDay < 0) {
             addContentRow(dialog, "Send an expedition to dig up cards you don't yet own.");
-            addButtonRow(dialog, "Send Expedition", true, () -> {
+            boolean canAfford = AdventurePlayer.current().getGold() >= ARCHAEOLOGIST_EXPEDITION_COST;
+            addButtonRow(dialog, "Send Expedition (" + ARCHAEOLOGIST_EXPEDITION_COST + "g)", canAfford, () -> {
+                AdventurePlayer.current().takeGold(ARCHAEOLOGIST_EXPEDITION_COST);
                 changes.setArchaeologistExpeditionSentDay(WorldSave.getCurrentSave().getWorld().getCurrentDay());
                 refreshArchaeologistDialog(stage, objectId);
             });
@@ -310,9 +282,18 @@ public class EconomyBuildings {
         Set<String> owned = ownedCardNames();
         pool.removeIf(pc -> owned.contains(pc.getName()));
         Collections.shuffle(pool, random);
-        int cardCount = Math.min(5, pool.size());
-        for (int i = 0; i < cardCount; i++)
-            rewards.add(new Reward(pool.get(i)));
+        // User spec 2026-08-11: the 5 cards must come from 5 DIFFERENT expansions - greedily pick
+        // in shuffled order, skipping any card whose edition is already represented, until 5
+        // picks or the pool runs dry (hundreds of real editions exist, so running dry in practice
+        // would mean the player already owns nearly every non-Mythic card in the game).
+        Set<String> usedEditions = new HashSet<>();
+        for (PaperCard pc : pool) {
+            if (rewards.size >= 5)
+                break;
+            if (!usedEditions.add(pc.getEdition()))
+                continue;
+            rewards.add(new Reward(pc));
+        }
 
         if (random.nextFloat() < ARCHAEOLOGIST_BOOSTER_CHANCE) {
             RewardData booster = new RewardData();
@@ -396,13 +377,17 @@ public class EconomyBuildings {
             addContentRow(dialog, "- " + guardTierDisplayName(changes.getGuardTier(i)));
         addContentRow(dialog, "Your gold: " + AdventurePlayer.current().getGold() + "   Your shards: " + AdventurePlayer.current().getShards());
 
+        // Half-size buttons, 2 per row (user request 2026-08-11 - the dialog was too tall at one
+        // full-width button per tier/guard). addHalfButton() below tracks column parity itself so
+        // callers just add buttons in sequence, same as addButtonRow() elsewhere in this file.
+        int[] column = {0};
         for (String tier : GUARD_TIERS_ASCENDING) {
             int goldCost = guardWeeklyGoldCost(tier);
             int shardCost = guardWeeklyShardCost(tier);
             String costText = goldCost + " gold" + (shardCost > 0 ? " + " + shardCost + " shards" : "") + "/week";
             boolean canAfford = AdventurePlayer.current().getGold() >= goldCost && AdventurePlayer.current().getShards() >= shardCost;
             boolean hasRoom = currentCount < maxGuards;
-            addButtonRow(dialog, "Hire " + guardTierDisplayName(tier) + " (" + costText + ")", hasRoom && canAfford, () -> {
+            addHalfButton(dialog, column, "Hire " + guardTierDisplayName(tier) + " (" + costText + ")", hasRoom && canAfford, () -> {
                 AdventurePlayer.current().takeGold(goldCost);
                 if (shardCost > 0)
                     AdventurePlayer.current().takeShards(shardCost);
@@ -411,15 +396,17 @@ public class EconomyBuildings {
                 openManageGuardsDialog(scene, changes, poiName, objectId);
             });
         }
+        finishHalfButtonRow(dialog, column);
         for (int i = 0; i < currentCount; i++) {
             int guardIndex = i;
-            addButtonRow(dialog, "Dismiss " + guardTierDisplayName(changes.getGuardTier(i)), true, () -> {
+            addHalfButton(dialog, column, "Dismiss " + guardTierDisplayName(changes.getGuardTier(i)), true, () -> {
                 changes.removeGuardAt(guardIndex);
                 scene.removeDialog();
                 openManageGuardsDialog(scene, changes, poiName, objectId);
             });
         }
-        dialog.getButtonTable().add(Controls.newTextButton("Close", scene::removeDialog)).width(240f).row();
+        finishHalfButtonRow(dialog, column);
+        dialog.getButtonTable().add(Controls.newTextButton("Close", scene::removeDialog)).colspan(2).width(240f).row();
         dialog.setKeepWithinStage(true);
         return dialog;
     }
@@ -921,7 +908,10 @@ public class EconomyBuildings {
         // already have (townTeleporterAvailable() - a cross-POI check the declarative condition
         // system below can't express, so it's gated imperatively here instead).
         boolean teleporterOffered = (isCapitol || townTeleporterAvailable()) && typeAvailable(stage, TELEPORTER);
-        if (typeAvailable(stage, OUTLOOK) || teleporterOffered) {
+        // Archaeologist (2026-08-11): Capitol-only, same as Financial's Bank/Exchange - see the
+        // ARCHAEOLOGIST constant's own comment for why it can't be built in ordinary towns.
+        boolean archaeologistOffered = isCapitol && typeAvailable(stage, ARCHAEOLOGIST);
+        if (typeAvailable(stage, OUTLOOK) || teleporterOffered || archaeologistOffered) {
             DialogData utilityBack = new DialogData();
             utilityBack.name = "Back";
             backButtons.add(utilityBack);
@@ -932,6 +922,8 @@ public class EconomyBuildings {
             utilityOptions.add(buildOption(OUTLOOK, objectId));
             if (teleporterOffered)
                 utilityOptions.add(buildOption(TELEPORTER, objectId));
+            if (archaeologistOffered)
+                utilityOptions.add(buildOption(ARCHAEOLOGIST, objectId));
             utilityOptions.add(utilityBack);
             utility.options = utilityOptions.toArray(new DialogData[0]);
             rootOptions.add(utility);
@@ -1249,6 +1241,27 @@ public class EconomyBuildings {
         TextraButton button = Controls.newTextButton(name, enabled ? action : () -> {});
         button.setDisabled(!enabled);
         dialog.getButtonTable().add(button).width(240f).row();
+    }
+
+    // Half-width buttons packed 2 per row (Manage Guards dialog, user request 2026-08-11 - see
+    // its own comment). `column` is a 1-element int[] used as a mutable counter across calls -
+    // starts a new row every 2nd button; finishHalfButtonRow() closes a dangling odd row (an odd
+    // guard count, e.g. 1 hired at a town) so the NEXT addHalfButton() call starts fresh at
+    // column 0 instead of silently continuing an old row.
+    private static void addHalfButton(Dialog dialog, int[] column, String name, boolean enabled, Runnable action) {
+        TextraButton button = Controls.newTextButton(name, enabled ? action : () -> {});
+        button.setDisabled(!enabled);
+        Cell<TextraButton> cell = dialog.getButtonTable().add(button).width(118f);
+        column[0]++;
+        if (column[0] % 2 == 0)
+            cell.row();
+    }
+
+    private static void finishHalfButtonRow(Dialog dialog, int[] column) {
+        if (column[0] % 2 != 0) {
+            dialog.getButtonTable().row();
+            column[0] = 0;
+        }
     }
 
     // ---- Daily production / weekly interest sweep, driven by WorldStage.onActing() whenever

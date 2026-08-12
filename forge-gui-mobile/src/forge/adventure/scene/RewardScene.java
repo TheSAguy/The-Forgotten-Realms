@@ -163,7 +163,7 @@ public class RewardScene extends UIScene {
         ShopData data = shopActor.getShopData();
         if (!EconomyBuildings.isArmoryShop(data) && !EconomyBuildings.isLandShop(data))
             return "";
-        return "\n[%50]Restocks weekly";
+        return "\n[%50]Inventory will refresh weekly"; // user's exact wording, 2026-08-11
     }
 
     @Override

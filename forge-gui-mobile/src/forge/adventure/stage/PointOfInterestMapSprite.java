@@ -66,16 +66,16 @@ public class PointOfInterestMapSprite extends MapSprite {
     }
 
     // Guard map indicator (2026-08-11, MOD_SCOPE.md #22) - a small icon in the sprite's bottom-left
-    // corner showing the strongest currently-hired guard's tier, per the user's own mockup. A
-    // peek (not get) lookup - this runs every frame this POI is on-screen, and must never lazily
-    // create a PointOfInterestChanges entry for every town the player merely scrolls past.
+    // corner per currently-hired guard (towns cap at 1 guard/1 icon; the Capitol allows 2, and
+    // originally only ever drew the single strongest one even with 2 hired - user report
+    // 2026-08-11: "only 1 icon appeared... capitol can have two guards, so will need up to two
+    // icons"). Icons are laid out left-to-right in hire order, weakest-tier-first is irrelevant
+    // here (order doesn't matter, just that both show). A peek (not get) lookup - this runs every
+    // frame this POI is on-screen, and must never lazily create a PointOfInterestChanges entry
+    // for every town the player merely scrolls past.
     private void drawGuardIndicator(Batch batch, float parentAlpha) {
         PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(pointOfInterest.getID());
-        String strongestTier = EconomyBuildings.strongestGuardTier(changes);
-        if (strongestTier == null)
-            return;
-        TextureRegion icon = EconomyBuildings.getGuardTierIconSprite(strongestTier);
-        if (icon == null)
+        if (changes == null || changes.getGuardCount() == 0)
             return;
         // batch.getColor() returns the batch's *internal* Color by reference, not a copy -
         // snapshot the primitive components before calling setColor and restore from those
@@ -84,7 +84,14 @@ public class PointOfInterestMapSprite extends MapSprite {
         Color prevRef = batch.getColor();
         float pr = prevRef.r, pg = prevRef.g, pb = prevRef.b, pa = prevRef.a;
         batch.setColor(pr, pg, pb, parentAlpha);
-        batch.draw(icon, getX(), getY(), icon.getRegionWidth(), icon.getRegionHeight());
+        float xOffset = 0f;
+        for (int i = 0; i < changes.getGuardCount(); i++) {
+            TextureRegion icon = EconomyBuildings.getGuardTierIconSprite(changes.getGuardTier(i));
+            if (icon == null)
+                continue;
+            batch.draw(icon, getX() + xOffset, getY(), icon.getRegionWidth(), icon.getRegionHeight());
+            xOffset += icon.getRegionWidth();
+        }
         batch.setColor(pr, pg, pb, pa);
     }
 }

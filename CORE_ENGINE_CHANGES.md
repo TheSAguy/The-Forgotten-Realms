@@ -288,7 +288,15 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   burst on the POI's bounding-rectangle CENTER instead of its raw top-left position - a large
   town/capital sprite's top-left corner could sit many tiles from where the player can actually
   stand, silently making the discovery trigger far harder to reach for big POIs than small ones
-  (explains "dungeons lift fog, towns don't").
+  (explains "dungeons lift fog, towns don't"). **Playtest round 2, same day: center-distance
+  itself was still inconsistent** ("have to approach the town from just the exact angle... maybe
+  create a radius around the town to trigger" - user's own diagnosis, correct). A large sprite's
+  center can be several tiles from an edge the player is standing right next to, so the effective
+  trigger radius varied by approach angle and footprint size. Replaced with proper closest-point-
+  on-rectangle distance (clamp the player's world position into the POI's bounds, then measure
+  from there) - 0 distance anywhere inside/touching the footprint, true edge distance outside it,
+  identical to the old math for a 1-tile POI. The reveal-burst CENTER is still the rectangle
+  center (unchanged) - only the trigger gate's distance metric changed.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapSprite.java`** — overworld POI icons (towns/
   castles) now hide until the tile under their *center* has been explored (fog of war, #3) -
   previously checked the sprite's bottom-left corner, which could leave multi-tile buildings'
@@ -297,6 +305,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   broken-town overlay (#2) when applicable; also a bug fix - used to cache a POI's sprite once at
   construction (a `final` field), so Territory Control's `transformInto()` (#7, a POI becoming a
   different town) couldn't ever update the rendered icon. Now reads the sprite fresh each frame.
+  Guard indicator (#22, from the other machine's 2026-08-11 round, undocumented here until now):
+  `drawGuardIndicator()` draws a small tier icon in the sprite's corner for a hired guard.
+  **Playtest round 2 fix, same day:** it only ever drew the single strongest guard's icon, even at
+  the Capitol (which allows 2 hired guards) - user report: "only 1 icon appeared... will need up
+  to two icons." Now loops every hired guard and draws one icon per, offset left-to-right.
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterest.java`** — added
   `transformInto(PointOfInterestData, Random)` (#7): rebuilds a POI's sprite/rectangle/active-state
   from a *different* data definition in place, used when a captured neutral town becomes a real
@@ -342,12 +355,19 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Teleporter-animation round (2026-08-10): `draw()` intercepts the TELEPORTER economy type before
   the generic building-sprite path, picking `EconomyBuildings.getTeleporterClosedSprite()` or the
   current frame of `getTeleporterActiveAnimation()` (based on `isTeleporterNetworkActive()`) via a
-  new per-actor `teleporterAnimTime` clock ticked in `act()`.
+  new per-actor `teleporterAnimTime` clock ticked in `act()`. Archaeologist round (2026-08-11,
+  playtest round 2): `onPlayerCollide()`'s economy-type switch gained an ARCHAEOLOGIST case
+  (`EconomyBuildings.openArchaeologistDialog()`) - the building moved from a standalone map
+  object to a Utility-submenu economy type this same round, so it now flows through this switch
+  like Outlook/Teleporter instead of its own dedicated `OnCollide`/MapStage case.
 - **`forge-gui-mobile/src/forge/adventure/scene/RewardScene.java`** — already hosted the Destroy
   button (see ShopActor's entry above). Playtest round (2026-08-11): new `armoryRestockNote()`
   appends a small "Restocks weekly" line to the shop header for Armory-type shops
   (`EconomyBuildings.isArmoryShop()`) - user request, since Armory shops restock via the weekly
   reseed instead of the ordinary paid restock button and had no on-screen indication of that.
+  **Playtest round 2, same day:** exact wording corrected to "Inventory will refresh weekly" per
+  the user's precise request (also independently extended to land shops by the other machine's
+  session the same day - see the other `RewardScene.java` entry further down).
 - **`forge-gui-mobile/src/forge/adventure/character/OnCollide.java`** — added an optional
   town-restoration-gated constructor overload (Job Board building specifically) - the original
   single-arg constructor is unchanged/still used everywhere else unmodified. Capitol-polish
@@ -498,7 +518,22 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `ArenaScene.loadArenaData()`'s new `isChallenge` flag also overrides per-fight, same clone
   pattern) is pre-existing stock Forge, not a mod addition - confirmed via `git log -p` on this
   file, listed here only for context since both fields are touched by the same clone-and-override
-  pattern.
+  pattern. **Upgrade/Challenge-toggle round (2026-08-11, playtest round 2):** the pre-entry
+  MapStage dialog (`EconomyBuildings.openArenaEntryDialog()`) that used to gate Upgrade/Challenge
+  choices before ArenaScene even loaded is gone (user request: "have the Upgrade be an option
+  inside the arena interface vs. a gating menu"). New entry point `enterArenaBuilding(MapStage,
+  int objectId, String regularJson, String challengeJson)` called directly from `MapStage`'s
+  "arena" case - stashes the stage/objectId/both raw ArenaData JSON strings, then loads the
+  Normal pool by default. Two new programmatic buttons (`arenaUpgradeButton`/
+  `arenaModeToggleButton`, same positioned-above-doneButton pattern `RewardScene`'s
+  guardsButton/upgradeButton established) live directly on the Arena screen: `promptUpgradeArena()`
+  (confirm dialog, spends `EconomyBuildings.BUILDING_UPGRADE_COST`, sets the building to Level 2)
+  shown while level < 2, `toggleArenaMode()` (re-parses whichever JSON isn't currently showing and
+  calls the existing `loadArenaData()` again - a full bracket reload, same as a fresh entry) shown
+  once level >= 2 AND a Challenge pool exists for this arena - single button whose label reflects
+  which mode it would switch TO. `refreshArenaBuildingButtons()` hides both once a run is actually
+  in progress (`arenaStarted || roundsWon != 0`) - upgrading or switching modes mid-tournament was
+  never a sensible thing to allow.
 - **`forge-gui-mobile/src/forge/adventure/scene/ArenaScene.java`** — Ante-off round (2026-08-11,
   #20 - also missing from this doc until now): `loadArenaData()`'s enemy-cloning loop sets
   `arenaEnemyData.noAnte = true` on each per-fight `EnemyData` clone. Challenge Arena round (same
@@ -571,7 +606,16 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   second `Runnable` parameter, `prop.containsKey("arenaChallenge") ? (...) : null` - null wherever
   a town's arena has no `arenaChallenge` tmx property (every arena but the player Capitol's).
   Archaeologist round (same day): new `"archaeologist"` case (#24), same gated 3-arg `OnCollide` +
-  `withRebuiltIcon()` pattern as "arena"/"spellsmith".
+  `withRebuiltIcon()` pattern as "arena"/"spellsmith". **Playtest round 2 (2026-08-11, same day,
+  different machine):** the standalone `"archaeologist"` case above is GONE - user request to
+  move it into the Utility build-submenu instead (see `EconomyBuildings.ARCHAEOLOGIST`); the
+  `archaeologist.tx` template and its `player_capital.tmx` object are both deleted, no longer
+  referenced anywhere. The "arena" case's `EconomyBuildings.openArenaEntryDialog()` pre-entry
+  dialog wrapper is also gone (see `ArenaScene.java`'s own new entry below) - collision now calls
+  `ArenaScene.enterArenaBuilding()` directly and switches scene immediately, no dialog stop first.
+  "spellsmith" case fixed to actually call `EconomyBuildings.getSpellsmithSprite()` - it had been
+  hardcoded to the generic `SpecialShop` placeholder ever since the real Spellsmith art was added
+  in an earlier round; the atlas region was already correct, this case just never read it.
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with

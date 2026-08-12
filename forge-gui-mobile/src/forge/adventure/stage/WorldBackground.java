@@ -97,18 +97,26 @@ public class WorldBackground extends Actor {
             // active), so skipping inactive POIs here fixes it with no effect on towns/capitals.
             if (!poi.getActive())
                 continue;
-            // Centered on the POI's actual footprint (rectangle center), not its raw top-left
-            // position - a large town/capital sprite's top-left corner can sit many tiles from
-            // where the player can actually stand, which was silently making the vision-radius
-            // gate below far harder to satisfy for big POIs than for a small 1-tile dungeon icon
-            // (user report 2026-08-11: "getting near a town still does not lift FoW... but
-            // dungeons do").
+            // Proximity gated on distance to the NEAREST EDGE of the POI's footprint, not its
+            // center (2026-08-11, second pass - the center-distance version from the first
+            // playtest round turned out still inconsistent: "have to approach the town from just
+            // the exact angle... maybe create a radius around the town to trigger" - exactly
+            // right. A large town/capital sprite's center can be several tiles from an edge the
+            // player is standing right next to, so gating on center distance meant the trigger
+            // radius effectively shrank or grew depending on which side you approached from and
+            // how big that particular POI's footprint is. Clamping the player's position into the
+            // rectangle first (standard closest-point-on-rect-to-point) gives 0 distance anywhere
+            // inside/touching the footprint and a true edge distance outside it - consistent from
+            // every approach angle, and reduces to the exact same math as before for a 1-tile
+            // dungeon icon (rect ≈ a point).
             Rectangle bounds = poi.getBoundingRectangle();
+            float nearestWorldX = Math.max(bounds.x, Math.min(playerX, bounds.x + bounds.width));
+            float nearestWorldY = Math.max(bounds.y, Math.min(playerY, bounds.y + bounds.height));
+            float dxTiles = (playerX - nearestWorldX) / tileSize;
+            float dyTiles = (playerY - nearestWorldY) / tileSize;
             int poiTileX = (int) ((bounds.x + bounds.width / 2f) / tileSize);
             int poiTileY = (int) ((bounds.y + bounds.height / 2f) / tileSize);
-            int dx = poiTileX - playerTileX;
-            int dy = poiTileY - playerTileY;
-            if (dx * dx + dy * dy <= visionRadius * visionRadius) {
+            if (dxTiles * dxTiles + dyTiles * dyTiles <= visionRadius * visionRadius) {
                 // Discovery flash (user spec 2026-08-09): the burst of tiles a town/capitol
                 // uncovers on first approach should flare fully bright for a moment before
                 // settling to the normal dimmed "explored" tier, instead of jumping straight

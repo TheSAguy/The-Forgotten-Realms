@@ -18,7 +18,9 @@ import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.IAfterMatch;
 import forge.adventure.stage.MapStage;
 import forge.adventure.stage.WorldStage;
+import forge.adventure.player.AdventurePlayer;
 import forge.adventure.util.*;
+import forge.adventure.world.WorldSave;
 import forge.gui.FThreads;
 import forge.screens.TransitionScreen;
 
@@ -60,6 +62,19 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     boolean arenaStarted = false;
     Dialog startDialog, concedeDialog;
 
+    // Arena Level 2 upgrade + Normal/Challenging toggle, moved from a pre-entry MapStage gating
+    // dialog into the Arena screen itself (user request 2026-08-11: "have the Upgrade be an
+    // option inside the arena interface vs. a gating menu... a button for switching between
+    // Normal vs. Challenging"). Collision now enters straight into this scene (Normal mode,
+    // MapStage's "arena" case) instead of stopping at a chooser dialog first; the raw JSON for
+    // both pools is stashed here (rather than parsed ArenaData) so the toggle can re-parse
+    // whichever pool it's switching TO on demand, same as the old dialog's two callbacks did.
+    private MapStage arenaMapStage;
+    private int arenaObjectId = -1;
+    private String regularArenaJson, challengeArenaJson;
+    private boolean challengeMode = false;
+    private final TextraButton arenaUpgradeButton, arenaModeToggleButton;
+
     private ArenaScene() {
         super(Forge.isLandscapeMode() ? "ui/arena.json" : "ui/arena_portrait.json");
         fighterSpot = Config.instance().getAtlasSprite(Paths.ARENA_ATLAS, "Spot");
@@ -94,7 +109,90 @@ public class ArenaScene extends UIScene implements IAfterMatch {
 
         startButton = ui.findActor("start");
 
+        // Arena Level 2 upgrade + Normal/Challenging toggle (2026-08-11) - programmatic buttons,
+        // not added to the shared ui/arena.json (every plane's Arena loads it), same pattern
+        // RewardScene's guardsButton/upgradeButton already use. Positioned above the done button,
+        // stacked (upgrade above toggle) - at most one is ever visible at a time (upgrade before
+        // Level 2, toggle after), so they never actually overlap on screen.
+        arenaUpgradeButton = Controls.newTextButton("Upgrade to Level 2 (" + EconomyBuildings.BUILDING_UPGRADE_COST + "g)", this::promptUpgradeArena);
+        arenaUpgradeButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
+        arenaUpgradeButton.setPosition(doneButton.getX() + doneButton.getWidth() - arenaUpgradeButton.getWidth(),
+                doneButton.getY() + doneButton.getHeight() + 10f);
+        arenaUpgradeButton.setVisible(false);
+        ui.addActor(arenaUpgradeButton);
 
+        arenaModeToggleButton = Controls.newTextButton("", this::toggleArenaMode);
+        arenaModeToggleButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
+        arenaModeToggleButton.setPosition(doneButton.getX() + doneButton.getWidth() - arenaModeToggleButton.getWidth(),
+                doneButton.getY() + doneButton.getHeight() + 10f);
+        arenaModeToggleButton.setVisible(false);
+        ui.addActor(arenaModeToggleButton);
+    }
+
+    /** Entry point for MapStage's "arena" collision case (2026-08-11) - replaces the old pre-entry
+     *  gating dialog (EconomyBuildings.openArenaEntryDialog()): straight into this scene, always
+     *  Normal mode first. challengeJson is null wherever this arena has no "arenaChallenge" tmx
+     *  property (every arena but the player Capitol's) - the toggle button just never appears. */
+    public void enterArenaBuilding(MapStage stage, int objectId, String regularJson, String challengeJson) {
+        arenaMapStage = stage;
+        arenaObjectId = objectId;
+        regularArenaJson = regularJson;
+        challengeArenaJson = challengeJson;
+        challengeMode = false;
+        ArenaData data = JSONStringLoader.parse(ArenaData.class, regularArenaJson, "");
+        loadArenaData(data, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), false);
+    }
+
+    private int arenaBuildingLevel() {
+        if (arenaMapStage == null || arenaMapStage.getChanges() == null || arenaObjectId < 0)
+            return 1;
+        return arenaMapStage.getChanges().getBuildingLevel(arenaObjectId);
+    }
+
+    /** Shows/hides the upgrade and toggle buttons for the current level/mode/match state - called
+     *  after load, after upgrading, and after a match starts/ends (never offer either mid-match). */
+    private void refreshArenaBuildingButtons() {
+        if (arenaMapStage == null) {
+            arenaUpgradeButton.setVisible(false);
+            arenaModeToggleButton.setVisible(false);
+            return;
+        }
+        boolean midMatch = arenaStarted || roundsWon != 0;
+        int level = arenaBuildingLevel();
+        arenaUpgradeButton.setVisible(!midMatch && level < 2);
+        boolean toggleAvailable = !midMatch && level >= 2 && challengeArenaJson != null;
+        arenaModeToggleButton.setVisible(toggleAvailable);
+        if (toggleAvailable)
+            arenaModeToggleButton.setText(challengeMode ? "Switch to Normal Arena" : "Switch to Challenging Arena");
+    }
+
+    private void promptUpgradeArena() {
+        if (arenaMapStage == null || arenaMapStage.getChanges() == null)
+            return;
+        int cost = EconomyBuildings.BUILDING_UPGRADE_COST;
+        if (AdventurePlayer.current().getGold() < cost)
+            return;
+        showDialog(createGenericDialog("", "Upgrade this Arena to Level 2 for " + cost
+                        + " gold?\nUnlocks the Challenging Arena.",
+                Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
+                    removeDialog();
+                    AdventurePlayer.current().takeGold(cost);
+                    arenaMapStage.getChanges().setBuildingLevel(arenaObjectId, 2);
+                    refreshArenaBuildingButtons();
+                }, this::removeDialog));
+    }
+
+    private void toggleArenaMode() {
+        if (arenaStarted || roundsWon != 0)
+            return; // safety net - the button is hidden mid-match, but a queued click shouldn't slip through
+        challengeMode = !challengeMode;
+        String json = challengeMode ? challengeArenaJson : regularArenaJson;
+        if (json == null) {
+            challengeMode = !challengeMode; // no pool for the target mode - revert silently
+            return;
+        }
+        ArenaData data = JSONStringLoader.parse(ArenaData.class, json, "");
+        loadArenaData(data, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), challengeMode);
     }
 
     private void showAreYouSure() {
@@ -153,6 +251,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         doneButton.layout();
         Forge.setCursor(null, Forge.magnifyToggle ? "1" : "2");
         Current.player().takeGold(arenaData.entryFee);
+        refreshArenaBuildingButtons(); // hide Upgrade/toggle for the duration of the run
         startRound();
     }
 
@@ -377,6 +476,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
             }
         }
         drawArena();
+        refreshArenaBuildingButtons();
     }
 
     void drawArena() {

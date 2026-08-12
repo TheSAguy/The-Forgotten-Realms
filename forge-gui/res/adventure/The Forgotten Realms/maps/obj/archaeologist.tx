@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<template>
- <tileset firstgid="1" source="../../../common/maps/tileset/buildings.tsx"/>
- <object name="Archaeologist" type="archaeologist" gid="1391" width="16" height="16">
-  <properties>
-   <property name="type" value="archaeologist"/>
-  </properties>
- </object>
-</template>

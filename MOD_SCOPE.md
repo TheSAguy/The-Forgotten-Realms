@@ -198,6 +198,12 @@ Helping a color angers its two enemies, not its allies.
   not present in the 5 AI castles' otherwise-identical loop) was removed; territory
   ownership/color-painting growth is unaffected, only the forced fog reveal stops. Full root-cause
   detail for all four in `MOD_CHANGELOG.md`.
+- **Second pass, same day (playtest round 2): the "towns don't lift fog" fix above was still
+  inconsistent** - "have to approach the town from just the exact angle" (user's own diagnosis,
+  confirmed correct). Gating on distance to a POI's rectangle CENTER meant the effective trigger
+  radius varied by approach angle for any large-footprint sprite. Replaced with proper
+  closest-point-on-rectangle distance (0 anywhere inside/touching the footprint) - consistent from
+  every side now. Full detail in `MOD_CHANGELOG.md`.
 - **Vision radius now scales with difficulty (2026-08-11 user spec)**: the existing 3-tile baseline
   is for Normal/Hard specifically now, Easy sees 4, Insane sees 2 - not the linear per-difficulty-
   step scale used elsewhere (mage cap), deliberately ties the two middle tiers together.
@@ -1491,19 +1497,26 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; deck-test mode not yet built)
+### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; deck-test mode not yet built)
 - **"No ant in Arena" resolved**: means Ante (the mechanic where match winner takes a card from the
   loser's deck - "ant" was a typo missing the "e"), which is on by default for every match
   currently. **Built**: Ante is now force-disabled for Arena matches specifically (new
   `EnemyData.noAnte`, set on a per-fight clone in `ArenaScene.loadArenaData()` - the player's
   global Ante setting is untouched, still applies to every non-Arena duel).
-- **Art - built**: real Level 1 art (buildings.png IDs 378/379, composited into a 16x32 vertical
-  stack per the user's spec - see `MOD_CHANGELOG.md` for why this needed compositing rather than a
-  plain crop) alongside the existing, untouched Level 2 art.
-- **Upgrade trigger - built.** Arena had no pre-entry menu at all before this (collision went
-  straight into `ArenaScene`) - new `EconomyBuildings.openArenaEntryDialog()`, built against
-  `MapStage`'s own persistent dialog (same convention as the Bank/Exchange dialogs), shows "Enter
-  Arena" plus "Upgrade to Level 2 (100g)" below Level 2. Shared plumbing
+- **Art - built, then corrected same day (playtest round 2).** Level 1 art was first composited
+  into a 16x32 VERTICAL stack (buildings.png IDs 378/379) per the user's original spec, "twice,
+  with emphasis" - the first actual screenshot showed this reading as an awkward double-stack, not
+  one coherent building. Corrected to a plain 32x16 LANDSCAPE crop of the same two tiles (no
+  compositing) per the user's follow-up correction - exactly the "straight bounding-box crop" the
+  first round had deliberately avoided. Level 2 art untouched throughout.
+- **Upgrade trigger - built, then moved (playtest round 2, same day).** Originally a pre-entry
+  `MapStage` dialog (`EconomyBuildings.openArenaEntryDialog()`, "Enter Arena"/"Enter Challenge
+  Arena"/"Upgrade to Level 2") shown on collision before ArenaScene even loaded - per user
+  follow-up ("have the Upgrade be an option inside the arena interface vs. a gating menu"), that
+  dialog is gone. Collision now enters `ArenaScene` directly; the screen itself now has an
+  "Upgrade to Level 2 (100g)" button (level < 2) and a "Switch to Normal/Challenging Arena" toggle
+  button (level >= 2, replacing the old separate "Enter Challenge Arena" pre-entry choice) - both
+  hidden once a tournament run is actually in progress. Shared plumbing
   (`PointOfInterestChanges.getBuildingLevel()`/`setBuildingLevel()`, `EconomyBuildings.
   getArenaSprite(level)`, `BUILDING_UPGRADE_COST`) is the same infrastructure Armory's own upgrade
   (#22) already uses. Known cosmetic-only limitation: the overworld icon updates on next
@@ -1603,32 +1616,37 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
 - **UI**: `EconomyBuildings.openManageGuardsDialog()` (built directly against a raw
   `scene2d.ui.Dialog`, not the DialogData/ActionData system - see `MOD_CHANGELOG.md` for why that
   system didn't fit); `RewardScene`'s `guardsButton`/`upgradeButton`, Armory-only, mutually
-  exclusive by level.
+  exclusive by level. **Resized (playtest round 2, 2026-08-11)**: was one full-width button per
+  tier/guard (too tall per the user's screenshot) - now two half-width buttons per row.
 - **Map indicator icon - built (2026-08-11).** `guard_icons.atlas`/`.png` (composited from the 4
   already-extracted 8x8 tier PNGs, sourced from `common/maps/tileset/dungeon.png` IDs 83/84/86/88
   per the user's mockup), drawn in `PointOfInterestMapSprite.draw()` - the strongest guard's icon
-  only, bottom-left corner, even at a 2-guard Capitol. Fully closes out this scope item.
+  only, bottom-left corner, even at a 2-guard Capitol. **Fixed same day (playtest round 2)**: now
+  draws one icon per hired guard (up to 2 at the Capitol), not just the single strongest.
 
 ### 23. Gold Icon in Bank — `Not Started`
 - User idea (2026-08-11), not yet scoped or discussed in detail - presumably the Bank dialog's
   balance/deposit/withdraw rows (`EconomyBuildings.refreshBankDialog()`), which are plain text
   right now (`"Deposited: N gold"`, etc.) with no actual gold icon alongside the number.
 
-### 24. Archaeologist Building — `Built (2026-08-11), not yet playtested`
+### 24. Archaeologist Building — `Built (2026-08-11); redesigned + real art + cost added same day (playtest round 2), not yet playtested`
 - **User spec (verbatim, 2026-08-11)**: "Archeologist building. Capitol only building. - sends out
   expeditions. Takes 7 days. Random 5 cards that the player does not have/already own. No mythic.
   25% to also get a booster. 5% chance get an item. No mythic items. If you visit before the 7
   days, it will just say x days remaining before the expedition returns. Same sort of interface as
   when you win a duel and get rewards, you flip over the cards to see what you received."
-- **New Capitol-only building, dedicated template (not a shop conversion)**: modeled on Arena/
-  Spellsmith rather than Bank/Exchange/Armory, since it needs its own distinct gameplay (a timer,
-  not buying/selling) rather than fitting the existing shop-conversion or named-shop mechanisms.
-  New `forge-gui/res/adventure/The Forgotten Realms/maps/obj/archaeologist.tx` (plane-scoped per
-  the mod's file-placement convention, unlike arena.tx/spellsmith.tx which live in `common/` -
-  there's already a precedent for this, `maps/obj/stone.tx`), a new object (id 102) placed on
-  `player_capital.tmx` at (208, 140), and a new `"archaeologist"` case in `MapStage.java` using the
-  same gated 3-arg `OnCollide` + `withRebuiltIcon()` pattern as Arena/Spellsmith - starts as rubble
-  in a wasteland-origin Capitol and must be paid to rebuild first, exactly like its siblings.
+- **Superseded the same day (playtest round 2): NOT a standalone map object.** The first version
+  (below, struck through in spirit) placed a dedicated `archaeologist.tx` object directly on
+  `player_capital.tmx`, modeled on Arena/Spellsmith. User follow-up: "I don't want that... put it
+  under the Utility sub menu so it can be built on one of the pre-existing destroyed building
+  spots." Rebuilt as `EconomyBuildings.ARCHAEOLOGIST` (type 9), the same one-per-town/Capitol-only
+  economy-building machinery as Outlook/Teleporter - buildable via the Capitol's Utility submenu on
+  any ordinary destroyed shop slot, no dedicated map position at all. The old
+  `archaeologist.tx`/`player_capital.tmx` object are both deleted.
+- ~~New Capitol-only building, dedicated template (not a shop conversion): modeled on Arena/
+  Spellsmith rather than Bank/Exchange/Armory... a new object (id 102) placed on
+  `player_capital.tmx` at (208, 140), and a new "archaeologist" case in MapStage.java...~~
+  (superseded above, kept struck-through for the "why" trail rather than deleted outright).
 - **Timer**: new `PointOfInterestChanges.archaeologistExpeditionSentDay` (single int field, -1 =
   no expedition active - not objectId-keyed like `buildingLevels`/guard fields, since there's only
   ever one Archaeologist). "Send Expedition" stamps the current in-game day; visiting before 7 days
@@ -1636,36 +1654,33 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   "Collect Rewards", which resets the timer to -1 and routes into `RewardScene` with
   `Type.Loot` - the exact same flip-to-reveal interface duel wins already use, per the user's
   explicit ask.
-- **Rewards** (`EconomyBuildings.generateExpeditionRewards()`): 5 DISTINCT cards (sampled without
-  replacement, so never a duplicate within one batch) from the pool of Common/Uncommon/Rare cards
-  the player doesn't already own by name (`AdventurePlayer.current().getCards()`, matched by
-  `PaperCard.getName()` so a different edition/printing of an already-owned card still counts as
-  owned - a card you own in one printing isn't really a new find). Recomputed fresh from the
-  player's live collection on every visit, so a card already claimed from an earlier expedition
-  won't be offered again. 25% chance of an additional real booster pack (reuses the existing
-  `"cardPackShop"` `RewardData` type - the same mechanism Booster Pack Shops use - picking any
-  legal, obtainable edition at random). 5% chance of an additional item from a new 542-entry
-  non-Mythic item pool (Common+Uncommon+Rare, non-quest - same `rarity` + `questItem` exclusion
-  query already used for the Arena Challenge pools, just spanning all three tiers unweighted since
-  the user's spec wasn't tier-split for this roll).
-- **No cost to send an expedition - Claude's own default, not user-specified.** The user's spec
-  didn't mention a cost at all; every other Capitol action in this mod (Arena entry, Armory guard
-  salaries, building upgrades) does cost something, so this may be an oversight rather than an
-  intentional "free" design - flagged here explicitly rather than silently guessed. Trivial to add
-  a gold cost to `openArchaeologistDialog()`'s "Send Expedition" button later if the user wants one
-  once the 7-day cadence has been playtested.
-- **No real art identified.** An old speculative code comment in `EconomyBuildings.java` reserved
-  tile 751 in `common/maps/tileset/buildings.png` for "Archaeologist, whenever that building gets
-  built" - now that it has, tile 751 was actually checked (cropped and visually inspected) and
-  turned out to be part of an unrelated teal guardian-temple sprite, nothing archaeology-themed.
-  `getArchaeologistSprite()` falls back to the generic `SpecialShop` icon instead, same placeholder
-  Spellsmith originally launched with before real art was found for it.
-- **Map placement checked against the collision layer, but still not visually confirmed.**
-  (208, 140) on `player_capital.tmx` was chosen as open-looking space near the existing Arena
-  (423, 114)/Spellsmith (452, 212)/Inn (536, 144) cluster, based on reading other objects'
-  coordinates. Follow-up (2026-08-11, end-of-day review): decoded the map's `Walls` layer (base64+
-  zlib tile data, 40x40 grid) directly and confirmed the tile at that position is GID 0 (empty, no
-  wall) - not overlapping a solid collision tile. This doesn't rule out overlapping a purely
-  decorative sprite on the `Ground2`/`Overlay` layers (not checked), and doesn't confirm how it
-  actually looks rendered - still worth an actual look in-game. Easy to reposition (just the
-  object's x/y in the TMX) if it turns out to land somewhere visually bad.
+- **Rewards** (`EconomyBuildings.generateExpeditionRewards()`): 5 cards from the pool of
+  Common/Uncommon/Rare cards the player doesn't already own by name (`AdventurePlayer.current().
+  getCards()`, matched by `PaperCard.getName()` so a different edition/printing of an already-owned
+  card still counts as owned). **Set-diversity requirement added same day (playtest round 2)**:
+  the 5 cards must now come from 5 DIFFERENT expansions (`PaperCard.getEdition()`) per explicit
+  user spec - greedily picked from the shuffled non-owned pool, skipping any card whose edition is
+  already represented in this batch. Recomputed fresh from the player's live collection on every
+  visit, so a card already claimed from an earlier expedition won't be offered again. 25% chance of
+  an additional real booster pack (reuses the existing `"cardPackShop"` `RewardData` type - the
+  same mechanism Booster Pack Shops use - picking any legal, obtainable edition at random). 5%
+  chance of an additional item from a new 542-entry non-Mythic item pool (Common+Uncommon+Rare,
+  non-quest - same `rarity` + `questItem` exclusion query already used for the Arena Challenge
+  pools, just spanning all three tiers unweighted since the user's spec wasn't tier-split for this
+  roll).
+- **Cost added (playtest round 2): 1000 gold to send an expedition.** The first round shipped this
+  free by default (flagged explicitly as an unconfirmed assumption, not a design decision) - user
+  confirmed same day it should cost 1000g, now charged upfront on "Send Expedition" (only enabled
+  when affordable, same pattern every other paid action in this mod uses).
+- **Real art added (playtest round 2): buildings.png IDs 722/723/750/751** (user-specified, a 2x2
+  block) - replaces the generic SpecialShop placeholder the first round shipped with. Visually a
+  teal guardian-statue-like structure, not obviously "archaeology"-themed - flagged for awareness,
+  not second-guessed, since the user gave these exact IDs directly (the same 4 IDs an earlier
+  round had actually rejected on sight; re-specifying them this round reads as confirmed intent).
+- ~~No real art identified - tile 751 alone turned out to be part of an unrelated teal
+  guardian-temple sprite, `getArchaeologistSprite()` fell back to the generic SpecialShop icon.~~
+  Superseded above - the full 2x2 block (722/723/750/751) reads as a distinct structure even
+  though 751 alone didn't.
+- ~~Map placement checked against the collision layer at (208, 140) on `player_capital.tmx`,
+  never visually confirmed.~~ Moot - there's no fixed map placement anymore (see the
+  Utility-submenu redesign above), so this question no longer applies.

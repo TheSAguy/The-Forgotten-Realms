@@ -6709,3 +6709,119 @@ Spellsmith itself originally launched with before real art was found.
 Compiles clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`, BUILD SUCCESS). Not yet
 playtested in-game - in particular the map placement and the rebuild-gate/timer/reward flow have
 only been verified by reading code, not by actually visiting the building.
+
+## Playtest round 2: 13 fixes from actual in-game screenshots of today's new content (2026-08-11)
+
+User played today's whole "Batch round"/Guard/Arena/Archaeologist build (all previously
+unplaytested) and reported back with screenshots. Twelve concrete items, all fixed the same round.
+
+**Armory note wording** - `RewardScene.armoryRestockNote()` changed from "Restocks weekly" to the
+user's exact requested text, "Inventory will refresh weekly".
+
+**Teleport items removed from the Armory pool.** `EconomyBuildings.isArmoryShop()` matches any
+shop named `*Equipment`, `*Items`, or `Armory*` - a broad net that, it turned out, also caught the
+generic player-town `Equipment` shop and this session's own earlier fix to the 5 AI capitals'
+`*Items` shops (both legitimately Armory-classified). Cross-referenced every item name in every
+Armory-classified shop's reward pool against `items.json`'s `commandOnUse: "teleport to poi ..."`
+items and found 6 real hits: `White/Red/Blue/Black/Green rune` (one in each AI capital's own
+`*Items` pool - ironically added there BY this session's own earlier "convert to a randomized
+pool" fix, since the fixed six-item list it was built from already contained one) and `Aerie
+Omenstone`/`Ghost rune` in the generic `Equipment` shop. All 6 removed via targeted text edits
+(not a blind JSON reformat - see the "Cross-machine merge round"'s shops.json note for why that
+matters for this specific file's hand-authored formatting). The dedicated `OmenStones` shop
+("Quick Travel Mart" - name matches neither Equipment/Items/Armory pattern, so `isArmoryShop()`
+correctly excludes it) still sells every Omenstone directly and deliberately - untouched.
+
+**FoW near-town inconsistency, second pass - "approach from just the exact angle."** The first
+playtest round's fix (gate on distance to the POI's rectangle CENTER) turned out still fragile:
+a large town/capital sprite's center can sit several tiles from an edge the player is standing
+right next to, so the effective trigger radius silently varied by which side you approached from
+and how big that particular POI's footprint was - exactly the reported symptom, and the user's own
+proposed fix ("create a radius around the town to trigger") was exactly right. Replaced with a
+proper closest-point-on-rectangle distance (clamp the player's world position into the POI's
+bounding rect, then measure from there) - 0 distance anywhere inside/touching the footprint,
+consistent from every approach angle, and mathematically identical to the old check for a 1-tile
+dungeon icon. Full detail in `CORE_ENGINE_CHANGES.md`'s `WorldBackground.java` entry.
+
+**Armory building level lost across the Capitol upgrade.** `TownRestoration.upgradeToCapitol()`'s
+migration loop already carried a rebuilt shop's NAME across the town->Capitol id change (pinning),
+but never its `buildingLevels` entry - an upgraded (Level 2) Armory silently reverted to Level 1
+the moment its town became the Capitol, since `buildingLevels` is keyed by Tiled object id and the
+Capitol's slot has a different id than the source town's. Fixed by carrying `oldChanges.
+getBuildingLevel(oldId)` across onto the new slot in the same loop that already pins the shop name,
+using the exact same id-remap the pinning already established.
+
+**Guard Hire dialog resized.** Was one full-width `TextraButton` per tier/guard (5-7 rows,
+uncomfortably tall per the user's screenshot). New `addHalfButton()`/`finishHalfButtonRow()`
+helpers in `EconomyBuildings.java` pack two half-width buttons per row instead, closing a
+dangling odd row (e.g. 1 guard hired at a town, which only allows 1) before the next section
+starts fresh.
+
+**Capitol guard icons - only 1 showed even with 2 hired.** `PointOfInterestMapSprite.
+drawGuardIndicator()` only ever drew `EconomyBuildings.strongestGuardTier()`'s single icon,
+regardless of how many guards were actually hired - fine for ordinary towns (max 1 guard anyway)
+but wrong for the Capitol (max 2). Now loops every hired guard and draws one icon per, offset
+left-to-right instead of stacking on the same spot.
+
+**Arena Level 1 icon, wrong orientation.** The 2026-08-10 round explicitly composited this as a
+16x32 TALL image (vertically stacking the two natural 16x16 source tiles) per what the user
+specified at the time, "twice, with emphasis." Today's screenshot showed the result reading as an
+awkward double-stack, not a coherent building - the user's follow-up correction: it should be
+32x16, LANDSCAPE, i.e. exactly the "straight bounding-box crop" the earlier round had deliberately
+avoided. Reverted to a plain horizontal crop of the same source tiles (IDs 378/379) - no
+compositing.
+
+**Spellsmith - real bug, not an art bug.** The user reported the icon still wrong; direct pixel
+comparison showed the CURRENT `new_buildings.atlas` "Spellsmith" region already matches IDs
+432/433/460/461 exactly (a real, correctly-extracted smithy building, added in an earlier round).
+The actual bug: `MapStage.java`'s `"spellsmith"` case was still hardcoded to
+`EconomyBuildings.getSpecialShopSprite()` (the generic placeholder) - a leftover from before the
+real art existed that nobody ever updated once the atlas region was added. New
+`EconomyBuildings.getSpellsmithSprite()` reads the already-correct region; the MapStage case now
+calls it. Lesson: when a user reports "still wrong" after art was supposedly already fixed, verify
+the WIRING before re-extracting art that might already be correct - a pixel-identical fresh crop
+confirmed this immediately.
+
+**Arena upgrade moved out of a pre-entry gating dialog, into the Arena screen itself**, plus a
+Normal/Challenging toggle replacing the old separate "Enter Challenge Arena" pre-entry choice -
+see `CORE_ENGINE_CHANGES.md`'s `ArenaScene.java`/`MapStage.java`/`EconomyBuildings.java` entries
+for the full mechanism. Collision now enters `ArenaScene` directly (`enterArenaBuilding()`); two
+new programmatic buttons on that screen (`promptUpgradeArena()`/`toggleArenaMode()`) handle the
+upgrade and mode switch, both hidden once a tournament run is actually in progress.
+
+**Archaeologist relocated from a standalone map object to the Utility build-submenu**, Capitol-
+only (matches its single-field, non-objectId-keyed expedition-timer state model - "never more
+than one per save"), buildable on any of the Capitol's ordinary destroyed-shop slots instead of
+its own dedicated map object. New `EconomyBuildings.ARCHAEOLOGIST` type (9), threaded through
+`buildOption()`/the Utility submenu (Capitol-gated like Financial)/`ShopActor`'s collision switch,
+exactly like Outlook/Teleporter. The old standalone `archaeologist.tx` template and its
+`player_capital.tmx` object are both deleted. Real art added at last: buildings.png IDs
+722/723/750/751 (user-specified, a 2x2 block) - visually a teal guardian-statue-like structure,
+not obviously "archaeology"-themed, but implemented exactly as given rather than second-guessed
+(same IDs an earlier round had actually rejected for looking unrelated - the user re-specified
+them directly this round, taken as confirmation of intent, not an oversight). Expedition cost
+changed from free to 1000g per user spec (was explicitly flagged as an unconfirmed assumption in
+the prior round). Reward composition changed too: the 5 cards must now come from 5 DIFFERENT
+expansions (`PaperCard.getEdition()`), greedily picked from the shuffled non-owned pool skipping
+any card whose edition is already represented - previously just the first 5 non-owned cards in
+shuffle order, with no set-diversity guarantee at all.
+
+**Icon rebuild mechanics, for reference**: all art this round was extracted fresh from
+`common/maps/tileset/buildings.png` via Python/Pillow (installed this round - ImageMagick, used by
+an earlier round on the other machine, isn't present here) using the same `28 columns, 16x16
+tiles` pixel-math this project has used since the very first Outlook/Arena/Spellsmith extraction,
+and every crop was visually verified (4x nearest-neighbor preview, read back and inspected) before
+being wired in or trusted as "already correct" - the Spellsmith case above is exactly why that
+verification step matters even when re-checking art someone else already extracted.
+
+**Log review**: `forge.log` (fresh, ~67KB, this session's Gaming-PC hardware) showed 471
+`[TerritoryControl]` lines, 137 `[DungeonRotation]` lines, 32 `[TFR-Spawn]` lines, no errors or
+exceptions beyond the harmless startup line - core systems healthy. Zero `[TFR-GuardFight]` or
+`[TFR-CaptureOdds]` lines yet (today's Guard-fight/Outlook-defense mechanics haven't been
+exercised in this particular session - nothing to confirm from logs alone until a real capture
+attempt happens against a guarded/Outlook-defended town).
+
+Compiled clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`, BUILD SUCCESS, one
+checkstyle unused-import catch along the way) and deployed (jar splice + full resource mirror,
+including deleting the now-orphaned `archaeologist.tx` from the installed copy, which a plain
+resource-folder `cp -r` mirror never removes on its own).

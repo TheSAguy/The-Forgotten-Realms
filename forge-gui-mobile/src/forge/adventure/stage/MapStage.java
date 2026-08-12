@@ -697,10 +697,8 @@ public class MapStage extends GameStage {
                         addMapActor(obj, new OnCollide(() -> Forge.switchScene(InnScene.instance(TileMapScene.instance(), TileMapScene.instance().rootPoint.getID(), changes, id))));
                         break;
                     case "spellsmith":
-                        // Rebuilt icon: no dedicated spellsmith art identified yet - the generic
-                        // special-shop building stands in (real art wanted, see MOD_SCOPE.md).
                         addMapActor(obj, new OnCollide(() -> Forge.switchScene(SpellSmithScene.instance()), id, this)
-                                .withRebuiltIcon(EconomyBuildings.getSpecialShopSprite()));
+                                .withRebuiltIcon(EconomyBuildings.getSpellsmithSprite()));
                         break;
                     case "shardtrader":
                         MapActor shardTraderActor = new OnCollide(() -> Forge.switchScene(ShardTraderScene.instance()), id, this);
@@ -721,24 +719,15 @@ public class MapStage extends GameStage {
                         // Gated 3-arg OnCollide like inn/spellsmith (2026-08-08, Player Capitol
                         // round): in a wasteland town/capital the arena starts as rubble and must
                         // be rebuilt like any other building; outside wasteland towns the gate is
-                        // inert and this behaves exactly as before.
+                        // inert and this behaves exactly as before. Straight into ArenaScene on
+                        // collision (2026-08-11, user request) - the old pre-entry MapStage dialog
+                        // (Enter Arena/Enter Challenge Arena/Upgrade) is gone; ArenaScene now owns
+                        // its own Upgrade + Normal/Challenging toggle buttons instead.
                         addMapActor(obj, new OnCollide(() -> {
-                            EconomyBuildings.openArenaEntryDialog(this, id, () -> {
-                                ArenaData arenaData = JSONStringLoader.parse(ArenaData.class, prop.get("arena").toString(), "");
-                                ArenaScene.instance().loadArenaData(arenaData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), false);
-                                Forge.switchScene(ArenaScene.instance());
-                            }, prop.containsKey("arenaChallenge") ? () -> {
-                                ArenaData challengeData = JSONStringLoader.parse(ArenaData.class, prop.get("arenaChallenge").toString(), "");
-                                ArenaScene.instance().loadArenaData(challengeData, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), true);
-                                Forge.switchScene(ArenaScene.instance());
-                            } : null);
+                            String challengeJson = prop.containsKey("arenaChallenge") ? prop.get("arenaChallenge").toString() : null;
+                            ArenaScene.instance().enterArenaBuilding(this, id, prop.get("arena").toString(), challengeJson);
+                            Forge.switchScene(ArenaScene.instance());
                         }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id))));
-                        break;
-                    case "archaeologist":
-                        // Gated 3-arg OnCollide like arena/spellsmith - the Archaeologist starts as
-                        // rubble in a wasteland town/capital and must be rebuilt first (2026-08-11).
-                        addMapActor(obj, new OnCollide(() -> EconomyBuildings.openArchaeologistDialog(this, id), id, this)
-                                .withRebuiltIcon(EconomyBuildings.getArchaeologistSprite()));
                         break;
                     case "exit":
                         addMapActor(obj, new OnCollide(() -> MapStage.this.exitDungeon(false, false)));
