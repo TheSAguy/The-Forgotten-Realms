@@ -2,7 +2,11 @@ package forge.adventure.util;
 
 import forge.adventure.data.ConfigData;
 import forge.adventure.data.RewardData;
+import forge.adventure.player.AdventurePlayer;
+import forge.adventure.pointofintrest.PointOfInterestChanges;
+import forge.adventure.scene.TileMapScene;
 import forge.adventure.world.World;
+import forge.adventure.world.WorldSave;
 import forge.card.CardEdition;
 import forge.model.FModel;
 import forge.util.StreamUtil;
@@ -115,10 +119,77 @@ public class EditionProgression {
         String[] editionsArray = restrict ? editionCodes.toArray(new String[0]) : null;
         for (RewardData rd : original) {
             RewardData clone = new RewardData(rd);
-            if (restrict)
+            if (restrict) {
                 clone.editions = editionsArray;
+                // "Union"-type rewards build their card pool exclusively from the NESTED
+                // cardUnion entries (RewardData.generate()'s Union branch never consults the
+                // outer .editions), and the copy constructor only shallow-clones that array -
+                // the nested elements stay the shared originals. Without deep-cloning them
+                // here, all 157 Union-type reward entries in this plane's shops.json bypassed
+                // the restriction entirely (2026-08-12 review finding). Overwriting rather
+                // than intersecting is safe: no nested entry in shops.json carries its own
+                // editions field (verified across the whole file).
+                if (clone.cardUnion != null) {
+                    for (int i = 0; i < clone.cardUnion.length; i++) {
+                        if (clone.cardUnion[i] == null)
+                            continue;
+                        RewardData nested = new RewardData(clone.cardUnion[i]);
+                        nested.editions = editionsArray;
+                        clone.cardUnion[i] = nested;
+                    }
+                }
+            }
             result.add(clone);
         }
         return result;
+    }
+
+    /**
+     * True when at least one of the player's unlocked editions can actually produce a booster
+     * pack (has a Draft template) - the "cardPackShop" reward type silently generates nothing
+     * otherwise (see RewardData.generate()'s empty-allEditions guard). Fresh saves can start
+     * booster-incapable: Insane seeds only Jumpstart, whose family has no booster templates.
+     * Always true with the feature off - shops then draw from the unrestricted master pool.
+     */
+    public static boolean playerHasBoosterCapableUnlockedEdition() {
+        if (!WorldSave.getCurrentSave().getWorld().isEditionProgressionEnabled())
+            return true;
+        for (String code : AdventurePlayer.current().getUnlockedEditions()) {
+            CardEdition ed = FModel.getMagicDb().getEditions().get(code);
+            if (ed != null && ed.hasBoosterTemplate())
+                return true;
+        }
+        return false;
+    }
+
+    /**
+     * Same owner-lookup + restrictToEditions() combination MapStage.java's initial shop-build uses
+     * (see the "[TFR-ShopEditions]" block there), factored out for any OTHER code path that
+     * re-generates a shop's rewards after the map is already loaded - restocking (paid Refresh),
+     * the Armory's own manual re-roll, and the shop-type re-roll all used to read the shop's raw
+     * RewardData directly and skip this restriction entirely, so a single Refresh purchase could
+     * draw cards from every edition again regardless of unlockedEditions/color shard (real bug,
+     * user-reported 2026-08-12, screenshot showed a dozen-plus different sets in a fresh game).
+     * Reads the CURRENT town the same way the map-build path does (TileMapScene.instance().rootPoint),
+     * so this is only valid to call while actually standing in the shop's own town/POI.
+     */
+    public static Iterable<RewardData> restrictShopRewardsForCurrentTown(
+            Iterable<RewardData> source, PointOfInterestChanges changes, String shopNameForLogging) {
+        World world = WorldSave.getCurrentSave().getWorld();
+        if (!world.isEditionProgressionEnabled())
+            return source;
+        List<String> editionRestriction;
+        String ownerLabel;
+        if (TownRestoration.isCurrentTownCapitol() || TownRestoration.isTownRestored(changes)) {
+            editionRestriction = new ArrayList<>(AdventurePlayer.current().getUnlockedEditions());
+            ownerLabel = "player-unlocked";
+        } else {
+            String townColor = ColorReputation.colorOfTown(TileMapScene.instance().rootPoint.getData());
+            ownerLabel = townColor != null ? townColor : NEUTRAL;
+            editionRestriction = getEditionsForColor(world, ownerLabel);
+        }
+        System.out.println("[TFR-ShopEditions] shop=" + shopNameForLogging + " owner=" + ownerLabel
+                + " restriction(" + editionRestriction.size() + ")=" + editionRestriction + " (regen)");
+        return restrictToEditions(source, editionRestriction);
     }
 }

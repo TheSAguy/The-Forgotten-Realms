@@ -1,9 +1,12 @@
 package forge.adventure.scene;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.utils.Align;
 import com.github.tommyettinger.textra.TextraButton;
 import com.github.tommyettinger.textra.TypingLabel;
@@ -16,6 +19,7 @@ import forge.adventure.util.EconomyBuildings;
 import forge.adventure.util.EditionProgression;
 import forge.card.CardEdition;
 import forge.item.PaperCard;
+import forge.model.FModel;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,6 +65,13 @@ public class ResearchScene extends UIScene {
     private final Table scrollContainer;
     private final Window scrollWindow;
     private final Table root;
+    private final CheckBox hideUnfoundCheckBox;
+    // Not final - its own click handler below needs to reference it (to update its label text)
+    // from inside the same lambda passed to its own constructor call.
+    private TextraButton showResearchedButton;
+    // Not persisted - deliberately resets to "hidden" each time the screen opens, same as the
+    // hide-unfound checkbox always starting checked (see its own setChecked(true) below).
+    private boolean showResearched = false;
 
     private ResearchScene() {
         super(Forge.isLandscapeMode() ? "ui/research.json" : "ui/research_portrait.json");
@@ -68,10 +79,36 @@ public class ResearchScene extends UIScene {
         root = ui.findActor("researchList");
         ui.onButtonPress("return", this::back);
 
+        hideUnfoundCheckBox = Controls.newCheckBox("Hide unfound");
+        hideUnfoundCheckBox.setChecked(true);
+        hideUnfoundCheckBox.getLabel().setColor(Color.BLACK);
+        hideUnfoundCheckBox.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                buildList();
+            }
+        });
+        showResearchedButton = Controls.newTextButton("Show Researched", () -> {
+            showResearched = !showResearched;
+            showResearchedButton.setText(showResearched ? "Hide Researched" : "Show Researched");
+            buildList();
+        });
+        root.add(hideUnfoundCheckBox).align(Align.left);
+        root.add(showResearchedButton).align(Align.right);
+        root.row().padTop(4);
+
         scrollContainer = new Table(Controls.getSkin());
         scrollContainer.row();
         ScrollPane scroller = new ScrollPane(scrollContainer);
+        // Vertical only - matches QuestLogScene's detailScroller.setScrollingDisabled(true, false).
+        scroller.setScrollingDisabled(true, false);
         root.add(scroller).colspan(2).expand().fill();
+        // UIScene's constructor only auto-assigns stage scroll focus to ScrollPanes declared
+        // directly in the JSON layout (research.json has none - this one's built in code, same as
+        // QuestLogScene's). Without an explicit focus, mouse-wheel scroll events never reach this
+        // pane at all (real bug, user-reported 2026-08-12: "I see about 7 expansions on screen,
+        // can't scroll at all").
+        stage.setScrollFocus(scroller);
     }
 
     @Override
@@ -84,12 +121,20 @@ public class ResearchScene extends UIScene {
         // processDaysPassed() - but re-checking here too means a research that finished while the
         // player was elsewhere in-game still shows as complete the instant they open this screen).
         AdventurePlayer.current().checkResearchCompletion(Current.world().getCurrentDay());
+        // The scene is a singleton, so the toggle survives between visits unless reset here -
+        // every open starts on the normal (unresearched) view with the button label matching.
+        showResearched = false;
+        showResearchedButton.setText("Show Researched");
         buildList();
     }
 
     @Override
     public boolean back() {
-        Forge.switchScene(GameScene.instance());
+        // switchToLast() returns to the town/Capitol map the player was standing in, matching
+        // every other in-town building scene (SpellSmithScene.done(), ShardTraderScene). The old
+        // switchScene(GameScene.instance()) jumped straight to the OVERWORLD, silently ejecting
+        // the player from the Capitol on lab exit (real bug, user-reported 2026-08-12).
+        Forge.switchToLast();
         return true;
     }
 
@@ -99,6 +144,16 @@ public class ResearchScene extends UIScene {
     }
 
     private void buildList() {
+        // Selectables must be rebuilt alongside the rows (2026-08-12 review finding): without
+        // this, every rebuild - and buildList now runs from enter(), both filter toggles, and
+        // each purchase - LEAKED the previous rows' buttons into the singleton's selectable
+        // list. Detached actors still report isVisible()==true, so controller/keyboard
+        // navigation could focus an undrawn orphan and fire its stale purchase lambda
+        // (takeGold + startResearch with a stale captured day). research.json declares no
+        // selectable elements, so clearing here drops nothing but our own rows.
+        clearSelectable();
+        addToSelectable(hideUnfoundCheckBox);
+        addToSelectable(showResearchedButton);
         scrollContainer.clear();
         AdventurePlayer player = AdventurePlayer.current();
         int currentDay = Current.world().getCurrentDay();
@@ -126,19 +181,33 @@ public class ResearchScene extends UIScene {
         for (PaperCard pc : RewardData.getAllCards())
             totalByEdition.merge(pc.getEdition(), 1, Integer::sum);
 
+        boolean hideUnfound = hideUnfoundCheckBox.isChecked();
         List<CardEdition> candidates = new ArrayList<>();
-        for (CardEdition ed : EditionProgression.getMasterEditionList()) {
-            if (player.hasUnlockedEdition(ed.getCode()))
-                continue; // researched already - drops off the list per spec
-            if (ownedByEdition.getOrDefault(ed.getCode(), 0) <= 0)
-                continue; // not discovered yet - see class doc for why these are hidden
-            candidates.add(ed);
+        if (showResearched) {
+            // Researched-only view (user spec 2026-08-12: the toggle "should ONLY show those").
+            // Sourced from unlockedEditions DIRECTLY, not by filtering the master list - the
+            // starter editions (JMP/J22/J25 family) have no booster template, so they are absent
+            // from getMasterEditionList() and a master-list filter would silently never show
+            // them, which is exactly why the first version of this toggle looked like it did
+            // nothing on a fresh save (the only unlocked editions were all starters).
+            for (String code : player.getUnlockedEditions()) {
+                CardEdition ed = FModel.getMagicDb().getEditions().get(code);
+                if (ed != null)
+                    candidates.add(ed);
+            }
+        } else {
+            for (CardEdition ed : EditionProgression.getMasterEditionList()) {
+                if (player.hasUnlockedEdition(ed.getCode()))
+                    continue; // researched already - lives in the toggle's own view now
+                if (hideUnfound && ownedByEdition.getOrDefault(ed.getCode(), 0) <= 0)
+                    continue; // not discovered yet, and the hide-unfound checkbox is on
+                candidates.add(ed);
+            }
         }
-        candidates.sort((a, b) -> {
-            float progressA = progressFraction(a.getCode(), ownedByEdition, totalByEdition);
-            float progressB = progressFraction(b.getCode(), ownedByEdition, totalByEdition);
-            return Float.compare(progressB, progressA);
-        });
+        // Sort by cards owned, high to low (user spec 2026-08-12) - one coherent order for the
+        // whole list, researched entries included, rather than a separate sort per group.
+        candidates.sort((a, b) -> Integer.compare(
+                ownedByEdition.getOrDefault(b.getCode(), 0), ownedByEdition.getOrDefault(a.getCode(), 0)));
 
         int cost = EconomyBuildings.scaledCost(COST_GOLD);
         for (CardEdition ed : candidates) {
@@ -146,24 +215,32 @@ public class ResearchScene extends UIScene {
             int owned = ownedByEdition.getOrDefault(code, 0);
             int total = totalByEdition.getOrDefault(code, 0);
             int threshold = thresholdFor(total);
+            boolean researched = player.hasUnlockedEdition(code);
             boolean eligible = owned >= threshold;
             boolean canAfford = player.getGold() >= cost;
 
             TypingLabel nameLabel = Controls.newTypingLabel(ed.getName() + " (" + owned + "/" + threshold + ")");
             nameLabel.skipToTheEnd();
             nameLabel.setWrap(true);
-            nameLabel.setColor(eligible ? Color.BLACK : Color.GRAY);
+            nameLabel.setColor(researched ? Color.DARK_GRAY : (eligible ? Color.BLACK : Color.GRAY));
             scrollContainer.add(nameLabel).align(Align.left).expandX();
 
-            TextraButton researchButton = Controls.newTextButton("Research (" + cost + "g)", () -> {
-                player.takeGold(cost);
-                player.startResearch(code, currentDay);
-                buildList();
-            });
-            researchButton.setDisabled(!eligible || inProgress != null || !canAfford);
-            scrollContainer.add(researchButton).align(Align.center).padRight(10);
+            if (researched) {
+                TypingLabel doneLabel = Controls.newTypingLabel("Researched");
+                doneLabel.skipToTheEnd();
+                doneLabel.setColor(Color.DARK_GRAY);
+                scrollContainer.add(doneLabel).align(Align.center).padRight(10);
+            } else {
+                TextraButton researchButton = Controls.newTextButton("Research (" + cost + "g)", () -> {
+                    player.takeGold(cost);
+                    player.startResearch(code, currentDay);
+                    buildList();
+                });
+                researchButton.setDisabled(!eligible || inProgress != null || !canAfford);
+                scrollContainer.add(researchButton).align(Align.center).padRight(10);
+                addToSelectable(researchButton);
+            }
             scrollContainer.row().padTop(5);
-            addToSelectable(researchButton);
         }
 
         if (candidates.isEmpty() && inProgress == null) {
@@ -177,19 +254,11 @@ public class ResearchScene extends UIScene {
         }
     }
 
-    private static float progressFraction(String code, Map<String, Integer> ownedByEdition, Map<String, Integer> totalByEdition) {
-        int total = totalByEdition.getOrDefault(code, 0);
-        if (total <= 0)
-            return 0f;
-        int threshold = thresholdFor(total);
-        return Math.min(1f, ownedByEdition.getOrDefault(code, 0) / (float) threshold);
-    }
-
     private static String editionDisplayName(String code) {
-        for (CardEdition ed : EditionProgression.getMasterEditionList()) {
-            if (ed.getCode().equals(code))
-                return ed.getName();
-        }
-        return code;
+        // Direct keyed lookup, NOT a getMasterEditionList() scan - the master list excludes
+        // non-booster editions (the whole Jumpstart starter family), so a scan showed the raw
+        // code ("Researching: J25") for exactly the editions most likely to appear here.
+        CardEdition ed = FModel.getMagicDb().getEditions().get(code);
+        return ed != null ? ed.getName() : code;
     }
 }

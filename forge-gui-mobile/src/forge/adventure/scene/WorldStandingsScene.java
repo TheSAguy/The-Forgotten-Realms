@@ -180,7 +180,12 @@ public class WorldStandingsScene extends UIScene {
                     }
                     String text = colorTag + number;
                     TypingLabel repLabel = Controls.newTypingLabel(text);
-                    repLabel.setColor(Color.BLACK);
+                    // Actor tint MULTIPLIES the glyph colors (see GameHUD.addNotification's
+                    // comment on the same rule) - a BLACK tint erases any inline [COLOR] tag,
+                    // which is why the tier coloring above never actually rendered (2026-08-12
+                    // review finding). WHITE tint preserves the markup; Neutral rows carry no
+                    // tag and keep the plain black every other label in this scene uses.
+                    repLabel.setColor(colorTag.isEmpty() ? Color.BLACK : Color.WHITE);
                     repLabel.skipToTheEnd();
                     standingsList.add(repLabel).align(Align.right).padRight(16).padBottom(6);
                     TypingLabel statusLabel = Controls.newTypingLabel(ColorReputation.getStatus(colorKey).label);

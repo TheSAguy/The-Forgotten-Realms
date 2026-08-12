@@ -221,7 +221,7 @@ Helping a color angers its two enemies, not its allies.
   (won't re-notify once already triggered). Deliberately skips the discovery-flash cosmetic layer
   above - a whole-map flash would read as noise.
 
-### 4. Progressive Set Unlocks — `Built (2026-08-12), not yet playtested`
+### 4. Progressive Set Unlocks — `In Progress` (built 2026-08-12; first playtest same day found a capitol-entry crash + several restriction bypasses — all fixed, see MOD_CHANGELOG's 2026-08-12 entry; Research Lab UI reworked per feedback)
 Original idea (~100+ MTG expansions exist; player starts with access to a small subset, collect N
 cards from a set to research it at a lab) combined with the user's own fuller design (2026-08-12):
 color-sharded editions as the discovery mechanic, a real Research Lab screen, AI-color towns

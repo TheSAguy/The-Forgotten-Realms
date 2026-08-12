@@ -959,23 +959,8 @@ public class MapStage extends GameStage {
                         // each RewardData rather than mutating data.rewards directly - those
                         // RewardData objects are the SAME shared instances every other town
                         // resolving to this shop name also uses.
-                        Iterable<RewardData> shopRewardSource = new Array.ArrayIterator<>(data.rewards);
-                        if (WorldSave.getCurrentSave().getWorld().isEditionProgressionEnabled()) {
-                            List<String> editionRestriction;
-                            String ownerLabel;
-                            if (TownRestoration.isCurrentTownCapitol() || TownRestoration.isTownRestored(changes)) {
-                                editionRestriction = new ArrayList<>(AdventurePlayer.current().getUnlockedEditions());
-                                ownerLabel = "player-unlocked";
-                            } else {
-                                String townColor = ColorReputation.colorOfTown(TileMapScene.instance().rootPoint.getData());
-                                ownerLabel = townColor != null ? townColor : EditionProgression.NEUTRAL;
-                                editionRestriction = EditionProgression.getEditionsForColor(WorldSave.getCurrentSave().getWorld(), ownerLabel);
-                            }
-                            // Diagnostic-only logging - greppable in forge.log as "[TFR-ShopEditions]".
-                            System.out.println("[TFR-ShopEditions] shop=" + data.name + " owner=" + ownerLabel
-                                    + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
-                            shopRewardSource = EditionProgression.restrictToEditions(shopRewardSource, editionRestriction);
-                        }
+                        Iterable<RewardData> shopRewardSource = EditionProgression.restrictShopRewardsForCurrentTown(
+                                new Array.ArrayIterator<>(data.rewards), changes, data.name);
                         for (RewardData rdata : shopRewardSource) {
                             ret.addAll(rdata.generate(false, false));
                         }

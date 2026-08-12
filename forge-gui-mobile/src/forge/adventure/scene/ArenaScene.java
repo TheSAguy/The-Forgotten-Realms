@@ -202,7 +202,10 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     /** Shows/hides the upgrade and toggle buttons for the current level/mode/match state - called
      *  after load, after upgrading, and after a match starts/ends (never offer either mid-match). */
     private void refreshArenaBuildingButtons() {
-        if (arenaMapStage == null) {
+        // Stock planes' capitals (common/maps/map/main_story/*_capital.tmx) carry arena objects
+        // too, so without this gate Shandalar players got the mod's upgrade economy (2026-08-12
+        // review finding; CLAUDE.md opt-in ground rule). Flag off = plain stock arena.
+        if (arenaMapStage == null || !Config.instance().getConfigData().arenaUpgradesEnabled) {
             arenaUpgradeButton.setVisible(false);
             arenaModeToggleButton.setVisible(false);
             deckTesterButton.setVisible(false);

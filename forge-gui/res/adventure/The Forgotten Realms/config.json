@@ -304,6 +304,9 @@
     "dungeonRotationEnabled": true,
     "sideQuestTimerEnabled": true,
     "resourceLootVarietyEnabled": true,
-    "editionProgressionEnabled": true
+    "editionProgressionEnabled": true,
+    "armoryGuardsEnabled": true,
+    "shopTypeRerollEnabled": true,
+    "arenaUpgradesEnabled": true
 }
 

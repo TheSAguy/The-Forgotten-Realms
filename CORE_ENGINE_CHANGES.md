@@ -765,6 +765,43 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   how `InventoryScene.java` already dispatches an item's `commandOnUse` - same interpreter
   singleton, same call shape, just reachable from `DialogData.ActionData` too now.
 
+### 2026-08-12 QC round deltas (files above already have entries; this indexes the day's edits)
+One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive review of the prior
+4 days (full detail in `MOD_CHANGELOG.md`'s 2026-08-12 entry). Per-file deltas:
+- **`scene/SpellSmithScene.java`** — **first-ever edit to this stock scene** (no prior entry):
+  `enter()` populates the edition dropdown from a new `visibleEditions()` filter, and
+  `filterResults()` restricts the card pool to `unlockedEditions` — both no-ops unless
+  `editionProgressionEnabled` (#4), so stock planes see the unfiltered stock behavior.
+- **`data/RewardData.java`** — `cardPackShop` case: empty-`allEditions` guard (skip + stderr)
+  instead of `nextInt(0)` crash when an edition restriction leaves no booster-capable edition.
+- **`data/ConfigData.java`** — 3 new opt-in flags: `armoryGuardsEnabled`, `shopTypeRerollEnabled`,
+  `arenaUpgradesEnabled` (review found those features reaching stock planes ungated).
+- **`scene/RewardScene.java`** — the three shop-regeneration paths route through
+  `EditionProgression.restrictShopRewardsForCurrentTown()`; Armory/shop-type-re-roll buttons now
+  behind the new flags; booster-shop "go research" note + Refresh refusal (before charging) when
+  no unlocked edition can make a booster.
+- **`scene/ArenaScene.java`** — `refreshArenaBuildingButtons()` hides all upgrade-economy buttons
+  unless `arenaUpgradesEnabled`.
+- **`scene/WorldStandingsScene.java`** — reputation label tint WHITE-when-markup (BLACK tint was
+  multiplying the tier colors away).
+- **`character/EnemySprite.java`** — overworld fog gate now requires `isExploredWorld()` AND
+  `isCurrentlyVisible()` (owned-but-unexplored ground renders black yet counted as visible).
+- **`stage/WorldStage.java`** — `ResourceSpawnActor.draw()` gained an `isExploredWorld()` fog
+  gate (was entirely ungated), tile coords via `getTileSize()`.
+- **`stage/MapStage.java`** — inline shop edition-restriction block extracted to
+  `EditionProgression.restrictShopRewardsForCurrentTown()` (behavior-identical).
+- **`world/World.java`** — `isCurrentlyVisible()` uses the difficulty-scaled radius (was reading
+  the raw baseline field), cached per frame (`cachedVisionRadius` in `setPlayerTilePosition()`);
+  `isTemporarilyRevealed()` `isEmpty()` fast path.
+- **`util/TownRestoration.java`** — Capitol upgrade routes a built Armory onto the reserved
+  Capitol Armory slot (new `readCapitolArmorySlotId()`), migrates hired guards, and memoizes
+  `readMapObjects()` per mapPath.
+- **`util/EditionProgression.java`** (mod-added, inventoried below) — deep-clones `cardUnion` in
+  `restrictToEditions()`; new `restrictShopRewardsForCurrentTown()` +
+  `playerHasBoosterCapableUnlockedEdition()`.
+- **`scene/ResearchScene.java`** (mod-added, inventoried below) — scroll focus, filter toggles,
+  researched-only view, `clearSelectable()` per rebuild, `switchToLast()` exit.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

@@ -127,6 +127,97 @@ has been seen running yet on either machine.
      occasionally (25%/5% odds, may take a couple of expeditions to see) a bonus booster pack or
      a bonus item.
 
+## 2026-08-12: Progressive Set Unlocks first playtest + full review round (home PC)
+
+One large round: the user's first playtest of Progressive Set Unlocks surfaced 5 real bugs (all
+fixed same day), then a model-switch to Fable prompted a deep-dive review of the last 4 days of
+work (8 finder angles + adversarial verification) that surfaced 10 more findings - all fixed the
+same day except the save-migration ones the user explicitly waived ("I don't care about fixes
+that won't be save compatible... as long as the bug is fixed in a new game, we're good").
+
+**Playtest-reported, fixed:**
+- **Capitol soft-lock on entry** - `RewardData.generate()`'s `cardPackShop` case crashed with
+  `nextInt(0)` when a shop's edition restriction contained only booster-incapable editions (the
+  Jumpstart starter family has no Draft template). The crash re-fired every frame while standing
+  on the entry trigger. Now guarded; see also the booster-shop note below.
+- **FoW vision radius identical across difficulties** - `isCurrentlyVisible()` read the raw
+  `visionRadius` field instead of `getVisionRadius()`, bypassing the difficulty offset. The
+  scaled radius now also gets CACHED per frame (`cachedVisionRadius`, set in
+  `setPlayerTilePosition()`) because the review found the fix made a per-tile hot path call the
+  config-scanning getter tens of thousands of times per chunk-build frame.
+- **Enemies/resource pickups visible in unexplored fog** - `ResourceSpawnActor.draw()` had no fog
+  gate at all; `EnemySprite.draw()` gated on `isCurrentlyVisible()` alone, which also returns
+  true for owned-but-never-visited territory whose terrain still renders black. Both now require
+  `isExploredWorld()` too (pickups: explored-tier like POI icons; enemies: explored AND live-visible).
+- **Duplicate Armory after town->Capitol upgrade** - the Armory isn't an EconomyBuildings type,
+  so it migrated as a generic shop onto an ordinary Capitol slot while the Capitol's own reserved
+  `noMigrate` Armory slot stayed independently buildable. Now routed onto the reserved slot
+  (level carried over), like the Inn's existing special case.
+- **Edition lock bypassed by Refresh/re-rolls** - the restriction was only applied at map load;
+  `restockShop()`/`promptRerollArmory()`/`promptRerollShopType()` regenerated from the raw shared
+  `ShopData.rewards`. All regen paths now go through the new
+  `EditionProgression.restrictShopRewardsForCurrentTown()`.
+- **Research Lab UI rework** (user spec): mouse-wheel scrolling (the code-built ScrollPane was
+  never given stage scroll focus - UIScene only auto-focuses JSON-declared panes), "Hide unfound"
+  checkbox (default on), "Show Researched" toggle (shows ONLY researched sets, sourced from
+  `unlockedEditions` directly since starter editions are absent from the booster-filtered master
+  list - the first version filtered them out, which read as "the button does nothing"), sort by
+  cards-owned descending, exit returns to the town map (`switchToLast()`) instead of ejecting to
+  the overworld.
+- **player_capital.tmx Armory/Booster slot swap** (user spec: Armory always bottom-left, booster
+  shop to its right) - swapped the shop-type property blocks between objects 63 and 86 rather
+  than moving art. **Save-incompatible by design** (per-object-id persisted state; user waived
+  migration - fresh games only).
+- **SpellSmith edition dropdown** now lists only unlocked editions (QC aid, user spec).
+
+**Review round (Fable deep-dive), fixed:**
+- **Union-type rewards bypassed the edition restriction entirely** - `restrictToEditions()` set
+  `.editions` on the outer clone, but the copy constructor shallow-clones `cardUnion`, and the
+  Union branch generates exclusively from the nested (shared) entries. 157 Union entries across
+  109 of this plane's 286 shops were unrestricted while the `[TFR-ShopEditions]` log printed a
+  correct-looking restriction. Nested entries are now deep-cloned and restricted (safe to
+  overwrite rather than intersect: no nested entry in shops.json carries its own editions).
+- **Capitol upgrade dropped hired guards** - guardTiers/guardLastPaidDay live on
+  `PointOfInterestChanges`, which re-keys on `transformInto()`; now copied across (salary cycle
+  preserved). Bank balance needs no equivalent - Bank/Exchange are already Capitol-exclusive
+  builds, so a pre-upgrade town can never hold a balance (confirmed; the review's bank scenario
+  was impossible).
+- **Three mod features leaked into stock planes** (violating the opt-in ground rule): Shop Type
+  Re-Roll (any multi-candidate shop list qualified - common-town tmx files have many), the Armory
+  guard/upgrade/re-roll buttons (Shandalar's own shops.json has Equipment/*Items names matching
+  `isArmoryShop()`), and the Arena L2 upgrade/Deck Tester (stock capitals carry arena objects).
+  Three new ConfigData flags, all false by default, true only in this plane's config.json:
+  `armoryGuardsEnabled`, `shopTypeRerollEnabled`, `arenaUpgradesEnabled`.
+- **SpellSmith was a full progression bypass** - `visibleEditions()` only filtered the dropdown;
+  with no edition selected (the default) the pull pool was the entire card DB. `filterResults()`
+  now restricts the pool to `unlockedEditions` whenever `editionProgressionEnabled` (dropdown
+  state irrelevant), keeping stock planes untouched.
+- **ResearchScene selectable leak** - `buildList()` rebuilt rows without `clearSelectable()`,
+  accumulating detached-but-still-"visible" buttons whose stale purchase lambdas remained
+  fireable via controller navigation. Now clears + re-registers (research.json declares no
+  selectable elements, so nothing else is lost); the two filter toggles are registered too.
+  (QuestLogScene shares this pre-existing defect upstream - deliberately not touched this round.)
+- **World Standings tier colors rendered black** - the tier markup ([GREEN]/[CYAN]/[ORANGE]/
+  [RED], user spec 2026-08-11) was erased by the label's BLACK tint (tint MULTIPLIES glyph
+  colors - same rule GameHUD.addNotification documents). WHITE tint when a tag is present;
+  Neutral keeps plain black. The review also flagged 4 addNotification call sites for the same
+  mismatch - checked: all four already use the authoredMarkup overload, no change needed.
+- **Booster shop with no purchasable boosters** (fresh Insane save unlocks only Jumpstart) now
+  shows "No boosters available yet! Research more expansions at the Research Lab" on entry
+  instead of a bare empty shelf, and the paid Refresh REFUSES (before charging or reseeding)
+  instead of taking shards for nothing. New
+  `EditionProgression.playerHasBoosterCapableUnlockedEdition()`.
+- **Perf**: `readMapObjects()` memoized per mapPath (the 730 KB capital tmx was DOM-parsed 4x per
+  Capitol upgrade + 3x per save load); `isTemporarilyRevealed()` got the same `isEmpty()` fast
+  path `tickTemporaryReveals()` already had; pickup fog gate divides by `getTileSize()` instead
+  of the actor's own size; `editionDisplayName()` uses the direct keyed edition lookup (the
+  master-list scan showed raw codes like "J25" for starter editions).
+
+**Known/accepted, deliberately NOT fixed (user decision 2026-08-12):** no save-migration for the
+tmx slot swap; no load-time backfill of edition shards/`unlockedEditions` for pre-feature saves
+(the restriction fails open there by design of `restrictToEditions()`'s empty-list contract) -
+testing is fresh-game only right now.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

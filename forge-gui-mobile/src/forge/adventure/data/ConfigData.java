@@ -46,5 +46,13 @@ public class ConfigData {
     public boolean sideQuestTimerEnabled = false;
     public boolean resourceLootVarietyEnabled = false;
     public boolean editionProgressionEnabled = false;
+    // 2026-08-12 review: these three shipped without flags and leaked into stock planes
+    // (Shandalar's Equipment/*Items shops matched isArmoryShop, common-town multi-name shop
+    // lists exposed the type re-roll, and the common capitals' arena objects exposed the
+    // upgrade economy). Same opt-in rule as every flag above: false here, true only in
+    // "The Forgotten Realms"/config.json.
+    public boolean armoryGuardsEnabled = false;
+    public boolean shopTypeRerollEnabled = false;
+    public boolean arenaUpgradesEnabled = false;
 
 }

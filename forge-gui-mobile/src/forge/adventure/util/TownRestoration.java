@@ -468,9 +468,24 @@ public class TownRestoration {
         // SAME shops (user report 2026-08-09: "I got a different set of shops in the capitol
         // from what I had in the town" - each map load re-rolls unpinned shop objects).
         java.util.Map<Integer, String> rebuiltShopNames = new java.util.HashMap<>();
+        Integer oldArmoryId = null;
         for (forge.adventure.character.ShopActor shopActor : stage.getShopActors()) {
-            if (plainRebuiltIds.contains(shopActor.getObjectId()) && shopActor.getShopData() != null)
+            if (plainRebuiltIds.contains(shopActor.getObjectId()) && shopActor.getShopData() != null) {
                 rebuiltShopNames.put(shopActor.getObjectId(), shopActor.getShopData().name);
+                if (EconomyBuildings.isArmoryShop(shopActor.getShopData()))
+                    oldArmoryId = shopActor.getObjectId();
+            }
+        }
+        if (oldArmoryId != null) {
+            // The Armory isn't tracked in economyObjectIds (it's not an EconomyBuildings.java
+            // type, just a plain shop with a fixed Armory shopList), so without this it fell into
+            // the generic plainRebuiltIds bucket and migrated onto an ordinary Capitol shop slot -
+            // while the Capitol's own dedicated, noMigrate-reserved Armory slot (see
+            // isReservedSlot()) was left as separately-buildable rubble. Real bug, user-reported
+            // 2026-08-12: upgrading a town that already had a built Armory produced two working
+            // Armories. Route it like the Inn below instead - onto the Capitol's own Armory slot.
+            plainRebuiltIds.remove(oldArmoryId);
+            plainRebuiltShops--;
         }
         Integer oldRadius = world.getTownTerritoryRadius(point.getID());
 
@@ -513,6 +528,36 @@ public class TownRestoration {
         Integer capitolInnId = readInnObjectId(capitolData.map);
         if (capitolInnId != null)
             newChanges.getMapFlags().put("shopRebuilt_" + capitolInnId, (byte) 1);
+        // Likewise, an Armory the old town already had maps onto the Capitol's own reserved
+        // Armory slot directly, never a plain shop slot (see the oldArmoryId block above). No
+        // shop-name pin needed - the reserved slot already carries its own fixed Armory shopList
+        // properties in the tmx, and repairCapitolState() strips any pinned name from reserved
+        // slots on load anyway (it would just be discarded).
+        if (oldArmoryId != null) {
+            Integer capitolArmoryId = readCapitolArmorySlotId(capitolData.map);
+            if (capitolArmoryId != null) {
+                newChanges.getMapFlags().put("shopRebuilt_" + capitolArmoryId, (byte) 1);
+                int armoryLevel = oldChanges.getBuildingLevel(oldArmoryId);
+                if (armoryLevel > 1)
+                    newChanges.setBuildingLevel(capitolArmoryId, armoryLevel);
+                System.out.println("[TownRestoration] Capitol migration: Armory (old object " + oldArmoryId
+                        + ") mapped onto reserved Capitol Armory slot " + capitolArmoryId);
+            } else {
+                System.out.println("[TownRestoration] CRITICAL: old town had a built Armory but the Capitol "
+                        + "template has no reserved Armory slot - Armory state lost");
+            }
+        }
+        // Hired guards live on PointOfInterestChanges (guardTiers/guardLastPaidDay), which is
+        // keyed by POI id - transformInto() re-keys the POI, so without this copy a town's
+        // guards silently vanished on upgrade while their salary state was orphaned (2026-08-12
+        // review finding). hireGuard()'s day parameter is stored as lastPaidDay, so passing the
+        // old lastPaidDay preserves each guard's salary cycle exactly. Bank balance needs no
+        // equivalent: Bank/Exchange are Capitol-exclusive builds (see EconomyBuildings'
+        // buildSimpleRepairDialog isCapitol gate), so a pre-upgrade town can never hold one.
+        for (int i = 0; i < oldChanges.getGuardCount(); i++)
+            newChanges.hireGuard(oldChanges.getGuardTier(i), oldChanges.getGuardLastPaidDay(i));
+        if (oldChanges.getGuardCount() > 0)
+            System.out.println("[TownRestoration] Capitol migration: " + oldChanges.getGuardCount() + " guard(s) carried over");
         System.out.println("[TownRestoration] Capitol migration: " + economyTypes.size() + " economy building(s) + "
                 + plainRebuiltShops + " rebuilt shop(s) mapped onto " + capitolShopSlots.size() + " capital slots");
 
@@ -573,6 +618,28 @@ public class TownRestoration {
         return shopIds;
     }
 
+    /** Among the capital layout's reserved shop slots, the one that's specifically the Armory (as
+     *  opposed to a land shop or the dedicated Booster shop) - matched the same way
+     *  EconomyBuildings.isArmoryShop() matches a resolved ShopData name, but read directly off the
+     *  object's own baked-in commonShopList property so no ShopData resolution is needed here. */
+    private static Integer readCapitolArmorySlotId(String mapPath) {
+        for (com.badlogic.gdx.utils.XmlReader.Element object : readMapObjects(mapPath)) {
+            if (!object.getAttribute("template", "").endsWith("shop.tx") || !isReservedSlot(object))
+                continue;
+            com.badlogic.gdx.utils.XmlReader.Element properties = object.getChildByName("properties");
+            if (properties == null)
+                continue;
+            for (com.badlogic.gdx.utils.XmlReader.Element property : properties.getChildrenByName("property")) {
+                if (!"commonShopList".equals(property.getAttribute("name", "")))
+                    continue;
+                String value = property.getAttribute("value", "");
+                if (value.endsWith("Equipment") || value.endsWith("Items") || value.startsWith("Armory"))
+                    return object.getIntAttribute("id");
+            }
+        }
+        return null;
+    }
+
     /** The capital layout's inn object id, or null if the map has none. */
     private static Integer readInnObjectId(String mapPath) {
         for (com.badlogic.gdx.utils.XmlReader.Element object : readMapObjects(mapPath)) {
@@ -582,7 +649,19 @@ public class TownRestoration {
         return null;
     }
 
+    // Memoized per mapPath: the capital tmx is ~730 KB with 3000+ objects, and one Capitol
+    // upgrade calls 4 different readers (inn/shop-slots/reserved/armory) while repairCapitolState
+    // adds 3 more on EVERY save load - each was independently re-reading and re-DOM-parsing the
+    // identical file (2026-08-12 review finding). Map files can't change within a game session,
+    // so a process-lifetime cache is safe. Failed parses cache the empty list deliberately -
+    // retrying a broken file every call would just repeat the same log spam.
+    private static final java.util.Map<String, java.util.List<com.badlogic.gdx.utils.XmlReader.Element>> mapObjectsCache =
+            new java.util.HashMap<>();
+
     private static java.util.List<com.badlogic.gdx.utils.XmlReader.Element> readMapObjects(String mapPath) {
+        java.util.List<com.badlogic.gdx.utils.XmlReader.Element> cached = mapObjectsCache.get(mapPath);
+        if (cached != null)
+            return cached;
         java.util.List<com.badlogic.gdx.utils.XmlReader.Element> objects = new java.util.ArrayList<>();
         try {
             com.badlogic.gdx.utils.XmlReader.Element root = new com.badlogic.gdx.utils.XmlReader()
@@ -594,6 +673,7 @@ public class TownRestoration {
         } catch (Exception e) {
             System.out.println("[TownRestoration] could not parse capital map objects: " + e);
         }
+        mapObjectsCache.put(mapPath, objects);
         return objects;
     }
 

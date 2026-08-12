@@ -157,6 +157,16 @@ public class WorldStage extends GameStage implements SaveFileContent {
         }
         @Override
         public void draw(Batch batch, float parentAlpha) {
+            // Fog of war (MOD_SCOPE.md #3): pickups are static ground objects, not something that
+            // moves - gate on isExploredWorld like MapSprite's POI icons (visible once known/dimmed),
+            // not the narrower live-vision-only rule EnemySprite uses. Previously ungated entirely,
+            // so pickups rendered fully lit even on solid-black unexplored tiles. Tile coords come
+            // from world.getTileSize() like every other fog gate - the first version divided by the
+            // actor's own size, which only worked because setSize() happens to use tileSize today.
+            World world = Current.world();
+            int tileSize = world.getTileSize();
+            if (tileSize > 0 && !world.isExploredWorld((int) (getX() / tileSize), (int) (getY() / tileSize)))
+                return;
             if (sparkleAnimation != null) {
                 // Real drawn animation, no alpha trickery needed - matches templeofchandra.tmx's
                 // Gold pickup exactly (same atlas/frames/timing).

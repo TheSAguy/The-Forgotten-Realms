@@ -313,9 +313,18 @@ public class RewardData implements Serializable {
                             endDate = endDate == 0 ? 9999 : endDate;
                             allEditions.removeIf(q -> q.getDate().getYear()+1900 < startDate || q.getDate().getYear()+1900 > endDate);
                         }
-                        for (int i = 0; i < count + addedCount; i++) {
-                            ret.add(new Reward(AdventureEventController.instance().generateBooster(
-                                allEditions.get(rewardRandom.nextInt(allEditions.size())).getCode())));
+                        // this.editions can come from a plane's curated unlockedEditions/starterEditions
+                        // list (EditionProgression), which isn't validated against CAN_MAKE_BOOSTER -
+                        // e.g. Jumpstart-family editions are valid for regular card rewards but have no
+                        // "Draft" booster template, so they never appear in allEditions above. If every
+                        // allowed edition falls into that gap, skip rather than nextInt(0)-crash.
+                        if (!allEditions.isEmpty()) {
+                            for (int i = 0; i < count + addedCount; i++) {
+                                ret.add(new Reward(AdventureEventController.instance().generateBooster(
+                                    allEditions.get(rewardRandom.nextInt(allEditions.size())).getCode())));
+                            }
+                        } else {
+                            System.err.println("No booster-capable edition available for cardPackShop reward (editions=" + Arrays.toString(this.editions) + ")");
                         }
                     } else {
                         for (int i = 0; i < count + addedCount; i++) {

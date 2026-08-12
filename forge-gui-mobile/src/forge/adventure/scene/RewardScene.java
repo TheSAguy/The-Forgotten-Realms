@@ -169,7 +169,8 @@ public class RewardScene extends UIScene {
                     Array<Reward> ret = new Array<>();
                     long shopSeed = changes.getShopSeed(shopActor.getObjectId());
                     WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
-                    for (RewardData rdata : new Array.ArrayIterator<>(newData.rewards)) {
+                    for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
+                            new Array.ArrayIterator<>(newData.rewards), changes, newData.name)) {
                         ret.addAll(rdata.generate(false, false));
                     }
                     shopActor.setRewardData(ret);
@@ -232,7 +233,8 @@ public class RewardScene extends UIScene {
                     Array<Reward> ret = new Array<>();
                     long shopSeed = changes.getShopSeed(shopActor.getObjectId());
                     WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
-                    for (RewardData rdata : new Array.ArrayIterator<>(data.rewards)) {
+                    for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
+                            new Array.ArrayIterator<>(data.rewards), changes, data.name)) {
                         ret.addAll(rdata.generate(false, false));
                     }
                     shopActor.setRewardData(ret);
@@ -404,11 +406,19 @@ public class RewardScene extends UIScene {
         }
     }
 
+    private boolean pendingEmptyBoosterNote = false;
+
     @Override
     public void enter() {
         autoSell = false;
         updateDetailButton();
         super.enter();
+        if (pendingEmptyBoosterNote) {
+            pendingEmptyBoosterNote = false;
+            showDialog(createGenericDialog("", "No boosters available yet!\nResearch more expansions"
+                    + " at the Research Lab to stock this shop.",
+                    Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, null));
+        }
     }
 
     private void showLootOrDone() {
@@ -460,6 +470,17 @@ public class RewardScene extends UIScene {
     void restockShop() {
         if (!shopActor.canRestock())
             return;
+        // A booster shop that can't stock anything (no booster-capable unlocked edition yet)
+        // would charge the shards, reseed, and render an empty shelf with no explanation -
+        // refuse BEFORE any money or seed state changes (2026-08-12 review finding + user
+        // request for an explanatory note).
+        if (EconomyBuildings.isBoosterShop(shopActor.getShopData())
+                && !EditionProgression.playerHasBoosterCapableUnlockedEdition()) {
+            showDialog(createGenericDialog("", "No boosters available yet!\nResearch more expansions"
+                    + " at the Research Lab to stock this shop.",
+                    Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, null));
+            return;
+        }
         int price = shopActor.getRestockPrice();
         if (changes != null)
             changes.generateNewShopSeed(shopActor.getObjectId());
@@ -480,7 +501,8 @@ public class RewardScene extends UIScene {
 
         long shopSeed = changes.getShopSeed(shopActor.getObjectId());
         WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
-        for (RewardData rdata : new Array.ArrayIterator<>(data.rewards)) {
+        for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
+                new Array.ArrayIterator<>(data.rewards), changes, data.name)) {
             ret.addAll(rdata.generate(false, false));
         }
         shopActor.setRewardData(ret);
@@ -514,6 +536,13 @@ public class RewardScene extends UIScene {
     }
 
     public void loadRewards(Array<Reward> newRewards, Type type, ShopActor shopActor) {
+        // Booster shop with nothing to sell because no unlocked edition can make a booster yet
+        // (fresh Insane save = Jumpstart only): explain instead of showing a bare empty shelf
+        // (user request 2026-08-12). Deferred to enter() - this runs before the scene switch.
+        if (type == Type.Shop && newRewards.isEmpty() && shopActor != null
+                && EconomyBuildings.isBoosterShop(shopActor.getShopData())
+                && !EditionProgression.playerHasBoosterCapableUnlockedEdition())
+            pendingEmptyBoosterNote = true;
         // Merge Gold and Shards rewards into single entries
         int totalGold = 0;
         int totalShards = 0;
@@ -647,11 +676,17 @@ public class RewardScene extends UIScene {
                 if (destroyButton.isVisible())
                     addToSelectable(destroyButton);
                 boolean isArmory = EconomyBuildings.isArmoryShop(shopActor.getShopData());
+                // Stock planes (Shandalar) have shops named *Equipment/*Items that match
+                // isArmoryShop, and multi-name shop lists that qualify for the type re-roll -
+                // both are mod features and must stay plane-opt-in (CLAUDE.md ground rule;
+                // 2026-08-12 review finding). isArmory alone still matters below for excluding
+                // Armories from the type re-roll on ANY plane.
+                boolean armoryFeatures = isArmory && Config.instance().getConfigData().armoryGuardsEnabled;
                 int armoryLevel = changes.getBuildingLevel(shopActor.getObjectId());
-                guardsButton.setVisible(isArmory && armoryLevel >= 2);
+                guardsButton.setVisible(armoryFeatures && armoryLevel >= 2);
                 if (guardsButton.isVisible())
                     addToSelectable(guardsButton);
-                upgradeButton.setVisible(isArmory && armoryLevel < 2);
+                upgradeButton.setVisible(armoryFeatures && armoryLevel < 2);
                 if (upgradeButton.isVisible()) {
                     // Text refreshed here too (round 4, difficulty price multiplier) - was
                     // previously baked in once from the raw constant at construction.
@@ -660,7 +695,7 @@ public class RewardScene extends UIScene {
                 }
                 // Re-roll Inventory (round 7) - Armory-only, any level, independent of the
                 // guards/upgrade level gate above.
-                rerollButton.setVisible(isArmory);
+                rerollButton.setVisible(armoryFeatures);
                 if (rerollButton.isVisible()) {
                     rerollButton.setText("[%80]Re-roll Inventory (" + EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST) + " [+Shards])");
                     refreshRerollButton();
@@ -669,7 +704,8 @@ public class RewardScene extends UIScene {
                 // Shop Type Re-Roll (round 8) - ordinary card shops only, mutually exclusive with
                 // Armory's own rerollButton above (a shop resolves to exactly one ShopData at a
                 // time, so they share a row position safely).
-                shopTypeRerollButton.setVisible(!isArmory && shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()));
+                shopTypeRerollButton.setVisible(Config.instance().getConfigData().shopTypeRerollEnabled
+                        && !isArmory && shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()));
                 if (shopTypeRerollButton.isVisible()) {
                     shopTypeRerollButton.setText("[%80]Re-roll Shop Type (" + EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST) + " [+Shards])");
                     addToSelectable(shopTypeRerollButton);

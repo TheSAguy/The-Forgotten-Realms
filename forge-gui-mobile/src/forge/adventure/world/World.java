@@ -2956,10 +2956,18 @@ public class World implements Disposable, SaveFileContent {
     // current tile position for the reveal-on-move logic.
     private int visiblePlayerTileX = Integer.MIN_VALUE;
     private int visiblePlayerTileY = Integer.MIN_VALUE;
+    // Difficulty-scaled radius, cached because isCurrentlyVisible() runs per TILE during chunk
+    // builds (up to several thousand tiles in one frame at a chunk seam) and per enemy per frame
+    // - getVisionRadius() walks the config's difficulty list with string compares on every call,
+    // far too hot for those paths (2026-08-12 review finding). Refreshed here once per frame
+    // alongside the position; difficulty can't change mid-session, so staleness isn't possible
+    // beyond the first frame, and the <0 sentinel covers any pre-first-frame call.
+    private int cachedVisionRadius = -1;
 
     public void setPlayerTilePosition(int tileX, int tileY) {
         visiblePlayerTileX = tileX;
         visiblePlayerTileY = tileY;
+        cachedVisionRadius = getVisionRadius();
     }
 
     // Fog of war, third tier (per user spec 2026-08-08): the area around every PLAYER-OWNED town
@@ -3066,7 +3074,8 @@ public class World implements Disposable, SaveFileContent {
             return true;
         int dx = x - visiblePlayerTileX;
         int dy = y - visiblePlayerTileY;
-        if (dx * dx + dy * dy <= visionRadius * visionRadius)
+        int radius = cachedVisionRadius >= 0 ? cachedVisionRadius : getVisionRadius();
+        if (dx * dx + dy * dy <= radius * radius)
             return true;
         if (isTemporarilyRevealed(x, y))
             return true;
@@ -3095,6 +3104,11 @@ public class World implements Disposable, SaveFileContent {
     }
 
     public boolean isTemporarilyRevealed(int wx, int wy) {
+        // Called per tile from isCurrentlyVisible() during chunk builds - the isEmpty() check
+        // skips the Long autoboxing + map lookup in the near-permanent no-flash-active state
+        // (same fast path tickTemporaryReveals() already had).
+        if (temporaryRevealTimers.isEmpty())
+            return false;
         Float remaining = temporaryRevealTimers.get(packWorldTile(wx, wy));
         return remaining != null && remaining > 0f;
     }

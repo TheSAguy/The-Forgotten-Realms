@@ -188,6 +188,19 @@ public class SpellSmithScene extends UIScene {
         }).sorted(Comparator.comparing(CardEdition::getName)).collect(Collectors.toList());
     }
 
+    // Progressive Set Unlocks QC (user request 2026-08-12): hide locked editions from the dropdown
+    // entirely, so an edition showing up here at all is itself a quick visual confirmation the
+    // player has legitimate access to it - independent of the shop-restriction code path this is
+    // meant to cross-check. Re-filters the cached `editions` list fresh on every enter() (not
+    // itself cached) so newly-researched editions appear immediately, without needing to rebuild
+    // the base list.
+    private List<CardEdition> visibleEditions() {
+        if (!Current.world().isEditionProgressionEnabled())
+            return editions;
+        return editions.stream().filter(ed -> Current.player().hasUnlockedEdition(ed.getCode()))
+                .collect(Collectors.toList());
+    }
+
     public boolean done() {
         if (currentReward != null) {
             acceptSmithing();
@@ -314,7 +327,7 @@ public class SpellSmithScene extends UIScene {
         loadEditions(); //just to be safe since it's preloaded, if somehow edition is null, then reload it
         editionList.clearListeners();
         editionList.clearItems();
-        editionList.setItems(editions.toArray(new CardEdition[0]));
+        editionList.setItems(visibleEditions().toArray(new CardEdition[0]));
         editionList.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
@@ -365,9 +378,17 @@ public class SpellSmithScene extends UIScene {
                     if (B.getValue().getColor().equals(Color.RED)) colorFilter.add("White");
                     break;
             }
+        // Progressive Set Unlocks (2026-08-12 review finding): visibleEditions() only filters
+        // what the DROPDOWN offers - with the dropdown untouched (edition == "", the default)
+        // nothing below constrained the pool at all, so the smith was a full bypass of the
+        // progression lock (and dodged the 4x edition surcharge). The pool itself must honor
+        // unlockedEditions whenever the feature is on, independent of the dropdown state.
+        final Set<String> unlockedOnly = Current.world().isEditionProgressionEnabled()
+                ? new HashSet<>(Current.player().getUnlockedEditions()) : null;
         P = StreamUtil.stream(P).filter(input -> {
             //L|Basic Land, C|Common, U|Uncommon, R|Rare, M|Mythic Rare, S|Special, N|None
             if (input == null) return false;
+            if (unlockedOnly != null && !unlockedOnly.contains(input.getEdition())) return false;
             final CardEdition cardEdition = FModel.getMagicDb().getEditions().get(edition);
 
             // Use the rarity of the card from the filtered set.

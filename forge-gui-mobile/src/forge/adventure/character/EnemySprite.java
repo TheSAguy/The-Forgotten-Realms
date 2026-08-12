@@ -652,7 +652,13 @@ public class EnemySprite extends CharacterSprite implements Steerable<Vector2> {
         if (!MapStage.getInstance().isInMap()) {
             World world = Current.world();
             int tileSize = world.getTileSize();
-            if (!world.isCurrentlyVisible((int) (getX() / tileSize), (int) (getY() / tileSize)))
+            int tileX = (int) (getX() / tileSize);
+            int tileY = (int) (getY() / tileSize);
+            // isCurrentlyVisible() also covers persistently-revealed owned territory (World.java's
+            // isPersistentlyRevealed()), which paints ownership without ever marking explored[][] -
+            // so a tile can pass isCurrentlyVisible() while the terrain under it still renders as
+            // unexplored black. Require both, or a monster floats fully lit over solid black ground.
+            if (!world.isExploredWorld(tileX, tileY) || !world.isCurrentlyVisible(tileX, tileY))
                 return;
         }
         super.draw(batch, parentAlpha);
