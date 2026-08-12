@@ -5,6 +5,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.SerializationException;
 import forge.adventure.util.Config;
+import forge.adventure.util.ContentFilterTables;
 import forge.adventure.util.Paths;
 import forge.adventure.world.BiomeSprites;
 import forge.util.FileUtil;
@@ -60,6 +61,18 @@ public class WorldData implements Serializable {
             if (handle.exists()) {
                 Array readList =  json.fromJson(Array.class, EnemyData.class, handle);
                 allEnemies = readList;
+                // Content filter tables (user spec 2026-08-12): registers the catalog with the
+                // enemies CSV (generate/merge Include flags). Registration only - the catalog
+                // itself is deliberately NOT filtered here: EnemyData must stay resolvable for
+                // quest-scripted spawns (protected by user decision), enemies already alive in a
+                // save (WorldStage.load NPEs on an unresolvable name), territory mages, and the
+                // statistics screen. Random-spawn/arena sites consult isEnemyIncluded() instead.
+                if (allEnemies != null) {
+                    EnemyData[] catalog = new EnemyData[allEnemies.size];
+                    for (int i = 0; i < allEnemies.size; i++)
+                        catalog[i] = allEnemies.get(i);
+                    ContentFilterTables.registerEnemies(catalog);
+                }
             }
         }
         return allEnemies;

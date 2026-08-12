@@ -307,6 +307,7 @@
     "editionProgressionEnabled": true,
     "armoryGuardsEnabled": true,
     "shopTypeRerollEnabled": true,
-    "arenaUpgradesEnabled": true
+    "arenaUpgradesEnabled": true,
+    "contentFilterTablesEnabled": true
 }
 

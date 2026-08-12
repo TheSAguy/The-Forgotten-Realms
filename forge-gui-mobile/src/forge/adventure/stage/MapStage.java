@@ -634,6 +634,13 @@ public class MapStage extends GameStage {
                                 int currentBiome = forge.adventure.world.World.highestBiome(world.getBiome((int) poiPos.x / world.getTileSize(), (int) poiPos.y / world.getTileSize()));
                                 EN = world.getData().GetBiomes().get(currentBiome).getEnemy(Current.player().getStatistic().rank());
                             } else if (!EN.boss && EN.questTags.length == 0) {
+                                // Content filter tables (user spec 2026-08-12): an Include=N
+                                // enemy is skipped from ordinary dungeon population. Same
+                                // ordinary-encounter test the re-theme below already uses -
+                                // bosses and quest-tagged enemies are protected by design (a
+                                // missing boss/quest target would break dungeons and quests).
+                                if (!ContentFilterTables.isEnemyIncluded(EN.getName()))
+                                    break;
                                 // Content-level POI re-theme (MOD_SCOPE.md #7, user request
                                 // 2026-08-10): if this dungeon's land has changed hands since
                                 // world-gen, swap ordinary (non-boss, non-quest) encounters for a

@@ -575,6 +575,11 @@ public class Config {
     }
 
     public void loadResources() {
+        // Content filter tables (user spec 2026-08-12): fold the expansions table's Include=N
+        // codes into restrictedEditions BEFORE the token filter and card-pool init below, so
+        // every edition consumer sees one merged list. This is the earliest point where the
+        // Magic DB is guaranteed loaded (the next line already depends on it).
+        ContentFilterTables.applyEditionExclusions(configData);
         AdventureOverrides.instance().load(prefix, FModel.getMagicDb().getEditions(), configData);
         applyTokenEditionFilter();
         RewardData.getAllCards();//initialize before loading custom cards

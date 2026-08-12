@@ -251,6 +251,54 @@ resource glyphs in cost UI are now a STANDING STANDARD for all future mod UI (us
   `getCardByNameAndEdition()`, exactly like `CardUtil.generateCards()` already did for the
   plain card/randomCard path - shop printings and set symbols now match the unlocked edition.
 
+## 2026-08-12 (later): Content Filter Tables + 5 Challenge Arena champions
+
+**Content Filter Tables** (user spec; format/protection/merge decisions confirmed via three
+explicit choices): three auto-generated, user-editable CSVs in the plane folder -
+`config tables/expansions.csv` (Code, Name, Type, CardCount, ReleaseDate, Include),
+`items.csv` (Name, Rarity, Cost, Slot, Quest, Effect, Include), `enemies.csv` (Name, Colors,
+Deck, Life, Tier, Boss, Difficulty, Include). Flip Include to N to remove that content from the
+game. Generated on first launch from live data (all Y), re-read every launch; user edits
+survive updates (rows merge by key, new content appends as Y, vanished content drops); deleting
+a CSV regenerates it. RFC-4180 quoting (names contain commas), Excel-friendly.
+Opt-in via `contentFilterTablesEnabled` (ConfigData + plane config.json).
+- Wiring, deliberately at single choke points: expansions fold into the in-memory
+  `restrictedEditions` at `Config.loadResources()` (before the token filter and card-pool init,
+  so every existing consumer honors them); items filter inside `ItemListData`'s loader (the one
+  place all item lookups go through); enemies are REGISTERED at `WorldData.getAllEnemies()` but
+  the catalog is NOT filtered - recon confirmed a catalog filter would NPE save-loads
+  (`WorldStage.load` resolves living enemies by name with no null check) and silently disable
+  territory attacks - instead the three random-consumption sites check
+  `ContentFilterTables.isEnemyIncluded()`: `BiomeData.getEnemyList()` (roaming pool; quest
+  boosts unaffected - they go through `getExtraSpawnEnemy`, a different path), `MapStage`'s tmx
+  enemy case (ordinary population only - bosses and quest-tagged enemies protected, same
+  `!boss && questTags.length==0` test the re-theme uses), and `ArenaScene.loadArenaData()`
+  (pool pre-filter with fall-back-to-unfiltered when a pool would empty - the existing
+  `while(null)` resolution loop would otherwise hang forever).
+- Protections per user decision: quest items ignore Include=N (logged); quest/boss enemy spawns
+  bypass the filter; arena pools never empty.
+- Note: the CSVs generate in the DEPLOYED game's plane folder at runtime (they're user-local
+  config; commit them to git only if you want your flags synced across machines).
+
+**5 Challenge Arena champions** (user spec: 50-100 cards, <=75% one color, rares <=50% /
+mythics <=20% of non-basics +/-2%, no banned/restricted cards, lore names not already in game,
+player starts at 16 life). Built via a 5-builder + 5-adversarial-validator + finalizer workflow;
+every card ground-truthed by script against cardsfolder (existence/colors) and editions files
+(highest-rarity-across-printings), names checked unique against all 1469 enemies.json entries
+(rejected: Ertai, Hanna, Greven, Mirri, Radha and 10+ more as already used), portraits verified
+on disk and chosen for low reuse. New `decks/arena/*.dck` + 5 enemies.json entries
+(spawnRate 0 - arena-only, never roam; tier Rare; signature reward card each) + appended to
+player_capital.tmx's arenaChallenge enemyPool:
+- **Dovin Baan** (WU skies tempo, life 26, wizard_2 atlas) - flyer swarm + Swords/Path removal.
+- **Kaervek** (BR aggro, life 24, corrupted_redwiz) - 12 one-drops, Bolt/Terminate, Hellrider.
+- **Sidar Kondo** (GW tokens, life 22, paladin_large) - token engines + anthems + Overrun.
+- **Meren of Clan Nel Toth** (BG attrition, life 28, corrupted_greenwiz) - Hymn, removal-on-
+  bodies, Grave Titan.
+- **Domri Rade** (RG stompy, life 25, garruk2) - 8 mana elves into Steel Leaf/Questing Beast.
+Validator swaps of note: Llanowar Elves -> Elvish Mystic in GW (Foundations showcase printings
+made Elves count Mythic), Gifted Aetherborn/Chupacabra/GFTT -> uncommon equivalents in BG,
+Abrade/Karplusan -> commons in RG (promo printings inflated rare counts past the cap).
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

@@ -51,6 +51,11 @@ public class BiomeData implements Serializable {
             if (enemies == null)
                 return enemyList;
             for (EnemyData data : new Array.ArrayIterator<>(WorldData.getAllEnemies())) {
+                // Content filter tables (user spec 2026-08-12): an Include=N enemy never enters
+                // the random-spawn pool. Safe for quests - quest-boosted spawns go through
+                // getExtraSpawnEnemy()/AdventureQuestController, not this list.
+                if (!forge.adventure.util.ContentFilterTables.isEnemyIncluded(data.getName()))
+                    continue;
                 for (String enemyName : enemies) {
                     if (data.getName().equals(enemyName)) {
                         enemyList.add(data);

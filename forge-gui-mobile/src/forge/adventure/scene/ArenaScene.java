@@ -573,10 +573,23 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         int numberOfEnemies = (int) (Math.pow(2f, data.rounds) - 1);
 
 
+        // Content filter tables (user spec 2026-08-12): drop Include=N names from the pool, but
+        // fall back to the UNFILTERED pool if that would empty it (user-confirmed choice) - an
+        // empty pool would spin the while(null) resolution loop below forever.
+        java.util.List<String> poolNames = new java.util.ArrayList<>();
+        for (String name : data.enemyPool)
+            if (ContentFilterTables.isEnemyIncluded(name))
+                poolNames.add(name);
+        if (poolNames.isEmpty()) {
+            if (data.enemyPool.length > 0)
+                System.out.println("[ContentFilter] arena pool fully excluded - falling back to unfiltered pool");
+            poolNames = java.util.Arrays.asList(data.enemyPool);
+        }
+
         for (int i = 0; i < numberOfEnemies; i++) {
             EnemyData enemyData = null;
             while (enemyData == null)
-                enemyData = WorldData.getEnemy(data.enemyPool[rand.nextInt(data.enemyPool.length)]);
+                enemyData = WorldData.getEnemy(poolNames.get(rand.nextInt(poolNames.size())));
             // Arena matches disable ante (user spec 2026-08-11) - clone rather than mutate the
             // shared roster EnemyData, same pattern the Capitol-defense duel uses for its own
             // one-off gamesPerMatch override, so this enemy's non-Arena appearances are unaffected.

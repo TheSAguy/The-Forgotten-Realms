@@ -54,5 +54,8 @@ public class ConfigData {
     public boolean armoryGuardsEnabled = false;
     public boolean shopTypeRerollEnabled = false;
     public boolean arenaUpgradesEnabled = false;
+    // User-editable CSV content tables ("config tables/" in the plane folder) that can exclude
+    // specific expansions/items/enemies from the game - see ContentFilterTables.java.
+    public boolean contentFilterTablesEnabled = false;
 
 }

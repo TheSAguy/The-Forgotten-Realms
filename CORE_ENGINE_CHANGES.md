@@ -811,6 +811,23 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`scene/ResearchScene.java`** (mod-added, inventoried below) — scroll focus, filter toggles,
   researched-only view, `clearSelectable()` per rebuild, `switchToLast()` exit.
 
+### 2026-08-12 Content Filter Tables (see MOD_CHANGELOG's entry for the design)
+- **`util/ContentFilterTables.java`** — NEW mod file (inventoried below): CSV generate/merge/read
+  + exclusion lookups for the three user-editable content tables.
+- **`util/Config.java`** — `loadResources()` opens with
+  `ContentFilterTables.applyEditionExclusions(configData)` (folds table exclusions into
+  `restrictedEditions` before the token filter and card-pool init).
+- **`data/ConfigData.java`** — new opt-in flag `contentFilterTablesEnabled`.
+- **`data/ItemListData.java`** — static loader hands the freshly-loaded list to
+  `ContentFilterTables.filterItems()` (quest items protected).
+- **`data/WorldData.java`** — `getAllEnemies()` registers the catalog with
+  `ContentFilterTables.registerEnemies()` (registration only - catalog deliberately unfiltered).
+- **`data/BiomeData.java`** — `getEnemyList()` skips excluded enemies (roaming pool only).
+- **`stage/MapStage.java`** — tmx enemy case skips excluded ORDINARY (non-boss, non-quest)
+  dungeon population.
+- **`scene/ArenaScene.java`** — `loadArenaData()` pre-filters the enemy pool with an
+  empty-pool fallback (also removes an infinite-loop hazard when a pool name can't resolve).
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.
