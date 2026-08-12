@@ -235,6 +235,22 @@ machinery (the slot keeps its rebuilt flag and re-rolls its own generic list).
 moved to sit left next to the name, and the cost uses the `[+Gold]` glyph instead of "375g" -
 resource glyphs in cost UI are now a STANDING STANDARD for all future mod UI (user spec).
 
+**Third same-day playtest round, two more real bugs:**
+- **World Standings info dialogs overflowed the screen AND soft-locked the game** - the
+  Reputation/Expansion wiki texts went through `createGenericDialog()`, whose label is unwrapped,
+  so the dialog grew wider than the 480px stage and pushed its own OK button off-screen - no way
+  to dismiss it, forced shutdown required. Both dialogs now use a wrapped, width-capped (400px)
+  label via a local `showInfoDialog()` helper (same pattern EconomyBuildings' building-info
+  dialogs already used).
+- **Edition-restricted Union shops showed foreign set symbols/art** (user report: "more than 4
+  little symbols" on Easy's 4 starter editions; user's own alternative-artwork theory was exactly
+  right). The card POOL was correctly restricted - all 12 screenshot cards verified present in
+  DMU/JMP/J22/BRO - but with "Use all card variants" enabled, `RewardData.generate()`'s Union
+  branch re-fetched each pick by NAME ONLY (`CardUtil.getCardByName()`), re-rolling the printing
+  across every set the card ever appeared in. Now preserves the pool pick's edition via
+  `getCardByNameAndEdition()`, exactly like `CardUtil.generateCards()` already did for the
+  plain card/randomCard path - shop printings and set symbols now match the unlocked edition.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

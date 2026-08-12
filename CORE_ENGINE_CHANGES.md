@@ -800,6 +800,11 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   armory-named rebuilt shop, and `repairCapitolState()` strips armory pins off regular slots.
 - **`util/EconomyBuildings.java`** — new `isArmoryShopName(String)` single shared armory-family
   matcher (strips the "L2" suffix); `isArmoryShop(ShopData)` now delegates to it.
+- **`scene/WorldStandingsScene.java`** (also above) — info dialogs rebuilt with wrapped,
+  width-capped labels via a local `showInfoDialog()` (unwrapped long text overflowed the stage
+  and soft-locked the scene).
+- **`data/RewardData.java`** (also above) — Union branch's allCardVariants re-fetch now preserves
+  the pool pick's edition (`getCardByNameAndEdition`), matching `CardUtil.generateCards()`.
 - **`util/EditionProgression.java`** (mod-added, inventoried below) — deep-clones `cardUnion` in
   `restrictToEditions()`; new `restrictShopRewardsForCurrentTown()` +
   `playerHasBoosterCapableUnlockedEdition()`.

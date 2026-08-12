@@ -47,16 +47,30 @@ public class WorldStandingsScene extends UIScene {
     // ColorReputation.java rather than recalled from memory (getShopPriceMultiplier(),
     // getPlayerTownAttackWeight(), isEntryBarred()/isHealBarred(), CAPITAL_ENTRY_TOLL) so this
     // wiki text can't drift from what the tiers actually do.
+    /** Info dialog with a WRAPPED, width-capped body. createGenericDialog()'s own label is
+     *  unwrapped, so these long wiki texts made the dialog grow wider than the 480px stage -
+     *  pushing the OK button off-screen, which also made the dialog impossible to dismiss
+     *  (real soft-lock, user-reported 2026-08-12: "could not exit... had to force shut down").
+     *  Same wrap+width(250-400) pattern EconomyBuildings' building-info dialogs already use. */
+    private void showInfoDialog(String title, String text) {
+        com.badlogic.gdx.scenes.scene2d.ui.Dialog dialog = createGenericDialog(title, null,
+                Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, null);
+        TypingLabel label = Controls.newTypingLabel(text);
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(400f).row();
+        showDialog(dialog);
+    }
+
     private void showReputationInfo() {
-        showDialog(createGenericDialog("Reputation",
+        showInfoDialog("Reputation",
                 "Partner (+80 or higher): 30% cheaper card shops, 25% less likely to be attacked, free Inn healing.\n\n"
                         + "Happy (+30 to +79): 15% cheaper card shops, 5% less likely to be attacked.\n\n"
                         + "Neutral (-29 to +29): no effect.\n\n"
                         + "Unhappy (-30 to -79): 25% pricier card shops, 5% more likely to be attacked.\n\n"
                         + "War (-80 or lower): barred from that color's towns (Capitals: pay "
                         + ColorReputation.CAPITAL_ENTRY_TOLL + " gold to enter, 40% pricier once inside), "
-                        + "25% more likely to be attacked, no healing at their Inns.",
-                Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, this::removeDialog));
+                        + "25% more likely to be attacked, no healing at their Inns.");
     }
 
     // Expansion/defense explainer (2026-08-11, round 8) - mechanics cross-checked against
@@ -64,7 +78,7 @@ public class WorldStandingsScene extends UIScene {
     // OUTLOOK_DEFENSE_BONUS, ATTACKER_SACKS_TOWN_CHANCE) and WorldStage.startForcedCapitolDuel()/
     // triggerCapitolDefeat() rather than recalled from memory.
     private void showExpansionInfo() {
-        showDialog(createGenericDialog("Expansion",
+        showInfoDialog("Expansion",
                 "Each color periodically sends a mage from its Castle toward one of its nearest "
                         + "neutral or enemy towns. Reaching an undefended town gives it a real chance to "
                         + "capture it - stronger mages (Apprentice/Adept/Master/Challenger) have a much "
@@ -76,8 +90,7 @@ public class WorldStandingsScene extends UIScene {
                         + "to ruins) instead of kept.\n\n"
                         + "Your Capitol is different: any mage that reaches it (after any hired guards "
                         + "fall) triggers a forced best-of-3 duel to defend it in person. Losing that "
-                        + "duel ends your game.",
-                Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, this::removeDialog));
+                        + "duel ends your game.");
     }
 
     private static WorldStandingsScene object;

@@ -208,7 +208,14 @@ public class RewardData implements Serializable {
                             if (allCardVariants) {
                                 PaperCard cardTemplate = finalPool.get(rewardRandom.nextInt(finalPool.size()));
                                 if (cardTemplate != null) {
-                                    PaperCard finalCard = CardUtil.getCardByName(cardTemplate.getCardName());
+                                    // Preserve the pool pick's edition, exactly like CardUtil.
+                                    // generateCards() already does for the card/randomCard path -
+                                    // the old name-only getCardByName() re-rolled the PRINTING
+                                    // across every set the card ever appeared in, so an edition-
+                                    // restricted Union shop showed foreign set symbols/art even
+                                    // though the card pool itself was correctly restricted
+                                    // (user report 2026-08-12, "more than 4 little symbols").
+                                    PaperCard finalCard = CardUtil.getCardByNameAndEdition(cardTemplate.getCardName(), cardTemplate.getEdition());
                                     if (finalCard != null)
                                         ret.add(new Reward(finalCard, isNoSell));
                                 }
