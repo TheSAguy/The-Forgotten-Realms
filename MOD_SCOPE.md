@@ -1660,8 +1660,12 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   turned out to be part of an unrelated teal guardian-temple sprite, nothing archaeology-themed.
   `getArchaeologistSprite()` falls back to the generic `SpecialShop` icon instead, same placeholder
   Spellsmith originally launched with before real art was found for it.
-- **Map placement not visually verified.** (208, 140) on `player_capital.tmx` was chosen as
-  open-looking space near the existing Arena (423, 114)/Spellsmith (452, 212)/Inn (536, 144)
-  cluster, based on reading other objects' coordinates - not confirmed walkable/decoration-free by
-  actually loading the map, since that requires the running game or Tiled itself. Easy to reposition
-  (just the object's x/y in the TMX) if it turns out to land somewhere bad once seen in-game.
+- **Map placement checked against the collision layer, but still not visually confirmed.**
+  (208, 140) on `player_capital.tmx` was chosen as open-looking space near the existing Arena
+  (423, 114)/Spellsmith (452, 212)/Inn (536, 144) cluster, based on reading other objects'
+  coordinates. Follow-up (2026-08-11, end-of-day review): decoded the map's `Walls` layer (base64+
+  zlib tile data, 40x40 grid) directly and confirmed the tile at that position is GID 0 (empty, no
+  wall) - not overlapping a solid collision tile. This doesn't rule out overlapping a purely
+  decorative sprite on the `Ground2`/`Overlay` layers (not checked), and doesn't confirm how it
+  actually looks rendered - still worth an actual look in-game. Easy to reposition (just the
+  object's x/y in the TMX) if it turns out to land somewhere visually bad.

@@ -10,48 +10,122 @@ together" layer on top of that.
 
 ## Handoff note for the Gaming PC session (2026-08-11, from the home PC)
 
-Everything as of this note is committed AND pushed - `origin/master` is at `50e28707bae`
-("Cross-machine playtest round..."), confirmed 0 ahead/0 behind against the local checkout that
-wrote it. `git pull` on the Gaming PC should fast-forward cleanly with no merge needed.
+**Updated end-of-day (2026-08-11).** Everything as of this note is committed AND pushed -
+`origin/master` is at `ae442dd4f1e` ("Add Archaeologist building..."), confirmed clean working
+tree, 0 ahead/0 behind. `git pull` on the Gaming PC should fast-forward cleanly with no merge
+needed. This supersedes the version of this note from earlier today (which stopped at
+`50e28707bae`) - everything below `50e28707bae` fixed is unchanged and still true; what's new is
+everything from "Batch round: FoW difficulty/Stage 2..." (`f8e7d059d02`) through today's last
+commit, none of which has been played yet on either machine.
 
 **`git pull` only updates this checkout - it does NOT touch the Gaming PC's deployed/installed
-game.** Before testing anything from this round, run the full deploy checklist from
+game.** Before testing anything below, run the full deploy checklist from
 `project_forge_adventure_mod` memory / this file's own build notes: `mvn -pl forge-gui-mobile -am
 compile -DskipTests -o`, splice the rebuilt `forge/adventure` package into the installed jar with
 `jar uf`, and mirror `forge-gui/res/adventure/The Forgotten Realms/` over the deployed copy's same
-folder (a plain recursive copy is fine - see the "Cross-machine merge note" and the entry right
-below this one for what actually changed and why a full resource mirror was used instead of
-cherry-picking individual files).
+folder (a plain recursive copy is fine).
+
+**Two console/HUD tools that make today's stuff testable without a multi-day real playthrough**
+(both pre-existing, not new today - mentioning them here because most of today's round needs them):
+- The **"100x Speed" and "Wait" checkboxes** on the game HUD (left column, under the Day/Time
+  panel below the minimap) fast-forward the in-game clock - this is how to reach a 7-day
+  Archaeologist expedition, a weekly guard salary cycle, or Bank interest without actually waiting
+  real-time. There is no console command for this (checked - only `give gold/shards/wood/stone/
+  card/item/boosters`, `heal`, `teleport to`, `spawn enemy`, etc. exist, no "skip day").
+- `give gold <amount>` for affording Arena entry fees (100g Regular / 300g Challenge), the 100g
+  Level 2 building upgrade, or the Armory rebuild-from-rubble cost; `give shards`/`give card` for
+  Guard/Archaeologist-adjacent testing.
 
 **What this round fixed** (full detail in the "Cross-machine playtest round: 8 real bugs found..."
-entry immediately below): a real map-load crash (broken `treasure.tx` template path in 6 merged
-dungeon maps - the likely cause of a "stuck on screen" report), four bugs in the fog-of-war
-discovery-reveal mechanic (including a big one - the Capitol's Territory Expansion growth was
-force-revealing its entire ~450-tile radius as fog-of-war "explored" regardless of actual player
-exploration), a reputation bug (Unhappy/War towns were still fully healing the player on entry),
-AI capitals' Armory shops not visibly restocking weekly (their `shops.json` data had nothing
-randomizable - fixed with pooled rewards), a duplicate castle-look icon on the minimap (Eldrazi
-Prison shared Emrakul's sprite), plus small Armory UI/wording polish and reputation-number
-tier-coloring on World Standings.
+entry further down): a real map-load crash (broken `treasure.tx` template path in 6 merged
+dungeon maps), four fog-of-war discovery-reveal bugs, a reputation healing bug, AI capitals'
+Armory shops not restocking, a duplicate castle-look icon on the minimap, plus Armory UI polish.
+The 3rd castle icon (Kenrith's Court) was resolved the same day - see that entry further down.
 
-**Update (same day, 2026-08-11): the 3rd castle icon is resolved.** The user supplied screenshots
-+ the in-dungeon flavor dialog text, which identified it as `Kenrith's Court` (one of the 6
-Story-tagged POIs mentioned in the second bullet below) - its `Building134` sprite visually reads
-as a small castle/tower despite the last round's name-only guess that it didn't. Fixed the same
-way as Eldrazi Prison (swapped to the proven `Fort` region from `common/maps/tileset/
-buildings.atlas`, `type` deliberately left as `"castle"`). Full root-cause writeup in the "Third
-castle-look icon identified and fixed: Kenrith's Court" entry further down this file (chronological
-order - it's near the end, after this note).
+**Still not resolved - unrelated to today's new work, still open from earlier:**
+- Six "Story"-tagged POIs (Tarnation, Wizard Palace, Squirrel Farm, Gitrog Bog, Church of
+  Valgavoth, Kenrith's Court) still place randomly across their entire assigned color biome at
+  world-gen, not confined near that color's castle keep - not touched this round.
 
-**Still not resolved - needs the user's own follow-up while playing today:**
-- Six new "Story"-tagged POIs from the last merge (Tarnation, Wizard Palace,
-  Squirrel Farm, Gitrog Bog, Church of Valgavoth, Kenrith's Court) are placed randomly across
-  their ENTIRE assigned color biome at world-gen, not confined near that color's castle keep. This
-  is a separate, still-open question from the icon fix above (Kenrith's Court's icon no longer
-  looks like a duplicate capital, but it - and the other 5 - can still land anywhere in their
-  color's biome, not just near that color's castle) - a real gap if it turns out to matter for how
-  "neutral vs. AI territory" is supposed to read on the map. Not fixed this round - flagged in case
-  it comes up during today's session.
+### Everything built after that point, today (2026-08-11) - NOT yet playtested by anyone
+
+Roughly chronological. Each item names the exact thing to go look at in-game, since none of this
+has been seen running yet on either machine.
+
+1. **FoW difficulty scaling + Stage 2 full reveal, land shop weekly-restock notice + visit-gate,
+   28 new dungeon-pool candidates, Stone/Wood loot in Caves/Forts.** Lower-risk, mostly numeric/
+   data changes. Test: explore normally, check fog-of-war radius feels difficulty-appropriate and
+   that it fully reveals near 80% explored; visit a land (basic-land) shop and confirm it shows a
+   "restocks weekly" note and the correct gate; run a couple of Cave/Fort dungeons and check for
+   occasional Stone/Wood drops instead of only Shards.
+
+2. **Corrected Outlook/Spellsmith/Arena/Armory art** (several rounds of ID corrections, verified
+   visually via screenshots during this process). Test: visit the Capitol and LOOK at each of
+   these four buildings' icons on the overworld - confirm none look broken/wrong/duplicated. This
+   is exactly the category of thing that's gone wrong before (multiple rounds of "IDs looked right
+   until actually rendered" this project has hit), so an actual look matters here.
+
+3. **Ante disabled for Arena; Armory item pool coin removal.** Test: fight an Arena match and
+   confirm no ante prompt appears (should never trigger inside Arena now, regardless of your
+   global Ante setting); browse the Armory and confirm Challenge Coins no longer appear in its
+   stock.
+
+4. **Armory Guard hiring system** (data model, weekly salary, tier-vs-tier combat, Hire/Dismiss
+   UI, Armory upgrade button, map indicator icon) - the single biggest, least-tested piece of
+   today. Test:
+   - Upgrade the Armory to Level 2 (100g), then open "Manage Guards" and hire one of each tier at
+     an owned town and at the Capitol (Capitol allows 2 guards, ordinary towns 1) - confirm cost/
+     afford-gating and the guard list updates.
+   - Confirm the hired guard's tier icon shows on that town's minimap marker (bottom-left corner,
+     strongest guard only if 2 hired).
+   - Fast-forward a week (100x Speed) and confirm salary gets deducted automatically; then drain
+     your gold and fast-forward again to confirm a guard gets disbanded with a red notification
+     when salary can't be paid.
+   - **The actual combat is the hardest part to see happen** - it only fires when an enemy-color
+     mage's Territory Control attack reaches a town you own that has a guard. Enable Territory
+     Control if not already, then either wait for a natural attack or watch `forge.log` for
+     `[TFR-GuardFight]` lines (greppable diagnostic logging was added specifically because this is
+     hard to observe directly) - confirms attacker tier, guard tier, computed chance, and outcome
+     without needing to catch it live on screen.
+
+5. **Guard combat balance tuning** (+10% attacker bonus in guard fights, -5% Outlook counter,
+   20% "sacked" outcome on a successful capture) **and Outlook now also defending the un-guarded
+   base town-capture roll.** Same hard-to-observe-live problem as above - grep `forge.log` for
+   `[TFR-GuardFight]` (guard fights) and `[TFR-CaptureOdds]` (base capture rolls, now shows a
+   discounted `chance` value when the target town has an Outlook) rather than trying to catch
+   these visually. A captured town has roughly 1-in-5 odds of coming back "sacked" (reverted to a
+   neutral ruin) instead of being cleanly taken - watch for `CAPTURED but SACKED` outcomes in the
+   log and the correct in-game notification/visual state after.
+
+6. **Arena Level 2 upgrade (100g) + Level 2 Challenge mode.** Test: upgrade the Capitol's Arena
+   to Level 2, confirm "Enter Challenge Arena" now appears alongside "Enter Arena" in the entry
+   dialog, confirm it charges 300g (not 100g) on entry, and play at least one Challenge fight -
+   every match should be single-game (no "match, game 2 of 3" prompt), even against enemies that
+   are normally best-of-3 elsewhere (bosses/Planeswalkers). Reward-rarity should feel skewed high
+   (no Common/Uncommon cards, a guaranteed Rare card on round 2 win, guaranteed Mythic on round 3
+   win) - gold amounts and item-tier odds were Claude's own proposal, not something specified, so
+   flag it if the payout feels off either direction.
+
+7. **Archaeologist building** - entirely new, most speculative piece of today, several explicitly
+   flagged assumptions (see `MOD_SCOPE.md` #24 for the full list: free to send an expedition,
+   placeholder icon since no real art was ever identified, and its map position on
+   `player_capital.tmx` was chosen by reading coordinates, not by seeing the map rendered - though
+   the "Walls" collision layer WAS decoded and checked afterward and (208,140) reads as open,
+   non-wall tile space). Test, in order:
+   - **First find it.** It's a new building near the existing Arena (423,114)/Spellsmith
+     (452,212)/Inn (536,144) cluster on the Capitol map, at roughly (208,140) - noticeably to the
+     left/west of that cluster. If it's not visible or looks wrong, that's the #1 thing to report
+     back, since this is the one piece of today's work with zero visual confirmation so far.
+   - It should show as rubble needing a paid rebuild first if the Capitol itself started as
+     wasteland (same as Arena/Spellsmith did) - confirm the rebuild dialog behaves the same way
+     those two already do.
+   - Once built: "Send Expedition" (should be free - flag it if you think it should cost
+     something), then visiting again immediately should say "Expedition in progress - 7 days
+     remaining" (counting down correctly on subsequent visits), and 100x-Speed-fast-forwarding a
+     full week should flip it to "Collect Rewards" - clicking that should open the same flip-card
+     reveal screen a duel win uses, with 5 cards (verify none are cards you already own), and
+     occasionally (25%/5% odds, may take a couple of expeditions to see) a bonus booster pack or
+     a bonus item.
 
 ## The mod plane: "The Forgotten Realms"
 
