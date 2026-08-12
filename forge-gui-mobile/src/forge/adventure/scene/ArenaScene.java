@@ -90,6 +90,13 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     // a Deck Tester match has nothing to do with the current bracket's fighters/rounds state.
     private boolean deckTesterMatch = false;
 
+    // Explicit width for the 3 wide programmatic buttons above (round 5 off-screen fix) - see the
+    // constructor's own comment for why doneButton's 48-unit width was never a safe size
+    // reference. 220 leaves a wide margin before the gold/start buttons at x=380 (canvas is 480
+    // wide total, per ui/arena.json) while still comfortably fitting the longest label
+    // ("Switch to Challenging Arena") at the [%80] scale applied where text is set.
+    private static final float ARENA_WIDE_BUTTON_WIDTH = 220f;
+
     private ArenaScene() {
         super(Forge.isLandscapeMode() ? "ui/arena.json" : "ui/arena_portrait.json");
         fighterSpot = Config.instance().getAtlasSprite(Paths.ARENA_ATLAS, "Spot");
@@ -129,17 +136,27 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         // RewardScene's guardsButton/upgradeButton already use. Positioned above the done button,
         // stacked (upgrade above toggle) - at most one is ever visible at a time (upgrade before
         // Level 2, toggle after), so they never actually overlap on screen.
-        arenaUpgradeButton = Controls.newTextButton("Upgrade to Level 2 (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])", this::promptUpgradeArena);
-        arenaUpgradeButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
-        arenaUpgradeButton.setPosition(doneButton.getX() + doneButton.getWidth() - arenaUpgradeButton.getWidth(),
-                doneButton.getY() + doneButton.getHeight() + 10f);
+        //
+        // BUG FIX (2026-08-11, round 5 - user report: "Upgrade / switch Arena button is off the
+        // screen on the left"): this screen's whole canvas is only 480x270 (ui/arena.json), and
+        // "done" is a tiny 48-wide button pinned at x=5. The original formula right-aligned each
+        // wide button's RIGHT edge to doneButton's right edge (doneButton.getX() + doneButton.
+        // getWidth() - thisButton.getWidth()) - fine for a button narrower than doneButton, but at
+        // 2.2x doneButton's width that puts the LEFT edge at 5 + 48 - 105.6 = -52.6, well past the
+        // left edge of the canvas. Left-aligning to doneButton.getX() instead keeps the whole
+        // button on-screen (there's ~325 units of genuinely open space between doneButton's right
+        // edge at 53 and the gold/start buttons starting at x=380) - and a fixed, explicit width
+        // (ARENA_WIDE_BUTTON_WIDTH) replaces the doneButton-relative multiplier, since doneButton's
+        // own 48-unit width was never a meaningful size reference for these much longer labels.
+        arenaUpgradeButton = Controls.newTextButton("[%80]Upgrade to Level 2 (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])", this::promptUpgradeArena);
+        arenaUpgradeButton.setSize(ARENA_WIDE_BUTTON_WIDTH, doneButton.getHeight() * 0.8f);
+        arenaUpgradeButton.setPosition(doneButton.getX(), doneButton.getY() + doneButton.getHeight() + 10f);
         arenaUpgradeButton.setVisible(false);
         ui.addActor(arenaUpgradeButton);
 
         arenaModeToggleButton = Controls.newTextButton("", this::toggleArenaMode);
-        arenaModeToggleButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
-        arenaModeToggleButton.setPosition(doneButton.getX() + doneButton.getWidth() - arenaModeToggleButton.getWidth(),
-                doneButton.getY() + doneButton.getHeight() + 10f);
+        arenaModeToggleButton.setSize(ARENA_WIDE_BUTTON_WIDTH, doneButton.getHeight() * 0.8f);
+        arenaModeToggleButton.setPosition(doneButton.getX(), doneButton.getY() + doneButton.getHeight() + 10f);
         arenaModeToggleButton.setVisible(false);
         ui.addActor(arenaModeToggleButton);
 
@@ -147,9 +164,8 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         // row, never both Deck Tester and one of them at the same height), since Deck Tester can
         // be visible AT THE SAME TIME as arenaModeToggleButton (both just need level >= 2).
         deckTesterButton = Controls.newTextButton("Deck Tester", this::promptDeckTester);
-        deckTesterButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
-        deckTesterButton.setPosition(doneButton.getX() + doneButton.getWidth() - deckTesterButton.getWidth(),
-                doneButton.getY() + doneButton.getHeight() * 2f + 20f);
+        deckTesterButton.setSize(ARENA_WIDE_BUTTON_WIDTH, doneButton.getHeight() * 0.8f);
+        deckTesterButton.setPosition(doneButton.getX(), doneButton.getY() + doneButton.getHeight() * 2f + 20f);
         deckTesterButton.setVisible(false);
         ui.addActor(deckTesterButton);
     }
@@ -188,11 +204,11 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         arenaUpgradeButton.setVisible(!midMatch && level < 2);
         // Text refreshed here too (round 4, difficulty price multiplier), not just at
         // construction - the label was previously baked in once from the raw constant.
-        arenaUpgradeButton.setText("Upgrade to Level 2 (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])");
+        arenaUpgradeButton.setText("[%80]Upgrade to Level 2 (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])");
         boolean toggleAvailable = !midMatch && level >= 2 && challengeArenaJson != null;
         arenaModeToggleButton.setVisible(toggleAvailable);
         if (toggleAvailable)
-            arenaModeToggleButton.setText(challengeMode ? "Switch to Normal Arena" : "Switch to Challenging Arena");
+            arenaModeToggleButton.setText(challengeMode ? "[%80]Switch to Normal Arena" : "[%80]Switch to Challenging Arena");
         // Deck Tester (user spec 2026-08-11: "only be available at Arena lvl2") - independent of
         // challengeArenaJson (unlike the toggle above), since deck testing has nothing to do with
         // whether this arena even has a Challenge pool.

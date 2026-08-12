@@ -575,6 +575,17 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `promptUpgradeArena()`'s cost variable, and (new) a text refresh inside
   `refreshArenaBuildingButtons()` itself, since the label previously never updated after
   construction and would otherwise go stale once the cost became difficulty-dependent.
+  **Off-screen bug fix (2026-08-11, round 5 - user report: "Upgrade / switch Arena button is off
+  the screen on the left"):** the 3 wide programmatic buttons (`arenaUpgradeButton`/
+  `arenaModeToggleButton`/`deckTesterButton`) were positioned by right-aligning to `doneButton`'s
+  right edge while sized at 2.2x its width - fine for a button narrower than `doneButton`, but
+  `doneButton` sits at `x=5` in the 480-wide `ui/arena.json` canvas (near the left edge), so a
+  wider button right-aligned to it computed a negative left-edge X (`5 + 48 - 105.6 = -52.6`),
+  genuinely off-canvas, not just visually cramped. Fixed by left-aligning all three to
+  `doneButton.getX()` instead (confirmed ~325 units of open space to the right before the
+  gold/start buttons at x=380) and replacing the doneButton-relative width multiplier with an
+  explicit `ARENA_WIDE_BUTTON_WIDTH = 220f` constant, plus a `[%80]` text-scale prefix on the
+  longer labels for margin.
 - **`forge-gui-mobile/src/forge/adventure/character/EnemySprite.java`** — added `territoryTarget`/
   `territoryColor` fields (#7, null for every ordinary enemy - only set on a Territory Control
   mage). Combat gold variance (2026-08-09, #9): new `applyGoldVariance()`, called at the end of
@@ -630,6 +641,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   cost now flows through `EconomyBuildings.scaledCost()` with `[+Gold]` markup at 3 sites
   (constructor, `promptUpgradeArmory()`, and a new text refresh alongside the existing visibility
   refresh in the shop-page switch, fixing the same "label never updates after construction" gap).
+  **Round 5 (2026-08-11):** checked this file's equivalent right-aligned-to-doneButton positioning
+  formula against the off-screen bug just found in `ArenaScene.java` - NOT broken here, since this
+  screen's `done` button sits at `x=420` in the same 480-wide canvas (`ui/items.json`, near the
+  RIGHT edge), so right-aligning a wider button to it pulls the button leftward INTO the canvas
+  rather than off of it. Left the position formula alone; added the same defensive `[%80]` scale
+  prefix to `upgradeButton`'s label anyway, since it carries similarly long cost text at the same
+  105.6-unit width.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Player Capitol round
   (2026-08-08 late night): the "arena" object case switched to the gated 3-arg OnCollide
   constructor (inn/spellsmith already used it) so an arena in a wasteland town/capital starts as

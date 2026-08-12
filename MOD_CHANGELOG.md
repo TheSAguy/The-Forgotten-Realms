@@ -7011,3 +7011,65 @@ issues). Deployed via jar splice only - no resource/asset files changed, pure Ja
 playtested - needs a real save on each of the 4 difficulty tiers to confirm the numbers actually
 differ in-game; this session has no way to run the libGDX desktop client directly to eyeball the
 icon rendering either, only compile/deploy.
+
+## Playtest round: wrong deploy jar, Arena buttons off-screen, Guard dialog text overflow (2026-08-11, round 5)
+
+User screenshots of the last two rounds (Deck Tester, resource icons + difficulty pricing) showed
+none of it working: no icons anywhere (dialogs still read plain "100 gold" instead of "100
+[+Gold]"), no Deck Tester button on the Arena screen at all, the Arena Upgrade/toggle button
+rendered off the left edge of the screen, and the Manage Guards dialog's button text badly
+overlapping/cut off.
+
+**Root cause #1 - wrong jar spliced for two full rounds.** `E:\GAMES\FORGE` has two separate
+"jar-with-dependencies" bundles: `forge-gui-desktop-...jar` (plain `forge.exe`) and
+`forge-gui-mobile-dev-...jar` (`forge-adventure.exe`, the actual Adventure-mode launcher). Both
+this round's deploys spliced only the desktop jar - picked by pattern-matching the filename
+against a `find`/`ls` listing rather than checking which jar the Adventure launcher script actually
+references, exactly the kind of "assumed instead of verified" mistake the user has flagged before
+in this session. Confirmed by reading `forge-adventure.cmd`'s own `-jar` argument: it names
+`forge-gui-mobile-dev-...jar` explicitly, never the desktop one. Every mod-code change since the
+Deck Tester round had compiled clean and "deployed" successfully by every check performed at the
+time (jar mtime, `jar tf` entry count) - but none of those checks actually verified the SPLICED
+CLASS BYTECODE reached the jar the game process itself loads. Fixed by re-splicing both jars (
+mobile-dev first, since it's the one that matters) and, this time, extracting the just-spliced
+`.class` files back out of the jar and grepping for a string literal unique to this round's edit to
+positively confirm the update landed - not just that the command exited 0. `CLAUDE.md` gained a new
+"Deploy" section documenting both jars, which one Adventure mode actually uses, and this
+verification step, so a future round doesn't repeat the same guess.
+
+**Root cause #2 - Arena's wide programmatic buttons were right-aligned to a button on the wrong
+side of the screen.** `ArenaScene`'s "done" (Back) button sits at `x=5` in the 480-wide
+`ui/arena.json` canvas (near the LEFT edge) - but `arenaUpgradeButton`/`arenaModeToggleButton`/
+`deckTesterButton` were all positioned by right-aligning their RIGHT edge to doneButton's right
+edge (`doneButton.getX() + doneButton.getWidth() - thisButton.getWidth()`), then sized to 2.2x
+doneButton's width (105.6 units). Doing the algebra: left edge = `5 + 48 - 105.6 = -52.6` - the
+button starts over 50 units past the left edge of an 480-wide canvas, i.e. genuinely off-screen,
+not just visually cramped. This positioning formula predates this session's Deck Tester work (from
+the earlier "Redesign Arena upgrade UX" round) - the new `deckTesterButton` just inherited the same
+broken formula, so it was equally invisible. Fixed by left-aligning all three buttons to
+`doneButton.getX()` instead (there's ~325 units of genuinely open space between doneButton's right
+edge at 53 and the gold/start buttons starting at x=380, more than enough), replacing the
+doneButton-relative width multiplier with an explicit `ARENA_WIDE_BUTTON_WIDTH = 220f` constant (48
+was never a meaningful size reference for labels this much longer), and adding a `[%80]` text-scale
+prefix to the longer labels for margin. `RewardScene.java`'s equivalent Armory buttons use the same
+right-aligned formula but were NOT broken - its `done` button sits at `x=420` in the same 480-wide
+canvas (near the RIGHT edge), so right-aligning a wide button to it pulls the button leftward INTO
+the canvas rather than off of it (`420 + 48 - 105.6 = 362.4`, fully on-screen). Left that formula
+alone; added the same `[%80]` scale prefix to `upgradeButton`'s label defensively, since it carries
+similarly long cost text in the same 105.6-unit width.
+
+**Root cause #3 - Guard Hire dialog buttons were already too narrow for their text before icons
+existed, and icons made it worse.** `EconomyBuildings.addHalfButton()`'s 118-unit-wide half-buttons
+were sized for short text; `"Hire Apprentice (50 gold/week)"` was already marginal at that width
+even before this round's icon work, and adding `[+Gold]`/`[+Shards]` markup pushed clearly over the
+edge (screenshot showed literal text overlap between the two columns). Fixed three ways together:
+widened `addHalfButton()`'s cell from 118 to 140 (the method has exactly one caller site, both
+Hire and Dismiss loops in `buildManageGuardsDialog()`, so this couldn't affect anything else);
+shortened `"/week"` to `"/wk"` in the cost string; added a `[%75]` scale prefix to the "Hire ..."
+button labels specifically (the "Dismiss ..." labels are much shorter and were left alone).
+
+All three fixes compiled clean, spliced into both jars, and verified via the class-bytecode
+extraction method described above (`[+Gold]`, `Deck Tester`, and `Upgrade to Level 2` string
+literals all confirmed present in the freshly-extracted `.class` files from the mobile-dev jar).
+Still not visually confirmed in-game - this session has no way to run the libGDX client directly -
+asked the user to re-test now that the correct jar actually has the code.

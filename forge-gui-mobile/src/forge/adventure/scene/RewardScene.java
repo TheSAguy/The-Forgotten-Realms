@@ -106,7 +106,7 @@ public class RewardScene extends UIScene {
         // Upgrade to Level 2 (mod feature, user spec 2026-08-11, Task #8/#13) - Armory-only,
         // Level 1 only (mutually exclusive with Manage Guards, same row/position - a shop is never
         // both at once). 100g placeholder cost, EconomyBuildings.BUILDING_UPGRADE_COST.
-        upgradeButton = Controls.newTextButton("Upgrade Armory (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])", this::promptUpgradeArmory);
+        upgradeButton = Controls.newTextButton("[%80]Upgrade Armory (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])", this::promptUpgradeArmory);
         upgradeButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
         upgradeButton.setPosition(doneButton.getX() + doneButton.getWidth() - upgradeButton.getWidth(),
                 doneButton.getY() + doneButton.getHeight() * 2 + 20f);
@@ -539,7 +539,7 @@ public class RewardScene extends UIScene {
                 if (upgradeButton.isVisible()) {
                     // Text refreshed here too (round 4, difficulty price multiplier) - was
                     // previously baked in once from the raw constant at construction.
-                    upgradeButton.setText("Upgrade Armory (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])");
+                    upgradeButton.setText("[%80]Upgrade Armory (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])");
                     addToSelectable(upgradeButton);
                 }
                 break;

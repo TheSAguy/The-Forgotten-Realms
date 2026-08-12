@@ -421,10 +421,15 @@ public class EconomyBuildings {
             // specific resources - simpler than Exchange's Image-actor approach, which exists only
             // because Wood/Stone have no font-registered icon (irrelevant here, guards are
             // gold/shards only).
-            String costText = goldCost + " [+Gold]" + (shardCost > 0 ? " + " + shardCost + " [+Shards]" : "") + "/week";
+            // "/wk" not "/week", and a [%75] scale prefix (2026-08-11, round 5 bug fix - user
+            // report: "the armory text is too big for the buttons now") - the icon markup made an
+            // already-marginal fit (this text was overflowing even before icons, at plain "50
+            // gold/week") worse. See addHalfButton()'s own widened cell for the other half of this
+            // fix.
+            String costText = goldCost + " [+Gold]" + (shardCost > 0 ? " + " + shardCost + " [+Shards]" : "") + "/wk";
             boolean canAfford = AdventurePlayer.current().getGold() >= goldCost && AdventurePlayer.current().getShards() >= shardCost;
             boolean hasRoom = currentCount < maxGuards;
-            addHalfButton(dialog, column, "Hire " + guardTierDisplayName(tier) + " (" + costText + ")", hasRoom && canAfford, () -> {
+            addHalfButton(dialog, column, "[%75]Hire " + guardTierDisplayName(tier) + " (" + costText + ")", hasRoom && canAfford, () -> {
                 AdventurePlayer.current().takeGold(goldCost);
                 if (shardCost > 0)
                     AdventurePlayer.current().takeShards(shardCost);
@@ -1303,7 +1308,10 @@ public class EconomyBuildings {
     private static void addHalfButton(Dialog dialog, int[] column, String name, boolean enabled, Runnable action) {
         TextraButton button = Controls.newTextButton(name, enabled ? action : () -> {});
         button.setDisabled(!enabled);
-        Cell<TextraButton> cell = dialog.getButtonTable().add(button).width(118f);
+        // Widened 118 -> 140 (round 5 bug fix, alongside the [%75] scale + "/wk" abbreviation at
+        // this method's only two call sites) - 118 was already marginal for "Hire <tier> (<cost>)"
+        // before resource icons existed, and clearly overflowing after.
+        Cell<TextraButton> cell = dialog.getButtonTable().add(button).width(140f);
         column[0]++;
         if (column[0] % 2 == 0)
             cell.row();

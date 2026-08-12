@@ -1500,7 +1500,7 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; Deck Tester mode built same day, round 3)
+### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; Deck Tester mode built same day, round 3; playtest round 5 fixed the Upgrade/toggle/Deck Tester buttons rendering off-screen, and a wrong-jar deploy bug that meant round 3 never actually reached the player)
 - **"No ant in Arena" resolved**: means Ante (the mechanic where match winner takes a card from the
   loser's deck - "ant" was a typo missing the "e"), which is on by default for every match
   currently. **Built**: Ante is now force-disabled for Arena matches specifically (new
@@ -1656,8 +1656,14 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   draws one icon per hired guard (up to 2 at the Capitol), not just the single strongest.
   **Enlarged (2026-08-11, round 3)**: drawn at a fixed 12x12 instead of the source art's native 8x8
   (user: "a little small... let's try 12x12") - source crop unchanged, just scaled up at draw time.
+- **Hire-button text overflow fixed (2026-08-11, round 5)** - user report: "the armory text is too
+  big for the buttons now." The half-width Hire buttons (#48's `addHalfButton()`, 118 units wide)
+  were already marginal for text like "Hire Apprentice (50 gold/week)" before #23's icon markup
+  existed, and clearly overflowing/overlapping between columns after. Widened to 140, shortened
+  "/week" to "/wk", and added a `[%75]` text-scale prefix to the Hire labels specifically (Dismiss
+  labels are much shorter and untouched). See #23 and `MOD_CHANGELOG.md` for the full round.
 
-### 23. Resource Icons on Building/Shop Menus — `Built (2026-08-11, round 4)`
+### 23. Resource Icons on Building/Shop Menus — `Built (2026-08-11, round 4); wrong-jar deploy bug fixed round 5, same day`
 - Original ask (2026-08-11): a gold icon next to the Bank's Deposit/Withdraw amounts
   (`EconomyBuildings.refreshBankDialog()`), plain text right now (`"Deposited: N gold"`).
 - **Expanded same day, round 3**: apply the same treatment - resource icon(s) inline after every

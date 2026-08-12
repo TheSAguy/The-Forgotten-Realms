@@ -50,3 +50,34 @@ have in its own memory.
 Maven + JDK are installed portably on each machine (not tracked in git). Verify with
 `mvn -pl forge-gui-mobile -am compile -DskipTests -o` (add `-o` once dependencies are already
 cached locally) before considering a change done.
+
+## Deploy (installed game at `E:\GAMES\FORGE`)
+
+**The installed game folder has THREE separate jars — splicing the wrong one silently ships
+nothing.** Confirmed 2026-08-11 (round 5) the hard way: two full rounds of work (Deck Tester,
+resource-icon/difficulty-pricing) got spliced into `forge-gui-desktop-...jar` and never reached
+the player, because Adventure mode doesn't launch from that jar.
+
+- **`forge-gui-mobile-dev-2.0.14-SNAPSHOT-jar-with-dependencies.jar`** — what `forge-adventure.exe`/
+  `.cmd`/`.sh` actually run (confirmed by reading `forge-adventure.cmd`'s own `-jar` argument, not
+  assumed from the filename). **This is the one that matters for every change under
+  `forge/adventure/`.**
+- **`forge-gui-desktop-2.0.14-SNAPSHOT-jar-with-dependencies.jar`** — what plain `forge.exe`/`.cmd`
+  runs (the regular non-Adventure client). Splice it too for consistency, but it is NOT what the
+  user tests Adventure-mode changes against.
+- `adventure-editor-jar-with-dependencies.jar` / `gdx-particle-editor.jar` — unrelated tools, never
+  need splicing for mod-code changes.
+
+Deploy loop, in order:
+1. `mvn -pl forge-gui-mobile -am compile -DskipTests -o -q` (fix any errors/checkstyle first)
+2. From `forge-gui-mobile/target/classes`: `jar uf "<jar>" forge/adventure` — splice into
+   **both** `forge-gui-mobile-dev-...jar` and `forge-gui-desktop-...jar` at
+   `E:\GAMES\FORGE\`, mobile-dev first since it's the one that actually matters
+3. If any file under `forge-gui/res/adventure/The Forgotten Realms/` changed, mirror the whole
+   folder on top of `E:\GAMES\FORGE\res\adventure\The Forgotten Realms\` (`cp -r`, plus explicit
+   `rm` for anything deleted from the repo - `cp -r` never removes stale destination files)
+4. **Spot-check the splice actually landed** before telling the user it's ready: extract the
+   changed `.class` file(s) from the jar just spliced and `grep` for a string literal unique to
+   this round's edit (e.g. `jar xf <jar> forge/adventure/util/EconomyBuildings.class` into a temp
+   dir, then `grep -a -o "<new string>" EconomyBuildings.class`). A clean `mvn compile` only proves
+   the source compiles - it proves nothing about which jar actually received the splice.
