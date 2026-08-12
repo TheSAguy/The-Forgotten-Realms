@@ -6935,95 +6935,33 @@
 			},
 			{
 				"action": [
+					{ "addItem": "Colorless rune" },
+					{ "addItem": "Bronze Challenge Coin" },
+					{ "addItem": "Bronze Challenge Coin" },
+					{ "addItem": "Bronze Challenge Coin" },
+					{ "addItem": "Challenge Coin" },
+					{ "addItem": "Silver Challenge Coin" },
 					{
-						"removeItem": "",
-						"setColorIdentity": "",
-						"advanceQuestFlag": "",
-						"advanceMapFlag": "",
-						"setQuestFlag": {
-							"key": "shandWalkers1",
+						"setCharacterFlag": {
+							"key": "freeChallengeCoins",
 							"val": 1
-						},
-						"setMapFlag": {
-							"key": ""
-						},
-						"issueQuest": "",
-						"POIReference": ""
-					}
-				],
-				"name": "I want to find the planeswalkers (Future release)",
-				"text": "Well, shouting \"Planeswalkers, where are you?\" into the wastes won't do much. Travel to the nearest settlement and ask around for information.",
-				"options": [
+						}
+					},
 					{
-						"action": [
-							{
-								"removeItem": "",
-								"setColorIdentity": "",
-								"advanceQuestFlag": "",
-								"advanceMapFlag": "",
-								"setQuestFlag": {
-									"key": ""
-								},
-								"setMapFlag": {
-									"key": ""
-								},
-								"issueQuest": "29",
-								"POIReference": ""
-							}
-						],
-						"name": "(Continue)",
-						"text": "New Quest: A Chat with the Locals - Objective: Travel to any town in the wasteland.",
-						"options": [
-							{
-								"name": "(Dismiss)"
-							}
-						]
-					}
-				],
-				"isDisabled": true
-			},
-			{
-				"action": [
-					{
-						"removeItem": "",
-						"setColorIdentity": "",
-						"advanceQuestFlag": "",
-						"advanceMapFlag": "",
 						"setQuestFlag": {
-							"key": "shandRep1",
+							"key": "mainQuest",
 							"val": 1
-						},
-						"setMapFlag": {
-							"key": ""
-						},
-						"issueQuest": "",
-						"POIReference": ""
-					}
-				],
-				"name": "I want to make a name for myself (Future release)",
-				"text": "Then let's go impress some people. But first, you need some impressive spells. Build your collection to begin your quest.",
-				"options": [
+						}
+					},
 					{
-						"action": [
-							{
-								"removeItem": "",
-								"setColorIdentity": "",
-								"advanceQuestFlag": "",
-								"advanceMapFlag": "",
-								"setQuestFlag": {
-									"key": ""
-								},
-								"setMapFlag": {
-									"key": ""
-								},
-								"issueQuest": "31",
-								"POIReference": ""
-							}
-						],
-						"name": "(Dismiss)"
-					}
+						"setCharacterFlag": {
+							"key": "noQuest",
+							"val": 1
+						}
+					},
+					{ "runCommand": "teleport to poi Spawn" }
 				],
-				"isDisabled": true
+				"name": "Skip tutorial - just get me to the game"
 			},
 			{
 				"condition": [

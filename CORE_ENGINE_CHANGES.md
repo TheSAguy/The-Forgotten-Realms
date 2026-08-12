@@ -672,6 +672,17 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   "spellsmith" case fixed to actually call `EconomyBuildings.getSpellsmithSprite()` - it had been
   hardcoded to the generic `SpecialShop` placeholder ever since the real Spellsmith art was added
   in an earlier round; the atlas region was already correct, this case just never read it.
+- **`forge-gui-mobile/src/forge/adventure/data/DialogData.java`** — Skip Tutorial (2026-08-11,
+  round 6): added `ActionData.runCommand` (`String`, default null) - when set, the dialog action
+  runs it through `ConsoleCommandInterpreter`, reusing that class's existing command set (e.g.
+  `"teleport to poi Spawn"`) from inside a quest dialog action instead of only from the debug
+  console or an item's `commandOnUse`. Deliberately generic rather than a single-purpose
+  `teleportToPOI` field - see the field's own comment.
+- **`forge-gui-mobile/src/forge/adventure/util/MapDialog.java`** — Skip Tutorial (2026-08-11,
+  round 6): `setEffects()` gained one new branch, `if (E.runCommand != null && !E.runCommand.
+  isEmpty()) ConsoleCommandInterpreter.getInstance().command(E.runCommand);`, mirroring exactly
+  how `InventoryScene.java` already dispatches an item's `commandOnUse` - same interpreter
+  singleton, same call shape, just reachable from `DialogData.ActionData` too now.
 
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with

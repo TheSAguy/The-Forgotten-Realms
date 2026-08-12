@@ -25,6 +25,7 @@ import forge.adventure.player.AdventurePlayer;
 import forge.adventure.scene.TileMapScene;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.scene.RewardScene;
+import forge.adventure.stage.ConsoleCommandInterpreter;
 import forge.adventure.stage.MapStage;
 import forge.adventure.world.WorldSave;
 import forge.card.ColorSet;
@@ -419,6 +420,9 @@ public class MapDialog {
             if (E.issueQuest != null && (!E.issueQuest.isEmpty())) {
                 questAccepted = E.issueQuest;
                 emitQuestAccepted();
+            }
+            if (E.runCommand != null && !E.runCommand.isEmpty()) { //Runs a console command, e.g. teleporting via "teleport to poi \"X\"".
+                ConsoleCommandInterpreter.getInstance().command(E.runCommand);
             }
         }
     }

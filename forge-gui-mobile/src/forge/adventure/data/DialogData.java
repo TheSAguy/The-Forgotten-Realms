@@ -82,6 +82,14 @@ public class DialogData implements Serializable {
         public int addMapReputation = 0;  //Gives the player X reputation points in this POI. Negative to take.
         public String POIReference; //used with addMapReputation when a quest step affects reputation in another location
 
+        // Mod addition (Skip Tutorial, 2026-08-11): runs an arbitrary ConsoleCommandInterpreter
+        // command, e.g. "teleport to poi \"Spawn\"" - the same command an item's commandOnUse
+        // already routes through (see InventoryScene.java), just reachable from a quest dialog
+        // action too. Deliberately generic rather than a single-purpose "teleportToPOI" field -
+        // reuses the interpreter's existing, already-proven command set instead of adding a
+        // second, narrower mechanism.
+        public String runCommand;
+
         public ActionData(){}
 
         public ActionData(ActionData other){
@@ -113,6 +121,7 @@ public class DialogData implements Serializable {
             issueQuest = other.issueQuest;
             addMapReputation = other.addMapReputation;
             POIReference = other.POIReference;
+            runCommand = other.runCommand;
         }
     }
 

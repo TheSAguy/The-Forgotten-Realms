@@ -1896,3 +1896,47 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   build) without needing Maven/a JDK/manual jar surgery. Needs scoping: are we packaging for players
   who already own/run stock Forge, or a fully standalone build; ties naturally into #28 (promo
   write-up) once this exists, since there'd finally be something easy to point people at.
+
+### 40. Skip Tutorial — `Built (2026-08-11, round 6)`
+- **User request (verbatim)**: remove the two dead buttons on the intro dialog ("I want to find
+  the planeswalkers (Future release)" / "I want to make a name for myself (Future release)" - both
+  were already `isDisabled: true` in the data, hence "dead"), add a "Skip tutorial" button. Skipping
+  grants the same rewards the wizard normally gives and spawns the player right outside on the main
+  map next to the campfire, skipping the rest of the intro/tutorial quest chain (find a town, find
+  a dungeon, find a cave) entirely.
+- **Traced the full intro flow before touching anything** (`quests.json`): the cave dialog (quest
+  28, "Entering The Forgotten Realms") issues quest 53 ("Welcome to The Forgotten Realms" - talk to
+  the cave mage, exit the cave), which on exit issues quest 30 ("Where Am I?" - the actual "find a
+  town / find a dungeon / win a duel / find a cave / find a town again" tutorial chain the user
+  described). Confirmed the ACTUAL "wizard reward" isn't in this JSON at all - it's a second wizard
+  NPC (object id 69) standing at the "Spawn" POI's own map (`spawn.tmx`, main_story), whose first-
+  conversation dialog grants a `Colorless rune` (teleport-home item) and, on a separate branch, 3x
+  Bronze Challenge Coin + 1x Challenge Coin + 1x Silver Challenge Coin - gated behind
+  `freeChallengeCoins`/`mainQuest` flags so it only ever fires once. This is genuinely what "the
+  wizard gives you" refers to, not anything in the cave itself.
+- **Removed** both disabled options from quest 28's `prologue.options`. **Added** a single new
+  top-level option, "Skip tutorial - just get me to the game", whose `action` list directly grants
+  everything the Spawn wizard would have (all 4 items, `freeChallengeCoins`/`mainQuest` character/
+  quest flags set so a later walk-up to that NPC doesn't re-offer or double-grant), sets the
+  existing `noQuest` character flag (already used, but previously only wired to one condition
+  check, by the pre-existing New Game+ skip option two rows below - see `MOD_CHANGELOG.md`), and
+  teleports the player straight to Spawn. Deliberately issues no quest at all (53/30 never start),
+  so there is nothing left dangling to "skip" - the find-town/dungeon/cave chain simply never
+  begins for a player who picks this option.
+- **New engine capability needed for the teleport, not previously possible from quest dialog data**:
+  `DialogData.ActionData.runCommand` (new field) reuses `ConsoleCommandInterpreter`'s existing
+  `"teleport to poi <name>"` command (already used by the debug console and the Colorless rune
+  item's own `commandOnUse`) - see `CORE_ENGINE_CHANGES.md`'s `DialogData.java`/`MapDialog.java`
+  entries. Confirmed the exact command syntax against the already-working item definition
+  (`"teleport to poi Spawn"`, no quotes - the interpreter's tokenizer splits on whitespace only, so
+  a quoted single-word name would pass the literal quote characters through and fail to resolve).
+- **Single click, not a confirm-then-apply flow**: the new option's `action` fires immediately when
+  clicked (`MapDialog.loadDialog()` runs `setEffects()` before rendering anything further), and with
+  no `text`/`options` of its own it hits the code's own documented "empty dialog as an area-effect
+  trigger" early-return path - dialog just closes. Deliberately not modeled on the pre-existing "New
+  Game+ skip" option below it (which shows one extra "(Continue)" confirmation screen first) - the
+  user's stated goal was fewer clicks ("I'm tired of clicking all those menus"), and a second
+  confirmation screen would also race visually against the teleport's own screen transition.
+- Not yet playtested - needs a fresh New Game to click through (both the normal path and this new
+  skip path), and specifically to confirm the item grants/teleport all land correctly and that
+  walking up to the Spawn wizard afterward doesn't re-offer the same conversation.

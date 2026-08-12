@@ -7073,3 +7073,73 @@ extraction method described above (`[+Gold]`, `Deck Tester`, and `Upgrade to Lev
 literals all confirmed present in the freshly-extracted `.class` files from the mobile-dev jar).
 Still not visually confirmed in-game - this session has no way to run the libGDX client directly -
 asked the user to re-test now that the correct jar actually has the code.
+
+## Skip Tutorial option, intro dialog cleanup (2026-08-11, round 6)
+
+User asked to remove the intro dialog's two dead ("Future release", already `isDisabled: true`)
+buttons and add a "Skip tutorial" option - reasoning given: "get the rewards the wizard gives you"
+and spawn immediately outside next to the campfire, skipping the whole find-town/dungeon/cave
+tutorial chain. Rather than guess at what "the wizard's reward" meant, traced the actual intro flow
+end to end first.
+
+**The intro/tutorial chain, as it actually exists in `quests.json` (The Forgotten Realms's own
+copy, not yet renumbered/customized from its Shandalar-copy origin in several places - e.g. the
+Spawn wizard's dialog text still literally says "Shandalar"):** cave dialog (quest 28, "Entering
+The Forgotten Realms") -> picking "Where am I..." issues quest 53 ("Welcome to The Forgotten
+Realms": talk to the cave mage, exit the cave) -> exiting issues quest 30 ("Where Am I?": travel to
+a town, leave town, find a dungeon, win a duel, find a cave, go to a town again - this is the exact
+"find a town/dungeon/cave" chain the user described). None of quests 28/53 contain any reward-
+granting action beyond a single `Colorless rune` item, and that's ONLY on the pre-existing "New
+Game+" skip branch (a 4th option, condition-gated on `checkCharacterFlag: newGamePlus`, invisible
+to a normal new game) - so "the wizard's reward" isn't in the cave dialog at all.
+
+**Found the real reward source**: a second wizard NPC (object id 69, an `enemy.tx`-templated
+character, not an enemy) standing at the "Spawn" POI's own map (`main_story/spawn.tmx`). Its first-
+conversation dialog (embedded as escaped JSON in a Tiled object property) grants a `Colorless rune`
+on the "Why am I here?" branch, then separately offers "I have something else for you... Take these
+coins" (gated on `checkCharacterFlag: freeChallengeCoins, not: true` so it only ever fires once) -
+`grantRewards`: 3x Bronze Challenge Coin, 1x Challenge Coin, 1x Silver Challenge Coin. Leaving either
+branch sets `setQuestFlag: {key: "mainQuest", val: 1}`, which is what actually gates the whole
+greeting from ever showing again on a repeat visit. This is what a normal playthrough receives by
+the time they've walked from the cave to Spawn and had this one conversation - the real answer to
+"what does the wizard give you."
+
+**Implementation**: removed both disabled options from quest 28's `prologue.options`. Added one new
+top-level option, "Skip tutorial - just get me to the game", whose action list directly grants the
+same 4 items the Spawn wizard would (no `grantRewards`/`RewardScene` flip-card ceremony - that would
+force an extra screen, so items are added silently the same way the existing Colorless-rune grant
+already does), sets `freeChallengeCoins`/`mainQuest` so a later walk-up to the Spawn wizard doesn't
+re-offer or double-grant, sets the pre-existing (but previously single-purpose) `noQuest` character
+flag to match the New Game+ option's own convention, and - the one genuinely new capability -
+teleports the player straight to Spawn. Deliberately issues no quest (53 or 30) at all, so there's
+nothing left active to "skip" after the fact; the tutorial chain simply never starts for a player
+who picks this option.
+
+**New engine capability - `DialogData.ActionData.runCommand`.** No existing quest-dialog action
+verb could reposition the player; the closest existing mechanism was items' `commandOnUse`, which
+routes a string straight into `ConsoleCommandInterpreter` (`InventoryScene.java`:
+`ConsoleCommandInterpreter.getInstance().command(data.commandOnUse)`). Added the same field/pattern
+to `DialogData.ActionData` (`MapDialog.setEffects()` gained one matching branch) rather than a
+narrower single-purpose `teleportToPOI` field, so it can reuse the interpreter's whole existing
+command set, not just teleport. Cross-checked the exact command string against the ALREADY-WORKING
+Colorless rune item's own `commandOnUse` (`"teleport to poi Spawn"`) before trusting my own
+assumption of quoted syntax (`teleport to poi "Spawn"`) - good thing this was checked directly:
+`ConsoleCommandInterpreter.command()`'s tokenizer only splits on whitespace (the quote-stripping
+line is commented out), so a quoted single-word POI name would have passed the literal quote
+characters through to `findPointsOfInterest()` and silently failed to resolve.
+
+**Click count, since the user's stated motivation was "tired of clicking all those menus"**:
+`MapDialog.loadDialog()` runs `setEffects(dialog.action)` on an option the INSTANT it's clicked,
+before rendering anything further - and an option with empty `text`/`options` hits an existing,
+already-documented "empty dialog as an area-effect trigger" early-return that closes immediately
+with no further screen. The new Skip Tutorial option is built exactly this way: one click, items
+granted, teleported away, done. Deliberately NOT modeled on the adjacent New Game+ option's own
+shape (button -> one "(Continue)" confirmation screen -> action) - besides the extra click, a
+confirmation screen here would visually race against the teleport's own `CoverScreen` transition
+firing moments later from the same action list.
+
+Compiled clean, spliced into both jars, verified via the same bytecode-extraction method as the
+prior round (had to check the correct file for a nested static class the first time -
+`DialogData$ActionData.class`, not `DialogData.class`, holds `ActionData`'s own fields). Mirrored
+the updated `quests.json` to the installed game (this round's only resource-file change). Not yet
+playtested - needs a fresh New Game to click through both the normal intro and this new skip path.
