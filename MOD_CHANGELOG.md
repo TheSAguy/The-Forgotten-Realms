@@ -7204,3 +7204,109 @@ Compiled clean, spliced into both jars, verified via the class-bytecode-extracti
 `PointOfInterestChanges.class` for "shopManualRerollLastDay", `ArenaScene.class` for "Deck Tester" -
 all present in the freshly-extracted classes). Mirrored the updated `points_of_interest.json` to the
 installed game (this round's only resource-file change). Not yet playtested in-game.
+
+## Info Page wiki, Armory slot/dedup fixes, mage scaling, Shop Type Re-Roll (2026-08-11, round 8)
+
+Seven distinct asks/fixes in one message, off the back of the first real playtest of the icon and
+Armory-Re-roll rounds (screenshots this time, not just described).
+
+**"Info Page" wiki - `WorldStandingsScene` gains two buttons.** No dedicated "Info Screen" existed
+anywhere in the codebase; `WorldStandingsScene` (opened via the HUD's "World" button) was the
+closest match and is what #37/#38's own wishlist entries had already speculated it might be -
+confirmed correct once built. Two new buttons, `reputationInfo` and `expansionInfo`, share the
+title row's free space (right of the "World Standings" label, above where the standings table
+itself starts - had to reposition twice after the first placement turned out to overlap the
+table). Both open a plain info dialog via the same `createGenericDialog()` pattern used everywhere
+else in the mod. Content for both was cross-checked directly against the actual constants rather
+than recalled from an earlier (in one case, stale) version of the same numbers:
+`ColorReputation.java`'s real price multipliers (Partner 0.70/Happy 0.85/Unhappy 1.25/War 1.40),
+targeting-weight multipliers, `CAPITAL_ENTRY_TOLL` (500g), and heal-bar rules for the Reputation
+table; `TerritoryControl.java`'s `attackerWinChance()` tiers, `GUARD_FIGHT_ATTACKER_BONUS` (+10%),
+`OUTLOOK_DEFENSE_BONUS` (-5%), `ATTACKER_SACKS_TOWN_CHANCE` (20%), and
+`WorldStage.startForcedCapitolDuel()`/the Capitol-defeat-ends-the-run mechanic for the Expansion
+page.
+
+**Armory slot count was a real inconsistency, not a perception issue.** User: "the Armory in the
+Town had 10 slots, and the one in the Capitol had 6." Root cause found by reading the actual shop
+data: the Town's Armory was still wired to `"Equipment"`, an older shop definition (4 guaranteed
+unique items + a 6-item random block = 10 total) left over from before the Capitol's own 4-tier
+`ArmoryCommon`/`Uncommon`/`Rare`/`Mythic` system existed (added later, 2026-08-10's Item Economy
+round) - never migrated. Rather than just shrinking `Equipment` to match, built the actual
+requested rule ("Lvl 1 has 6 and level 2 has 8. Regardless of where they are"): `MapStage.java`'s
+shop-list resolution now appends `"L2"` to whichever Armory-type name got picked once that specific
+Armory reaches Level 2, redirecting to a matching `shops.json` entry with a higher `count` on the
+same item pool. `Equipment`'s random block shrank 6->2 (4 guaranteed + 2 random = 6, matching Level
+1); a new `EquipmentL2` uses 4 guaranteed + 4 random = 8. `ArmoryCommon`/`Uncommon`/`Rare` (already
+6 each) gained `...L2` siblings at 8; `ArmoryMythic` (only ever had a 2-item pool) gained an
+`ArmoryMythicL2` at 8 too, for consistency, even though it can never actually show more than its 2
+real items - see the dedup fix below for why that's a graceful cap rather than a bug.
+
+**Duplicate items in one shop's inventory - a real, generic bug, not Armory-specific.**
+`RewardData.generate()`'s `"item"` case (used by every `itemNames`-driven shop in the game, not
+just Armory) picked `count` times independently at random with zero exclusion tracking - the exact
+scenario a screenshot caught in the act (two identical Landscape Sketchbooks in one Armory roll).
+Fixed generically: shuffle a copy of the pool once via `Collections.shuffle(list, rewardRandom)`
+(same seeded `Random` the old loop already used, so a shop's stock is still exactly as stable
+across repeat visits as before) and take the first `min(count, pool size)` - never repeats a name
+within one roll, and gracefully caps rather than crashing or looping forever if a smaller pool
+(like Mythic's 2 items) is asked for more than it can uniquely provide.
+
+**The stray Sketchbook was genuinely redundant, not misplaced.** While already reading these two
+pools to fix the slot count, spotted "Landscape Sketchbook - Ixalan" duplicated into both
+`Equipment` and `ArmoryCommon`'s `itemNames`. Checked where Sketchbooks are SUPPOSED to live before
+touching anything: the Capitol's 5 colored land shops (plus a 6th generic "Land" shop) already
+generate the full ~60-item Sketchbook catalog correctly via a dedicated `landSketchbookShop`
+reward type (`shops.json` lines ~791-855) - and separately confirmed those 6 shops are ALREADY
+`noRestock` (weekly refresh) with the "Inventory will refresh weekly" caption already showing via
+`armoryRestockNote()`'s existing `isLandShop()` check, both built in an earlier round. So this
+round's fix was just deleting the two redundant Armory-pool entries - nothing needed adding
+anywhere, the "should be in the land shops" half of the request was already true.
+
+**Mage count now scales with player town count, not just difficulty** - `#29` on the wishlist,
+fully specified by this round's own follow-up: "+1 attacker per 10 towns... add 1 town to easy
+difficulty, so 11 and subtract 1 for hard and insane, so insane would be +1 attacker per 8
+cities." `11 - difficultyIndex` lands on exactly those 4 numbers without a separate per-tier table.
+`TerritoryControl.maxActiveMagesPerColor()` gained one line: `2 + index + (playerTowns / (11 -
+index))`, applied per-color (each color independently gets the bonus). "Count Capitol as a town"
+resolved by reusing `TownRestoration.countPlayerTowns() + (capitolExists() ? 1 : 0)` - the EXACT
+expression the pre-existing town life-bonus calculation already uses for the identical question,
+`countPlayerTowns()` promoted from `private` to `public` to make the reuse possible instead of
+duplicating the loop.
+
+**Card Shop Type Re-Roll - the largest single piece this round, `#32` on the wishlist.** User
+spec: "For all Card-shops, add a re-roll card shop type for 50 shards. This will randomly pick a
+new card shop type. Change the little bulletin board in front of the shop also on re-roll to match
+new shop type." Traced the existing shop-identity mechanism first rather than guessing: an ordinary
+card shop's tmx object declares a comma-separated candidate pool (e.g. `"Colorless,Colorless,
+Artifact,Creature2Colorless,Wand,..."`), one of which gets picked by the WORLD's own shared random
+generator the first time that object is ever resolved; `PointOfInterestChanges.pinnedShopNames`
+(previously only ever set by the Capitol migration) is the existing mechanism for "lock this slot
+to an exact identity, ignore the roll" - the natural tool for making a re-roll's pick actually
+stick. Built:
+- `MapStage.java` gained `shopCandidatePools` (objectId -> the object's own raw candidate list,
+  captured once at load time from the exact same computation that already happens there -
+  naturally excludes Armory/land shops, whose tmx properties are single names not comma lists, and
+  Rotating shops, which already re-roll daily via a separate mechanism) and `shopSigns` (objectId
+  -> the actual on-screen sign sprite, captured where it's already created).
+- New `MapStage.rerollShopType(objectId, currentName)`: picks a new `ShopData` from the recorded
+  pool (excluding the current name so a re-roll always changes something), calls
+  `setPinnedShopName()`, and swaps the sign sprite's texture live.
+- `TextureSprite` (the sign's own class) had an immutable `region` field with no way to change it
+  post-construction - un-`final`'d it and added `setRegion()` so the live swap above is possible at
+  all, rather than tearing down and rebuilding the whole sign actor.
+- `ShopActor` gained `setShopData()` (a mutator alongside the pre-existing `getShopData()`) so
+  `RewardScene` can update the actor's own identity after a re-roll.
+- `RewardScene.promptRerollShopType()`: new button (50 shards, `EconomyBuildings.scaledCost()`),
+  shares Armory's own `rerollButton` row position (a shop is never both an Armory and an ordinary
+  card shop, so they never need to coexist), gated on the new `MapStage.isShopTypeRerollable()`.
+  On confirm: delegates the actual re-roll to `MapStage`, then updates what `RewardScene` itself
+  owns - `shopActor.setShopData()`, a fresh `changes.generateNewShopSeed()` (the old identity's
+  seed/purchase-history don't apply to a differently-themed shop), and `loadRewards()` to redraw.
+
+Compiled clean, spliced into both jars, verified via the class-bytecode-extraction method
+(`WorldStandingsScene.class`/`MapStage.class`/`RewardScene.class` all confirmed to contain their
+new strings/methods; `shops.json`'s installed copy confirmed to have `ArmoryCommonL2` and zero
+remaining `Landscape Sketchbook` matches). Mirrored `world_standings.json` and `shops.json` to the
+installed game. Not yet playtested - this round in particular (Shop Type Re-Roll especially) has a
+lot of surface area that only a real screenshot/playtest round can actually confirm works as
+intended, same as every other round this session.

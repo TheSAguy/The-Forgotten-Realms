@@ -84,6 +84,18 @@ public class MapStage extends GameStage {
     // hide/restore them directly - see findOverheadTiles()/setShopOverheadTilesHidden().
     private final Map<Integer, List<OverheadTile>> shopOverheadTiles = new HashMap<>();
 
+    // Card Shop Type Re-Roll (2026-08-11, round 8, user spec: "add a re-roll card shop type for
+    // 50 shards... randomly pick a new card shop type... change the little bulletin board").
+    // shopCandidatePools: the raw comma-list of possible shop names this specific object could
+    // ever roll from (captured once at load time, from the exact same possibleShops the initial
+    // roll below already computes) - only populated for genuinely multi-choice, non-rotating shop
+    // objects, which naturally excludes Armory/land shops (single-name commonShopList values) and
+    // Rotating shops (their own date-seeded mechanism, not this one) without needing a separate
+    // type check. shopSigns: the sign TextureSprite actually on screen for this object, so a
+    // re-roll can swap its artwork live instead of requiring a fresh map reload to see the change.
+    private final Map<Integer, Array<String>> shopCandidatePools = new HashMap<>();
+    private final Map<Integer, TextureSprite> shopSigns = new HashMap<>();
+
     private static class OverheadTile {
         final TiledMapTileLayer layer;
         final int col, row;
@@ -159,6 +171,41 @@ public class MapStage extends GameStage {
             return;
         for (OverheadTile t : tiles)
             t.layer.setCell(t.col, t.row, hidden ? null : t.originalCell);
+    }
+
+    /** Whether this shop object was recorded with a genuine multi-choice candidate pool at load
+     *  time - see shopCandidatePools' own comment. RewardScene uses this to decide whether to
+     *  show its "Re-roll Shop Type" button at all. */
+    public boolean isShopTypeRerollable(int objectId) {
+        return shopCandidatePools.containsKey(objectId);
+    }
+
+    /** Re-rolls this shop's TYPE (2026-08-11, round 8, user spec: "add a re-roll card shop type
+     *  for 50 shards... randomly pick a new card shop type... change the little bulletin board in
+     *  front of the shop also on re-roll to match new shop type"). Picks a new ShopData from the
+     *  SAME raw candidate pool this object's own tmx property offered at load time (excluding
+     *  whatever it currently is, so a re-roll always actually changes something), pins it via the
+     *  same PointOfInterestChanges.setPinnedShopName() mechanism the Capitol migration already
+     *  uses for "lock this slot to an exact shop identity", and swaps the live sign sprite's
+     *  artwork in place. Returns the new ShopData, or null if this object has no recorded
+     *  candidate pool (see isShopTypeRerollable()) or the pool has nothing left to switch to. */
+    public ShopData rerollShopType(int objectId, String currentShopName) {
+        Array<String> candidates = shopCandidatePools.get(objectId);
+        if (candidates == null || candidates.size == 0)
+            return null;
+        Array<ShopData> matches = new Array<>();
+        for (ShopData candidateData : new Array.ArrayIterator<>(WorldData.getShopList())) {
+            if (candidates.contains(candidateData.name, false) && !candidateData.name.equals(currentShopName))
+                matches.add(candidateData);
+        }
+        if (matches.size == 0)
+            return null;
+        ShopData newData = matches.get(WorldSave.getCurrentSave().getWorld().getRandom().nextInt(matches.size));
+        getChanges().setPinnedShopName(objectId, newData.name);
+        TextureSprite sign = shopSigns.get(objectId);
+        if (sign != null)
+            sign.setRegion(Config.instance().getAtlasSprite(newData.spriteAtlas, newData.sprite));
+        return newData;
     }
 
     //todo: add additional graphs for other sprite sizes if desired. Current implementation
@@ -817,6 +864,19 @@ public class MapStage extends GameStage {
                             }
                             shopList = shopList.replaceAll("\\s", "");
 
+                            // Armory level-based slot count (2026-08-11, round 8, user spec: "Lvl
+                            // 1 has 6 and level 2 has 8. Regardless of where they are") - redirects
+                            // to a "L2"-suffixed shops.json variant (same item pool, more slots)
+                            // once this Armory is Level 2, covering both the Town's "Equipment"
+                            // shop and the Capitol's "ArmoryCommon"/"Uncommon"/"Rare"/"Mythic"
+                            // tiers with one check. Name-string match mirrors
+                            // EconomyBuildings.isArmoryShop()'s own logic - that method takes an
+                            // already-resolved ShopData, not available yet at this point.
+                            boolean isArmoryShopList = !shopList.isEmpty()
+                                    && (shopList.endsWith("Equipment") || shopList.startsWith("Armory"));
+                            if (isArmoryShopList && changes.getBuildingLevel(id) >= 2) {
+                                shopList = shopList + "L2";
+                            }
                         }
 
                         // Item economy (2026-08-10): a noRestock shop (Armory, land shops) has no
@@ -829,6 +889,12 @@ public class MapStage extends GameStage {
                         }
 
                         possibleShops = new Array<String>(shopList.split(","));
+                        // Card Shop Type Re-Roll (round 8): record the raw, unfiltered candidate
+                        // list for this object id, but only when there's genuinely a choice to
+                        // re-roll among (>1 name) and this isn't a Rotating shop (own separate
+                        // mechanism, not this one) - see the field's own comment.
+                        if (!isRotatingShop && possibleShops.size > 1)
+                            shopCandidatePools.put(id, possibleShops);
                         Array<String> filteredPossibleShops = new Array<>();
                         if (!isRotatingShop) {
                             for (String candidate : possibleShops) {
@@ -920,6 +986,7 @@ public class MapStage extends GameStage {
                                 sprite.setX(actor.getX() + Float.parseFloat(prop.get("signXOffset").toString()));
                                 sprite.setY(actor.getY() + Float.parseFloat(prop.get("signYOffset").toString()));
                                 addMapActor(sprite);
+                                shopSigns.put(id, sprite); // Card Shop Type Re-Roll (round 8) - see rerollShopType()
 
                                 if (!(data.overlaySprite == null || data.overlaySprite.isEmpty())) {
                                     TextureSprite overlay = new TextureSprite(Config.instance().getAtlasSprite(data.spriteAtlas, data.overlaySprite)) {

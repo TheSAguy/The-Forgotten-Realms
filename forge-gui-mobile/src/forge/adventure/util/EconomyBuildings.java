@@ -201,6 +201,11 @@ public class EconomyBuildings {
     // scaledCost() - see RewardScene.promptRerollArmory().
     public static final int ARMORY_REROLL_SHARD_COST = 100;
 
+    // Card Shop Type Re-Roll (2026-08-11, round 8, user spec: "add a re-roll card shop type for
+    // 50 shards"). Difficulty-scaled like every other cost via scaledCost() - see
+    // RewardScene.promptRerollShopType()/MapStage.rerollShopType().
+    public static final int SHOP_TYPE_REROLL_SHARD_COST = 50;
+
     // Difficulty price multiplier (user spec 2026-08-11, round 4): building repair/construction/
     // upgrade costs and guard hiring costs scale with difficulty - Easy 25% cheaper, Normal
     // baseline, Hard 25% more, Insane 50% more. Deliberately NOT applied to card/item shop prices

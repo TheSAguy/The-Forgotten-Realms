@@ -258,8 +258,20 @@ public class RewardData implements Serializable {
                     break;
                 case "item":
                     if(itemNames!=null) {
-                        for (int i = 0; i < count + addedCount; i++) {
-                            String itemName = itemNames[rewardRandom.nextInt(itemNames.length)];
+                        // No-duplicates-within-one-roll (2026-08-11, round 8 - user report:
+                        // "There should never be 2 of the same item for sale"). The old loop
+                        // picked count+addedCount times independently at random, so the same name
+                        // could (and visibly did) come up twice in one shop's inventory. Shuffling
+                        // a copy of the pool once and taking the front is still deterministic
+                        // under the same rewardRandom seed as before (shop stock stays stable
+                        // across re-renders/same-week visits), but never repeats a name within
+                        // this roll - and gracefully caps at the pool's own size if a smaller
+                        // pool (e.g. a 2-item pool) is asked for more than it can uniquely provide.
+                        List<String> shuffledNames = new ArrayList<>(Arrays.asList(itemNames));
+                        Collections.shuffle(shuffledNames, rewardRandom);
+                        int uniqueCount = Math.min(count + addedCount, shuffledNames.size());
+                        for (int i = 0; i < uniqueCount; i++) {
+                            String itemName = shuffledNames.get(i);
                             ItemData itemData = ItemListData.getItem(itemName);
                             if (itemData != null)
                                 ret.add(new Reward(itemData));

@@ -39,6 +39,24 @@
     },
     {
       "type": "TextButton",
+      "name": "reputationInfo",
+      "text": "[%80]Reputation",
+      "width": 65,
+      "height": 18,
+      "x": 272,
+      "y": 26
+    },
+    {
+      "type": "TextButton",
+      "name": "expansionInfo",
+      "text": "[%80]Expansion",
+      "width": 65,
+      "height": 18,
+      "x": 340,
+      "y": 26
+    },
+    {
+      "type": "TextButton",
       "name": "return",
       "text": "tr(lblBack)",
       "binding": "Back",

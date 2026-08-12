@@ -773,7 +773,19 @@ public class TerritoryControl {
                 }
             }
         }
-        return 2 + index;
+        // Player-town-count scaling (2026-08-11, round 8, user spec): "+1 attacking mage per 10
+        // towns the player owns (count Capitol as a town)... add 1 town to easy difficulty, so
+        // 11, and subtract 1 for hard and insane, so insane would be +1 attacker per 8 cities."
+        // (11 - index) lands on exactly those 4 numbers - Easy 11, Normal 10, Hard 9, Insane 8 -
+        // without needing a separate per-difficulty table. A rubber-band mechanic layered on top
+        // of the flat difficulty base above, so a dominant player faces escalating pressure
+        // regardless of difficulty. countPlayerTowns() itself doesn't count the Capitol (it's a
+        // separate POI created via transformInto(), same reason the life-bonus calc elsewhere
+        // adds capitolExists() ? 1 : 0 on top of it) - added here explicitly per the user's own
+        // "count Capitol as a town" spec.
+        int playerTowns = TownRestoration.countPlayerTowns() + (TownRestoration.capitolExists() ? 1 : 0);
+        int townBonus = playerTowns / (11 - index);
+        return 2 + index + townBonus;
     }
 
     private static double distToNearestSource(PointOfInterest town, List<PointOfInterest> sources) {

@@ -36,7 +36,7 @@ import java.util.Comparator;
  * Displays the rewards of a fight or a treasure
  */
 public class RewardScene extends UIScene {
-    private TextraButton doneButton, detailButton, restockButton, destroyButton, guardsButton, upgradeButton, rerollButton;
+    private TextraButton doneButton, detailButton, restockButton, destroyButton, guardsButton, upgradeButton, rerollButton, shopTypeRerollButton;
     private TextraLabel playerGold, playerShards;
     private TypingLabel headerLabel;
     private Vector2 headerLabelOrigPos;
@@ -123,6 +123,58 @@ public class RewardScene extends UIScene {
                 doneButton.getY() + doneButton.getHeight() * 3 + 30f);
         rerollButton.setVisible(false);
         ui.addActor(rerollButton);
+        // Shop Type Re-Roll (mod feature, user spec 2026-08-11, round 8) - ordinary card shops
+        // only. Reuses guardsButton/upgradeButton's row position: those are Armory-only, this is
+        // Armory-exclusive (a shop resolves to exactly one ShopData at a time), so they never
+        // need to show at the same time.
+        shopTypeRerollButton = Controls.newTextButton("[%80]Re-roll Shop Type (" + EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST) + " [+Shards])", this::promptRerollShopType);
+        shopTypeRerollButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
+        shopTypeRerollButton.setPosition(doneButton.getX() + doneButton.getWidth() - shopTypeRerollButton.getWidth(),
+                doneButton.getY() + doneButton.getHeight() * 2 + 20f);
+        shopTypeRerollButton.setVisible(false);
+        ui.addActor(shopTypeRerollButton);
+    }
+
+    /** Re-rolls this ordinary card shop's TYPE (2026-08-11, round 8, user spec). Delegates the
+     *  actual pick + persistence + live sign-sprite swap to MapStage.rerollShopType() (see its own
+     *  comment) - this method's own job is just the cost gate and refreshing what RewardScene
+     *  itself shows (the ShopActor's data/rewards, and this page's displayed inventory). */
+    private void promptRerollShopType() {
+        if (shopActor == null || changes == null)
+            return;
+        if (!shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()))
+            return;
+        int cost = EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST);
+        if (AdventurePlayer.current().getShards() < cost)
+            return;
+        showDialog(createGenericDialog("", "Re-roll this shop's type for " + cost
+                        + " [+Shards]?\nPicks a new random shop type and updates its sign.",
+                Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
+                    removeDialog();
+                    ShopData newData = shopActor.getMapStage().rerollShopType(shopActor.getObjectId(), shopActor.getShopData().name);
+                    if (newData == null)
+                        return; // nothing else this shop could become - no charge, no change
+                    AdventurePlayer.current().takeShards(cost);
+
+                    HapticEngine.vibrate(FPref.UI_VIBRATE_ON_SHOP_ACTION, 5);
+                    SoundSystem.instance.play(SoundEffectType.Shuffle, false);
+
+                    shopActor.setShopData(newData);
+                    // Fresh seed, not the old shop identity's - the old pool's picks don't apply
+                    // to a differently-themed shop, and this also clears cardsBought (2026-08-10
+                    // Item Economy design, see generateNewShopSeed()'s own comment) so nothing
+                    // reads as "already purchased" under the new identity.
+                    changes.generateNewShopSeed(shopActor.getObjectId());
+                    clearGenerated();
+                    Array<Reward> ret = new Array<>();
+                    long shopSeed = changes.getShopSeed(shopActor.getObjectId());
+                    WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
+                    for (RewardData rdata : new Array.ArrayIterator<>(newData.rewards)) {
+                        ret.addAll(rdata.generate(false, false));
+                    }
+                    shopActor.setRewardData(ret);
+                    loadRewards(ret, RewardScene.Type.Shop, shopActor);
+                }, this::removeDialog));
     }
 
     private void promptManageGuards() {
@@ -507,6 +559,7 @@ public class RewardScene extends UIScene {
         guardsButton.setVisible(false); // re-enabled by the Shop case below when applicable
         upgradeButton.setVisible(false); // re-enabled by the Shop case below when applicable
         rerollButton.setVisible(false); // re-enabled by the Shop case below when applicable
+        shopTypeRerollButton.setVisible(false); // re-enabled by the Shop case below when applicable
         if (type == Type.Shop) {
             this.shopActor = shopActor;
             this.changes = shopActor.getMapStage().getChanges();
@@ -612,6 +665,14 @@ public class RewardScene extends UIScene {
                     rerollButton.setText("[%80]Re-roll Inventory (" + EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST) + " [+Shards])");
                     refreshRerollButton();
                     addToSelectable(rerollButton);
+                }
+                // Shop Type Re-Roll (round 8) - ordinary card shops only, mutually exclusive with
+                // Armory's own rerollButton above (a shop resolves to exactly one ShopData at a
+                // time, so they share a row position safely).
+                shopTypeRerollButton.setVisible(!isArmory && shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()));
+                if (shopTypeRerollButton.isVisible()) {
+                    shopTypeRerollButton.setText("[%80]Re-roll Shop Type (" + EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST) + " [+Shards])");
+                    addToSelectable(shopTypeRerollButton);
                 }
                 break;
             case QuestReward:

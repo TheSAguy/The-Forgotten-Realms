@@ -408,7 +408,10 @@ public class TownRestoration {
         return !isCurrentTownCapitol() && !capitolExists();
     }
 
-    private static int countPlayerTowns() {
+    // Made public (2026-08-11, round 8) so TerritoryControl.maxActiveMagesPerColor() can reuse the
+    // exact same count (previously only called from within this class, e.g. the Capitol-upgrade
+    // gate and the life-bonus calc below).
+    public static int countPlayerTowns() {
         int count = 0;
         for (PointOfInterest poi : WorldSave.getCurrentSave().getWorld().getAllPointOfInterest()) {
             if (isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID())))

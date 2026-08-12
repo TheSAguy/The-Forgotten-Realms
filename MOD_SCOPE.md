@@ -802,6 +802,15 @@ needs its own design pass before any of this gets built:**
     save left untouched (not deleted) - worth a look once playtested to see if that's the right
     weight for it. Winning defeats the mage normally (2x mage-kill reputation bonus applies, loot
     drops as usual).
+- **Mage count now scales with player town count too, not just difficulty (round 8)** - see #29
+  for the full spec/implementation; lives in this same `maxActiveMagesPerColor()` function.
+- **"Expansion" wiki page added (round 8)** - a new `WorldStandingsScene` button (alongside #38's
+  own "Reputation" button, same user message) explaining the whole capture/defense loop in plain
+  language: how AI mages pick and reach targets, that Guards (#22) and an Outlook (#10) both help
+  defend, the 20% "sacked" outcome even on a successful capture, and that losing the Capitol's own
+  forced duel (described above) ends the game. Content cross-checked directly against this file's
+  own constants (`attackerWinChance()`'s tier table, `GUARD_FIGHT_ATTACKER_BONUS`,
+  `OUTLOOK_DEFENSE_BONUS`, `ATTACKER_SACKS_TOWN_CHANCE`) rather than recalled from memory.
 
 ### 8. Town Fortifications — `Not Started`
 - Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete
@@ -1305,6 +1314,33 @@ concept. Built out over one long round:
   (same mechanism both the automatic weekly refresh and the ordinary paid-restock button already
   use), just triggered by the button instead of the calendar or `shopActor.canRestock()` (which
   Armory always fails, being a `noRestock` shop - the whole reason this needed its own path).
+- **Three real bugs found and fixed, round 8, all from direct user observation:**
+  - **Slot count was inconsistent by location, not by design** - "the Armory in the Town had 10
+    slots, and the one in the Capitol had 6." Root cause: the Town Armory was still wired to a
+    completely separate, older shop definition (`"Equipment"` - 4 guaranteed unique items + 6
+    random) left over from before the Capitol's own 4-tier `ArmoryCommon/Uncommon/Rare/Mythic`
+    system existed, never migrated. Unified to a real level-based rule instead ("Lvl 1 has 6 and
+    level 2 has 8. Regardless of where they are"): `MapStage.java`'s shop-list resolution now
+    appends an `L2` suffix to whichever Armory shop name got picked once that Armory reaches
+    Level 2, redirecting to a new matching `shops.json` entry with the same item pool at a higher
+    `count` (`Equipment`/`EquipmentL2` 6/8 total including the 4 guaranteed items;
+    `ArmoryCommonL2`/`UncommonL2`/`RareL2` 8; `ArmoryMythicL2` also 8, though its 2-item pool
+    means it can never actually show more than 2 - see the dedup fix below for why that's a
+    graceful cap, not a bug).
+  - **Duplicate items could appear in the same shop's inventory** - "There should never be 2 of
+    the same item for sale," visibly true in a screenshot (two identical Landscape Sketchbooks in
+    one Armory roll). `RewardData.generate()`'s `"item"` case picked `count` times independently
+    at random from the pool with no exclusion tracking - now shuffles a copy of the pool once and
+    takes the front, still deterministic under the same seed (so a shop's stock stays stable
+    across visits) but never repeats a name within one roll, and gracefully caps at the pool's own
+    size if asked for more than it can uniquely provide (the `ArmoryMythicL2` case above).
+  - **A single stray "Landscape Sketchbook - Ixalan" was duplicated into both the `Equipment` and
+    `ArmoryCommon` item pools** - redundant, since Sketchbooks are already properly generated for
+    all 5 colors via the dedicated `landSketchbookShop` reward type on the Capitol's own 5 colored
+    land shops (plus a 6th generic "Land" shop) - confirmed those are ALREADY `noRestock` (weekly
+    refresh) and already show the "Inventory will refresh weekly" caption via
+    `armoryRestockNote()`'s existing `isLandShop()` check, both from an earlier round - nothing
+    else needed there. Removed the stray entry from both Armory pools.
 - **Arena prize pools rebuilt**: the non-quest, non-obtainable item pool (447 items) was split
   across the 5 AI Capitals (Mythic excluded, ~85 items/color, rarity-balanced) added as a 50%-
   weighted bonus layer on top of each arena's existing prizes. The player's own Capitol Arena got
@@ -1826,7 +1862,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   probably wait until #39 (easy deployment/sharing) is further along, so there's something concrete
   to point people at.
 
-### 29. Extra Attacking Mage per 10 Player Cities — `Not Started`
+### 29. Extra Attacking Mage per 10 Player Cities — `Built (2026-08-11, round 8)`
 - User spec (2026-08-11, wishlist batch): "Add 1 extra attacking mage per 10 players cities." Ties
   into #7 (Dynamic Territory Control)'s existing per-color simultaneous-mage cap
   (`TerritoryControl.maxActiveMagesPerColor()`, currently scales 2/3/4/5 with difficulty tier only).
@@ -1835,6 +1871,17 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   presumably a rubber-band mechanic so a dominant player faces escalating pressure. Needs scoping:
   does "10 player cities" mean total owned towns+capitals, and does the bonus mage count apply per
   color or as a shared global increment.
+- **Built, round 8 - fully specified by the same follow-up message**: "This is for normal, add 1
+  town to easy difficulty, so 11 and subtract 1 for hard and insane, so insane would be +1 attacker
+  per 8 cities" - i.e. Easy 11, Normal 10, Hard 9, Insane 8 towns per bonus mage, which resolves
+  cleanly to `11 - difficultyIndex` needing no per-tier table. Applied PER-COLOR (each color
+  independently gets the same bonus, added on top of the existing flat difficulty base) - the
+  simpler of the two readings, and consistent with `maxActiveMagesPerColor()`'s own existing
+  per-color scope. "Count Capitol as a town" resolved via `TownRestoration.countPlayerTowns()
+  + (capitolExists() ? 1 : 0)` - the EXACT same expression the town life-bonus calc already uses
+  for the identical "does the Capitol count" question, `countPlayerTowns()` itself promoted from
+  private to public to make the reuse possible. Not yet playtested - needs several in-game days at
+  a fast time-multiplier with 10+ owned towns to actually observe the bonus mage count changing.
 
 ### 30. AI-Generated Decks for Arena Enemies — `Not Started`
 - User idea (2026-08-11, wishlist batch): "AI deck builds - add to arena." Arena enemies currently
@@ -1854,12 +1901,29 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   dedicated art yet), or something else entirely (e.g. ruins that visually reflect the building type
   that stood there, not just a generic broken-shop look). Needs clarification.
 
-### 32. Shop Type Re-Roll — `Not Started`
+### 32. Shop Type Re-Roll — `Built (2026-08-11, round 8)`
 - User idea (2026-08-11, wishlist batch): "Shop type re-roll." Ties to #10 (Economy Buildings) - a
   way to change which shop type occupies an already-built slot (e.g. swap a built Gold Mine for a
   Bank) rather than the current one-shot choice made at build time. Needs scoping: paid or free,
   any cooldown/limit, and whether "shop" here means the 6 special economy-building types (#10) or
   also the ordinary ambient Card/Item/Booster shops that spawn with a town.
+- **Built, round 8 - scope resolved by a fuller follow-up spec**: "For all Card-shops, add a
+  re-roll card shop type for 50 shards. This will randomly pick a new card shop type. Change the
+  little bulletin board in front of the shop also on re-roll to match new shop type." - so the
+  ordinary ambient card shops (not the 6 economy-building types, which have their own separate
+  build-menu system entirely, #10), 50 shards (difficulty-scaled like every other cost this
+  session), no cooldown, and the visible exterior sign updates too. New `RewardScene.
+  promptRerollShopType()` (button shares a row with Armory's own `rerollButton`, since a shop is
+  never both an Armory and an ordinary card shop at once) delegates to a new `MapStage.
+  rerollShopType()`, which picks a NEW `ShopData` from the SAME raw comma-list candidate pool this
+  specific object's tmx `commonShopList`/etc. property offered at load time (captured once, at
+  load, into a new `shopCandidatePools` map - naturally excludes Armory/land shops, whose tmx
+  properties are always single names not comma lists, and Rotating shops, which already have their
+  own date-seeded re-roll), pins the pick via the same `PointOfInterestChanges.
+  setPinnedShopName()` the Capitol migration already established, regenerates the displayed
+  inventory (`RewardData.generate()`, same pattern `restockShop()` uses), and swaps the live sign
+  sprite's texture in place via a new `TextureSprite.setRegion()` (the sign was previously an
+  immutable-region sprite with no way to change its art after construction). Not yet playtested.
 
 ### 33. Early Armory Inventory Re-Roll — `Built (2026-08-11, round 7)`
 - User idea (2026-08-11, wishlist batch): "Re-roll armory inventory early." The Armory's item stock
@@ -1912,14 +1976,27 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   which isn't currently logged as a time series anywhere in the mod - would need a new persisted
   history buffer before any graph could plot real data. Needs clarification on both the screen and
   the metric before scoping.
+- **"Info Screen" confirmed to mean `WorldStandingsScene`** (round 8, via #38's own build - see
+  that entry) - one half of this item's ambiguity resolved. Still needs the metric clarified
+  before this can be scoped/built; the new time-series-buffer requirement is unchanged.
 
-### 38. Reputation Tier Explanation on Info Screen — `Not Started`
+### 38. Reputation Tier Explanation on Info Screen — `Built (2026-08-11, round 8)`
 - User idea (2026-08-11, wishlist batch): "Explanation of Reputation tiers on Info Screen." Likely
   `WorldStandingsScene` (#7), which already shows each color's live Reputation number/tier color
   but never explains what the 5 tiers (Partner/Happy/Neutral/Unhappy/War, #1) actually DO -
   straightforward in spirit to #20's just-built Outlook info-dialog text (explain a mechanic in
   plain language instead of leaving the player to infer it) - could reuse #1's own tier table
   (price modifiers, targeting-odds shifts, entry bars) as the source text almost verbatim.
+- **Built, round 8** (user follow-up: "On the Info Page... Create a button, 'reputation' and
+  please create a table of what each level entails") - confirms `WorldStandingsScene` really is
+  what "Info Screen"/"Info Page" refers to (also resolving #37's own open question about which
+  screen). New `reputationInfo` button opens a plain info dialog listing all 5 tiers with their
+  real numbers - cross-checked directly against `ColorReputation.java`
+  (`getShopPriceMultiplier()`/`getPlayerTownAttackWeight()`/`isEntryBarred()`/`isHealBarred()`/
+  `CAPITAL_ENTRY_TOLL`) rather than recalled from an earlier, slightly-stale version of this same
+  table, so the wiki text can't drift from what the tiers actually do. A SECOND, not-previously-
+  requested "Expansion" button was added alongside it in the same round (see #7's own note) -
+  the user's message covered both together as one "wiki" ask.
 
 ### 39. Easy Mod Deployment/Sharing — `Not Started`
 - User idea (2026-08-11, wishlist batch): "Mod deployment/sharing made easy." Today's deploy process

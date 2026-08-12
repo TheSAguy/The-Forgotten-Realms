@@ -724,7 +724,21 @@
     { "type": "item","count":1, "itemName": "Staff of Flight"  },
     { "type": "item","count":1, "itemName": "Staff of Healing"  },
     { "type": "item","count":1, "itemName": "Staff of Speed"  },
-    { "type": "item","count":6, "itemNames": [ "Landscape Sketchbook - Ixalan", "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
+    { "type": "item","count":2, "itemNames": [ "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
+
+    ]
+
+},
+{
+"name":"EquipmentL2",
+"spriteAtlas":"maps/tileset/buildings.atlas",
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":1, "itemName": "Manasight Stone"  },
+    { "type": "item","count":1, "itemName": "Staff of Flight"  },
+    { "type": "item","count":1, "itemName": "Staff of Healing"  },
+    { "type": "item","count":1, "itemName": "Staff of Speed"  },
+    { "type": "item","count":4, "itemNames": [ "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
 
     ]
 
@@ -734,7 +748,15 @@
 "spriteAtlas":"maps/tileset/buildings.atlas",
 "sprite":"EquipmentShop",
   "rewards": [
-    { "type": "item","count":6, "itemNames": [ "Landscape Sketchbook - Ixalan", "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
+    { "type": "item","count":6, "itemNames": [ "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
+    ]
+
+},{
+"name":"ArmoryCommonL2",
+"spriteAtlas":"maps/tileset/buildings.atlas",
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":8, "itemNames": [ "Steel Boots", "Raptor Bondband", "Angelic Greaves", "Golden Egg", "Prayerbook of Ire", "Steel Armor", "Mithril Armor", "Piper's Charm", "Sleep Wand", "Battle Standard", "Axt", "Bronze Sword", "Leather Boots", "Dagger", "Heart-Piercer", "Dark Shield", "Dark Armor", "Blood Vial", "Mad Staff", "Dark Amulet", "Traveler's Amulet", "Lightbringers Boots" ] }
     ]
 
 },{
@@ -746,6 +768,14 @@
     ]
 
 },{
+"name":"ArmoryUncommonL2",
+"spriteAtlas":"maps/tileset/buildings.atlas",
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":8, "itemNames": [ "Amulet of Telepathy", "Angelic Armaments", "Hill Giant Club", "Life Amulet", "Iron Boots", "Iron Armor", "Steel Sword", "Jungle Shield", "Presence of the Hydra", "Death Ring", "Mirror Shield", "Crown of Growth", "Wood Bow", "Dark Boots", "Magic Shard", "Entrancing Lyre", "Heavy Arbalest", "Unerring Sling", "Jeweled Amulet", "Nine-Ringed Bo", "Kite Shield" ] }
+    ]
+
+},{
 "name":"ArmoryRare",
 "spriteAtlas":"maps/tileset/buildings.atlas",
 "sprite":"EquipmentShop",
@@ -754,11 +784,27 @@
     ]
 
 },{
+"name":"ArmoryRareL2",
+"spriteAtlas":"maps/tileset/buildings.atlas",
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":8, "itemNames": [ "Black Lotus", "Chandra's Tome", "Phoenix Charm", "Demonic Contract", "Cursed Treasure", "Farmer's Tools", "Mox Emerald", "Mox Jet", "Mox Pearl", "Mox Ruby", "Mox Sapphire", "Iron Shield", "Steel Shield", "Sorin's Amulet", "Aladdin's Ring", "Spell Book", "Mithril Boots", "Mithril Shield", "Flame Sword", "Basilisk Collar", "Evil Ankh", "Concordant Boots", "Warren Tender's Baton", "Robes of Omniscience", "Gold Shield", "Gold Armor", "Treasure", "Ring of Immortals", "Amulet of the Deceiver" ] }
+    ]
+
+},{
 "name":"ArmoryMythic",
 "spriteAtlas":"maps/tileset/buildings.atlas",
 "sprite":"EquipmentShop",
   "rewards": [
     { "type": "item","count":2, "itemNames": [ "Staff of the Demoncaller", "Ring of Three Wishes" ] }
+    ]
+
+},{
+"name":"ArmoryMythicL2",
+"spriteAtlas":"maps/tileset/buildings.atlas",
+"sprite":"EquipmentShop",
+  "rewards": [
+    { "type": "item","count":8, "itemNames": [ "Staff of the Demoncaller", "Ring of Three Wishes" ] }
     ]
 
 },

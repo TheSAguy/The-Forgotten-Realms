@@ -368,6 +368,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   (`EconomyBuildings.openArchaeologistDialog()`) - the building moved from a standalone map
   object to a Utility-submenu economy type this same round, so it now flows through this switch
   like Outlook/Teleporter instead of its own dedicated `OnCollide`/MapStage case.
+  **Shop Type Re-Roll round (2026-08-11, round 8):** added `setShopData(ShopData)` (a mutator
+  alongside the pre-existing `getShopData()` - lets `RewardScene.promptRerollShopType()` swap this
+  actor's identity in place after a re-roll instead of tearing down and reconstructing the whole
+  actor). `getMapStage()` (pre-existing) is now also called from `RewardScene` for the same
+  feature, reachable since it's `public`.
 - **`forge-gui-mobile/src/forge/adventure/scene/RewardScene.java`** — already hosted the Destroy
   button (see ShopActor's entry above). Playtest round (2026-08-11): new `armoryRestockNote()`
   appends a small "Restocks weekly" line to the shop header for Armory-type shops
@@ -498,7 +503,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   constructor needed, the existing `Reward(Type, int)` covers it like `Life`/`Shards`.
 - **`forge-gui-mobile/src/forge/adventure/data/RewardData.java`** — added a `"stone"` case to
   `generate()`'s switch (2026-08-10), mirroring the existing `"shards"` case exactly
-  (`new Reward(Reward.Type.Stone, count + addedCount)`).
+  (`new Reward(Reward.Type.Stone, count + addedCount)`). **No-duplicate-items bug fix (2026-08-11,
+  round 8, user report: "There should never be 2 of the same item for sale"):** the `"item"` case's
+  `itemNames` branch used to pick `count+addedCount` times independently at random with no
+  exclusion tracking, so the same name could (and did) come up twice in one roll. Now shuffles a
+  copy of the pool once (`Collections.shuffle(list, rewardRandom)` - same seeded `Random`, so
+  determinism/stability across visits is unaffected) and takes the front, gracefully capping at
+  the pool's own size if asked for more unique items than it actually has.
 - **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 8 opt-in mod flags:
   `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`,
   `colorReputationEnabled`, `resourceSpawnsEnabled`, `dungeonRotationEnabled`, `sideQuestTimerEnabled` (all default `false` - see `CLAUDE.md`'s ground
@@ -668,6 +679,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `EconomyBuildings.scaledCost(ARMORY_REROLL_SHARD_COST)` shard cost, then rebuilds the displayed
   inventory the same way `restockShop()` already does. `refreshRerollButton()` toggles disabled
   state (cooldown or unaffordable) both on page load and after a successful reroll.
+  **Shop Type Re-Roll round (2026-08-11, round 8, user spec):** new `shopTypeRerollButton` -
+  ordinary card shops only, shares `rerollButton`'s (Armory) row position since a shop is never
+  both at once. `promptRerollShopType()` delegates the actual pick/persistence/sign-swap to the
+  new `MapStage.rerollShopType()` (see that file's own entry), then refreshes what this scene
+  itself owns: `shopActor.setShopData()`, a fresh `changes.generateNewShopSeed()` (the old seed's
+  picks don't apply to a newly-different shop identity), and `loadRewards()` to redraw the page.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Player Capitol round
   (2026-08-08 late night): the "arena" object case switched to the gated 3-arg OnCollide
   constructor (inn/spellsmith already used it) so an arena in a wasteland town/capital starts as
@@ -692,6 +709,31 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   "spellsmith" case fixed to actually call `EconomyBuildings.getSpellsmithSprite()` - it had been
   hardcoded to the generic `SpecialShop` placeholder ever since the real Spellsmith art was added
   in an earlier round; the atlas region was already correct, this case just never read it.
+  **Round 8 (2026-08-11), two user-driven changes to the shared "shop" case:** (1) Armory
+  level-based slot count (user spec: "Lvl 1 has 6 and level 2 has 8. Regardless of where they
+  are") - after `shopList` is resolved, a new check (`shopList.endsWith("Equipment") ||
+  shopList.startsWith("Armory")`, mirroring `EconomyBuildings.isArmoryShop()`'s own logic since
+  that method needs an already-resolved `ShopData` not available yet here) appends `"L2"` once
+  `changes.getBuildingLevel(id) >= 2`, redirecting to a matching higher-count `shops.json` entry -
+  covers both the Town's `"Equipment"` shop and the Capitol's tiered `"ArmoryCommon"`/etc names
+  with one check. (2) Shop Type Re-Roll (user spec: re-roll a card shop's type for 50 shards,
+  updating its sign) - new fields `shopCandidatePools` (objectId -> the raw, unfiltered comma-list
+  a shop object could roll from, captured once at load right where `possibleShops` is already
+  computed - naturally excludes Armory/land shops, whose tmx properties are always single names,
+  and Rotating shops, which have their own separate date-seeded mechanism) and `shopSigns`
+  (objectId -> the actual on-screen sign `TextureSprite`, captured where it's created, so a re-roll
+  can swap its artwork live). New public `isShopTypeRerollable(objectId)`/`rerollShopType(objectId,
+  currentName)` - the latter picks a new `ShopData` from the recorded candidate pool (excluding the
+  current name), pins it via the pre-existing `PointOfInterestChanges.setPinnedShopName()`
+  mechanism (previously only used by the Capitol migration), and calls the sign sprite's new
+  `setRegion()`.
+- **`forge-gui-mobile/src/forge/adventure/character/TextureSprite.java`** — mod addition (round 8,
+  Shop Type Re-Roll): `region` un-`final`'d and a new `setRegion(TextureRegion)` mutator added -
+  previously an immutable-region sprite with no way to change its art after construction, needed
+  so `MapStage.rerollShopType()` can update a shop's sign live instead of tearing down and
+  recreating the actor. Deliberately doesn't touch width/height (position/footprint stays put,
+  only the artwork changes) - the one pre-existing caller never needed to resize after construction
+  either, so this isn't a behavior change for it.
 - **`forge-gui-mobile/src/forge/adventure/data/DialogData.java`** — Skip Tutorial (2026-08-11,
   round 6): added `ActionData.runCommand` (`String`, default null) - when set, the dialog action
   runs it through `ConsoleCommandInterpreter`, reusing that class's existing command set (e.g.

@@ -248,6 +248,13 @@ public class ShopActor extends MapActor {
         return shopData;
     }
 
+    // Mod addition (Shop Type Re-Roll, 2026-08-11, round 8): lets MapStage.rerollShopType()'s
+    // caller swap this actor's identity in place after a re-roll, instead of tearing down and
+    // reconstructing the whole ShopActor.
+    public void setShopData(ShopData data) {
+        shopData = data;
+    }
+
     public void setRewardData(Array<Reward> data) {
         rewardData = data;
     }
