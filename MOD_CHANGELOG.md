@@ -6825,3 +6825,45 @@ Compiled clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o`, BUILD SUC
 checkstyle unused-import catch along the way) and deployed (jar splice + full resource mirror,
 including deleting the now-orphaned `archaeologist.tx` from the installed copy, which a plain
 resource-folder `cp -r` mirror never removes on its own).
+
+## Teleport-item follow-up: OmenStones confirmed real, Ghost rune fixed, Aerie made essential (2026-08-11)
+
+User asked whether the `OmenStones` shop mentioned in the previous entry is real/reachable, and
+whether the teleport destinations should get placement priority. Both checked directly rather than
+assumed:
+
+**`OmenStones` confirmed real and in-game**, not leftover/foreign content - it was added by the
+same-day "Item economy overhaul" round (`a42884c0425`), placed as a genuine shop object (id 332,
+`commonShopList="OmenStones"`) inside `Omenport.tmx`, one of the new dungeon-pool locations from
+that same round. Sells all 8 Omenstones (Omenport/Tarnation/Three Tree/Wizard Palace/Squirrel
+Farm/Gitrog Bog/Aerie/Valor's Reach) as fixed stock - does NOT sell the 7 color/Spawn/Eldrazi
+"rune" items, which only ever appeared in each color's own `*Items` shop.
+
+**Ghost rune fixed** - its `commandOnUse` (`teleport to poi "Ghost Town"`) pointed at a POI that
+doesn't exist anywhere in this plane (confirmed via an exhaustive audit of all 16
+`teleport to poi` items against `points_of_interest.json` - the only miss out of 16). No "Ghost
+Town" equivalent exists under any name in this plane or `common/`, so there was no natural
+"correct" target to redirect to - retargeted to `Spawn` instead, the same always-safe fallback
+`Colorless rune` already uses (redundant with that item, flagged honestly rather than hidden, but
+correctness took priority over picking an unjustified "more interesting" destination). The item is
+tagged `questItem: true` and isn't currently sold in any shop (its only prior listing, the generic
+`Equipment` shop, was removed in the previous round for being a stray teleport item in an Armory
+pool) - functionally dormant either way, but no longer silently broken if it's ever obtained.
+
+**Essential-placement audit, user's actual insight**: checked whether the 9 real teleport
+destinations (the 8 Omenstone targets + Eldrazi Prison) get placement priority in
+`World.isEssentialPoi()` (guaranteed placement with rerun-on-failure, exempt from Dungeon
+Rotation's despawn/reappear-elsewhere cycle - both already checked via a `"Story"` questTag).
+**8 of 9 already do** - they were already tagged `Story` by whichever round added them, so this
+was already correctly handled, not a real gap. **The one exception: `Aerie`** (a pre-existing
+`common/`-mapped dungeon, not one of the new additions) - tagged `Hostile/Nest/Dungeon/Sidequest`
+only, no `Story` tag, meaning it was ordinary rotatable content: could fail its initial world-gen
+placement outright, or successfully place and later despawn as part of normal Dungeon Rotation,
+either way silently stranding "Aerie Omenstone" with nowhere to go until it randomly reappears (if
+ever). Added `Story` to Aerie's `questTags` - now essential-placed and rotation-exempt, matching
+its 8 siblings. Confirmed no conflict with its existing `Sidequest` tag (a separate,
+independently-consumed eligibility marker for random side-quest target selection, per
+`DungeonRotation.java`'s own comment on why it's deliberately ignored by the active-quest check).
+
+Pure data changes (`items.json`, `points_of_interest.json`) - no Java touched, no compile needed.
+Deployed directly (both files copied to the installed game).

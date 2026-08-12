@@ -618,8 +618,8 @@
         "effect":  {
                        "name":  ""
                    },
-        "description":  "Teleports you to the ghost town",
-        "commandOnUse":  "teleport to poi \"Ghost Town\"",
+        "description":  "Teleports you to Spawn",
+        "commandOnUse":  "teleport to poi Spawn",
         "iconName":  "GhostRune",
         "questItem":  true,
         "shardsNeeded":  1,
