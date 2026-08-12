@@ -295,6 +295,14 @@ player_capital.tmx's arenaChallenge enemyPool:
 - **Meren of Clan Nel Toth** (BG attrition, life 28, corrupted_greenwiz) - Hymn, removal-on-
   bodies, Grave Titan.
 - **Domri Rade** (RG stompy, life 25, garruk2) - 8 mana elves into Steel Leaf/Questing Beast.
+**Champion bounty follow-up (same day, user QC + confirmed choice):** the champions' signature-
+card rewards were initially INERT - enemy reward lists only pay out through the overworld/dungeon
+post-duel handlers (WorldStage/MapStage `currentMob.getRewards()`), which arena duels never reach;
+the Arena pays only its own round tables in `ArenaScene.done()`. Per the user's pick: arena-
+EXCLUSIVE enemies (spawnRate 0 with a rewards list) now pay their full reward list ON TOP of the
+round tables when the player wins the ENTIRE bracket that included them (`bracketChampions`
+tracking in loadArenaData + payout in done()). Ordinary pool enemies unaffected. Data-driven -
+any future spawnRate-0 arena enemy gets the same treatment automatically.
 Validator swaps of note: Llanowar Elves -> Elvish Mystic in GW (Foundations showcase printings
 made Elves count Mythic), Gifted Aetherborn/Chupacabra/GFTT -> uncommon equivalents in BG,
 Abrade/Karplusan -> commons in RG (promo printings inflated rare counts past the cap).

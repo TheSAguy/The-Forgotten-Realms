@@ -533,6 +533,18 @@ public class ArenaScene extends UIScene implements IAfterMatch {
                     data.addAll(arenaData.rewards[i][j].generate(false, null, true));
                 }
             }
+            // Champion bounty (user decision 2026-08-12): arena-EXCLUSIVE enemies (spawnRate 0 -
+            // they exist nowhere but this pool, so their EnemyData rewards would otherwise never
+            // pay out; enemy rewards only flow through the overworld/dungeon post-duel handlers,
+            // which arena duels never reach) pay their own reward list ON TOP of the round tables
+            // when the player wins the ENTIRE bracket that included them. Ordinary pool enemies
+            // (roaming bosses etc.) are unaffected - they keep paying their rewards in the wild.
+            if (roundsWon == arenaData.rounds) {
+                for (EnemyData champion : new Array.ArrayIterator<>(bracketChampions)) {
+                    for (RewardData rewardData : champion.rewards)
+                        data.addAll(rewardData.generate(false, null, true));
+                }
+            }
             RewardScene.instance().loadRewards(data, RewardScene.Type.Loot, null);
             Forge.switchScene(RewardScene.instance());
         }
@@ -547,6 +559,9 @@ public class ArenaScene extends UIScene implements IAfterMatch {
 
     Array<EnemySprite> enemies = new Array<>();
     Array<ArenaRecord> fighters = new Array<>();
+    // Arena-exclusive (spawnRate 0) enemies present in the CURRENT bracket - see done()'s
+    // champion-bounty block. Rebuilt on every loadArenaData().
+    Array<EnemyData> bracketChampions = new Array<>();
     Actor player;
 
     public void loadArenaData(ArenaData data, long seed) {
@@ -569,6 +584,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         enemies.clear();
         fighters.clear();
         arenaPlane.clear();
+        bracketChampions.clear();
         roundsWon = 0;
         int numberOfEnemies = (int) (Math.pow(2f, data.rounds) - 1);
 
@@ -597,6 +613,10 @@ public class ArenaScene extends UIScene implements IAfterMatch {
             arenaEnemyData.noAnte = true;
             if (isChallenge)
                 arenaEnemyData.gamesPerMatch = 1;
+            // Arena-exclusive champions carry a bounty - see done(). Recorded from the ORIGINAL
+            // EnemyData (the clone above is display/match-rules only, rewards identical).
+            if (enemyData.spawnRate <= 0 && enemyData.rewards != null && enemyData.rewards.length > 0)
+                bracketChampions.add(enemyData);
             EnemySprite enemy = new EnemySprite(arenaEnemyData);
             enemies.add(enemy);
             fighters.add(new ArenaRecord(new Image(enemy.getAvatar()), enemyData.getName()));
