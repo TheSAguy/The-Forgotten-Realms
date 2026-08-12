@@ -157,6 +157,15 @@ Helping a color angers its two enemies, not its allies.
   drawn scaled down to a shop's native 16x16 footprint. Swaps back to normal once that specific
   shop is rebuilt. **The Job Board itself still uses the procedural rubble overlay** - only
   shops have real art so far, no Job Board-specific art exists yet.
+- **Shop ruin variant bug fixed (2026-08-11, round 7)** - user report: "the ruin images being used
+  for the towns/capitol... currently hard-coded to be the same set each time." Real bug, not a
+  perception issue: `getBrokenShopSprite(objectId)` picked its variant purely from the shop's Tiled
+  object id, with no per-town salt - since every town on the map is built from one of a small
+  handful of shared `.tmx` templates, a given "shop slot" has the IDENTICAL object id in every town
+  sharing that template, so every one of them showed the exact same ruin variant. (The town/
+  capitol-level overworld icon, `getBrokenTownSprite()`, was already correctly varying per town -
+  it salts off the POI's own id, which incorporates real world position - only the per-shop pick
+  had this gap.) Fixed by combining in the current town's own POI id as a salt.
 - Still to do: gradual leveling as a town is rebuilt (more shops unlocked per level), roads
   built between towns, +1 life at max reconstruction level.
 
@@ -1286,6 +1295,16 @@ concept. Built out over one long round:
   sell a random rotation of Obtainable-Common items; the Capitol Armory sells all 4 tiers, weighted
   30% Common / 60% Uncommon / 8% Rare / 2% Mythic per week (`MapStage.java` gained optional
   per-shop `uncommonThreshold`/`rareThreshold`/`mythicThreshold` TMX overrides for this).
+- **Manual "Re-roll" button - built (2026-08-11, round 7), user spec.** A new `RewardScene`
+  button, Armory-only (any level), forces an immediate inventory re-roll for 100 shards base
+  (difficulty-scaled like every other cost this session, `EconomyBuildings.scaledCost()`), gated to
+  once per week via a NEW, deliberately SEPARATE cooldown clock
+  (`PointOfInterestChanges.canManuallyRerollShop()`/`manuallyRerollShop()`) - explicit user
+  requirement that this stay independent of the automatic weekly refresh above, so a manual reroll
+  doesn't reset or interact with that timer at all. Reuses `generateNewShopSeed()` under the hood
+  (same mechanism both the automatic weekly refresh and the ordinary paid-restock button already
+  use), just triggered by the button instead of the calendar or `shopActor.canRestock()` (which
+  Armory always fails, being a `noRestock` shop - the whole reason this needed its own path).
 - **Arena prize pools rebuilt**: the non-quest, non-obtainable item pool (447 items) was split
   across the 5 AI Capitals (Mythic excluded, ~85 items/color, rarity-balanced) added as a 50%-
   weighted bonus layer on top of each arena's existing prizes. The player's own Capitol Arena got
@@ -1500,7 +1519,7 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; Deck Tester mode built same day, round 3; playtest round 5 fixed the Upgrade/toggle/Deck Tester buttons rendering off-screen, and a wrong-jar deploy bug that meant round 3 never actually reached the player)
+### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; Deck Tester mode built same day, round 3; playtest round 5 fixed the Upgrade/toggle/Deck Tester buttons rendering off-screen, and a wrong-jar deploy bug that meant round 3 never actually reached the player; round 7 moved Deck Tester next to the mode toggle per user follow-up)
 - **"No ant in Arena" resolved**: means Ante (the mechanic where match winner takes a card from the
   loser's deck - "ant" was a typo missing the "e"), which is on by default for every match
   currently. **Built**: Ante is now force-disabled for Arena matches specifically (new
@@ -1564,6 +1583,9 @@ to depend on each other.
   makes `setWinner()` (the automatic `IAfterMatch` callback `DuelScene.afterGameEnd()` fires on
   whichever scene launched the duel) skip all bracket-manipulation logic for a Deck Tester match,
   since it has no bracket/round state of its own - just resets the screen instead.
+  **Repositioned (round 7)**: was its own row above the Upgrade/toggle buttons (overlapped the
+  bracket-tree view per a user screenshot) - now shares a row with the mode toggle, immediately to
+  its right.
 
 ### 21. Speed Up All Monsters — `Not Started`
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
@@ -1852,7 +1874,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   needs the actual current text located and a replacement drafted with the user, not scoped further
   yet.
 
-### 35. Rename Capitol to "Orazca" — `Not Started`
+### 35. Rename Capitol to "Orazca" — `Built (2026-08-11, round 7)`
 - User spec (2026-08-11, wishlist batch): "Capitol name Orazca." The player's Capitol currently has
   internal name `"Player Capitol"` (`TownRestoration.CAPITOL_POI_NAME`, #13) with displayName
   "Camelot" set at upgrade time (`upgradeToCapitol()`'s `transformInto()` call, #13). Checked
@@ -1861,6 +1883,13 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   *Kumena, Tyrant of Orazca*), and separately as an unrelated Conquest-mode plane elsewhere in
   Forge - so renaming is a plain, conflict-free swap of that one displayName string, no other
   cleanup needed.
+- **Implemented, round 7**: the real, functional value lives in `points_of_interest.json`'s
+  `"Player Capitol"` template entry (`"displayName": "Orazca"`) - `transformInto()` reads it from
+  there, nothing hardcoded in Java. Also swept every OTHER "Camelot" occurrence for consistency
+  (all comments/log lines, no other functional value): `TownRestoration.java`'s upgrade
+  notification text ("Orazca rises!..."), its console log line, and two explanatory comments in
+  `TownRestoration.java`/`TerritoryControl.java`. Confirmed zero remaining "Camelot" references
+  anywhere in the mod's own Java source or `The Forgotten Realms` resource folder.
 
 ### 36. More Terrain Customization — `Not Started`
 - User idea (2026-08-11, wishlist batch): "More terrain customization." Ties to #7's "Terrain

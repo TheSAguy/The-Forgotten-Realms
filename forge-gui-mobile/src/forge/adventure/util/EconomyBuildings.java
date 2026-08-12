@@ -195,6 +195,12 @@ public class EconomyBuildings {
     // upgrade (Arena today; Armory once its level 1 art and Guard-hiring mechanic land, Task #13).
     public static final int BUILDING_UPGRADE_COST = 100;
 
+    // Armory manual "Re-roll" button (2026-08-11, round 7 - user spec: "cost 100 shards base"),
+    // independent of both the automatic weekly refresh and the ordinary (Armory-blocked, since
+    // Armory is a noRestock shop) paid restock button. Difficulty-scaled like every other cost via
+    // scaledCost() - see RewardScene.promptRerollArmory().
+    public static final int ARMORY_REROLL_SHARD_COST = 100;
+
     // Difficulty price multiplier (user spec 2026-08-11, round 4): building repair/construction/
     // upgrade costs and guard hiring costs scale with difficulty - Easy 25% cheaper, Normal
     // baseline, Hard 25% more, Insane 50% more. Deliberately NOT applied to card/item shop prices

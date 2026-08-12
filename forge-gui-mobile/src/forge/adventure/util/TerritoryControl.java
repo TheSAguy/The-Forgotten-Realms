@@ -580,7 +580,7 @@ public class TerritoryControl {
 
         // Capitol expansion (2026-08-08 late, user: "once the player builds a Capitol, his
         // terrain should also spread, just like the AI's"): the player's territory grows from
-        // Camelot at the same daily rate toward the same cap, painted as the "player" biome,
+        // Orazca at the same daily rate toward the same cap, painted as the "player" biome,
         // contested by the same pull rules. Radius state rides colorTerritoryRadius under the
         // "player" key. Deliberately does NOT force-reveal fog of war over the grown disc (see the
         // removed revealArea() call below, 2026-08-11 fix) - an AI castle's own identical daily
@@ -1235,7 +1235,7 @@ public class TerritoryControl {
 
         // Capitol defense (see field comment above): a mage reaching the player's own Capitol
         // never goes through the ordinary capture flow below - it queues a forced last-chance
-        // duel instead. Checked by canonical data.name (immune to the Capitol's "Camelot"
+        // duel instead. Checked by canonical data.name (immune to the Capitol's "Orazca"
         // displayName), same identification pattern every capital lookup in this class uses.
         if (TownRestoration.CAPITOL_POI_NAME.equals(target.getData().name)) {
             // Guard defense (MOD_SCOPE.md #22, 2026-08-11): both of the Capitol's guards (if

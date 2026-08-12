@@ -218,7 +218,20 @@ public class TownRestoration {
         Array<Sprite> variants = getBrokenShopSprites();
         if (variants == null || variants.size == 0)
             return null;
-        int index = Math.floorMod(objectId, variants.size);
+        // Salted with the current town's own POI id, not just objectId (2026-08-11 bug fix - user
+        // report: "the ruin images being used for the towns/capitol... hard-coded to be the same
+        // set each time"). Every town is built from one of a small handful of shared .tmx
+        // templates, and a shop slot's Tiled objectId is baked into that template - so picking by
+        // objectId alone meant every "shop slot 3" on the whole map, across every town sharing that
+        // template, showed the exact same ruin variant. Combining in rootPoint.getID() (already
+        // proven unique per physical town instance for getBrokenTownSprite() above - it
+        // incorporates the town's actual world position) makes the pick vary town-to-town while
+        // staying stable for a given town/slot pair across visits, same as before. Falls back to
+        // objectId alone if no town is currently loaded (shouldn't happen in practice - this is
+        // only ever called while standing inside a town's own map - but avoids an NPE either way).
+        PointOfInterest current = TileMapScene.instance().rootPoint;
+        int salt = current != null ? current.getID().hashCode() : 0;
+        int index = Math.floorMod(objectId * 31 + salt, variants.size);
         return variants.get(index);
     }
 
@@ -306,7 +319,7 @@ public class TownRestoration {
     }
 
     // Capitol upgrade (MOD_SCOPE.md #13, first slice 2026-08-08): one player town may become the
-    // Capitol "Camelot" - bigger castle-sized icon, its own 40x40 player_capital.tmx layout.
+    // Capitol "Orazca" - bigger castle-sized icon, its own 40x40 player_capital.tmx layout.
     // (The earlier Rename-town option was dropped the same day per user - names showing in
     // messages/map made it unnecessary.)
     public static final String CAPITOL_POI_NAME = "Player Capitol";
@@ -369,7 +382,7 @@ public class TownRestoration {
         return findCapitol() != null;
     }
 
-    /** The player's Capitol POI ("Player Capitol", displayName "Camelot"), or null if none has
+    /** The player's Capitol POI ("Player Capitol", displayName "Orazca"), or null if none has
      *  been built yet - at most one ever exists. Identified by canonical data.name, same as every
      *  other capital-lookup in the mod, so it's unaffected by any future rename option. */
     public static PointOfInterest findCapitol() {
@@ -459,7 +472,7 @@ public class TownRestoration {
         Integer oldRadius = world.getTownTerritoryRadius(point.getID());
 
         Current.player().takeGold(EconomyBuildings.scaledCost(CAPITOL_UPGRADE_COST)); // difficulty-scaled (round 4)
-        point.transformInto(capitolData, world.getRandom()); // template name -> displayName "Camelot"
+        point.transformInto(capitolData, world.getRandom()); // template name -> displayName "Orazca"
 
         PointOfInterestChanges newChanges = WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID());
         newChanges.getMapFlags().put(TOWN_RESTORED_FLAG, (byte) 1);
@@ -508,8 +521,8 @@ public class TownRestoration {
 
         // Plain text - the bold [*] markup renders as smeared double-struck glyphs at this
         // pixel-font size (same issue as the old PLAYER OWNED TOWN warning, reported again here).
-        forge.adventure.stage.GameHUD.getInstance().addNotification("Camelot rises! Return to your new Capitol to see it rebuilt.");
-        System.out.println("[TownRestoration] town upgraded to Capitol \"Camelot\"");
+        forge.adventure.stage.GameHUD.getInstance().addNotification("Orazca rises! Return to your new Capitol to see it rebuilt.");
+        System.out.println("[TownRestoration] town upgraded to Capitol \"Orazca\"");
         // Kick to the world map so re-entry loads the capital layout.
         stage.exitDungeon(false, false);
     }

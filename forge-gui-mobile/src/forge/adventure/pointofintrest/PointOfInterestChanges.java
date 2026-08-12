@@ -22,6 +22,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
     // ordinary (non-noRestock) shop, which never calls getWeeklyShopSeed(), never gets an entry
     // here at all.
     private final java.util.Map<Integer, Integer> shopLastRefreshDay = new HashMap<>();
+    // Manual "Re-roll" button (2026-08-11) - deliberately a SEPARATE cooldown clock from
+    // shopLastRefreshDay above, not a shared one (user spec: "The re-roll button in independent
+    // from the weekly re-fresh"). A player who manually re-rolls on day 3 doesn't push the
+    // automatic weekly refresh out to day 10 - that one still fires on its own schedule from
+    // whenever it last did, and vice versa. See canManuallyRerollShop()/manuallyRerollShop().
+    private final java.util.Map<Integer, Integer> shopManualRerollLastDay = new HashMap<>();
     //private final java.util.Map<Integer, Float> shopModifiers = new HashMap<>();
     private final java.util.Map<Integer, Integer> reputation = new HashMap<>();
     private Boolean isBookmarked;
@@ -151,6 +157,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
             if (obj instanceof java.util.List)
                 guardLastPaidDay.addAll((java.util.List<Integer>) obj);
         }
+        shopManualRerollLastDay.clear();
+        if (data.containsKey("shopManualRerollLastDay")) {
+            Object obj = data.readObject("shopManualRerollLastDay");
+            if (obj instanceof java.util.Map)
+                shopManualRerollLastDay.putAll((java.util.Map<Integer, Integer>) obj);
+        }
     }
 
     @Override
@@ -171,6 +183,7 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("buildingLevels", new HashMap<>(buildingLevels));
         data.storeObject("guardTiers", new ArrayList<>(guardTiers));
         data.storeObject("guardLastPaidDay", new ArrayList<>(guardLastPaidDay));
+        data.storeObject("shopManualRerollLastDay", new HashMap<>(shopManualRerollLastDay));
         return data;
     }
 
@@ -288,6 +301,18 @@ public class PointOfInterestChanges implements SaveFileContent  {
             shopLastRefreshDay.put(objectID, currentDay);
         }
         return getShopSeed(objectID);
+    }
+
+    /** Manual "Re-roll" button gate (2026-08-11, Armory) - independent of getWeeklyShopSeed()'s own
+     *  automatic timer, see shopManualRerollLastDay's own comment. */
+    public boolean canManuallyRerollShop(int objectID, int currentDay) {
+        Integer last = shopManualRerollLastDay.get(objectID);
+        return last == null || currentDay - last >= 7;
+    }
+
+    public void manuallyRerollShop(int objectID, int currentDay) {
+        generateNewShopSeed(objectID);
+        shopManualRerollLastDay.put(objectID, currentDay);
     }
 
     public void setRotatingShopSeed(int objectID, long seed){

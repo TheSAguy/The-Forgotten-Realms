@@ -96,6 +96,9 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     // wide total, per ui/arena.json) while still comfortably fitting the longest label
     // ("Switch to Challenging Arena") at the [%80] scale applied where text is set.
     private static final float ARENA_WIDE_BUTTON_WIDTH = 220f;
+    // Deck Tester's button, sharing a row with the toggle instead of its own row (round 7 fix) -
+    // see the constructor's own comment for the space math.
+    private static final float ARENA_DECK_TESTER_BUTTON_WIDTH = 140f;
 
     private ArenaScene() {
         super(Forge.isLandscapeMode() ? "ui/arena.json" : "ui/arena_portrait.json");
@@ -160,12 +163,18 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         arenaModeToggleButton.setVisible(false);
         ui.addActor(arenaModeToggleButton);
 
-        // Deck Tester button - one row above Upgrade/toggle (both of which only ever occupy that
-        // row, never both Deck Tester and one of them at the same height), since Deck Tester can
-        // be visible AT THE SAME TIME as arenaModeToggleButton (both just need level >= 2).
+        // Deck Tester button - same row as the toggle, immediately to its right (2026-08-11, round
+        // 7 - user report: the earlier "separate row above" placement overlapped the bracket-tree
+        // view). arenaUpgradeButton/arenaModeToggleButton never show at the same time as each other
+        // (mutually exclusive by level), and deckTesterButton is only ever visible when the toggle
+        // COULD be (both need level >= 2) - never alongside arenaUpgradeButton (level < 2) - so this
+        // row never has more than 2 buttons in it. Narrower than the other two (140 vs 220): "Deck
+        // Tester" is a short label, and this leaves the ~145 units of space actually available
+        // between the toggle's right edge (5+220=225, plus a 10-unit gap) and the gold/start
+        // buttons starting at x=380.
         deckTesterButton = Controls.newTextButton("Deck Tester", this::promptDeckTester);
-        deckTesterButton.setSize(ARENA_WIDE_BUTTON_WIDTH, doneButton.getHeight() * 0.8f);
-        deckTesterButton.setPosition(doneButton.getX(), doneButton.getY() + doneButton.getHeight() * 2f + 20f);
+        deckTesterButton.setSize(ARENA_DECK_TESTER_BUTTON_WIDTH, doneButton.getHeight() * 0.8f);
+        deckTesterButton.setPosition(doneButton.getX() + ARENA_WIDE_BUTTON_WIDTH + 10f, doneButton.getY() + doneButton.getHeight() + 10f);
         deckTesterButton.setVisible(false);
         ui.addActor(deckTesterButton);
     }

@@ -332,7 +332,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   Armory L1->L2 upgrades. Guard round (same day, #22): persisted `guardTiers`/`guardLastPaidDay`
   parallel lists. Archaeologist round (same day, #24): persisted `archaeologistExpeditionSentDay`
   (plain int, -1 = none active, missing-key-safe load like `bankBalance`) - not objectId-keyed like
-  the two fields just above, since there's only ever one Archaeologist per save.
+  the two fields just above, since there's only ever one Archaeologist per save. Armory Re-roll
+  round (2026-08-11, round 7): persisted `shopManualRerollLastDay` (objectId -> day, missing-key-
+  safe load) plus `canManuallyRerollShop()`/`manuallyRerollShop()` - a SEPARATE cooldown clock from
+  the pre-existing `shopLastRefreshDay`/`getWeeklyShopSeed()` (the automatic weekly reseed), per
+  user spec that the manual button's cooldown must not interact with the automatic one's own
+  schedule.
 - **`forge-gui-mobile/src/forge/adventure/scene/TileMapScene.java`** — `enter()`'s
   `isAutoHealLocation()` block grants a Partner-tier free overheal (#1, from the other machine's
   2026-08-10 round). Playtest round (2026-08-11) fixed a real bug found there: the base
@@ -585,7 +590,14 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `doneButton.getX()` instead (confirmed ~325 units of open space to the right before the
   gold/start buttons at x=380) and replacing the doneButton-relative width multiplier with an
   explicit `ARENA_WIDE_BUTTON_WIDTH = 220f` constant, plus a `[%80]` text-scale prefix on the
-  longer labels for margin.
+  longer labels for margin. **Round 7 (2026-08-11), user report** ("the arena text for Deck Tester
+  should be moved to next to Arena type switch"): `deckTesterButton` moved off its own separate row
+  (which overlapped the bracket-tree view) onto the SAME row as `arenaModeToggleButton`, immediately
+  to its right - new `ARENA_DECK_TESTER_BUTTON_WIDTH = 140f` (narrower than the other two, "Deck
+  Tester" is a short label) sized to fit the space actually left between the toggle's right edge and
+  the gold/start buttons at x=380. Safe since the two buttons that could occupy that row
+  (`arenaUpgradeButton` and `arenaModeToggleButton`) are already mutually exclusive by level, and
+  `deckTesterButton` is only ever visible under the SAME level condition as the toggle.
 - **`forge-gui-mobile/src/forge/adventure/character/EnemySprite.java`** — added `territoryTarget`/
   `territoryColor` fields (#7, null for every ordinary enemy - only set on a Territory Control
   mage). Combat gold variance (2026-08-09, #9): new `applyGoldVariance()`, called at the end of
@@ -647,7 +659,15 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   RIGHT edge), so right-aligning a wider button to it pulls the button leftward INTO the canvas
   rather than off of it. Left the position formula alone; added the same defensive `[%80]` scale
   prefix to `upgradeButton`'s label anyway, since it carries similarly long cost text at the same
-  105.6-unit width.
+  105.6-unit width. **Armory Re-roll round (2026-08-11, round 7, user spec):** new `rerollButton` -
+  Armory-only, any level (unlike `guardsButton`/`upgradeButton`, not level-gated), same right-
+  aligned-to-`doneButton` positioning (proven safe above) one row higher than those two.
+  `promptRerollArmory()` deliberately bypasses `shopActor.canRestock()`/`getRestockPrice()` (the
+  ordinary paid-restock path Armory is blocked from as a `noRestock` shop) - gated instead by the
+  new `PointOfInterestChanges.canManuallyRerollShop()` cooldown and a fixed
+  `EconomyBuildings.scaledCost(ARMORY_REROLL_SHARD_COST)` shard cost, then rebuilds the displayed
+  inventory the same way `restockShop()` already does. `refreshRerollButton()` toggles disabled
+  state (cooldown or unaffordable) both on page load and after a successful reroll.
 - **`forge-gui-mobile/src/forge/adventure/stage/MapStage.java`** — Player Capitol round
   (2026-08-08 late night): the "arena" object case switched to the gated 3-arg OnCollide
   constructor (inn/spellsmith already used it) so an arena in a wasteland town/capital starts as

@@ -36,7 +36,7 @@ import java.util.Comparator;
  * Displays the rewards of a fight or a treasure
  */
 public class RewardScene extends UIScene {
-    private TextraButton doneButton, detailButton, restockButton, destroyButton, guardsButton, upgradeButton;
+    private TextraButton doneButton, detailButton, restockButton, destroyButton, guardsButton, upgradeButton, rerollButton;
     private TextraLabel playerGold, playerShards;
     private TypingLabel headerLabel;
     private Vector2 headerLabelOrigPos;
@@ -112,6 +112,17 @@ public class RewardScene extends UIScene {
                 doneButton.getY() + doneButton.getHeight() * 2 + 20f);
         upgradeButton.setVisible(false);
         ui.addActor(upgradeButton);
+        // Re-roll Inventory (mod feature, user spec 2026-08-11, round 7) - Armory-only, any level
+        // (unlike guardsButton/upgradeButton, this isn't level-gated - even a Level 1 Armory has a
+        // noRestock inventory that can be re-rolled). Own row, 3 above doneButton, since it can be
+        // visible at the same time as EITHER guardsButton or upgradeButton (whichever the level
+        // allows) - never with both at once, so 3 rows total is enough, no dynamic stacking needed.
+        rerollButton = Controls.newTextButton("[%80]Re-roll Inventory (" + EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST) + " [+Shards])", this::promptRerollArmory);
+        rerollButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
+        rerollButton.setPosition(doneButton.getX() + doneButton.getWidth() - rerollButton.getWidth(),
+                doneButton.getY() + doneButton.getHeight() * 3 + 30f);
+        rerollButton.setVisible(false);
+        ui.addActor(rerollButton);
     }
 
     private void promptManageGuards() {
@@ -137,6 +148,57 @@ public class RewardScene extends UIScene {
                     guardsButton.setVisible(true);
                     upgradeButton.setVisible(false);
                 }, this::removeDialog));
+    }
+
+    /** Re-roll Inventory (2026-08-11, round 7) - deliberately does NOT go through shopActor.
+     *  canRestock()/getRestockPrice() (the ordinary paid-restock path Armory is blocked from as a
+     *  noRestock shop) - its own separate cooldown (PointOfInterestChanges.
+     *  canManuallyRerollShop()/manuallyRerollShop(), independent of the automatic weekly refresh
+     *  per user spec) and its own fixed shard cost gate this instead. Rebuilds the displayed
+     *  inventory the same way restockShop() does once the reroll is paid for. */
+    private void promptRerollArmory() {
+        if (shopActor == null || changes == null)
+            return;
+        int day = WorldSave.getCurrentSave().getWorld().getCurrentDay();
+        if (!changes.canManuallyRerollShop(shopActor.getObjectId(), day))
+            return;
+        int cost = EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST);
+        if (AdventurePlayer.current().getShards() < cost)
+            return;
+        showDialog(createGenericDialog("", "Re-roll this Armory's inventory for " + cost
+                        + " [+Shards]?\nSeparate from the automatic weekly refresh.",
+                Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
+                    removeDialog();
+                    AdventurePlayer.current().takeShards(cost);
+                    changes.manuallyRerollShop(shopActor.getObjectId(), day);
+
+                    HapticEngine.vibrate(FPref.UI_VIBRATE_ON_SHOP_ACTION, 5);
+                    SoundSystem.instance.play(SoundEffectType.Shuffle, false);
+
+                    clearGenerated();
+                    ShopData data = shopActor.getShopData();
+                    Array<Reward> ret = new Array<>();
+                    long shopSeed = changes.getShopSeed(shopActor.getObjectId());
+                    WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
+                    for (RewardData rdata : new Array.ArrayIterator<>(data.rewards)) {
+                        ret.addAll(rdata.generate(false, false));
+                    }
+                    shopActor.setRewardData(ret);
+                    loadRewards(ret, RewardScene.Type.Shop, shopActor);
+                    refreshRerollButton();
+                }, this::removeDialog));
+    }
+
+    /** Refreshes rerollButton's disabled state (cooldown and/or affordability) without touching
+     *  visibility - called after load and after a successful reroll (the cooldown just changed). */
+    private void refreshRerollButton() {
+        if (shopActor == null || changes == null || !rerollButton.isVisible())
+            return;
+        int day = WorldSave.getCurrentSave().getWorld().getCurrentDay();
+        boolean onCooldown = !changes.canManuallyRerollShop(shopActor.getObjectId(), day);
+        int cost = EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST);
+        boolean canAfford = AdventurePlayer.current().getShards() >= cost;
+        rerollButton.setDisabled(onCooldown || !canAfford);
     }
 
     private void promptDestroyShop() {
@@ -444,6 +506,7 @@ public class RewardScene extends UIScene {
         destroyButton.setVisible(false); // re-enabled by the Shop case below when applicable
         guardsButton.setVisible(false); // re-enabled by the Shop case below when applicable
         upgradeButton.setVisible(false); // re-enabled by the Shop case below when applicable
+        rerollButton.setVisible(false); // re-enabled by the Shop case below when applicable
         if (type == Type.Shop) {
             this.shopActor = shopActor;
             this.changes = shopActor.getMapStage().getChanges();
@@ -541,6 +604,14 @@ public class RewardScene extends UIScene {
                     // previously baked in once from the raw constant at construction.
                     upgradeButton.setText("[%80]Upgrade Armory (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])");
                     addToSelectable(upgradeButton);
+                }
+                // Re-roll Inventory (round 7) - Armory-only, any level, independent of the
+                // guards/upgrade level gate above.
+                rerollButton.setVisible(isArmory);
+                if (rerollButton.isVisible()) {
+                    rerollButton.setText("[%80]Re-roll Inventory (" + EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST) + " [+Shards])");
+                    refreshRerollButton();
+                    addToSelectable(rerollButton);
                 }
                 break;
             case QuestReward:

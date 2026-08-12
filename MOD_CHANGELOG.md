@@ -7143,3 +7143,64 @@ prior round (had to check the correct file for a nested static class the first t
 `DialogData$ActionData.class`, not `DialogData.class`, holds `ActionData`'s own fields). Mirrored
 the updated `quests.json` to the installed game (this round's only resource-file change). Not yet
 playtested - needs a fresh New Game to click through both the normal intro and this new skip path.
+
+## Deck Tester repositioning, ruin-art variety fix, Orazca rename, Armory Re-roll (2026-08-11, round 7)
+
+User playtest feedback after the last two rounds actually reached the game: four independent asks.
+
+**Deck Tester button moved next to the Arena mode toggle.** Was on its own row above Upgrade/
+toggle, overlapping the bracket-tree view per a user screenshot with an annotated arrow. `ArenaScene`:
+new `ARENA_DECK_TESTER_BUTTON_WIDTH = 140f`, positioned on the SAME row as `arenaModeToggleButton`
+(`doneButton.getX() + ARENA_WIDE_BUTTON_WIDTH + 10f`, same Y) instead of a row of its own. Safe
+because `arenaUpgradeButton`/`arenaModeToggleButton` are already mutually exclusive by level, and
+Deck Tester is only ever visible under the same level condition as the toggle - the row never holds
+more than 2 buttons.
+
+**Shop ruin art was genuinely hard-coded to repeat, not just a perception issue.** User: "the ruin
+images being used for the towns/capitol... currently hard-coded to be the same set each time."
+`TownRestoration.getBrokenShopSprite(objectId)` picked its variant purely by the shop's Tiled object
+id - since every town on the map is built from one of a small handful of shared `.tmx` templates, a
+given "shop slot" carries the IDENTICAL object id across every town using that template, so they all
+showed the same ruin. (The town/capitol-level overworld icon, `getBrokenTownSprite()`, was already
+fine - it salts off `PointOfInterest.getID()`, which incorporates the town's actual world position,
+so it already varies correctly per instance.) Fixed by salting the shop-level pick with
+`TileMapScene.instance().rootPoint.getID().hashCode()` too (`index = objectId * 31 + salt`), so the
+same slot now varies town-to-town while staying stable for a given town/slot pair across visits -
+identical mechanism, just no longer collapsing every template-sharing town to the same look.
+
+**Capitol renamed "Camelot" -> "Orazca".** The functional value lives in `points_of_interest.json`'s
+`"Player Capitol"` template (`"displayName"` field) - `TownRestoration.upgradeToCapitol()`'s
+`transformInto()` call reads it from there, nothing hardcoded in Java. Swept every other "Camelot"
+occurrence for consistency even though only one was user-facing: the upgrade notification text
+("Orazca rises! Return to your new Capitol to see it rebuilt."), a console log line, and explanatory
+comments in `TownRestoration.java`/`TerritoryControl.java`. Confirmed zero "Camelot" references
+remain anywhere in the mod's Java source or `The Forgotten Realms` resource folder afterward.
+
+**Armory "Re-roll Inventory" button.** User spec: force a re-roll, once per week, 100 shards base,
+"independent from the weekly re-fresh" (the pre-existing automatic 7-day reseed). Confirmed the
+existing "Inventory will refresh weekly" note (`RewardScene.armoryRestockNote()`, built in an
+earlier round, task #44) was already live and wired into the header - nothing to add there.
+Implementation:
+- `PointOfInterestChanges` gained a genuinely SEPARATE cooldown map, `shopManualRerollLastDay`
+  (objectId -> day), plus `canManuallyRerollShop()`/`manuallyRerollShop()` - deliberately not
+  sharing `shopLastRefreshDay`/`getWeeklyShopSeed()` (the automatic timer), per the user's explicit
+  independence requirement. A manual reroll on day 3 doesn't push the automatic refresh out to day
+  10, and vice versa - both clocks just run on their own schedule from whenever they each last fired.
+- New `EconomyBuildings.ARMORY_REROLL_SHARD_COST = 100`, difficulty-scaled via the existing
+  `scaledCost()` from round 4, `[+Shards]` markup matching this session's icon-rollout convention.
+- `RewardScene.promptRerollArmory()` deliberately bypasses `shopActor.canRestock()`/
+  `getRestockPrice()` (the ordinary paid-restock path, which Armory always fails since it's a
+  `noRestock` shop by design - the actual reason a separate re-roll path was needed at all) - gated
+  instead by the new cooldown check and fixed shard cost, then rebuilds the displayed inventory the
+  exact same way `restockShop()` already does (re-seed the shop RNG from the fresh seed, regenerate
+  `RewardData`, call `loadRewards()`). New `rerollButton`: Armory-only, NOT level-gated (unlike
+  `guardsButton`/`upgradeButton` - even a Level 1 Armory has a re-rollable inventory), own row above
+  those two, same right-aligned-to-`doneButton` positioning already confirmed safe on this screen
+  (round 5). `refreshRerollButton()` toggles disabled state (on cooldown, or unaffordable) both on
+  page load and immediately after a successful reroll.
+
+Compiled clean, spliced into both jars, verified via the class-bytecode-extraction method (checked
+`TownRestoration.class` for "Orazca", `RewardScene.class` for "Re-roll",
+`PointOfInterestChanges.class` for "shopManualRerollLastDay", `ArenaScene.class` for "Deck Tester" -
+all present in the freshly-extracted classes). Mirrored the updated `points_of_interest.json` to the
+installed game (this round's only resource-file change). Not yet playtested in-game.

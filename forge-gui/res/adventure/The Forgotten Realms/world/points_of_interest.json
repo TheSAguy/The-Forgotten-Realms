@@ -4095,7 +4095,7 @@
 	},
 	{
 		"name": "Player Capitol",
-		"displayName": "Camelot",
+		"displayName": "Orazca",
 		"type": "capital",
 		"count": 0,
 		"spriteAtlas": "../The Forgotten Realms/maps/tileset/player_capitol.atlas",
