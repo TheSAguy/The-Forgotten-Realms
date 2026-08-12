@@ -1861,12 +1861,18 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   any cooldown/limit, and whether "shop" here means the 6 special economy-building types (#10) or
   also the ordinary ambient Card/Item/Booster shops that spawn with a town.
 
-### 33. Early Armory Inventory Re-Roll — `Not Started`
+### 33. Early Armory Inventory Re-Roll — `Built (2026-08-11, round 7)`
 - User idea (2026-08-11, wishlist batch): "Re-roll armory inventory early." The Armory's item stock
   currently restocks automatically once a week (#18's Item Economy, `EconomyBuildings`'s weekly-
   restock sweep, MOD_CHANGELOG's "Weekly shop restock" work) - this would let the player pay to
   force an early restock instead of waiting out the week. Needs scoping: gold cost, and whether it
   resets the weekly timer (so the NEXT free restock is delayed) or just adds a bonus roll on top.
+- **Built same day, round 7, filed under #18's own "Manual 'Re-roll' button" bullet** (this entry's
+  own status line just hadn't been updated to match until now) - 100 shards base cost, difficulty-
+  scaled, on its own separate 7-day cooldown that deliberately does NOT interact with the automatic
+  weekly timer (per explicit user spec: "The re-roll button in independent from the weekly
+  re-fresh") - so it's the "bonus roll on top" resolution to this entry's own open question, not
+  the "resets the timer" one. See #18 for full implementation detail.
 
 ### 34. Update Mod Intro Text — `Not Started` (writing task)
 - User ask (2026-08-11, wishlist batch): "Update mod intro text." The player-facing text shown when
