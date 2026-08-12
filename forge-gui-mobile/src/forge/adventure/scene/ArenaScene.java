@@ -446,6 +446,9 @@ public class ArenaScene extends UIScene implements IAfterMatch {
             moveFighter(fighters.get(fighters.size - 1).actor, false);
             winners.add(fighters.get(fighters.size - 1));
             roundsWon++;
+            // The player's opponent this round is always the LAST enemy (see startRound()) -
+            // remembered for the Challenge Arena's last-defeated-foe card drop in done().
+            lastDefeatedEnemyData = enemies.get(enemies.size - 1).getData();
         } else {
             markLostFighter(fighters.get(fighters.size - 1).actor);
             moveFighter(fighters.get(fighters.size - 2).actor, true);
@@ -494,6 +497,25 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         } else {
             enable = true;
         }
+    }
+
+    /** "WU" -> {"white","blue"} etc., matching the color-name strings the arena reward tables'
+     *  own "colors" entries use (see CardPredicate). Null for empty/colorless - no color filter,
+     *  so a colorless foe's drop can be any rare+, artifacts included. */
+    private static String[] colorNamesFor(String colorLetters) {
+        if (colorLetters == null || colorLetters.isEmpty())
+            return null;
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (char c : colorLetters.toUpperCase().toCharArray()) {
+            switch (c) {
+                case 'W': names.add("white"); break;
+                case 'U': names.add("blue"); break;
+                case 'B': names.add("black"); break;
+                case 'R': names.add("red"); break;
+                case 'G': names.add("green"); break;
+            }
+        }
+        return names.isEmpty() ? null : names.toArray(new String[0]);
     }
 
     private void markLostFighter(Actor fighter) {
@@ -545,6 +567,22 @@ public class ArenaScene extends UIScene implements IAfterMatch {
                         data.addAll(rewardData.generate(false, null, true));
                 }
             }
+            // Last-defeated-foe drop (user spec 2026-08-12, Challenge only): "you get 1 card
+            // (rare+) from the last duel you win... + regular rewards" - a Rare-or-Mythic card
+            // in the beaten enemy's colors, so every champion in the pool has a themed drop
+            // comparable to the 5 arena-exclusive champions' signature bounty. Applies to the
+            // last round WON even on a partial run (lose round 2 -> the drop is themed to the
+            // round-1 opponent).
+            if (challengeMode && lastDefeatedEnemyData != null) {
+                RewardData foeDrop = new RewardData();
+                foeDrop.type = "card";
+                foeDrop.count = 1;
+                foeDrop.rarity = new String[]{"Rare", "Mythic Rare"};
+                String[] foeColors = colorNamesFor(lastDefeatedEnemyData.colors);
+                if (foeColors != null)
+                    foeDrop.colors = foeColors;
+                data.addAll(foeDrop.generate(false, null, true));
+            }
             RewardScene.instance().loadRewards(data, RewardScene.Type.Loot, null);
             Forge.switchScene(RewardScene.instance());
         }
@@ -562,6 +600,9 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     // Arena-exclusive (spawnRate 0) enemies present in the CURRENT bracket - see done()'s
     // champion-bounty block. Rebuilt on every loadArenaData().
     Array<EnemyData> bracketChampions = new Array<>();
+    // The opponent beaten in the player's most recent round win - drives the Challenge Arena's
+    // "1 rare+ card from the last duel you win" drop (user spec 2026-08-12).
+    EnemyData lastDefeatedEnemyData = null;
     Actor player;
 
     public void loadArenaData(ArenaData data, long seed) {
@@ -574,6 +615,9 @@ public class ArenaScene extends UIScene implements IAfterMatch {
      *  gamesPerMatch=3 in enemies.json, and the user's spec was explicit that Challenge is
      *  best-of-1 across the board, same as Regular Arena's wizard pool already is by default. */
     public void loadArenaData(ArenaData data, long seed, boolean isChallenge) {
+        // Keep the mode field in sync regardless of which entry path called us (toggle vs
+        // direct challenge entry) - done()'s last-defeated-foe drop reads it after the run.
+        challengeMode = isChallenge;
         startButton.setText("[%80][+OK]");
         startButton.layout();
         doneButton.setText("[%80][+Exit]");
@@ -585,6 +629,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         fighters.clear();
         arenaPlane.clear();
         bracketChampions.clear();
+        lastDefeatedEnemyData = null;
         roundsWon = 0;
         int numberOfEnemies = (int) (Math.pow(2f, data.rounds) - 1);
 

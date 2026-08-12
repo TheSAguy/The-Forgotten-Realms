@@ -295,6 +295,15 @@ player_capital.tmx's arenaChallenge enemyPool:
 - **Meren of Clan Nel Toth** (BG attrition, life 28, corrupted_greenwiz) - Hymn, removal-on-
   bodies, Grave Titan.
 - **Domri Rade** (RG stompy, life 25, garruk2) - 8 mana elves into Steel Leaf/Questing Beast.
+**Last-defeated-foe drop (same day, user refinement):** Challenge Arena runs now also award
+1 Rare-or-Mythic card themed to (colored as) the LAST opponent the player defeated, on top of the
+round tables and the champion bounty - so every pool champion has a comparable drop, not just the
+5 arena-exclusive ones. Applies on partial runs too (lose round 2 -> the drop is themed to the
+round-1 foe). `lastDefeatedEnemyData` captured at the player's win branch (the player's opponent
+is always the last entry in `enemies`), paid in `done()` via a synthesized card-type RewardData
+(rarity Rare/Mythic Rare, colors mapped from EnemyData.colors letters; colorless foe -> any
+color, artifacts included). `loadArenaData()` now also syncs `challengeMode` from its parameter
+so the drop can't misfire from a stale mode flag on a direct challenge entry.
 **Champion bounty follow-up (same day, user QC + confirmed choice):** the champions' signature-
 card rewards were initially INERT - enemy reward lists only pay out through the overworld/dungeon
 post-duel handlers (WorldStage/MapStage `currentMob.getRewards()`), which arena duels never reach;
