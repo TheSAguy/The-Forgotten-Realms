@@ -62,6 +62,15 @@ public class HeroListData {
         return sprites.get(avatarIndex);
     }
 
+    /** The RAW race name from heroes.json (e.g. "Human", "Red Dragon") - config structures like
+     *  ConfigData.raceEditions key on this, NOT on getRaces()' localized display labels. */
+    public static String getRawRaceName(int raceIndex) {
+        HeroData[] all = instance().heroes;
+        if (all == null || raceIndex < 0 || raceIndex >= all.length || all[raceIndex] == null)
+            return null;
+        return all[raceIndex].name;
+    }
+
     public Array<String> getRaces() {
         Array<String> ret = new Array<>();
         for (HeroData hero : instance().heroes) {

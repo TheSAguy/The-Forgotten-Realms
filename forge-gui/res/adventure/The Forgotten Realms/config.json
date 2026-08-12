@@ -308,6 +308,24 @@
     "armoryGuardsEnabled": true,
     "shopTypeRerollEnabled": true,
     "arenaUpgradesEnabled": true,
-    "contentFilterTablesEnabled": true
+    "contentFilterTablesEnabled": true,
+    "raceEditions": [
+        { "race": "Devil",        "editions": ["RNA", "TOR", "SOI", "VOW"] },
+        { "race": "Kor",          "editions": ["ZEN", "BFZ", "ZNR", "ROE"] },
+        { "race": "Human",        "editions": ["DOM", "DMU", "M20", "M21"] },
+        { "race": "Elf",          "editions": ["LRW", "MOR", "KHM", "ELD"] },
+        { "race": "Metathran",    "editions": ["INV", "PLS", "APC", "8ED"] },
+        { "race": "Undead",       "editions": ["AKH", "HOU", "ISD", "DKA"] },
+        { "race": "Viashino",     "editions": ["GRN", "ALA", "ARB", "DGM"] },
+        { "race": "Phyrexian",    "editions": ["SOM", "MBS", "NPH", "ONE"] },
+        { "race": "Dwarf",        "editions": ["KLD", "AER", "KHM", "BRO"] },
+        { "race": "Werewolf",     "editions": ["ISD", "MID", "EMN", "DKA"] },
+        { "race": "Leonin",       "editions": ["MRD", "DST", "AKH", "IKO"] },
+        { "race": "Red Dragon",   "editions": ["DTK", "TDM", "M19", "IKO"] },
+        { "race": "White Dragon", "editions": ["DTK", "TDM", "M20", "AFR"] },
+        { "race": "Blue Dragon",  "editions": ["DTK", "TDM", "M21", "MH1"] },
+        { "race": "Green Dragon", "editions": ["DTK", "TDM", "IKO", "KHM"] },
+        { "race": "Black Dragon", "editions": ["DTK", "TDM", "AFR", "VOW"] }
+    ]
 }
 

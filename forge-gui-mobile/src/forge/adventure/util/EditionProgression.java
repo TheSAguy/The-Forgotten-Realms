@@ -145,6 +145,26 @@ public class EditionProgression {
     }
 
     /**
+     * The editions Inn tournaments/events may draw from (user spec 2026-08-12): the player's
+     * researched/starting unlocks PLUS the neutral shard (the "unaligned" slice of the 6-way
+     * split - territory no color owns, so its sets are fair tournament stock anywhere). Null
+     * means NO restriction: feature off, no world loaded yet, or nothing to restrict by (a
+     * pre-feature save - consistent with restrictToEditions()' fail-open contract).
+     */
+    public static Set<String> eventAllowedEditionCodes() {
+        WorldSave save = WorldSave.getCurrentSave();
+        World world = save == null ? null : save.getWorld();
+        if (world == null || !world.isEditionProgressionEnabled())
+            return null;
+        Set<String> allowed = new HashSet<>();
+        AdventurePlayer player = AdventurePlayer.current();
+        if (player != null && player.getUnlockedEditions() != null)
+            allowed.addAll(player.getUnlockedEditions());
+        allowed.addAll(getEditionsForColor(world, NEUTRAL));
+        return allowed.isEmpty() ? null : allowed;
+    }
+
+    /**
      * True when at least one of the player's unlocked editions can actually produce a booster
      * pack (has a Draft template) - the "cardPackShop" reward type silently generates nothing
      * otherwise (see RewardData.generate()'s empty-allEditions guard). Fresh saves can start

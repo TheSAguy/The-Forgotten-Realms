@@ -28,6 +28,7 @@ import forge.item.PaperCard;
 import forge.sound.SoundEffectType;
 import forge.sound.SoundSystem;
 import forge.util.ItemPool;
+import forge.util.MyRandom;
 
 import java.io.Serializable;
 import java.util.*;
@@ -241,14 +242,30 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         shards = difficultyData.startingShards;
 
         // Progressive Set Unlocks (MOD_SCOPE.md #4): difficulty-scaled starting unlocked
-        // editions - Easy sees more, Insane sees fewer - drawn from this plane's own curated
-        // starterEditions list (the same pool the starter-deck choice already uses) rather than
-        // a second, separate "core sets" list. The 4/3/2/1 counts are Claude's own proposal, not
-        // user-specified - easy to retune once playtested. Same difficulty-index-lookup pattern
+        // editions - Easy 4, Normal 3, Hard 2, Insane 1. Race-driven (user spec 2026-08-12,
+        // "your starting race you pick has no effect... assign each race a unique expansion"):
+        // the chosen race's 4 lore-assigned editions (ConfigData.raceEditions, keyed by the RAW
+        // heroes.json race name) are the pool, and below-Easy difficulties get a RANDOM pick of
+        // N from them - two Hard runs as the same race can start with different sets. Races
+        // without an entry (or planes without the array) fall back to the flat starterEditions
+        // list, picked randomly too for consistency. Same difficulty-index-lookup pattern
         // EconomyBuildings.difficultyPriceMultiplier() already uses.
         if (Config.instance().getConfigData().editionProgressionEnabled) {
-            String[] starterEditionsPool = Config.instance().getConfigData().starterEditions;
-            if (starterEditionsPool != null && starterEditionsPool.length > 0) {
+            String[] pool = null;
+            String raceName = HeroListData.getRawRaceName(race);
+            RaceEditionData[] raceEditions = Config.instance().getConfigData().raceEditions;
+            if (raceName != null && raceEditions != null) {
+                for (RaceEditionData entry : raceEditions) {
+                    if (entry != null && raceName.equalsIgnoreCase(entry.race)
+                            && entry.editions != null && entry.editions.length > 0) {
+                        pool = entry.editions;
+                        break;
+                    }
+                }
+            }
+            if (pool == null)
+                pool = Config.instance().getConfigData().starterEditions;
+            if (pool != null && pool.length > 0) {
                 int[] startingUnlockCountByDifficultyIndex = {4, 3, 2, 1};
                 DifficultyData[] allDifficulties = Config.instance().getConfigData().difficulties;
                 int difficultyIndex = 1; // default to Normal-equivalent if not found
@@ -261,12 +278,15 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
                     }
                 }
                 int cappedIndex = Math.min(difficultyIndex, startingUnlockCountByDifficultyIndex.length - 1);
-                int startingUnlockCount = Math.min(starterEditionsPool.length, startingUnlockCountByDifficultyIndex[cappedIndex]);
+                java.util.List<String> shuffled = new java.util.ArrayList<>(java.util.Arrays.asList(pool));
+                shuffled.remove("(All)"); // starterEditions carries this UI sentinel - not a set code
+                java.util.Collections.shuffle(shuffled, MyRandom.getRandom());
+                int startingUnlockCount = Math.min(shuffled.size(), startingUnlockCountByDifficultyIndex[cappedIndex]);
                 for (int i = 0; i < startingUnlockCount; i++)
-                    unlockedEditions.add(starterEditionsPool[i]);
+                    unlockedEditions.add(shuffled.get(i));
                 // Diagnostic-only logging - greppable in forge.log as "[TFR-Research]".
-                System.out.println("[TFR-Research] new game, difficulty=" + difficultyData.name
-                        + " -> starting unlocked editions: " + unlockedEditions);
+                System.out.println("[TFR-Research] new game, race=" + raceName + ", difficulty="
+                        + difficultyData.name + " -> starting unlocked editions: " + unlockedEditions);
             }
         }
 

@@ -828,6 +828,18 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`scene/ArenaScene.java`** — `loadArenaData()` pre-filters the enemy pool with an
   empty-pool fallback (also removes an infinite-loop hazard when a pool name can't resolve).
 
+### 2026-08-12 race expansions + Inn tournament lock
+- **`data/AdventureEventData.java`** — first mod edit to this stock file: both event-pool pickers
+  (`pickWeightedCardBlock`, `pickJumpstartCardBlock`) now apply
+  `EditionProgression.eventAllowedEditionCodes()` (null = no restriction, so stock planes and
+  pre-feature saves are untouched).
+- **`data/HeroListData.java`** — first mod edit: new `getRawRaceName(int)` accessor (raw
+  heroes.json name; `getRaces()` returns localized labels).
+- **`player/AdventurePlayer.java`** — `create()`'s starting-unlock seeding is race-driven with
+  random pick-N (see MOD_CHANGELOG); added `forge.util.MyRandom` import.
+- **`data/ConfigData.java`** — new `raceEditions` array field (`RaceEditionData[]`).
+- **`data/RaceEditionData.java`** — NEW mod file (race -> 4 edition codes).
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

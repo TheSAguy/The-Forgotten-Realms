@@ -316,6 +316,30 @@ Validator swaps of note: Llanowar Elves -> Elvish Mystic in GW (Foundations show
 made Elves count Mythic), Gifted Aetherborn/Chupacabra/GFTT -> uncommon equivalents in BG,
 Abrade/Karplusan -> commons in RG (promo printings inflated rare counts past the cap).
 
+## 2026-08-12 (evening): Race starting expansions + Inn tournament lock
+
+**Race-based starting expansions** (MOD_SCOPE.md #4b has the full 16-race table + lore
+reasoning - user spec: "Document this so when we do a Mod write-up we have it"): each race's 4
+assigned expansions live in the plane config.json's new `raceEditions` array (new
+`RaceEditionData` class; keyed by heroes.json's RAW race name via a new
+`HeroListData.getRawRaceName()` accessor - getRaces() returns localized labels, unsafe as keys).
+`AdventurePlayer.create()`'s seeding now resolves the chosen race's pool and picks Easy=4 /
+Normal=3 / Hard=2 / Insane=1 of them AT RANDOM (`MyRandom`) - replacing the old flat
+starterEditions first-N seeding (which also means Insane no longer deterministically starts
+with Jumpstart-only: all 64 race picks are verified Draft-booster-capable, so the Capitol
+booster shop always has stock on a fresh save). starterEditions remains as fallback for races/
+planes without entries. `[TFR-Research]` log line now includes the race.
+
+**Inn tournament edition lock** (MOD_SCOPE.md #4c): new
+`EditionProgression.eventAllowedEditionCodes()` (unlocked editions + neutral shard, null =
+unrestricted) applied at BOTH event-pool choke points in `AdventureEventData`:
+`pickWeightedCardBlock()` (Draft/Sealed - added OUTSIDE the allowedEvents whitelist branch so
+the lock holds regardless) and `pickJumpstartCardBlock()` (keyed on each block's land-set CODE -
+the pre-existing allowedEditions/restrictedEditions checks there compare block NAMES to set
+codes, an effective no-op, documented in place). Editions are chosen at event CREATION (Inn
+entry) and persisted in the save, so existing saves keep their already-rolled events; empty
+pool -> the Inn's existing "No events at this time" path, no crash.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

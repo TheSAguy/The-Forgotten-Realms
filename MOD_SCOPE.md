@@ -270,6 +270,44 @@ assumption are in `MOD_CHANGELOG.md`'s "Progressive Set Unlocks" entry - summary
   `[TFR-LootEditions]` (every roaming-monster reward generation), `[TFR-Research]` (start/complete/
   starting-unlock events) - this whole feature is otherwise invisible, so every decision point logs.
 
+### 4b. Race-Based Starting Expansions — `Done (2026-08-12), not yet playtested`
+Your chosen race now determines which expansions you start with (user spec: "your starting race
+you pick has no effect. Please assign each race a unique expansion"). Each of the 16 races has 4
+lore-assigned expansions; difficulty decides how many you get: **Easy all 4, Normal random 3,
+Hard random 2, Insane random 1** - so below Easy, two runs as the same race can start with
+different sets. Data lives in the plane config.json's `raceEditions` (keyed by heroes.json's raw
+race name); races without an entry fall back to the old flat `starterEditions` list. All 64
+assignments verified to exist and have Draft booster templates (so the Capitol booster shop is
+never empty at start).
+
+**The race table (for the mod write-up):**
+| Race | Expansions | Lore reasoning |
+|------|-----------|----------------|
+| Devil | RNA, TOR, SOI, VOW | Rakdos cultists of Ravnica; the fiends of Torment and Innistrad's devil-haunted nights |
+| Kor | ZEN, BFZ, ZNR, ROE | The nomadic hook-masters of Zendikar, across all its faces |
+| Human | DOM, DMU, M20, M21 | Dominaria, cradle of human civilization, plus the core sets |
+| Elf | LRW, MOR, KHM, ELD | Lorwyn's perfect-obsessed elves, Kaldheim/Eldraine's fae wilds |
+| Metathran | INV, PLS, APC, 8ED | Urza's blue-bred soldiers of the Invasion block |
+| Undead | AKH, HOU, ISD, DKA | Amonkhet's eternalized dead and Innistrad's ghoulcalled hordes |
+| Viashino | GRN, ALA, ARB, DGM | Lizardfolk of Ravnica's Gruul warrens and Alara's Jund |
+| Phyrexian | SOM, MBS, NPH, ONE | The compleation of Mirrodin, start to finish |
+| Dwarf | KLD, AER, KHM, BRO | Kaladesh's master artificers, Kaldheim's forge-clans, the Brothers' War machines |
+| Werewolf | ISD, MID, EMN, DKA | Innistrad, all moons of it |
+| Leonin | MRD, DST, AKH, IKO | Mirrodin's Razor Fields prides and Amonkhet/Ikoria's cat-warriors |
+| Red Dragon | DTK, TDM, M19, IKO | Tarkir's dragonstorms, Bolas-brood core set, Ikoria's apex skies |
+| White Dragon | DTK, TDM, M20, AFR | Tarkir plus D&D's chromatic/metallic dragons |
+| Blue Dragon | DTK, TDM, M21, MH1 | Tarkir, core set, Modern Horizons' elder things |
+| Green Dragon | DTK, TDM, IKO, KHM | Tarkir plus Ikoria/Kaldheim's primal beasts |
+| Black Dragon | DTK, TDM, AFR, VOW | Tarkir, D&D's shadow dragons, Innistrad's night terrors |
+
+### 4c. Inn Tournament Edition Lock — `Done (2026-08-12), not yet playtested`
+Inn tournaments (Draft/Sealed/Jumpstart events) only build from expansions the player has
+researched/started with PLUS the neutral shard (the unaligned slice of the 6-way split). Gated on
+`editionProgressionEnabled`; pre-feature saves are unrestricted (fail-open, consistent with the
+shop restriction). A fully-emptied pool degrades gracefully to the Inn's existing "No events at
+this time." Note: multi-set draft BLOCKS need every set allowed, so early-game (few unlocks)
+events skew toward single-set blocks - by design, research widens the tournament scene.
+
 ### 5. Distance-Scaled AI — `Not Started`
 - AI strength scales with proximity to "the Castle": closer to Castle = stronger.
 - Closer to map center = weaker.

@@ -236,6 +236,15 @@ public class AdventureEventData implements Serializable {
                 filter = filter.and(setPoolFilter);
         }
 
+        // Progressive Set Unlocks (user spec 2026-08-12): Inn tournaments may only use editions
+        // the player has researched/started with, plus the neutral shard. Applied OUTSIDE the
+        // allowedEvents branch above deliberately - the progression lock must hold even when a
+        // plane whitelists events. Null = feature off/unseeded, no restriction. An emptied
+        // result is already graceful: no legal blocks -> null -> "No events at this time".
+        java.util.Set<String> progressionAllowed = forge.adventure.util.EditionProgression.eventAllowedEditionCodes();
+        if (progressionAllowed != null)
+            filter = filter.and(q -> progressionAllowed.contains(q.getCode()));
+
         List<CardEdition> allEditions = new ArrayList<>();
         StreamUtil.stream(editions)
                 .filter(filter)
@@ -309,6 +318,13 @@ public class AdventureEventData implements Serializable {
                 }
             }
         }
+        // Progressive Set Unlocks (user spec 2026-08-12): same restriction as pickWeightedCardBlock,
+        // via each jumpstart block's land-set CODE (this path is otherwise name-keyed - the
+        // allowedEditions/restrictedEditions checks above compare block NAMES against set codes,
+        // an effective no-op; the land set is what getJumpstartBoosters actually deals from).
+        java.util.Set<String> progressionAllowed = forge.adventure.util.EditionProgression.eventAllowedEditionCodes();
+        if (progressionAllowed != null)
+            legalBlocks.removeIf(q -> q.getLandSet() == null || !progressionAllowed.contains(q.getLandSet().getCode()));
         return legalBlocks.isEmpty() ? null : Aggregates.random(legalBlocks);
     }
 
