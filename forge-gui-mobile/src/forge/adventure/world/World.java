@@ -2855,7 +2855,9 @@ public class World implements Disposable, SaveFileContent {
             }
         }
         rebuildFogOfWarPixmap();
-        GameHUD.getInstance().addNotification("[CYAN]Enough of the realm is known that its full shape reveals itself to you - the map is now fully explored.");
+        // authoredMarkup=true, or the tint-BLACK default multiplies the [CYAN] tag away (same
+        // rule GameHUD.addNotification documents; found 2026-08-12 while confirming Stage 2).
+        GameHUD.getInstance().addNotification("[CYAN]Enough of the realm is known that its full shape reveals itself to you - the map is now fully explored.", true);
     }
 
     public boolean isExploredWorld(int x, int y) {
