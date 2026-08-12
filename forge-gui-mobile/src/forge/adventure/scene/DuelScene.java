@@ -443,6 +443,12 @@ public class DuelScene extends ForgeScene {
                 }
             } else if (this.eventData != null) {
                 deck = eventData.nextOpponent.getDeck();
+            } else if (currentEnemy.fixedDeck != null) {
+                // Deck Tester (MOD_SCOPE.md #20, 2026-08-11): the AI plays an EXACT pre-built
+                // Deck (one of the player's own saved decks, not the one they're currently
+                // piloting) rather than anything resolved from `deck`/`randomizeDeck`/
+                // `copyPlayerDeck` - see EnemyData.fixedDeck's own comment.
+                deck = currentEnemy.fixedDeck;
             } else {
                 boolean useGeneticAI = Config.instance().getConfigData().enableGeneticAI && (Current.player().isUsingCustomDeck() || Current.player().isHardorInsaneDifficulty());
                 deck = currentEnemy.copyPlayerDeck ? this.playerDeck : currentEnemy.generateDeck(Current.player().isFantasyMode(), useGeneticAI);

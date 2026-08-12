@@ -310,6 +310,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   **Playtest round 2 fix, same day:** it only ever drew the single strongest guard's icon, even at
   the Capitol (which allows 2 hired guards) - user report: "only 1 icon appeared... will need up
   to two icons." Now loops every hired guard and draws one icon per, offset left-to-right.
+  **Round 3, same day:** each icon now draws at a fixed 12x12 (`GUARD_ICON_DRAW_SIZE`) instead of
+  the source art's native 8x8 - user: "a little small... let's try 12x12." Draw-time upscale only,
+  source crop untouched.
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterest.java`** — added
   `transformInto(PointOfInterestData, Random)` (#7): rebuilds a POI's sprite/rectangle/active-state
   from a *different* data definition in place, used when a captured neutral town becomes a real
@@ -509,7 +512,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   replaces that funnel. Ante-off round (2026-08-11, #20 - missing from this doc until now, added
   when the same file was touched again for Arena Challenge): `initDuels()`'s `rules.
   setPlayForAnte(...)` now also checks `!enemy.getData().noAnte` (new field, see `EnemyData.java`
-  below) alongside the existing global Ante preference.
+  below) alongside the existing global Ante preference. **Deck Tester round (2026-08-11, round 3):**
+  the AI-deck-resolution ternary in the match-building loop gained a new branch, inserted
+  immediately before the chain's final `else` (after the pre-existing `chaosBattle`/
+  `arenaBattleChallenge`/`eventData != null` checks): `else if (currentEnemy.fixedDeck != null)
+  deck = currentEnemy.fixedDeck;` - lets `ArenaScene.launchDeckTester()` hand the AI an exact,
+  arbitrary `Deck` object (see `EnemyData.java` below) instead of anything resolved by name.
 - **`forge-gui-mobile/src/forge/adventure/data/EnemyData.java`** — added `noAnte` (boolean, default
   false, #20) - lets a single fight force Ante off regardless of the player's global preference,
   without touching that preference itself; set only on a per-fight clone (`new EnemyData(enemyData)`
@@ -518,7 +526,13 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `ArenaScene.loadArenaData()`'s new `isChallenge` flag also overrides per-fight, same clone
   pattern) is pre-existing stock Forge, not a mod addition - confirmed via `git log -p` on this
   file, listed here only for context since both fields are touched by the same clone-and-override
-  pattern. **Upgrade/Challenge-toggle round (2026-08-11, playtest round 2):** the pre-entry
+  pattern. **Deck Tester round (2026-08-11, round 3):** added `fixedDeck` (`transient Deck`,
+  default null) - when set, `DuelScene`'s AI-deck-resolution logic uses this exact `Deck` object
+  verbatim instead of resolving one from `deck[]`/`randomizeDeck`/`copyPlayerDeck`. Deliberately
+  NOT copied by the `EnemyData(EnemyData)` clone constructor (unlike `noAnte`/`gamesPerMatch`,
+  which are) - always set explicitly on a fresh per-fight clone right after construction, in
+  `ArenaScene.launchDeckTester()`, never expected to propagate through a second-generation clone.
+  **Upgrade/Challenge-toggle round (2026-08-11, playtest round 2):** the pre-entry
   MapStage dialog (`EconomyBuildings.openArenaEntryDialog()`) that used to gate Upgrade/Challenge
   choices before ArenaScene even loaded is gone (user request: "have the Upgrade be an option
   inside the arena interface vs. a gating menu"). New entry point `enterArenaBuilding(MapStage,
@@ -540,7 +554,22 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   day, later): new `loadArenaData(ArenaData, long, boolean isChallenge)` overload (the original
   2-arg signature delegates to it with `false`) - when `isChallenge` is true, the same clone also
   gets `gamesPerMatch = 1` forced, overriding the roughly 30% of the Challenge enemy pool that
-  otherwise defaults to best-of-3 in `enemies.json`.
+  otherwise defaults to best-of-3 in `enemies.json`. **Deck Tester round (2026-08-11, round 3):**
+  new `deckTesterButton` (visible whenever `level >= 2 && !midMatch`, independent of whether this
+  arena has a Challenge pool), `promptDeckTester()`/`promptDeckTesterAiDeck()` (two sequential
+  raw-`Dialog` deck pickers, same pattern `EconomyBuildings.buildManageGuardsDialog()` established),
+  and `launchDeckTester(int playerDeckIndex, int aiDeckIndex)` - clones the stock "Doppelganger"
+  enemy (colorless, already-valid sprite, ships with `copyPlayerDeck: true` as its own "mirror
+  match" flavor - reused as a low-risk shell) and overrides `copyPlayerDeck = false`, `fixedDeck`
+  (see `EnemyData.java` above), `nameOverride = "Deck Tester"`, `noAnte = true`,
+  `rewards = new RewardData[0]`; temporarily swaps `AdventurePlayer`'s selected deck slot around the
+  `initDuels()` call (restored immediately after - safe since `initDuels()` copies the deck
+  synchronously) so the player pilots a specific saved deck rather than whichever one happens to be
+  globally selected. New `deckTesterMatch` boolean guards the top of the existing `setWinner()`
+  override (`DuelScene.afterGameEnd()`'s automatic `IAfterMatch` callback fires for ANY duel
+  launched while this scene was active, not just bracket duels) - when true, skips all bracket-
+  advancement logic entirely instead of indexing into bracket state that has nothing to do with a
+  Deck Tester match.
 - **`forge-gui-mobile/src/forge/adventure/character/EnemySprite.java`** — added `territoryTarget`/
   `territoryColor` fields (#7, null for every ordinary enemy - only set on a Territory Control
   mage). Combat gold variance (2026-08-09, #9): new `applyGoldVariance()`, called at the end of

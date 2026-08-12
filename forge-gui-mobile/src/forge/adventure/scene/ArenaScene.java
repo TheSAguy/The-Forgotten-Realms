@@ -9,10 +9,12 @@ import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.utils.Array;
 import com.github.tommyettinger.textra.TextraButton;
 import com.github.tommyettinger.textra.TextraLabel;
+import com.github.tommyettinger.textra.TypingLabel;
 import forge.Forge;
 import forge.adventure.character.EnemySprite;
 import forge.adventure.data.ArenaData;
 import forge.adventure.data.EnemyData;
+import forge.adventure.data.RewardData;
 import forge.adventure.data.WorldData;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.IAfterMatch;
@@ -75,6 +77,19 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     private boolean challengeMode = false;
     private final TextraButton arenaUpgradeButton, arenaModeToggleButton;
 
+    // Deck Tester (user spec 2026-08-11, MOD_SCOPE.md #20): a 3rd Arena option, Level 2 only -
+    // player picks 2 of their own saved decks, pilots one themselves, the AI pilots the other, as
+    // a single ordinary duel (no bracket, no rewards, no reputation effect - see
+    // launchDeckTester()'s own comment). Separate from the Upgrade/toggle buttons above since it's
+    // available WHENEVER level >= 2, not mutually exclusive with the mode toggle - both show at
+    // once at Level 2, so this gets its own row rather than sharing a position.
+    private final TextraButton deckTesterButton;
+    // True only while a Deck Tester duel is in flight - setWinner() (the IAfterMatch callback
+    // DuelScene invokes on this scene once ANY duel launched while ArenaScene was active ends,
+    // bracket or not) checks this FIRST and skips all bracket-manipulation logic when set, since
+    // a Deck Tester match has nothing to do with the current bracket's fighters/rounds state.
+    private boolean deckTesterMatch = false;
+
     private ArenaScene() {
         super(Forge.isLandscapeMode() ? "ui/arena.json" : "ui/arena_portrait.json");
         fighterSpot = Config.instance().getAtlasSprite(Paths.ARENA_ATLAS, "Spot");
@@ -127,6 +142,16 @@ public class ArenaScene extends UIScene implements IAfterMatch {
                 doneButton.getY() + doneButton.getHeight() + 10f);
         arenaModeToggleButton.setVisible(false);
         ui.addActor(arenaModeToggleButton);
+
+        // Deck Tester button - one row above Upgrade/toggle (both of which only ever occupy that
+        // row, never both Deck Tester and one of them at the same height), since Deck Tester can
+        // be visible AT THE SAME TIME as arenaModeToggleButton (both just need level >= 2).
+        deckTesterButton = Controls.newTextButton("Deck Tester", this::promptDeckTester);
+        deckTesterButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
+        deckTesterButton.setPosition(doneButton.getX() + doneButton.getWidth() - deckTesterButton.getWidth(),
+                doneButton.getY() + doneButton.getHeight() * 2f + 20f);
+        deckTesterButton.setVisible(false);
+        ui.addActor(deckTesterButton);
     }
 
     /** Entry point for MapStage's "arena" collision case (2026-08-11) - replaces the old pre-entry
@@ -155,6 +180,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         if (arenaMapStage == null) {
             arenaUpgradeButton.setVisible(false);
             arenaModeToggleButton.setVisible(false);
+            deckTesterButton.setVisible(false);
             return;
         }
         boolean midMatch = arenaStarted || roundsWon != 0;
@@ -164,6 +190,10 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         arenaModeToggleButton.setVisible(toggleAvailable);
         if (toggleAvailable)
             arenaModeToggleButton.setText(challengeMode ? "Switch to Normal Arena" : "Switch to Challenging Arena");
+        // Deck Tester (user spec 2026-08-11: "only be available at Arena lvl2") - independent of
+        // challengeArenaJson (unlike the toggle above), since deck testing has nothing to do with
+        // whether this arena even has a Challenge pool.
+        deckTesterButton.setVisible(!midMatch && level >= 2);
     }
 
     private void promptUpgradeArena() {
@@ -193,6 +223,100 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         }
         ArenaData data = JSONStringLoader.parse(ArenaData.class, json, "");
         loadArenaData(data, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), challengeMode);
+    }
+
+    /** Deck Tester step 1 (user spec 2026-08-11, MOD_SCOPE.md #20): "which deck will YOU pilot" -
+     *  lists every non-empty saved deck slot as a button. Built fresh each open, same convention
+     *  as EconomyBuildings' Manage Guards dialog (buildManageGuardsDialog()). */
+    private void promptDeckTester() {
+        if (arenaMapStage == null || arenaStarted || roundsWon != 0)
+            return;
+        int deckCount = AdventurePlayer.current().getDeckCount();
+        boolean anyDeck = false;
+        for (int i = 0; i < deckCount; i++) {
+            if (!Current.player().isEmptyDeck(i)) {
+                anyDeck = true;
+                break;
+            }
+        }
+        if (!anyDeck) {
+            showDialog(createGenericDialog("Deck Tester", "You have no saved decks to test with yet.",
+                    Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, this::removeDialog));
+            return;
+        }
+        Dialog dialog = new Dialog("Deck Tester", Controls.getSkin());
+        TypingLabel label = Controls.newTypingLabel("Choose the deck YOU will pilot:");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+        for (int i = 0; i < deckCount; i++) {
+            if (Current.player().isEmptyDeck(i))
+                continue;
+            int playerDeckIndex = i;
+            String name = Current.player().getDeck(i).getName();
+            dialog.getButtonTable().add(Controls.newTextButton(name, () -> {
+                removeDialog();
+                promptDeckTesterAiDeck(playerDeckIndex);
+            })).width(240f).row();
+        }
+        dialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog(dialog);
+    }
+
+    /** Deck Tester step 2 - "which deck will the AI pilot". No exclusion of playerDeckIndex - a
+     *  same-deck mirror test is a legitimate use case, not a mistake to guard against. */
+    private void promptDeckTesterAiDeck(int playerDeckIndex) {
+        int deckCount = AdventurePlayer.current().getDeckCount();
+        Dialog dialog = new Dialog("Deck Tester", Controls.getSkin());
+        TypingLabel label = Controls.newTypingLabel("Choose the deck the AI will pilot:");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+        for (int i = 0; i < deckCount; i++) {
+            if (Current.player().isEmptyDeck(i))
+                continue;
+            int aiDeckIndex = i;
+            String name = Current.player().getDeck(i).getName();
+            dialog.getButtonTable().add(Controls.newTextButton(name, () -> {
+                removeDialog();
+                launchDeckTester(playerDeckIndex, aiDeckIndex);
+            })).width(240f).row();
+        }
+        dialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog(dialog);
+    }
+
+    /** Launches an ordinary duel where the AI pilots a specific one of the PLAYER's own saved
+     *  decks (via the new EnemyData.fixedDeck field) while the player pilots another of their own
+     *  saved decks (via a temporary selected-deck-slot swap, restored immediately after
+     *  initDuels() has synchronously copied it - see EnemyData.fixedDeck's own comment for why
+     *  this doesn't need to persist any longer than that). No ante, no rewards, no bracket - this
+     *  is purely for the player to test decks against each other, not to progress the Arena run. */
+    private void launchDeckTester(int playerDeckIndex, int aiDeckIndex) {
+        EnemyData base = WorldData.getEnemy("Doppelganger");
+        if (base == null)
+            return;
+        EnemyData testerData = new EnemyData(base);
+        testerData.copyPlayerDeck = false;
+        testerData.fixedDeck = Current.player().getDeck(aiDeckIndex);
+        testerData.nameOverride = "Deck Tester";
+        testerData.noAnte = true;
+        testerData.rewards = new RewardData[0];
+        EnemySprite testerEnemy = new EnemySprite(testerData);
+
+        int originalSlot = Current.player().getSelectedDeckIndex();
+        Current.player().setSelectedDeckSlot(playerDeckIndex);
+        deckTesterMatch = true;
+        enable = false;
+        DuelScene duelScene = DuelScene.instance();
+        duelScene.initDuels(WorldStage.getInstance().getPlayerSprite(), testerEnemy, false, null);
+        Current.player().setSelectedDeckSlot(originalSlot);
+        FThreads.invokeInEdtNowOrLater(() -> Forge.setTransitionScreen(new TransitionScreen(() ->
+                Forge.switchScene(duelScene),
+                Forge.takeScreenshot(), true, false, false, false, "", Current.player().avatar(),
+                testerEnemy.getAtlasPath(), Current.player().getName(), testerEnemy.getName())));
     }
 
     private void showAreYouSure() {
@@ -257,6 +381,17 @@ public class ArenaScene extends UIScene implements IAfterMatch {
 
     @Override
     public void setWinner(boolean winner, boolean isArena) {
+        // Deck Tester (2026-08-11) - DuelScene.afterGameEnd() invokes this IAfterMatch callback
+        // after ANY duel launched while ArenaScene was the active scene, bracket or not. A Deck
+        // Tester match has no bracket state (fighters/enemies/roundsWon are whatever the last real
+        // Arena run left them at, possibly empty) - skip the bracket logic entirely and just
+        // restore the screen.
+        if (deckTesterMatch) {
+            deckTesterMatch = false;
+            enable = true;
+            refreshArenaBuildingButtons();
+            return;
+        }
         enable = false;
         Array<ArenaRecord> winners = new Array<>();
         Array<EnemySprite> winnersEnemies = new Array<>();

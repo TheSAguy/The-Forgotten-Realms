@@ -6867,3 +6867,79 @@ independently-consumed eligibility marker for random side-quest target selection
 
 Pure data changes (`items.json`, `points_of_interest.json`) - no Java touched, no compile needed.
 Deployed directly (both files copied to the installed game).
+
+## Guard icon size, Outlook info text, Arena Deck Tester (2026-08-11, round 3)
+
+Three independent requests in one message.
+
+**Guard map-indicator icons enlarged 8x8 -> 12x12.** `PointOfInterestMapSprite.drawGuardIndicator()`
+now draws each guard-tier icon at a fixed `GUARD_ICON_DRAW_SIZE = 12f` via explicit `batch.draw()`
+width/height, instead of the texture region's own native size. Source art unchanged - still the
+same 8x8 crops in `guard_icons.atlas` - this is a draw-time upscale only (safe/crisp since the atlas
+is Nearest-filtered like every other asset here, same as every other pixel-art sprite in the mod).
+
+**Outlook info dialog now actually explains the building.** Clicking a built Outlook previously
+opened a dialog with no explanatory text at all. `EconomyBuildings.refreshOutlookInfoDialog()`
+now adds a `TypingLabel` describing what it does, worded dynamically rather than hardcoded: the
+vision-radius line reads "x2" for an ordinary town or "x3" for the Capitol
+(`TownRestoration.isCurrentTownCapitol()`, matching `World.getTownVisionRadiusTiles()`'s real
+per-town-type multiplier), and the defense line names the actual 5% figure
+(`TerritoryControl.OUTLOOK_DEFENSE_BONUS`) rather than a guessed number.
+
+**Arena Deck Tester - a 3rd Arena option, Level 2 only, per user spec**: "select two of the
+player's decks. The AI would play one and the Player the other, this way a player can test his
+decks." Implemented as a single ordinary `DuelScene` match rather than any new match type:
+
+- New `ArenaScene` button (`deckTesterButton`), positioned one row above the existing Upgrade/
+  Challenge-toggle buttons since it can be visible at the same time as the toggle (both just need
+  `level >= 2 && !midMatch`; Deck Tester doesn't care whether this arena even has a Challenge pool,
+  unlike the toggle). Wired to `promptDeckTester()`.
+- **Two sequential picker dialogs**, built directly against raw `scene2d.ui.Dialog` (same pattern
+  as `EconomyBuildings.buildManageGuardsDialog()`) rather than the DialogData/ActionData system:
+  step 1 "Choose the deck YOU will pilot", step 2 "Choose the deck the AI will pilot" - both list
+  every non-empty saved deck slot (`AdventurePlayer.getDeckCount()`/`getDeck(i)`/`isEmptyDeck(i)`).
+  No exclusion of the step-1 pick from step 2's list - piloting the same deck on both sides (a
+  mirror test) is a legitimate, allowed choice, not a mistake to guard against.
+- **New `EnemyData.fixedDeck`** (`transient Deck`, not carried by the `EnemyData` copy constructor
+  since it's always set explicitly on a fresh per-fight clone, never meant to propagate through a
+  second-generation clone or survive save/load): when set, `DuelScene`'s AI-deck-resolution ternary
+  uses this exact `Deck` object for the AI side instead of resolving one from `deck[]`/
+  `randomizeDeck`/`copyPlayerDeck` by name. New branch inserted immediately before the existing
+  chain's final `else` (after the pre-existing `chaosBattle`/`arenaBattleChallenge`/`eventData`
+  checks): `else if (currentEnemy.fixedDeck != null) deck = currentEnemy.fixedDeck;`.
+- **Player side**: no new mechanism needed - `DuelScene.initDuels()` already reads
+  `Current.player().getSelectedDeck()` synchronously at call time. `launchDeckTester()` temporarily
+  calls `AdventurePlayer.setSelectedDeckSlot(playerDeckIndex)` right before `initDuels()`, then
+  restores the player's real original slot immediately after (safe, since the deck copy already
+  happened synchronously inside that call - nothing downstream re-reads the live selected slot).
+- **AI-side `EnemyData` shell**: cloned from the stock "Doppelganger" enemy
+  (`WorldData.getEnemy("Doppelganger")` - colorless, life 20, not a boss, and notably already ships
+  with `copyPlayerDeck: true` baked in as its own "mirror match" flavor) rather than building a
+  synthetic `EnemyData` from scratch, which would risk a broken/blank avatar since `EnemySprite`'s
+  constructor requires a valid, already-existing sprite atlas path. Cloned via the established
+  clone-then-override convention (same pattern `ArenaScene.loadArenaData()` already uses for
+  `noAnte`): `copyPlayerDeck = false` (so `fixedDeck` actually takes effect - the ternary checks
+  `fixedDeck` first, but this keeps the clone's intent unambiguous), `fixedDeck = <the AI's picked
+  Deck>`, `nameOverride = "Deck Tester"`, `noAnte = true`, `rewards = new RewardData[0]` (no loot
+  from a test match).
+- **`setWinner()` guard, the one non-obvious integration risk**: `DuelScene.afterGameEnd()` calls
+  `Forge.switchToLast()` then, if that scene implements `IAfterMatch` (which `ArenaScene` does),
+  automatically calls its `setWinner(winner, isArena)` - unconditionally, for ANY duel launched
+  while that scene was active, not just duels the scene itself started as part of a bracket. Without
+  a guard, a Deck Tester win/loss would fall straight into the existing bracket-advancement logic
+  (`fighters`/`enemies` array indexing, `roundsWon` increment) using whatever unrelated bracket
+  state happened to be left over from the last real Arena run - likely a crash, at best nonsensical
+  UI. Fixed with a new `deckTesterMatch` boolean, set `true` right before launching a Deck Tester
+  duel and checked first thing in `setWinner()`: when true, skip all bracket logic entirely, just
+  clear the flag, re-enable input, and refresh the building buttons.
+- Colorless shell + `isArena=false` + no `eventData` together mean this doesn't touch
+  `ColorReputation` (colorless enemies and non-Arena-tagged... actually Arena-*adjacent* but not
+  bracket-tracked matches are covered by the colorless no-op specifically, confirmed by reading
+  `ColorReputation.onPlayerWonDuel()`) - a Deck Tester match has zero reputation side effects,
+  matching the "just for testing" intent.
+
+Compiled clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o -q`, one checkstyle
+unused-import catch - an `import forge.deck.Deck;` added speculatively, never actually needed since
+`Deck` is only ever handled via the already-typed `EnemyData.fixedDeck`/`AdventurePlayer.getDeck()`
+return values, no local variable of that type). Deployed via jar splice only - no resource/asset
+files changed this round, pure Java.

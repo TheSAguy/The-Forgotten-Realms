@@ -1497,7 +1497,7 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; deck-test mode not yet built)
+### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; Deck Tester mode built same day, round 3)
 - **"No ant in Arena" resolved**: means Ante (the mechanic where match winner takes a card from the
   loser's deck - "ant" was a typo missing the "e"), which is on by default for every match
   currently. **Built**: Ante is now force-disabled for Arena matches specifically (new
@@ -1541,10 +1541,26 @@ to depend on each other.
   appears when `arenaChallenge` exists AND the building is Level 2 - every other arena in the game
   (the 5 AI capitals') has no `arenaChallenge` property and silently gets no button at all, so
   upgrading an AI capital's Arena (if that's ever even reachable) can't hit a missing-property crash.
-- **Deck-test mode still not started.** Per spec: the player picks 2 of their own saved decks,
-  **pilots one themselves** (an ordinary duel from their side), AI pilots the other - simpler than
-  first scoped, since it's just an ordinary `DuelScene` match where the opponent's deck happens to
-  be player-supplied instead of a canonical enemy `.dck` file.
+- **Deck Tester - built (2026-08-11, round 3), not yet playtested.** Per spec: the player picks 2
+  of their own saved decks, **pilots one themselves** (an ordinary duel from their side), AI pilots
+  the other - a plain `DuelScene` match where the opponent's deck happens to be player-supplied
+  instead of a canonical enemy `.dck` file. New `ArenaScene` button, visible only at Level 2 (same
+  gate as the Challenge toggle, but independent of whether this arena even has a Challenge pool),
+  hidden mid-run same as the other two building buttons. Two sequential picker dialogs (which deck
+  YOU pilot, then which deck the AI pilots - no exclusion between them, a same-deck mirror test is
+  allowed) list every non-empty saved deck slot (`AdventurePlayer.getDeckCount()`/`getDeck()`/
+  `isEmptyDeck()`). Mechanism: new `EnemyData.fixedDeck` (transient `Deck` field, checked in
+  `DuelScene`'s AI-deck-resolution ternary ahead of `copyPlayerDeck`/`generateDeck()`) lets the AI
+  pilot an arbitrary pre-picked `Deck` object instead of anything resolved by name; the player's
+  side is handled by a temporary `AdventurePlayer.setSelectedDeckSlot()` swap around the
+  `initDuels()` call (restored immediately after, since `initDuels()` copies the deck synchronously
+  at call time). The AI-side `EnemyData` is a clone of the stock "Doppelganger" enemy (colorless,
+  already ships with `copyPlayerDeck:true` baked in as its own "mirror match" flavor - reused here
+  as a low-risk shell with a guaranteed-valid sprite/avatar, then overridden with `nameOverride:
+  "Deck Tester"`, `noAnte:true`, `rewards: []`). A `deckTesterMatch` guard flag in `ArenaScene`
+  makes `setWinner()` (the automatic `IAfterMatch` callback `DuelScene.afterGameEnd()` fires on
+  whichever scene launched the duel) skip all bracket-manipulation logic for a Deck Tester match,
+  since it has no bracket/round state of its own - just resets the screen instead.
 
 ### 21. Speed Up All Monsters — `Not Started`
 - User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
@@ -1597,6 +1613,11 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   built Outlook standing if the player lost it after building one, but the user's ask was framed
   around defending the player's own towns, so this was left AI-vs-AI-unaffected pending explicit
   scope from the user if that matters.
+- **Outlook info dialog now explains itself (2026-08-11, round 3)**: clicking a built Outlook used
+  to open an empty/action-less dialog. `EconomyBuildings.refreshOutlookInfoDialog()` now shows real
+  text - vision-radius multiplier worded dynamically (x2 town / x3 Capitol, matching
+  `getTownVisionRadiusTiles()`'s actual behavior rather than a hardcoded guess) plus the real 5%
+  capture-chance reduction named above (`OUTLOOK_DEFENSE_BONUS`).
 - **"Sacked" outcome (2026-08-11, same round)**: even a successful capture isn't guaranteed to
   stick - a separate 20% roll (`ATTACKER_SACKS_TOWN_CHANCE`) can revert the town to a neutral ruin
   instead ("they won the town, but sacked it"), only ever rolled after a genuine contest (never for
@@ -1623,11 +1644,35 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   per the user's mockup), drawn in `PointOfInterestMapSprite.draw()` - the strongest guard's icon
   only, bottom-left corner, even at a 2-guard Capitol. **Fixed same day (playtest round 2)**: now
   draws one icon per hired guard (up to 2 at the Capitol), not just the single strongest.
+  **Enlarged (2026-08-11, round 3)**: drawn at a fixed 12x12 instead of the source art's native 8x8
+  (user: "a little small... let's try 12x12") - source crop unchanged, just scaled up at draw time.
 
-### 23. Gold Icon in Bank — `Not Started`
-- User idea (2026-08-11), not yet scoped or discussed in detail - presumably the Bank dialog's
-  balance/deposit/withdraw rows (`EconomyBuildings.refreshBankDialog()`), which are plain text
-  right now (`"Deposited: N gold"`, etc.) with no actual gold icon alongside the number.
+### 23. Resource Icons on Building/Shop Menus — `Not Started` (re-raised + expanded 2026-08-11, round 3)
+- Original ask (2026-08-11): a gold icon next to the Bank's Deposit/Withdraw amounts
+  (`EconomyBuildings.refreshBankDialog()`), plain text right now (`"Deposited: N gold"`).
+- **Expanded same day, round 3**: apply the same treatment - resource icon(s) inline after every
+  cost/amount - across ALL shop/building dialogs, not just the Bank: Guard hiring costs
+  (`buildManageGuardsDialog()`), and every repair/construction/upgrade cost (Job Board restore,
+  individual shop rebuild, `BUILDING_UPGRADE_COST` Arena/Armory upgrades, Archaeologist's 1000g,
+  etc). Explicit reference point: "you did a great job on the exchange shop menu... I want all
+  other shops to follow that pattern" - the Exchange dialog's existing icon+amount row layout
+  (`EconomyBuildings`'s `Trade` inner class / its resource-icon `Image` + label pairing) is the
+  template to extend everywhere else, not a new design.
+- **Also raised in the same message, likely belongs here rather than as a separate feature**: most
+  costs across the mod are currently a flat placeholder ~100g (explicitly called out by the user as
+  "basically a placeholder... will be adjusted pretty soon to be a combination of gold/wood/stone/
+  shards") - the icon work may end up threading through whatever multi-resource cost values that
+  rework lands on, not just gold icons next to gold-only costs.
+- **Difficulty price multiplier - new idea, same message, not yet scoped**: current prices assumed
+  to represent Normal difficulty; scale by difficulty tier - Easy 25% cheaper, Hard 25% more,
+  Insane 50% more (Normal itself unmodified, i.e. baseline 1.0x). Not yet clarified: which costs
+  this covers (all of the above, or a subset), where the multiplier table should live (a new
+  `EconomyBuildings` helper keyed off `AdventurePlayer`'s difficulty, parallel to the existing
+  per-difficulty scaling patterns already used elsewhere - e.g. FoW vision radius tiers, per-color
+  mage caps), and whether it composes with the reputation-tier price modifiers `ShopActor.
+  getPriceModifier()` already applies (#1) or is a separate multiplicative layer.
+- Needs its own scoping pass with the user before implementation - large surface area (every
+  building dialog) plus a new cross-cutting pricing mechanic, not a small follow-up.
 
 ### 24. Archaeologist Building — `Built (2026-08-11); redesigned + real art + cost added same day (playtest round 2), not yet playtested`
 - **User spec (verbatim, 2026-08-11)**: "Archeologist building. Capitol only building. - sends out

@@ -551,7 +551,15 @@ public class EconomyBuildings {
         dialog.getContentTable().clear();
         dialog.getButtonTable().clear();
         dialog.clearListeners();
-        TypingLabel label = Controls.newTypingLabel("Outlook\nDoubles this town's fog-of-war vision radius.");
+        // Explanatory text (user request 2026-08-11: "have some text that tells the player what
+        // it does") - the multiplier line is worded dynamically (x2 town / x3 Capitol) rather
+        // than hardcoded, matching getTownVisionRadiusTiles()'s own actual behavior; the defense
+        // line names the real OUTLOOK_DEFENSE_BONUS value (TerritoryControl.java) rather than a
+        // rounded guess.
+        boolean isCapitol = TownRestoration.isCurrentTownCapitol();
+        TypingLabel label = Controls.newTypingLabel("Outlook\nExpands this " + (isCapitol ? "Capitol" : "town")
+                + "'s fog-of-war vision radius (x" + (isCapitol ? "3" : "2")
+                + ") and reduces an attacking mage's chance to capture it by 5%.");
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();

@@ -73,6 +73,13 @@ public class PointOfInterestMapSprite extends MapSprite {
     // here (order doesn't matter, just that both show). A peek (not get) lookup - this runs every
     // frame this POI is on-screen, and must never lazily create a PointOfInterestChanges entry
     // for every town the player merely scrolls past.
+    // Drawn size (2026-08-11 user request: "a little small... let's try 12x12") - the source art
+    // is still the native 8x8 crop (`guard_icons.atlas`'s own region size), just scaled up at
+    // draw time via explicit width/height rather than icon.getRegionWidth()/getRegionHeight() -
+    // the atlas is Nearest-filtered like every other asset in this project, so the 1.5x upscale
+    // stays crisp/pixel-art-consistent, no new art needed.
+    private static final float GUARD_ICON_DRAW_SIZE = 12f;
+
     private void drawGuardIndicator(Batch batch, float parentAlpha) {
         PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(pointOfInterest.getID());
         if (changes == null || changes.getGuardCount() == 0)
@@ -89,8 +96,8 @@ public class PointOfInterestMapSprite extends MapSprite {
             TextureRegion icon = EconomyBuildings.getGuardTierIconSprite(changes.getGuardTier(i));
             if (icon == null)
                 continue;
-            batch.draw(icon, getX() + xOffset, getY(), icon.getRegionWidth(), icon.getRegionHeight());
-            xOffset += icon.getRegionWidth();
+            batch.draw(icon, getX() + xOffset, getY(), GUARD_ICON_DRAW_SIZE, GUARD_ICON_DRAW_SIZE);
+            xOffset += GUARD_ICON_DRAW_SIZE;
         }
         batch.setColor(pr, pg, pb, pa);
     }

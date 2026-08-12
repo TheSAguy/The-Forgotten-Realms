@@ -58,6 +58,13 @@ public class EnemyData implements Serializable {
     // set true only on a per-fight clone (see ArenaScene.loadArenaData()), same pattern the
     // Capitol-defense duel already uses for a one-off gamesPerMatch override.
     public boolean noAnte = false;
+    // Mod addition (Deck Tester, 2026-08-11): when set, DuelScene uses this exact Deck for the AI
+    // side instead of resolving one from `deck`/`randomizeDeck` by name or via `copyPlayerDeck` -
+    // lets the AI pilot one of the PLAYER's own saved decks (not the one they're currently
+    // piloting) for deck-testing purposes. Never set in enemies.json data; only on a per-fight
+    // synthetic clone (see ArenaScene.launchDeckTester()). transient - never meant to survive a
+    // save/load, and Deck isn't a type this class's declared Serializable contract should carry.
+    public transient Deck fixedDeck = null;
 
     public EnemyData() {
     }
