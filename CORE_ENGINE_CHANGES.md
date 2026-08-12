@@ -795,7 +795,11 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   `isTemporarilyRevealed()` `isEmpty()` fast path.
 - **`util/TownRestoration.java`** — Capitol upgrade routes a built Armory onto the reserved
   Capitol Armory slot (new `readCapitolArmorySlotId()`), migrates hired guards, and memoizes
-  `readMapObjects()` per mapPath.
+  `readMapObjects()` per mapPath. Same-day follow-up: armory detection now via the shared
+  `EconomyBuildings.isArmoryShopName()` (the "EquipmentL2" L2-variant escape), excludes every
+  armory-named rebuilt shop, and `repairCapitolState()` strips armory pins off regular slots.
+- **`util/EconomyBuildings.java`** — new `isArmoryShopName(String)` single shared armory-family
+  matcher (strips the "L2" suffix); `isArmoryShop(ShopData)` now delegates to it.
 - **`util/EditionProgression.java`** (mod-added, inventoried below) — deep-clones `cardUnion` in
   `restrictToEditions()`; new `restrictShopRewardsForCurrentTown()` +
   `playerHasBoosterCapableUnlockedEdition()`.

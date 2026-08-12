@@ -470,22 +470,29 @@ public class TownRestoration {
         java.util.Map<Integer, String> rebuiltShopNames = new java.util.HashMap<>();
         Integer oldArmoryId = null;
         for (forge.adventure.character.ShopActor shopActor : stage.getShopActors()) {
-            if (plainRebuiltIds.contains(shopActor.getObjectId()) && shopActor.getShopData() != null) {
+            if (plainRebuiltIds.contains(shopActor.getObjectId()) && shopActor.getShopData() != null)
                 rebuiltShopNames.put(shopActor.getObjectId(), shopActor.getShopData().name);
-                if (EconomyBuildings.isArmoryShop(shopActor.getShopData()))
-                    oldArmoryId = shopActor.getObjectId();
-            }
         }
-        if (oldArmoryId != null) {
-            // The Armory isn't tracked in economyObjectIds (it's not an EconomyBuildings.java
-            // type, just a plain shop with a fixed Armory shopList), so without this it fell into
-            // the generic plainRebuiltIds bucket and migrated onto an ordinary Capitol shop slot -
-            // while the Capitol's own dedicated, noMigrate-reserved Armory slot (see
-            // isReservedSlot()) was left as separately-buildable rubble. Real bug, user-reported
-            // 2026-08-12: upgrading a town that already had a built Armory produced two working
-            // Armories. Route it like the Inn below instead - onto the Capitol's own Armory slot.
-            plainRebuiltIds.remove(oldArmoryId);
+        // The Armory isn't tracked in economyObjectIds (it's not an EconomyBuildings.java type,
+        // just a plain shop with a fixed Armory shopList), so without this it falls into the
+        // generic plainRebuiltIds bucket and migrates onto an ordinary Capitol shop slot - while
+        // the Capitol's own dedicated, noMigrate-reserved Armory slot (see isReservedSlot()) is
+        // left separately buildable. Real bug, user-reported 2026-08-12 TWICE: first as a plain
+        // duplicate, then again after the first fix because the town Armory had been upgraded and
+        // its resolved name was "EquipmentL2" - which the old inline isArmoryShop() patterns
+        // didn't match. Detection now runs over the captured NAMES via the single shared
+        // isArmoryShopName() predicate (which strips the L2 suffix), and excludes EVERY match,
+        // not just the last one seen.
+        java.util.Iterator<java.util.Map.Entry<Integer, String>> nameIter = rebuiltShopNames.entrySet().iterator();
+        while (nameIter.hasNext()) {
+            java.util.Map.Entry<Integer, String> entry = nameIter.next();
+            if (!EconomyBuildings.isArmoryShopName(entry.getValue()))
+                continue;
+            if (oldArmoryId == null)
+                oldArmoryId = entry.getKey(); // first one carries its building level across below
+            plainRebuiltIds.remove(entry.getKey());
             plainRebuiltShops--;
+            nameIter.remove(); // never pinnable onto a regular capital slot
         }
         Integer oldRadius = world.getTownTerritoryRadius(point.getID());
 
@@ -619,9 +626,10 @@ public class TownRestoration {
     }
 
     /** Among the capital layout's reserved shop slots, the one that's specifically the Armory (as
-     *  opposed to a land shop or the dedicated Booster shop) - matched the same way
-     *  EconomyBuildings.isArmoryShop() matches a resolved ShopData name, but read directly off the
-     *  object's own baked-in commonShopList property so no ShopData resolution is needed here. */
+     *  opposed to a land shop or the dedicated Booster shop) - matched via the ONE shared
+     *  EconomyBuildings.isArmoryShopName() predicate (an earlier inline copy of its patterns here
+     *  is exactly the kind of drift that let "EquipmentL2" slip through the migration). Read off
+     *  the object's own baked-in commonShopList property, so no ShopData resolution is needed. */
     private static Integer readCapitolArmorySlotId(String mapPath) {
         for (com.badlogic.gdx.utils.XmlReader.Element object : readMapObjects(mapPath)) {
             if (!object.getAttribute("template", "").endsWith("shop.tx") || !isReservedSlot(object))
@@ -632,8 +640,7 @@ public class TownRestoration {
             for (com.badlogic.gdx.utils.XmlReader.Element property : properties.getChildrenByName("property")) {
                 if (!"commonShopList".equals(property.getAttribute("name", "")))
                     continue;
-                String value = property.getAttribute("value", "");
-                if (value.endsWith("Equipment") || value.endsWith("Items") || value.startsWith("Armory"))
+                if (EconomyBuildings.isArmoryShopName(property.getAttribute("value", "")))
                     return object.getIntAttribute("id");
             }
         }
@@ -737,6 +744,20 @@ public class TownRestoration {
         for (int reservedSlot : reservedSlots)
             changes.removePinnedShopName(reservedSlot);
         java.util.List<Integer> regularSlots = readCapitolShopObjectIds(mapPath);
+        // The Armory may only ever exist on its reserved slot - strip any armory-family pinned
+        // name a buggy earlier migration left on a REGULAR slot (the "EquipmentL2" escape,
+        // 2026-08-12: an upgraded town Armory's L2 shop name slipped past the old matcher and got
+        // pinned onto the first regular capital slot). The slot keeps its rebuilt flag and simply
+        // re-rolls from its own tmx shopList; also repairs the user's already-affected save on
+        // next load without any migration machinery.
+        for (int slot : regularSlots) {
+            String pinned = changes.getPinnedShopName(slot);
+            if (pinned != null && EconomyBuildings.isArmoryShopName(pinned)) {
+                changes.removePinnedShopName(slot);
+                System.out.println("[TownRestoration] Capitol repair: stripped armory pin \"" + pinned
+                        + "\" from regular slot " + slot);
+            }
+        }
         for (java.util.Map.Entry<Integer, Integer> entry : changes.getEconomyBuildingObjectIds().entrySet()) {
             int objectId = entry.getValue();
             if (!reservedSlots.contains(objectId))

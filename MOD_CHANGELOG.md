@@ -218,6 +218,23 @@ tmx slot swap; no load-time backfill of edition shards/`unlockedEditions` for pr
 (the restriction fails open there by design of `restrictToEditions()`'s empty-list contract) -
 testing is fresh-game only right now.
 
+**Same-day follow-up (playtest of the fixes above): the duplicate Armory came BACK, root-caused
+via forge.log to a THIRD matcher drift.** The user's town Armory was upgraded to Level 2 before
+the Capitol upgrade, so its resolved shop name was "EquipmentL2" (MapStage's `shopList + "L2"`
+redirect) - which `isArmoryShop()`'s patterns (`*Equipment`/`*Items`/`Armory*`) don't match, so
+the migration exclusion never fired and the Armory was pinned onto regular slot 63 again.
+Fixed at the altitude the review had already recommended: ONE shared
+`EconomyBuildings.isArmoryShopName(String)` predicate (strips the L2 suffix first) now backs
+`isArmoryShop()`, the migration exclusion (which also now excludes EVERY armory-named rebuilt
+shop, not just the last seen), and `readCapitolArmorySlotId()` (whose inline pattern copy is
+gone). `repairCapitolState()` additionally strips any armory-family pinned name from a REGULAR
+capital slot on load - which repairs the user's already-affected save without migration
+machinery (the slot keeps its rebuilt flag and re-rolls its own generic list).
+**Research Lab rows reworked per same-session feedback:** each row now reads
+"Name (owned/needed) - N,NNN cards" (total card count of the expansion), the Research button
+moved to sit left next to the name, and the cost uses the `[+Gold]` glyph instead of "375g" -
+resource glyphs in cost UI are now a STANDING STANDARD for all future mod UI (user spec).
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

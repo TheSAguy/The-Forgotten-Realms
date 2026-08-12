@@ -505,14 +505,25 @@ public class EconomyBuildings {
         return data != null && data.name != null && data.name.contains("Booster");
     }
 
+    /**
+     * The ONE armory-family name matcher - every caller (button gating, Capitol migration,
+     * reserved-slot lookup) must go through this, never inline the patterns. This rule has now
+     * drifted twice: 2026-08-11 the "Armory<Rarity>" names silently stopped matching the
+     * suffix-only check, and 2026-08-12 the Level-2 variants ("EquipmentL2", via MapStage's
+     * shopList + "L2" redirect) slipped past ALL the patterns - so an upgraded town Armory
+     * migrated onto an ordinary Capitol slot as a plain shop, re-creating the exact duplicate-
+     * Armory bug the migration special-case had just fixed for Level 1.
+     */
+    public static boolean isArmoryShopName(String name) {
+        if (name == null)
+            return false;
+        if (name.endsWith("L2"))
+            name = name.substring(0, name.length() - 2);
+        return name.endsWith("Equipment") || name.endsWith("Items") || name.startsWith("Armory");
+    }
+
     public static boolean isArmoryShop(ShopData data) {
-        // "Armory<Rarity>" (ArmoryCommon/Uncommon/Rare/Mythic - the Capitol's own rarity-tiered
-        // shop names, added by the 2026-08-10 item economy overhaul) needs its own check
-        // alongside the older "*Equipment"/"*Items" suffix match (still used by the 5 AI
-        // capitals' and generic player-town shops) - found 2026-08-11 while this suffix check
-        // was silently no longer matching the player's own Capitol Armory.
-        return data != null && data.name != null
-                && (data.name.endsWith("Equipment") || data.name.endsWith("Items") || data.name.startsWith("Armory"));
+        return data != null && isArmoryShopName(data.name);
     }
 
     // The Capitol's 6 fixed basic-land shops (player_capital.tmx, commonShopList "Plains"/

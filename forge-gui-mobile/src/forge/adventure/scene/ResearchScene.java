@@ -219,25 +219,30 @@ public class ResearchScene extends UIScene {
             boolean eligible = owned >= threshold;
             boolean canAfford = player.getGold() >= cost;
 
-            TypingLabel nameLabel = Controls.newTypingLabel(ed.getName() + " (" + owned + "/" + threshold + ")");
+            // "Name (owned/needed) - N cards" (user spec 2026-08-12: show the expansion's total
+            // card count alongside what's needed to start researching).
+            TypingLabel nameLabel = Controls.newTypingLabel(ed.getName() + " (" + owned + "/" + threshold
+                    + ") - " + String.format("%,d", total) + " cards");
             nameLabel.skipToTheEnd();
             nameLabel.setWrap(true);
             nameLabel.setColor(researched ? Color.DARK_GRAY : (eligible ? Color.BLACK : Color.GRAY));
-            scrollContainer.add(nameLabel).align(Align.left).expandX();
+            scrollContainer.add(nameLabel).align(Align.left).width(250f);
 
             if (researched) {
                 TypingLabel doneLabel = Controls.newTypingLabel("Researched");
                 doneLabel.skipToTheEnd();
                 doneLabel.setColor(Color.DARK_GRAY);
-                scrollContainer.add(doneLabel).align(Align.center).padRight(10);
+                scrollContainer.add(doneLabel).align(Align.left).expandX().padLeft(6);
             } else {
-                TextraButton researchButton = Controls.newTextButton("Research (" + cost + "g)", () -> {
+                // [+Gold] resource glyph, not a "g" suffix - standard for every cost label/button
+                // (user spec 2026-08-12, matching the Armory/Arena upgrade buttons).
+                TextraButton researchButton = Controls.newTextButton("Research (" + cost + "[+Gold])", () -> {
                     player.takeGold(cost);
                     player.startResearch(code, currentDay);
                     buildList();
                 });
                 researchButton.setDisabled(!eligible || inProgress != null || !canAfford);
-                scrollContainer.add(researchButton).align(Align.center).padRight(10);
+                scrollContainer.add(researchButton).align(Align.left).expandX().padLeft(6);
                 addToSelectable(researchButton);
             }
             scrollContainer.row().padTop(5);
