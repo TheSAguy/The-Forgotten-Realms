@@ -7310,3 +7310,189 @@ remaining `Landscape Sketchbook` matches). Mirrored `world_standings.json` and `
 installed game. Not yet playtested - this round in particular (Shop Type Re-Roll especially) has a
 lot of surface area that only a real screenshot/playtest round can actually confirm works as
 intended, same as every other round this session.
+
+## Progressive Set Unlocks (2026-08-12, MOD_SCOPE.md #4)
+
+The mod's biggest single feature to date. Combines the user's original wishlist sketch (small
+starting subset of expansions, collect cards to research/unlock a set at a lab) with a much fuller
+design the user proposed in chat: editions split randomly by color, roaming-monster loot as the
+discovery hook, AI-color towns permanently locked to their own shard, a real Research screen.
+Built in one long round after a design-and-verify pass (checked the actual shop-generation and
+enemy-reward code before promising anything was possible, since the first-draft mechanism - a
+single global card-pool filter - would have silently broken the discovery loop; see "Corrected
+mechanism" below).
+
+### Opt-in flag
+New `ConfigData.editionProgressionEnabled` (default false), on in `The Forgotten Realms/config.json`.
+Same pattern as every other mod feature - inert on every other plane.
+
+### Edition sharding (`EditionProgression.java`, new file)
+`getMasterEditionList()` - every real, obtainable edition: `CardEdition.Predicates.CAN_MAKE_BOOSTER`
++ `hasBoosterTemplate()` (the exact filter the existing `"cardPackShop"` booster-generation code in
+`RewardData.java` already used), minus this plane's `restrictedEditions`. `seedColorShards(World)` -
+shuffles that list with the world's own seeded `Random` (reproducible from the world seed), then
+deals editions round-robin across 5 colors + `"neutral"` (`GROUPS` constant) so every group gets a
+near-equal share instead of each edition independently rolling 1-of-6 (which could hand one color a
+lopsided majority by chance alone). Called once from `World.generateNew()`, gated on the new
+`World.isEditionProgressionEnabled()`. Result persisted on a new `World.colorEditionShards`
+(`Map<String, List<String>>`, same load/save/NG+-reset pattern as `colorTerritoryRadius` -
+including the NG+ `.clear()` fix, since a fresh game needs a fresh split, not a stale one carried
+over from the previous game in the same app session).
+
+"Neutral" (`EditionProgression.NEUTRAL`) is what genuinely-colorless enemies and non-color-owned
+towns draw from - user confirmed this reading of their own spec ("the 6th will be Neutral/Player
+color") directly: it's the wasteland/non-colored-encounter bucket, not a second player-specific
+list.
+
+### Corrected mechanism: clone-and-restrict, not a global filter
+First-draft plan (from the design discussion, before any code was written) was a single filter on
+`RewardData.allCards`/`initializeAllCards()`'s static cache, matching how `allowedEditions`/
+`restrictedEditions` already work. Checked the actual generation code before building it and found
+a real problem: that same cached pool feeds BOTH shop generation AND roaming-monster combat
+rewards. A global filter to the player's `unlockedEditions` would have also filtered combat loot -
+completely sealing off the discovery mechanism the moment it went live, since roaming-monster loot
+is supposed to draw from a color's full shard regardless of the player's research progress.
+
+Actual mechanism: `EditionProgression.restrictToEditions(Iterable<RewardData>, List<String>)` -
+clones each `RewardData` via its existing copy constructor (confirmed it deep-clones every array
+field, including `.editions`) and sets `.editions` on the CLONE only. The source `RewardData`
+objects are never touched, which matters because they're SHARED - every town resolving to the same
+`shops.json` name, or every enemy sharing an `EnemyData` template, points at the exact same
+instances; mutating them in place would leak the restriction across every other town/enemy using
+them. Card-type rewards (`"card"`/`"randomCard"`) already respect `.editions` via the existing
+`CardPredicate` filter (confirmed the exact line: a hard reject, not a soft preference, with a
+fallback that still allows a card if a DIFFERENT printing is in the allowed list); non-card reward
+types just ignore the field, so cloning them is a harmless no-op, not something to branch around.
+
+This one function is reused for all three restriction sites below - same mechanism, three
+different sources for the edition list.
+
+### Discovery: roaming-monster loot (`EnemySprite.getRewards()`)
+The generic per-enemy reward pool (`data.rewards`, NOT the per-instance `this.rewards` override a
+few lines below - reserved for genuinely special-cased encounters like the Deck Tester's AI shell)
+is restricted to the defeated monster's color's shard. Excludes bosses (`data.boss`) and quest-
+tagged enemies (`data.questTags`) - "dedicated rewards/quest rewards" per the user's own carve-out.
+
+Color-of-enemy needed real verification, not a guess: `EnemyData.colors` is WUBRG letters, and the
+obvious approach (`ColorReputation.singleColorOfEnemy()`, new method) originally required an EXACT
+mono-color match, falling back to neutral for anything else. Queried `enemies.json` directly before
+shipping this: 917 of 1469 enemies (62%) are multicolor. Requiring exact mono-color match would
+have sent most roaming-monster loot to the neutral shard regardless of which color's territory the
+fight happened in - defeating the entire "explore each color to find that color's cards" premise.
+Changed to the FIRST listed color (dominant color in enemies.json's own letter order) instead; only
+the 33 genuinely colorless enemies (no WUBRG letters at all) fall back to neutral now.
+
+### Player's own shops + AI-color towns (`MapStage.java`'s `"shop"` case)
+Single injection point, one `if` branch covers both: `TownRestoration.isCurrentTownCapitol() ||
+TownRestoration.isTownRestored(changes)` (player-owned - Orazca or any restored wasteland town)
+restricts to `AdventurePlayer.current().getUnlockedEditions()`; everything else restricts to
+`ColorReputation.colorOfTown(...)`'s color (or neutral if that returns null - true for both
+genuinely-neutral AND player-owned towns, which is exactly why the ownership check above has to
+run FIRST). Fully dynamic with zero extra invalidation needed: shop stock generation was already
+never cached (re-runs from scratch on every town load / weekly reseed / manual reroll / restock),
+so whatever the CURRENT edition-restriction state is gets picked up automatically the next time a
+shop's stock is rolled - researching a new edition doesn't need to "push" a refresh anywhere.
+
+AI-color towns are PERMANENTLY restricted to their own shard - never affected by the player's
+research progress. This is deliberate, not a gap: it's the mechanical reason to physically travel
+to a color's own territory to buy that color's cards before you've researched them yourself.
+
+### Player's unlocked-editions state (`AdventurePlayer.java`)
+New `Set<String> unlockedEditions`, `String researchEditionInProgress`, `int researchStartDay`
+(single research slot at a time, mirrors the Archaeologist's exact timer pattern) - standard
+load/save/`clear()` wiring. No separate "cards owned per edition" counter - `ResearchScene` derives
+it live from `getCards()` every time the screen opens, so it can never drift out of sync with the
+player's real collection.
+
+`checkResearchCompletion(int currentDay)` - auto-unlocks once `RESEARCH_DAYS` (7) have passed, no
+manual "collect" step (unlike the Archaeologist's reward-flip flow - there's no physical loot here,
+just an unlock becoming available). Called from two places so it can't be missed: lazily on
+`ResearchScene.enter()`, and from `EconomyBuildings.processDaysPassed()`'s daily tick (added
+outside that method's existing per-town loop, since this is player-level, not per-town) - the
+edition becomes shoppable the moment the timer elapses even if the player never revisits the Lab.
+
+### Difficulty-scaled starting unlocks (`AdventurePlayer.create()`)
+Seeds `unlockedEditions` with N entries from this plane's own `starterEditions` (the same curated
+list the starter-deck choice already uses - reused rather than inventing a second "core sets"
+list), N = 4/3/2/1 for Easy/Normal/Hard/Insane (Claude's own numbers, not user-specified - easy to
+retune). Same difficulty-index-lookup pattern `EconomyBuildings.difficultyPriceMultiplier()`
+already established (match `difficultyData.name` against `configData.difficulties[]`, use the
+index). Note for later: `starterEditions`'s last entry is the sentinel `"(All)"`, not a real
+edition code - harmless today since the max count (4) never reaches it, but worth remembering if
+these numbers are ever increased.
+
+### The Research Lab building
+User pointed to a specific spot with a screenshot rather than a text description, after the
+Archaeologist's original placement (guessed from reading TMX coordinates, before the Gaming PC
+round moved it into the Utility submenu) - this time verified the exact spot before building
+anything. Decoded `player_capital.tmx`'s `Overlay` and `Ground2` tile layers (base64+zlib, same
+technique already used earlier this session to check the Archaeologist's old collision footprint)
+and found a REAL, already-baked 3-tile decorative building at world x~144-192, y~80-112 that has no
+object or collision tied to it at all - a genuinely unused building, not empty ground needing new
+art.
+
+New `forge-gui/res/adventure/The Forgotten Realms/maps/obj/research_lab.tx` (plane-scoped, same
+convention `stone.tx` already established), placed at (160, 96) on `player_capital.tmx` (object id
+103, `nextobjectid` bumped to 104). New `"researchlab"` case in `MapStage.java` - deliberately
+PLAIN single-arg `OnCollide` (no gate, no `withRebuiltIcon()`), unlike Arena/Spellsmith/the old
+Archaeologist: this building's art is already permanently on the map via the Overlay/Ground2 tile
+layers regardless of this object's presence, so there's no rubble state and nothing for this object
+to draw - it's a pure invisible collision+interaction trigger, same "always works" category as the
+Inn. (Reasoning on why an object's own `gid` doesn't visually double-render on top of the baked art:
+inferred from `OnCollide.java`'s own comment - "a rebuilt Arena/Spellsmith was simply invisible"
+without `withRebuiltIcon()`, meaning this engine's object layer does NOT auto-render a tile-object's
+raw `gid` the way Tiled itself would - not independently confirmed by running the game, flagged as
+inference rather than direct observation.)
+
+### The Research screen (`ResearchScene.java`, new file + `ui/research.json`/`research_portrait.json`)
+User asked for "as user friendly / easy to understand as possible" and pointed at SpellSmithScene
+as a rough model. Actually compared SpellSmithScene (528 lines, full shop-style layout) against
+QuestLogScene (232 lines, a Window + scrollable Table of rows with one action button each) before
+picking one - the Lab genuinely only needs a scrollable list with a button per row, so QuestLogScene
+was the better structural fit once actually read, not just the first thing referenced in chat. New
+plane-scoped JSON layout (mirrors `common/ui/quests.json`'s shape almost exactly: a paper-styled
+`scrollWindow`, a `researchList` Table, a `return` button) rather than reusing `quests.json` itself,
+to avoid depending on that file's extra `questDetails`/`status` bindings I don't use.
+
+Row content, computed fresh every time the screen opens (`buildList()`):
+- Owned-card count per edition: one pass over `AdventurePlayer.getCards()`, grouped by
+  `PaperCard.getEdition()`.
+- Total real card count per edition: one pass over `RewardData.getAllCards()` (the same
+  "obtainable, legal" pool everything else in this mod already draws from), grouped the same way -
+  so the threshold reflects cards the player could actually find, not a raw database count that
+  might include un-obtainable prints.
+- Threshold: `max(5, ceil(total * 10%))` - the user's own refinement mid-build ("10% of an
+  expansion vs. 10 cards... standard across the different expansions and card counts"), replacing
+  the original wishlist's flat "10 cards" so a tiny 20-card supplemental set and a 280-card full
+  expansion aren't equally easy/hard to unlock. The 5-card floor is Claude's own addition, flagged.
+
+Three design choices made here that go beyond the user's literal spec, called out in both
+`ResearchScene`'s own class doc and `MOD_SCOPE.md` #4 rather than silently assumed:
+- **Only shows editions with owned count > 0** (not literally "all editions" as asked) - an
+  ~80-120-row list at 0/N from turn one would bury the handful actually worth acting on; the list
+  grows naturally as the player explores, which reads as more discovery-flavored anyway.
+- **Sorted by progress toward the threshold, closest first** - surfaces what's actually actionable
+  without the player needing to scan/sort themselves.
+- **300g flat research cost** (difficulty-scaled via `EconomyBuildings.scaledCost()`, same as every
+  other cost in this mod) - not specified by the user beyond "for a cost."
+
+Fully researched editions drop off the list entirely (per spec) since `hasUnlockedEdition()` is
+checked before a candidate is even added. An in-progress research shows as a header line ("N days
+remaining") and disables every other row's button (single research slot, matches spec: "choose it
+to research... take 7 days... drops off the list").
+
+### Diagnostic logging
+This whole feature is otherwise invisible/hard to test end-to-end (per user request, "create logs
+where possible, that you can review on the back end"), so every decision point logs to `forge.log`:
+- `[TFR-EditionShard]` - the full 6-way split, once per new game (one line per color/neutral group).
+- `[TFR-ShopEditions]` - every shop stock generation: shop name, owner category (player-unlocked /
+  a specific color / neutral), and the exact restriction list applied.
+- `[TFR-LootEditions]` - every roaming-monster reward generation: enemy name, raw `colors` string,
+  resolved color, and the restriction list.
+- `[TFR-Research]` - starting-unlocks on a new game, and every research start/completion.
+
+### Compile status
+Full clean build after every incremental piece (`mvn -pl forge-gui-mobile -am compile -DskipTests
+-o`, BUILD SUCCESS each time). Not yet playtested in-game - in particular the Research screen's
+layout/scrolling and the Lab's exact collision placement have only been verified by reading code
+and decoded tile data, not by seeing them rendered.

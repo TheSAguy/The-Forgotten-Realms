@@ -303,6 +303,7 @@
     "resourceSpawnsEnabled": true,
     "dungeonRotationEnabled": true,
     "sideQuestTimerEnabled": true,
-    "resourceLootVarietyEnabled": true
+    "resourceLootVarietyEnabled": true,
+    "editionProgressionEnabled": true
 }
 

@@ -23,7 +23,9 @@ import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.util.Config;
 import forge.adventure.stage.MapStage;
+import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Current;
+import forge.adventure.util.EditionProgression;
 import forge.adventure.world.World;
 import forge.adventure.util.MapDialog;
 import forge.adventure.util.Reward;
@@ -530,7 +532,25 @@ public class EnemySprite extends CharacterSprite implements Steerable<Vector2> {
             CardPool deckNoRestrictedEditions = enemyDeck.getMain().getFilteredPool(PaperCardPredicates.onlyPrintedInEditions(Config.instance().getConfigData().restrictedEditions).negate());
             CardPool deckNoBasicLands = deckNoRestrictedEditions.getFilteredPool(PaperCardPredicates.fromRules(CardRulesPredicates.NOT_BASIC_LAND));
 
-            for (RewardData rdata : data.rewards) {
+            // Progressive Set Unlocks (MOD_SCOPE.md #4): ordinary roaming-monster loot is
+            // restricted to that monster's color's shard - this is the actual discovery
+            // mechanism the whole feature runs on (find cards from a color's assigned sets by
+            // fighting that color, well before those sets are formally researched/unlocked).
+            // Deliberately excludes bosses and quest-tagged enemies ("dedicated rewards/quest
+            // rewards" per user spec) - only data.rewards (the generic template pool) gets
+            // restricted, never this.rewards (per-instance overrides a few lines below, reserved
+            // for genuinely special-cased encounters like the Deck Tester's AI shell).
+            Iterable<RewardData> standardRewardSource = java.util.Arrays.asList(data.rewards);
+            if (Current.world().isEditionProgressionEnabled() && !data.boss && (data.questTags == null || data.questTags.length == 0)) {
+                String color = ColorReputation.singleColorOfEnemy(data.colors);
+                String colorLabel = color != null ? color : EditionProgression.NEUTRAL;
+                List<String> editionRestriction = EditionProgression.getEditionsForColor(Current.world(), colorLabel);
+                // Diagnostic-only logging - greppable in forge.log as "[TFR-LootEditions]".
+                System.out.println("[TFR-LootEditions] enemy=" + data.name + " colors=" + data.colors
+                        + " -> " + colorLabel + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
+                standardRewardSource = EditionProgression.restrictToEditions(standardRewardSource, editionRestriction);
+            }
+            for (RewardData rdata : standardRewardSource) {
                 rewards.addAll(rdata.generate(false,  enemyDeck == null ? null : deckNoBasicLands.toFlatList(),true ));
             }
         }

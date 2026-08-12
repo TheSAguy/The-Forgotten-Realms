@@ -45,5 +45,6 @@ public class ConfigData {
     public boolean dungeonRotationEnabled = false;
     public boolean sideQuestTimerEnabled = false;
     public boolean resourceLootVarietyEnabled = false;
+    public boolean editionProgressionEnabled = false;
 
 }

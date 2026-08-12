@@ -279,6 +279,20 @@ public class ColorReputation {
             player.addColorReputationHalfPoints(enemy, enemyDelta);
     }
 
+    /** Progressive Set Unlocks (MOD_SCOPE.md #4) - the single canonical color to use for a roaming
+     *  monster's color-shard loot lookup. Returns the FIRST listed color for a multicolor enemy
+     *  (its "dominant" color in enemies.json's own letter order) rather than requiring an exact
+     *  mono-color match - checked directly against enemies.json before picking this: 917 of 1469
+     *  enemies (62%) are multicolor, so falling back to the neutral shard for all of them would
+     *  have defeated the user's actual design intent ("explore each color to get different
+     *  edition cards" - most fights would've handed out neutral-shard loot regardless of which
+     *  color's territory the fight happened in). Only genuinely colorless enemies (33 of 1469, no
+     *  WUBRG letters at all) fall back to null/neutral now. */
+    public static String singleColorOfEnemy(String enemyColors) {
+        java.util.List<String> colors = colorsFromLetters(enemyColors);
+        return colors.isEmpty() ? null : colors.get(0);
+    }
+
     // EnemyData.colors is MTG letters ("W","U","B","R","G", possibly combined like "GW"); order
     // and case are not guaranteed, duplicates guarded against just in case.
     private static java.util.List<String> colorsFromLetters(String letters) {

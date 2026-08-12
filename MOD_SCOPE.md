@@ -221,10 +221,54 @@ Helping a color angers its two enemies, not its allies.
   (won't re-notify once already triggered). Deliberately skips the discovery-flash cosmetic layer
   above - a whole-map flash would read as noise.
 
-### 4. Progressive Set Unlocks — `Not Started`
-- ~100+ MTG expansions exist; player starts with access to a small subset (e.g. ~10).
-- Collecting N cards (e.g. 10) from an expansion the player doesn't "know" lets them
-  research it at a lab; once researched, that set's cards become available in shops.
+### 4. Progressive Set Unlocks — `Built (2026-08-12), not yet playtested`
+Original idea (~100+ MTG expansions exist; player starts with access to a small subset, collect N
+cards from a set to research it at a lab) combined with the user's own fuller design (2026-08-12):
+color-sharded editions as the discovery mechanic, a real Research Lab screen, AI-color towns
+permanently locked to their own shard. Full mechanism, design rationale, and every flagged
+assumption are in `MOD_CHANGELOG.md`'s "Progressive Set Unlocks" entry - summary here:
+
+- **Opt-in via `editionProgressionEnabled`** (new `ConfigData` flag, on in this plane's
+  `config.json`).
+- **6-way random edition sharding, once per new game**: every real/obtainable edition
+  (`CardEdition.Predicates.CAN_MAKE_BOOSTER` + `hasBoosterTemplate`, minus `restrictedEditions` -
+  the same filter the existing booster-generation code already used) is dealt round-robin across 5
+  colors + "neutral" after a shuffle with the world's own seeded `Random`, persisted on `World`
+  (`colorEditionShards`) for that save's lifetime. New `EditionProgression.java` owns this.
+- **Discovery**: ordinary roaming-monster combat loot is restricted to the defeated monster's
+  color's shard (`EnemyData.colors`, dominant/first-listed color for multicolor enemies -
+  confirmed via `enemies.json` that 62% of enemies are multicolor, so requiring an exact mono-color
+  match would have sent most loot to the neutral shard regardless of which color's territory a
+  fight happened in, undermining the whole "explore each color" premise). Bosses and quest-tagged
+  enemies are exempt (dedicated/quest rewards, per user spec) - only the generic per-enemy reward
+  pool is restricted.
+- **Player's own shops** (Orazca + any owned/restored town) are restricted to
+  `AdventurePlayer.unlockedEditions` - starts pre-seeded with N of this plane's own curated
+  `starterEditions` (4/3/2/1 by difficulty, Easy most generous - Claude's own proposal, not user-
+  specified), grows via research.
+- **AI-color towns are permanently restricted to their own shard** - never affected by the
+  player's research progress, by design (the reason to physically travel to that color's territory
+  to shop there before researching its sets yourself).
+- **Mechanism reused for all three**: clone the relevant `RewardData` entries (existing copy
+  constructor) and set `.editions` on the CLONE only - the originals are shared across every town/
+  enemy resolving to the same shop/template name, so mutating them directly would leak. Card-type
+  rewards already respect `.editions` via the existing `CardPredicate` filter; nothing new needed
+  there.
+- **Research Lab**: a real, pre-existing decorative building on `player_capital.tmx` (found via a
+  user screenshot, not guessed - baked into the Overlay/Ground2 tile layers already, at world
+  coords ~(144-192, 80-112)), wired up with a plain ungated `OnCollide` (no rubble/rebuild state,
+  same "always works" pattern as the Inn) at (160, 96). New `ResearchScene` (modeled on
+  `QuestLogScene`'s simpler list pattern once actually compared against `SpellSmithScene`'s fuller
+  layout): shows every edition the player has found at least one card from (not yet researched),
+  sorted by progress toward the threshold, greyed out below it. Threshold is 10% of that edition's
+  own real card count (floor 5) - the user's own refinement over a flat "10 cards," so it's
+  consistent across small and large sets. Research costs 300g (difficulty-scaled, Claude's own
+  proposal) and takes 7 days; completion is automatic (checked lazily on screen-entry and from the
+  daily tick) rather than needing a manual "collect" step, since there's no physical loot here.
+- **Diagnostic logging** (`forge.log`, greppable): `[TFR-EditionShard]` (the full sharding once per
+  new game), `[TFR-ShopEditions]` (every shop generation, its owner and restriction list),
+  `[TFR-LootEditions]` (every roaming-monster reward generation), `[TFR-Research]` (start/complete/
+  starting-unlock events) - this whole feature is otherwise invisible, so every decision point logs.
 
 ### 5. Distance-Scaled AI — `Not Started`
 - AI strength scales with proximity to "the Castle": closer to Castle = stronger.

@@ -188,6 +188,10 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   `tickTemporaryReveals()`), checked from `isCurrentlyVisible()` alongside the live vision circle
   and the persistent tier - a newly-discovered tile flashes fully bright for a few seconds before
   settling into its ordinary tier, instead of jumping straight there (#3).
+  Progressive Set Unlocks round (2026-08-12, #4): new persisted `colorEditionShards`
+  (`Map<String, List<String>>`, same save/load/NG+-reset pattern as `colorTerritoryRadius`) and
+  `isEditionProgressionEnabled()`. `EditionProgression.seedColorShards(this)` called once near the
+  end of `generateNew()` (after the Territory Control sweep, gated behind the new flag).
 - **`forge-gui-mobile/src/forge/adventure/pointofintrest/PointOfInterest.java`** — Dungeon
   rotation (#15): `getActive()` now honors the persisted `active` field (previously write-only -
   saved/loaded but never consulted; no data entry ships `active:false`, verified, so stock behavior
@@ -498,6 +502,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   only the delta to maxLife; gain heals by the gain, loss clamps life to new max, never below
   1) - driven by `TownRestoration.updateTownLifeBonus()`. Stone-pickup round (2026-08-10):
   `addReward(Reward)` gained `case Stone: addStone(reward.getCount()); break;`.
+  Progressive Set Unlocks round (2026-08-12, #4): new persisted `unlockedEditions` (`Set<String>`),
+  `researchEditionInProgress`/`researchStartDay` (single-slot timer, mirrors the Archaeologist's
+  pattern) with get/set/`clear()` wiring; `checkResearchCompletion(int)` auto-unlocks once
+  `RESEARCH_DAYS` (7) elapse, called both lazily (`ResearchScene.enter()`) and from
+  `EconomyBuildings.processDaysPassed()`'s daily tick. `create()` gained difficulty-scaled starting
+  `unlockedEditions` seeding from this plane's own `starterEditions` list.
 - **`forge-gui-mobile/src/forge/adventure/util/Reward.java`** — added `Stone` to the `Type` enum
   (2026-08-10) - a walkover-only reward type (see `MapStage.java`'s onActing() entry); no new
   constructor needed, the existing `Reward(Type, int)` covers it like `Life`/`Shards`.
@@ -510,10 +520,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   copy of the pool once (`Collections.shuffle(list, rewardRandom)` - same seeded `Random`, so
   determinism/stability across visits is unaffected) and takes the front, gracefully capping at
   the pool's own size if asked for more unique items than it actually has.
-- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the 8 opt-in mod flags:
+- **`forge-gui-mobile/src/forge/adventure/data/ConfigData.java`** — added the opt-in mod flags:
   `fogOfWarEnabled`, `dayNightCycleEnabled`, `townReconstructionEnabled`, `territoryControlEnabled`,
-  `colorReputationEnabled`, `resourceSpawnsEnabled`, `dungeonRotationEnabled`, `sideQuestTimerEnabled` (all default `false` - see `CLAUDE.md`'s ground
-  rules for why this pattern matters).
+  `colorReputationEnabled`, `resourceSpawnsEnabled`, `dungeonRotationEnabled`, `sideQuestTimerEnabled`,
+  `resourceLootVarietyEnabled`, and (2026-08-12, #4) `editionProgressionEnabled` (all default
+  `false` - see `CLAUDE.md`'s ground rules for why this pattern matters).
 - **`forge-gui-mobile/src/forge/adventure/stage/ConsoleCommandInterpreter.java`** — debug
   console additions: `count towns` (#7 - was missing from this doc until now, added when the
   `give rep` change touched the same file), `give rep <color> <amount>` (#1,
@@ -614,6 +625,9 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   mage). Combat gold variance (2026-08-09, #9): new `applyGoldVariance()`, called at the end of
   `getRewards()` - 25% of any Gold reward in the assembled list is swapped for an immediate Wood/
   Stone grant (see MOD_CHANGELOG.md for why this bypasses Reward.Type entirely).
+  Progressive Set Unlocks round (2026-08-12, #4): `getRewards()`'s standard-rewards loop now
+  restricts `data.rewards` (never `this.rewards`) to the defeated enemy's color's edition shard via
+  `EditionProgression.restrictToEditions()`, skipped for bosses/quest-tagged enemies.
 - **`forge-gui-mobile/src/forge/adventure/stage/WorldStage.java`** — day-counter-driven hooks for
   Economy Buildings (#10) and Territory Control (#7), the mage movement/arrival branch and
   `spawnAt()` (#7, also exempts a mage from the ordinary roaming-monster despawn timer - it has
@@ -727,6 +741,11 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   current name), pins it via the pre-existing `PointOfInterestChanges.setPinnedShopName()`
   mechanism (previously only used by the Capitol migration), and calls the sign sprite's new
   `setRegion()`.
+  Progressive Set Unlocks round (2026-08-12, #4): new `"researchlab"` case - a PLAIN single-arg
+  `OnCollide` (no gate, no `withRebuiltIcon()` - see `MOD_CHANGELOG.md` for why, its art is already
+  baked into this map's tile layers). The `"shop"` case's card-roll generation now clones and
+  restricts each `RewardData` to a color/player edition list via `EditionProgression.
+  restrictToEditions()` before calling `.generate()`, gated on `World.isEditionProgressionEnabled()`.
 - **`forge-gui-mobile/src/forge/adventure/character/TextureSprite.java`** — mod addition (round 8,
   Shop Type Re-Roll): `region` un-`final`'d and a new `setRegion(TextureRegion)` mutator added -
   previously an immutable-region sprite with no way to change its art after construction, needed
@@ -759,14 +778,17 @@ rather than assumed-safe by omission:
 `QuestExpiry.java` (#16, side-quest timers),
 `EconomyBuildings.java`, `ResourceDisplayActor.java`,
 `ResourceSpawns.java` (random overworld resource pickups), `RubbleOverlay.java`,
-`TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`.
+`TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`,
+`EditionProgression.java` (#4, Progressive Set Unlocks - edition sharding + the clone-and-restrict
+RewardData mechanism, 2026-08-12).
 (`TownCountActor.java` existed briefly, removed the same day - see `MOD_CHANGELOG.md`'s "World
 Standings page" entry.)
 
 Under `forge-gui-mobile/src/forge/adventure/scene/`, same reasoning:
 `WorldStandingsScene.java` (#7) - its own JSON layout lives in the mod's plane folder
 (`The Forgotten Realms/ui/world_standings.json`), not `common/ui/`, so that part needs no tracking
-here either - see "Everything else" below.
+here either - see "Everything else" below. `ResearchScene.java` (#4, 2026-08-12) - same reasoning,
+its own layout lives at `The Forgotten Realms/ui/research.json`/`research_portrait.json`.
 
 ## Everything else (not tracked here - genuinely safe)
 

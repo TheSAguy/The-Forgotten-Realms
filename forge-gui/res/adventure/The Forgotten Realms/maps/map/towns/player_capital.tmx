@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="103">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="104">
  <editorsettings>
   <export format="tmx" />
  </editorsettings>
@@ -17961,6 +17961,7 @@
 }</property>
    </properties>
   </object>
+  <object id="103" template="../../obj/research_lab.tx" x="160" y="96" />
   <object id="63" template="../../../../common/maps/obj/shop.tx" x="80" y="253">
    <properties>
     <property name="commonShopList" value="ArmoryCommon" />

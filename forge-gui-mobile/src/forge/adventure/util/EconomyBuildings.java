@@ -1341,6 +1341,10 @@ public class EconomyBuildings {
     public static void processDaysPassed(int daysPassed, int newDayCount) {
         if (daysPassed <= 0)
             return;
+        // Progressive Set Unlocks (MOD_SCOPE.md #4): player-level, not per-town, so this lives
+        // outside the per-town loop below - unlocks the edition the moment the 7-day timer
+        // elapses, not only when the player happens to revisit the Lab.
+        AdventurePlayer.current().checkResearchCompletion(newDayCount);
         for (PointOfInterestChanges changes : WorldSave.getCurrentSave().getAllPointOfInterestChanges()) {
             // A town can now have several economy buildings at once (one of each type) - process
             // every type it actually has, not just a single registered building.

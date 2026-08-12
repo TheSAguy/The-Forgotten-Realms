@@ -776,6 +776,16 @@ public class MapStage extends GameStage {
                             Forge.switchScene(ArenaScene.instance());
                         }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id))));
                         break;
+                    case "researchlab":
+                        // Progressive Set Unlocks (MOD_SCOPE.md #4, user spec 2026-08-12): the
+                        // Lab is a pre-existing decorative building already baked into this map's
+                        // Ground2/Overlay tile layers (not a rubble-gated economy building like
+                        // Arena/Spellsmith) - ungated single-arg OnCollide, same "always works"
+                        // pattern as the Inn, and no withRebuiltIcon() since there's no icon of
+                        // its own to draw (the art is already on the map regardless of this
+                        // object's presence).
+                        addMapActor(obj, new OnCollide(() -> Forge.switchScene(ResearchScene.instance())));
+                        break;
                     case "exit":
                         addMapActor(obj, new OnCollide(() -> MapStage.this.exitDungeon(false, false)));
                         break;
@@ -942,7 +952,31 @@ public class MapStage extends GameStage {
                                 ? changes.getWeeklyShopSeed(id, WorldSave.getCurrentSave().getWorld().getCurrentDay())
                                 : changes.getShopSeed(id);
                         WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
-                        for (RewardData rdata : new Array.ArrayIterator<>(data.rewards)) {
+                        // Progressive Set Unlocks (MOD_SCOPE.md #4): restrict this shop's card
+                        // rolls to whichever edition list applies to whoever owns this town - the
+                        // player's own unlockedEditions (grown by research) in the Capitol/an
+                        // owned town, or a permanent color/neutral shard everywhere else. Clones
+                        // each RewardData rather than mutating data.rewards directly - those
+                        // RewardData objects are the SAME shared instances every other town
+                        // resolving to this shop name also uses.
+                        Iterable<RewardData> shopRewardSource = new Array.ArrayIterator<>(data.rewards);
+                        if (WorldSave.getCurrentSave().getWorld().isEditionProgressionEnabled()) {
+                            List<String> editionRestriction;
+                            String ownerLabel;
+                            if (TownRestoration.isCurrentTownCapitol() || TownRestoration.isTownRestored(changes)) {
+                                editionRestriction = new ArrayList<>(AdventurePlayer.current().getUnlockedEditions());
+                                ownerLabel = "player-unlocked";
+                            } else {
+                                String townColor = ColorReputation.colorOfTown(TileMapScene.instance().rootPoint.getData());
+                                ownerLabel = townColor != null ? townColor : EditionProgression.NEUTRAL;
+                                editionRestriction = EditionProgression.getEditionsForColor(WorldSave.getCurrentSave().getWorld(), ownerLabel);
+                            }
+                            // Diagnostic-only logging - greppable in forge.log as "[TFR-ShopEditions]".
+                            System.out.println("[TFR-ShopEditions] shop=" + data.name + " owner=" + ownerLabel
+                                    + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
+                            shopRewardSource = EditionProgression.restrictToEditions(shopRewardSource, editionRestriction);
+                        }
+                        for (RewardData rdata : shopRewardSource) {
                             ret.addAll(rdata.generate(false, false));
                         }
                         ShopActor actor = new ShopActor(this, id, ret, data);

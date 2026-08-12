@@ -170,6 +170,9 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         AdventureEventController.clear();
         AdventureQuestController.clear();
         unsupportedCards.clear();
+        unlockedEditions.clear();
+        researchEditionInProgress = null;
+        researchStartDay = -1;
     }
 
     static public AdventurePlayer current() {
@@ -181,6 +184,16 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
     public final ItemPool<PaperCard> newCards = new ItemPool<>(PaperCard.class);
     public final ItemPool<PaperCard> autoSellCards = new ItemPool<>(PaperCard.class);
     public final Set<PaperCard> favoriteCards = new HashSet<>();
+
+    // Progressive Set Unlocks (MOD_SCOPE.md #4, editionProgressionEnabled) - editions THIS save's
+    // own shops (Orazca/owned towns) can sell, separate from World.colorEditionShards (the AI/
+    // world side - permanent per-color assignment, unaffected by player research). Starts
+    // pre-seeded with difficulty-scaled core sets (see EditionProgression), grows via research at
+    // the Lab. researchEditionInProgress/researchStartDay mirror the Archaeologist's single-timer
+    // pattern - one edition being researched at a time, null/-1 = none active.
+    private final Set<String> unlockedEditions = new HashSet<>();
+    private String researchEditionInProgress = null;
+    private int researchStartDay = -1;
 
     public void create(String n, Deck startingDeck, boolean male, int race, int avatar, boolean isFantasy,
                        boolean isUsingCustomDeck, DifficultyData difficultyData, AdventureModes adventureMode) {
@@ -226,6 +239,36 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
 
         life = maxLife = difficultyData.startingLife;
         shards = difficultyData.startingShards;
+
+        // Progressive Set Unlocks (MOD_SCOPE.md #4): difficulty-scaled starting unlocked
+        // editions - Easy sees more, Insane sees fewer - drawn from this plane's own curated
+        // starterEditions list (the same pool the starter-deck choice already uses) rather than
+        // a second, separate "core sets" list. The 4/3/2/1 counts are Claude's own proposal, not
+        // user-specified - easy to retune once playtested. Same difficulty-index-lookup pattern
+        // EconomyBuildings.difficultyPriceMultiplier() already uses.
+        if (Config.instance().getConfigData().editionProgressionEnabled) {
+            String[] starterEditionsPool = Config.instance().getConfigData().starterEditions;
+            if (starterEditionsPool != null && starterEditionsPool.length > 0) {
+                int[] startingUnlockCountByDifficultyIndex = {4, 3, 2, 1};
+                DifficultyData[] allDifficulties = Config.instance().getConfigData().difficulties;
+                int difficultyIndex = 1; // default to Normal-equivalent if not found
+                if (allDifficulties != null) {
+                    for (int i = 0; i < allDifficulties.length; i++) {
+                        if (difficultyData.name.equals(allDifficulties[i].name)) {
+                            difficultyIndex = i;
+                            break;
+                        }
+                    }
+                }
+                int cappedIndex = Math.min(difficultyIndex, startingUnlockCountByDifficultyIndex.length - 1);
+                int startingUnlockCount = Math.min(starterEditionsPool.length, startingUnlockCountByDifficultyIndex[cappedIndex]);
+                for (int i = 0; i < startingUnlockCount; i++)
+                    unlockedEditions.add(starterEditionsPool[i]);
+                // Diagnostic-only logging - greppable in forge.log as "[TFR-Research]".
+                System.out.println("[TFR-Research] new game, difficulty=" + difficultyData.name
+                        + " -> starting unlocked editions: " + unlockedEditions);
+            }
+        }
 
         for (String s : difficultyData.startItems) {
             ItemData i = ItemListData.getItem(s);
@@ -833,6 +876,14 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         announceFantasy = data.containsKey("announceFantasy") && data.readBool("announceFantasy");
         usingCustomDeck = data.containsKey("usingCustomDeck") && data.readBool("usingCustomDeck");
         announceCustom = data.containsKey("announceCustom") && data.readBool("announceCustom");
+
+        unlockedEditions.clear();
+        if (data.containsKey("unlockedEditions")) {
+            //noinspection unchecked
+            unlockedEditions.addAll((java.util.List<String>) data.readObject("unlockedEditions"));
+        }
+        researchEditionInProgress = data.containsKey("researchEditionInProgress") ? data.readString("researchEditionInProgress") : null;
+        researchStartDay = data.containsKey("researchStartDay") ? data.readInt("researchStartDay") : -1;
         if (migration) {
             getCurrentGameStage().setExtraAnnouncement(Forge.getLocalizer().getMessage("lblDataMigrationMsg"));
         }
@@ -873,6 +924,11 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         data.store("announceFantasy", announceFantasy);
         data.store("usingCustomDeck", usingCustomDeck);
         data.store("announceCustom", announceCustom);
+
+        data.storeObject("unlockedEditions", new ArrayList<>(unlockedEditions));
+        if (researchEditionInProgress != null)
+            data.store("researchEditionInProgress", researchEditionInProgress);
+        data.store("researchStartDay", researchStartDay);
 
         data.store("worldPosX", worldPosX);
         data.store("worldPosY", worldPosY);
@@ -1406,6 +1462,62 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
 
     public boolean isHardorInsaneDifficulty() {
         return "Hard".equalsIgnoreCase(difficultyData.name) || "Insane".equalsIgnoreCase(difficultyData.name);
+    }
+
+    // ---- Progressive Set Unlocks (MOD_SCOPE.md #4) ----
+
+    public static final int RESEARCH_DAYS = 7;
+
+    public Set<String> getUnlockedEditions() {
+        return unlockedEditions;
+    }
+
+    public boolean hasUnlockedEdition(String editionCode) {
+        return unlockedEditions.contains(editionCode);
+    }
+
+    public void unlockEdition(String editionCode) {
+        unlockedEditions.add(editionCode);
+    }
+
+    public String getResearchEditionInProgress() {
+        return researchEditionInProgress;
+    }
+
+    public int getResearchStartDay() {
+        return researchStartDay;
+    }
+
+    public void startResearch(String editionCode, int currentDay) {
+        researchEditionInProgress = editionCode;
+        researchStartDay = currentDay;
+        // Diagnostic-only logging - greppable in forge.log as "[TFR-Research]".
+        System.out.println("[TFR-Research] started " + editionCode + " on day " + currentDay
+                + " (completes day " + (currentDay + RESEARCH_DAYS) + ")");
+    }
+
+    public void clearResearch() {
+        researchEditionInProgress = null;
+        researchStartDay = -1;
+    }
+
+    /** Auto-completes a finished research (no separate "collect" step, unlike the Archaeologist's
+     *  reward-flip flow - there's no physical loot here, just an unlock) - called both lazily
+     *  (ResearchScene.enter()) and from the daily-tick hook (EconomyBuildings.processDaysPassed())
+     *  so the edition becomes shoppable the moment the timer elapses, not only when the player
+     *  happens to revisit the Lab. Idempotent - safe to call every day even with no research
+     *  active. */
+    public void checkResearchCompletion(int currentDay) {
+        if (researchEditionInProgress == null)
+            return;
+        if (currentDay - researchStartDay >= RESEARCH_DAYS) {
+            // Diagnostic-only logging - greppable in forge.log as "[TFR-Research]".
+            System.out.println("[TFR-Research] completed " + researchEditionInProgress + " on day " + currentDay
+                    + " - now unlocked (" + (unlockedEditions.size() + 1) + " total)");
+            unlockedEditions.add(researchEditionInProgress);
+            RewardData.invalidateCardPool();
+            clearResearch();
+        }
     }
 
     public void renameDeck(String text) {

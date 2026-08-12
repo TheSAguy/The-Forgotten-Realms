@@ -22,6 +22,7 @@ import forge.adventure.util.Config;
 import forge.adventure.util.Current;
 import forge.adventure.util.DungeonRotation;
 import forge.adventure.util.EconomyBuildings;
+import forge.adventure.util.EditionProgression;
 import forge.adventure.util.Paths;
 import forge.adventure.util.ResourceSpawns;
 import forge.adventure.util.SaveFileContent;
@@ -111,6 +112,21 @@ public class World implements Disposable, SaveFileContent {
 
     public void setColorTerritoryRadius(String color, int radiusTiles) {
         colorTerritoryRadius.put(color, radiusTiles);
+    }
+
+    // Progressive Set Unlocks (MOD_SCOPE.md #4, editionProgressionEnabled) - which real editions
+    // are assigned to each color (+ "neutral") for this save, seeded once by
+    // EditionProgression.seedColorShards() during generateNew(). Roaming-monster loot and
+    // AI-color-town shops both restrict to a color's shard here; the player's own shops instead
+    // use AdventurePlayer.unlockedEditions (grown by research), a separate list entirely.
+    private java.util.Map<String, java.util.List<String>> colorEditionShards = new java.util.HashMap<>();
+
+    public java.util.Map<String, java.util.List<String>> getColorEditionShards() {
+        return colorEditionShards;
+    }
+
+    public void setColorEditionShards(java.util.Map<String, java.util.List<String>> shards) {
+        colorEditionShards = shards;
     }
 
     // Territory Control (MOD_SCOPE.md #7): per-CAPTURED-TOWN territory radius in tiles, keyed by
@@ -312,6 +328,12 @@ public class World implements Disposable, SaveFileContent {
             townTerritoryRadius.putAll((java.util.Map<String, Integer>) saveFileData.readObject("townTerritoryRadius"));
         }
 
+        colorEditionShards.clear();
+        if (saveFileData.containsKey("colorEditionShards")) {
+            //noinspection unchecked
+            colorEditionShards.putAll((java.util.Map<String, java.util.List<String>>) saveFileData.readObject("colorEditionShards"));
+        }
+
         resourceSpawns.clear();
         if (saveFileData.containsKey("resourceSpawns")) {
             //noinspection unchecked
@@ -373,6 +395,7 @@ public class World implements Disposable, SaveFileContent {
         data.store("fogOfWarStage2Revealed", fogOfWarStage2Revealed);
         data.storeObject("colorTerritoryRadius", colorTerritoryRadius);
         data.storeObject("townTerritoryRadius", townTerritoryRadius);
+        data.storeObject("colorEditionShards", colorEditionShards);
         data.storeObject("resourceSpawns", new ArrayList<>(resourceSpawns));
         data.store("resourceSpawnsSeeded", resourceSpawnsSeeded ? 1 : 0);
         data.storeObject("poiDespawnDay", poiDespawnDay);
@@ -620,6 +643,7 @@ public class World implements Disposable, SaveFileContent {
             colorNextAttackDay.clear();
             colorTerritoryRadius.clear();
             townTerritoryRadius.clear();
+            colorEditionShards.clear(); // fresh world re-shards editions in generateNew(), not a stale split
             playerTownVisionAreas.clear(); // fresh world, no owned towns yet
             resourceSpawns.clear();
             resourceSpawnsSeeded = false; // fresh world reseeds its 20 on the first tick
@@ -1317,6 +1341,11 @@ public class World implements Disposable, SaveFileContent {
                 // would otherwise erase these markers right back out again.
                 redrawAllPoiMarkers();
             }
+            // Progressive Set Unlocks (MOD_SCOPE.md #4): one-time per new game, splits every real
+            // edition into 6 shards (5 colors + neutral) - see EditionProgression's own doc
+            // comment for why this runs here (world's own seeded Random, reproducible from seed).
+            if (isEditionProgressionEnabled())
+                EditionProgression.seedColorShards(this);
             System.out.println("Generating world took :\t\t" + ((System.currentTimeMillis() - startTime) / 1000f) + " s");
             WorldStage.getInstance().clearCache();
 
@@ -2861,6 +2890,11 @@ public class World implements Disposable, SaveFileContent {
     public boolean isTerritoryControlEnabled() {
         ConfigData configData = Config.instance().getConfigData();
         return configData != null && configData.territoryControlEnabled;
+    }
+
+    public boolean isEditionProgressionEnabled() {
+        ConfigData configData = Config.instance().getConfigData();
+        return configData != null && configData.editionProgressionEnabled;
     }
 
     /** Fraction of the current day elapsed, in [0,1), where 0 is midnight. */
