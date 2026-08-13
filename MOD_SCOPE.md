@@ -170,6 +170,31 @@ Helping a color angers its two enemies, not its allies.
   built between towns, +1 life at max reconstruction level.
 
 ### 3. Fog of War — `In Progress`
+**The 3 FoW stages (reference numbering, so we can talk about these by number - `World.java`):**
+| Stage | Name | Look | How a tile gets there |
+|---|---|---|---|
+| 1 | Unexplored | Solid black | Default - player has never been near it |
+| 2 | Known | Hazed/dimmed (55% black veil over the real terrain) | Once explored (`explored[][]`), stays this way whenever the tile isn't currently Stage 3 |
+| 3 | Revealed | Full brightness | Live vision radius around the player right now, **or** "persistently revealed" (`isPersistentlyRevealed()`, player-position-independent): ground actually painted with the player's biome bit (captures/expansion), or inside any player-owned town's vision circle - fixed `CASTLE_KEEP_RADIUS_TILES` for the Capitol, `townTerritoryRadius` (grows daily) for any other restored town, doubled/tripled by an Outlook building |
+
+The "discovery flash" (a newly-found POI briefly clears to full brightness before settling into its
+normal tier) is a time-limited variant of Stage 3, not a 4th stage - `isTemporarilyRevealed()` is
+just another OR branch alongside live-vision and persistently-revealed inside `isCurrentlyVisible()`.
+
+- **Capitol upgrade missing its Stage-3 reveal, fixed (2026-08-13)** - user report + screenshots:
+  terrain around an established Capitol was still hazed (Stage 2) despite being player-owned/in the
+  Capitol's vision circle. Root cause: every OTHER event that changes a town's vision-circle size
+  (Outlook build/destroy, a regular town's daily territory growth) pairs `rebuildPlayerTownVision()`
+  (updates the in-memory circle) with a one-time `revealArea()` + `refreshFogInRadius()` (actually
+  re-bakes the affected tiles/minimap - see `EconomyBuildings.onOutlookChanged()`'s own doc comment
+  for this exact "cache updated, nothing repainted" bug class) - `TownRestoration.upgradeToCapitol()`
+  rebuilt the cache but never did the second half, so the ring between the old town's smaller
+  pre-upgrade repaint radius and the Capitol's larger fixed keep radius stayed hazed forever unless
+  an Outlook happened to be built later (which does its own correctly-bounded reveal as a side
+  effect). New shared `applyCapitolVisionReveal()` helper, called both from `upgradeToCapitol()`
+  (new upgrades) and `repairCapitolState()` (runs every load - self-heals existing saves upgraded
+  before this fix, safe to repeat since `revealArea()`/`refreshFogInRadius()` are idempotent).
+  Not yet playtested - needs a save with an existing Capitol reloaded, or a fresh upgrade.
 - Already underway (`forge-gui-mobile/src/forge/adventure/...`, opt-in via
   `config.json` → `fogOfWarEnabled`). Makes exploring the world feel scarier/less known.
 - Tuned down for testing: vision radius halved (6 → 3 tiles), discovery-reveal radius reduced
@@ -2187,3 +2212,24 @@ detail (including a bug an adversarial review pass caught before deploy - a dest
 orphaned balance would otherwise have stayed silently spendable on guard salaries) in
 MOD_CHANGELOG.md. Not yet playtested - needs a 100x-Speed fast-forward past a guard's due salary
 date to actually see the bank-vs-inventory split happen.
+- **Guard-disbanded notification - confirmed already built, no new code needed (user asked
+  2026-08-13)**: `EconomyBuildings.processDaysPassed()`'s salary loop already calls
+  `GameHUD.addNotification("[RED]Your <tier> guard was disbanded - salary went unpaid!", true)`
+  the moment a guard's combined bank+inventory gold (or shard) shortfall forces a disband - same
+  `addNotification(text, authoredMarkup)` pattern as the mage-attack "PLAYER OWNED TOWN!" warning
+  the user was comparing it to. Been in place since the original Guard Hiring build (#22,
+  2026-08-11) and untouched by this round's payment-priority changes; worth knowing it exists
+  before re-asking for it.
+- **Bank dialog too tall / ran off-screen, fixed (2026-08-13)** - user report + screenshot: with
+  the two new preference checkboxes above added on top of the existing 6 full-width action-button
+  rows, the dialog grew taller than the screen and clipped its own header/Deposited-balance/
+  interest-rate rows off the TOP (`Dialog.setKeepWithinStage()` can reposition a dialog but can't
+  shrink one taller than the stage). Deposit 100/Deposit All/Withdraw 100/Withdraw All now use the
+  same half-width-buttons-packed-2-per-row treatment already established for the Exchange dialog's
+  Buy/Sell pairs and the Manage Guards dialog's Hire/Dismiss pairs (`addHalfButton()`), cutting 4
+  rows down to 2; Destroy Building/Close stay full-width singles, matching the Exchange dialog's
+  own convention. No font scale-down needed - every label here is shorter than "Dismiss Uncommon"/
+  "Dismiss Mythic", which already fit this same button width unscaled. The "Deposited: N [+Gold]"
+  balance line was never actually missing from the code (`refreshBankDialog()` has always shown
+  it right after the "Bank" header) - it was just off-screen along with the rest of the top of the
+  dialog; shrinking the button area should bring it back into view. Not yet playtested.

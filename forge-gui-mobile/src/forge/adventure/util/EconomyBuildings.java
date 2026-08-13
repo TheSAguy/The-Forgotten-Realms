@@ -1265,28 +1265,38 @@ public class EconomyBuildings {
         // Icons after each amount (2026-08-11, round 4 - "follow the Exchange menu's pattern"),
         // via [+Gold] font markup - not difficulty-scaled, deposits/withdrawals move the player's
         // own money rather than costing anything.
-        addButtonRow(dialog, "Deposit " + BANK_DENOMINATION + " [+Gold]", player.getGold() >= BANK_DENOMINATION, () -> {
+        // Half-width, packed 2 per row (2026-08-13 fix - user report: with the two checkboxes
+        // above added, 6 full-width button rows pushed the dialog taller than the screen,
+        // clipping the "Deposited:"/interest/header rows off the TOP - setKeepWithinStage() can
+        // only reposition a dialog, not shrink one taller than the stage). Same pattern already
+        // used for the Exchange dialog's Buy/Sell pairs and the Manage Guards dialog's Hire/
+        // Dismiss pairs. Unlike those two, no [%] scale-down needed here - "Withdraw 100
+        // [+Gold]"/"Deposit All" etc. are all shorter than "Dismiss Uncommon"/"Dismiss Mythic",
+        // which already fit this same 140f width unscaled.
+        int[] column = {0};
+        addHalfButton(dialog, column, "Deposit " + BANK_DENOMINATION + " [+Gold]", player.getGold() >= BANK_DENOMINATION, () -> {
             player.takeGold(BANK_DENOMINATION);
             changes.addBankBalance(BANK_DENOMINATION);
             refreshBankDialog(stage, changes, objectId);
         });
-        addButtonRow(dialog, "Deposit All", player.getGold() > 0, () -> {
+        addHalfButton(dialog, column, "Deposit All", player.getGold() > 0, () -> {
             int all = player.getGold();
             player.takeGold(all);
             changes.addBankBalance(all);
             refreshBankDialog(stage, changes, objectId);
         });
-        addButtonRow(dialog, "Withdraw " + BANK_DENOMINATION + " [+Gold]", changes.getBankBalance() >= BANK_DENOMINATION, () -> {
+        addHalfButton(dialog, column, "Withdraw " + BANK_DENOMINATION + " [+Gold]", changes.getBankBalance() >= BANK_DENOMINATION, () -> {
             changes.addBankBalance(-BANK_DENOMINATION);
             player.giveGold(BANK_DENOMINATION);
             refreshBankDialog(stage, changes, objectId);
         });
-        addButtonRow(dialog, "Withdraw All", changes.getBankBalance() > 0, () -> {
+        addHalfButton(dialog, column, "Withdraw All", changes.getBankBalance() > 0, () -> {
             int all = changes.getBankBalance();
             changes.addBankBalance(-all);
             player.giveGold(all);
             refreshBankDialog(stage, changes, objectId);
         });
+        finishHalfButtonRow(dialog, column);
         addButtonRow(dialog, "Destroy Building", true, () ->
                 openDestroyConfirmDialog(stage, objectId, () -> refreshBankDialog(stage, changes, objectId)));
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();

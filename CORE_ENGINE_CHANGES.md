@@ -885,6 +885,15 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   CheckBoxes added to `refreshBankDialog()` (first Dialog-embedded CheckBox in the mod). See
   MOD_CHANGELOG.md.
 
+### 2026-08-13 Capitol FoW Stage-3 reveal fix + Bank dialog compaction
+- **`util/TownRestoration.java`** (mod file, inventoried below) — new `applyCapitolVisionReveal()`
+  helper (one-time `revealArea()` + `refreshFogInRadius()` over the Capitol's
+  `getTownVisionRadiusTiles()` circle), called from `upgradeToCapitol()` (new upgrades) and
+  `repairCapitolState()` (self-heals existing saves on every load). See MOD_CHANGELOG.md.
+- **`util/EconomyBuildings.java`** (mod file, inventoried below) — `refreshBankDialog()`'s 4
+  Deposit/Withdraw buttons switched from `addButtonRow()` (full-width) to `addHalfButton()`
+  (half-width, 2 per row) to stop the dialog running taller than the screen. See MOD_CHANGELOG.md.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

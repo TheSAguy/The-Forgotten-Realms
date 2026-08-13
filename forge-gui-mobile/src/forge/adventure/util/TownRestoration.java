@@ -577,6 +577,17 @@ public class TownRestoration {
         // Territory state re-keys to the new id, same as a mage capture does.
         world.setTownTerritoryRadius(point.getID(), oldRadius != null ? oldRadius : RECOLOR_RADIUS);
         world.rebuildPlayerTownVision();
+        // Fog of war (2026-08-13 fix): the Capitol's fixed keep-radius vision circle
+        // (getTownVisionRadiusTiles() -> CASTLE_KEEP_RADIUS_TILES, bigger than the old town's
+        // smaller RECOLOR_RADIUS this ground was last baked at) was only ever force-revealed by
+        // EconomyBuildings.onOutlookChanged() - which fires on Outlook build/destroy, never on the
+        // Capitol upgrade itself. Without this, the ring between the old town's original repaint
+        // radius and the new, larger Capitol keep radius stayed hazed forever (nothing else ever
+        // repaints it), even though isPersistentlyRevealed() already says true for it via the
+        // just-rebuilt vision cache above - same "cache updated, nothing repainted" bug class
+        // onOutlookChanged()'s own doc comment describes, same fix pattern (revealArea() for any
+        // not-yet-explored ring, refreshFogInRadius() to re-tier everything already explored).
+        applyCapitolVisionReveal(world, point, newChanges);
         world.refreshWorldMapMarkers(); // the icon changed to the castle-sized capitol art
         updateTownLifeBonus(true); // the Capitol itself is worth +1 max life (user spec 2026-08-09)
 
@@ -719,6 +730,23 @@ public class TownRestoration {
      * Town, a shop can take its place").</li>
      * </ul>
      */
+    /**
+     * One-time-safe fog-of-war reveal over the Capitol's actual (fixed) vision radius - see the
+     * call site in upgradeToCapitol() for why this exists. revealArea() no-ops per-tile on ground
+     * already explored and refreshFogInRadius() is a pure re-derive, so calling this again on an
+     * already-correct Capitol (every load, via repairCapitolState() below) is safe/cheap, not just
+     * safe once - existing saves upgraded before this fix self-heal on their next load instead of
+     * needing a save-specific migration flag.
+     */
+    private static void applyCapitolVisionReveal(forge.adventure.world.World world, PointOfInterest capitol,
+                                                   PointOfInterestChanges changes) {
+        int centerX = (int) (capitol.getPosition().x / world.getTileSize());
+        int centerY = (int) (capitol.getPosition().y / world.getTileSize());
+        int radius = world.getTownVisionRadiusTiles(capitol, changes);
+        world.revealArea(centerX, centerY, radius, WorldStage.getInstance()::refreshBackgroundTile);
+        world.refreshFogInRadius(centerX, centerY, radius + 2, WorldStage.getInstance()::refreshBackgroundTile);
+    }
+
     public static void repairCapitolState(forge.adventure.world.World world) {
         ConfigData configData = Config.instance().getConfigData();
         if (configData == null || !configData.townReconstructionEnabled)
@@ -734,6 +762,10 @@ public class TownRestoration {
             return;
         String mapPath = capitol.getData().map;
         PointOfInterestChanges changes = WorldSave.getCurrentSave().getPointOfInterestChanges(capitol.getID());
+
+        // Self-heals any save whose Capitol upgrade ran before the 2026-08-13 fix above - see
+        // applyCapitolVisionReveal()'s own doc comment for why repeating this every load is safe.
+        applyCapitolVisionReveal(world, capitol, changes);
 
         Integer innId = readInnObjectId(mapPath);
         if (innId != null && changes.getMapFlags().putIfAbsent("shopRebuilt_" + innId, (byte) 1) == null)

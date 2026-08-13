@@ -7964,3 +7964,74 @@ else in the file moved.
 
 Not yet playtested in-game - numeric verification only, no way to watch the actual movement
 speeds from here.
+
+## Capitol FoW Stage-3 reveal fix, guard-notification confirmation, Bank dialog compaction (2026-08-13)
+
+Three items from a user screenshot review session (home PC).
+
+### FoW Stage-3 gap around an upgraded Capitol (MOD_SCOPE.md #3)
+User screenshots showed hazed (Stage 2) terrain around an established Capitol/castle that should
+have been full-brightness (Stage 3, "player owned"). Documented the 3-stage FoW model as a
+reference table at the top of MOD_SCOPE.md #3 first (Unexplored/Known-hazed/Revealed-bright, plus
+the discovery-flash as a time-limited Stage-3 variant, not a 4th stage) before hunting the bug, per
+the user's own request to make this easier to talk about going forward.
+
+Root cause: every other event that changes a town's fog-of-war vision-circle size pairs
+`World.rebuildPlayerTownVision()` (updates the in-memory `playerTownVisionAreas` cache) with a
+one-time `revealArea()` + `refreshFogInRadius()` call that actually re-bakes the affected tiles and
+minimap (`EconomyBuildings.onOutlookChanged()`'s own doc comment names this exact "cache updated,
+nothing repainted" bug class; a regular town's daily territory growth does the equivalent via
+`TerritoryControl.processTerritoryExpansion()`'s `revealArea()` call). `TownRestoration.
+upgradeToCapitol()` was the one exception: it calls `rebuildPlayerTownVision()` but never did the
+second half. Since the Capitol's vision radius (`getTownVisionRadiusTiles()` -> fixed
+`CASTLE_KEEP_RADIUS_TILES`, 20 tiles) is larger than the original town's pre-upgrade repaint radius
+(`RECOLOR_RADIUS`, 10 tiles), the 10-20 tile ring around every Capitol was left permanently hazed
+unless the player happened to build an Outlook there later (whose own reveal call covers the gap as
+an unrelated side effect).
+
+Fix: new shared `TownRestoration.applyCapitolVisionReveal(world, capitol, changes)` helper (computes
+the Capitol's tile-space center + `getTownVisionRadiusTiles()`, calls `revealArea()` then
+`refreshFogInRadius(..., radius + 2, ...)`, same pattern/buffer `onOutlookChanged()` established).
+Called from two places: `upgradeToCapitol()` (right after `rebuildPlayerTownVision()`, for new
+upgrades going forward) and `TownRestoration.repairCapitolState()` (runs unconditionally on every
+save load, so an existing save whose Capitol was upgraded before this fix self-heals on its next
+load - both `revealArea()` and `refreshFogInRadius()` are idempotent/pure-re-derive, so repeating
+this every load is safe, not just safe once, matching this file's other load-time self-repair
+functions like `migrateGenericTownNames()`/`repairMissingCapitals()`). Not yet playtested - needs
+either a fresh Capitol upgrade or an existing save reloaded to confirm the ring actually re-bakes
+bright.
+
+### Guard-disbanded notification - already existed, confirmed not missing
+User asked to add a notification when a guard is dismissed for lack of funds, similar to the
+mage-attack "PLAYER OWNED TOWN!" warning. Checked `EconomyBuildings.processDaysPassed()`'s guard
+salary loop first rather than assuming - it already calls `GameHUD.addNotification("[RED]Your <tier>
+guard was disbanded - salary went unpaid!", true)` the moment a guard's combined bank+inventory
+shortfall forces a disband, using the exact same `addNotification(text, authoredMarkup)` opt-in-color
+pattern as the town-attack warning being compared against. `git log -S` traces this line back to the
+original Guard Hiring build (`5a72d906e20`, #22, 2026-08-11) - untouched by this week's Guard Payment
+Priority round. No code change made; noted directly in MOD_SCOPE.md #44 so this doesn't get re-asked.
+
+### Bank dialog running off-screen (MOD_SCOPE.md #44)
+User report + screenshot: the Bank dialog's "Deposited: N" balance line (and header, and interest
+rate line) were nowhere visible on screen, only "Your gold: N" and below. Traced to the two new
+Bank-preference checkboxes (this week's Guard Payment Priority round) landing on top of the dialog's
+pre-existing 6 full-width action-button rows (Deposit 100/Deposit All/Withdraw 100/Withdraw All/
+Destroy Building/Close) - the combined dialog grew taller than the screen, and `Dialog.
+setKeepWithinStage()` can only reposition a dialog within the stage, not shrink one that's taller
+than the stage itself, so the TOP of the content table (not the buttons) is what got clipped off.
+The balance line was never actually missing from the code - `refreshBankDialog()` has always had it.
+
+Fix: `EconomyBuildings.refreshBankDialog()`'s 4 money-movement buttons now use the same
+half-width-buttons-packed-2-per-row treatment already established for the Exchange dialog's Buy/Sell
+pairs and the Manage Guards dialog's Hire/Dismiss pairs (`addHalfButton()`/`finishHalfButtonRow()`),
+cutting those 4 rows down to 2. Destroy Building/Close stay full-width singles below, matching the
+Exchange dialog's own convention (it does the same - paired trade buttons, single-width Destroy/
+Close). No `[%]` font scale-down needed, unlike the Manage Guards Hire buttons which needed both a
+width bump AND scale-down to fit "Hire <tier> (<cost>)" - every label here ("Withdraw 100 [+Gold]",
+"Deposit All", etc.) is shorter than "Dismiss Uncommon"/"Dismiss Mythic", which already fit this
+same 140f button width unscaled. Shrinking the button area should bring the header/balance/interest
+rows back within the visible screen without touching them directly. Not yet playtested.
+
+### Compile status
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o` - BUILD SUCCESS after both edits
+(`TownRestoration.java`, `EconomyBuildings.java`). Not yet deployed/playtested in-game.
