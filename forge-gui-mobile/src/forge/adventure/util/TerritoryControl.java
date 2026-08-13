@@ -528,9 +528,19 @@ public class TerritoryControl {
                 // The grown ring is the player's own held ground now - mark it explored so it
                 // doesn't sit under black fog (revealArea() no-ops for already-explored tiles and
                 // when fog of war is off).
-                world.revealArea((int) (poi.getPosition().x / world.getTileSize()),
-                        (int) (poi.getPosition().y / world.getTileSize()),
-                        newTownRadius, WorldStage.getInstance()::refreshBackgroundTile);
+                // FoW Stage-3 reveal gap fix (2026-08-13, user report - player standing on owned
+                // land still rendered Stage-1 black): this used to reveal only the raw territory
+                // radius (newTownRadius), NOT the actual (Outlook-aware, up to 2x) vision circle
+                // rebuildPlayerTownVision() just cached above - so a town with an Outlook had a
+                // "Persistently Revealed"/Stage-3-eligible ring the fog-explored[][] array never
+                // actually got marked explored for, permanently rendering Stage-1 black past the
+                // raw radius (only the player's own live-vision sweep walking directly over those
+                // tiles would ever clear them). Use the same Outlook-aware radius every other
+                // reveal call site uses (EconomyBuildings.onOutlookChanged(),
+                // TownRestoration.applyTownVisionReveal(), called directly here rather than
+                // duplicated) instead of the raw growth radius.
+                PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+                TownRestoration.applyTownVisionReveal(world, poi, changes);
             }
         }
         // Rebuild sources with the towns' POST-growth radii (their 50% hard-protection tracks it).

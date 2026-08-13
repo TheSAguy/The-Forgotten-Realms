@@ -4842,6 +4842,7 @@
         "description":  "A medal awarded to the one who has defeated the ultimate opponent.",
         "equipmentSlot":  "Medal",
         "iconName":  "MedalVictory",
+        "excludeFromGeneralSale":  true,
         "effect":  {
                        "cardRewardBonus":  5,
                        "lifeModifier":  -20,
@@ -5559,6 +5560,7 @@
         "name":  "Chandra\u0027s Stone",
         "description":  "A small red gemstone recovered after your battle with Chandra",
         "iconName":  "r",
+        "excludeFromGeneralSale":  true,
         "rarity":  "Common"
     },
     {
@@ -5577,6 +5579,7 @@
         "name":  "Liliana\u0027s Stone",
         "description":  "A small black gemstone recovered after your battle with Liliana",
         "iconName":  "b",
+        "excludeFromGeneralSale":  true,
         "rarity":  "Common"
     },
     {

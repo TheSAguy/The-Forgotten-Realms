@@ -19,6 +19,12 @@ public class ItemData implements Serializable, Cloneable {
     public String description; //Manual description of the item.
     public String iconName;
     public boolean questItem=false;
+    // Trophy/signature-drop items (2026-08-13, user report - "Chandra's Stone"/"Medal of Ultimate
+    // Victory" showing up in the Armory for sale): a boss-fight memento with a real, working grant
+    // path (so NOT questItem - that flag also wipes on New Game+ and disables inventory delete,
+    // neither of which applies here) that still shouldn't be pulled from the general weighted
+    // sell pool. See ItemListData.getItemNamesByRarity().
+    public boolean excludeFromGeneralSale=false;
     public int cost=1000;
     // Item economy (2026-08-10): Common/Uncommon/Rare/Mythic, matching MTG's own rarity naming.
     // For items with effect.startBattleWithCard(InCommandZone), set from that card's real printed
@@ -48,6 +54,7 @@ public class ItemData implements Serializable, Cloneable {
         description       = cpy.description;
         iconName          = cpy.iconName;
         questItem         = cpy.questItem;
+        excludeFromGeneralSale = cpy.excludeFromGeneralSale;
         cost              = cpy.cost;
         rarity            = cpy.rarity;
         usableInPoi       = cpy.usableInPoi;

@@ -101,6 +101,11 @@ public class WorldSave {
                     // the town-count life bonus both read pointOfInterestChanges flags. Both are
                     // idempotent, both inert unless the mod plane's config flags are on.
                     forge.adventure.util.TownRestoration.repairCapitolState(currentSave.world);
+                    // FoW Stage-3 reveal gap (2026-08-13 fix, user report) - self-heals every
+                    // player-owned restored town's vision-circle reveal, not just the Capitol's
+                    // (repairCapitolState() above only covers the Capitol). Same both-halves-loaded
+                    // requirement as the Capitol repair above (reads pointOfInterestChanges flags).
+                    forge.adventure.util.TownRestoration.repairAllTownVisionReveal(currentSave.world);
                     forge.adventure.util.TownRestoration.updateTownLifeBonus(false);
                     // Re-derive the minimap fog overlay now that the vision cache is real -
                     // World.load()'s own rebuild ran before pointOfInterestChanges loaded, so its

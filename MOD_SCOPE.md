@@ -2251,6 +2251,17 @@ date to actually see the bank-vs-inventory split happen.
   balance line was never actually missing from the code (`refreshBankDialog()` has always shown
   it right after the "Bank" header) - it was just off-screen along with the rest of the top of the
   dialog; shrinking the button area should bring it back into view. Not yet playtested.
+- **Fixed weekly payday for everyone, replacing the per-guard rolling timer (user spec,
+  2026-08-13)**: every hired guard now pays on the same shared calendar days - 7, 14, 21, 28, etc.
+  - regardless of when it was individually hired, instead of "7 days since THIS guard was last
+  paid." `EconomyBuildings.processDaysPassed()`'s salary loop now computes each guard's next due
+  day as the smallest multiple of 7 strictly greater than its `lastPaidDay`, so a guard hired on
+  day 10 first pays on day 14 (not day 17). Existing guards (including ones carried over from
+  before this change, whose `lastPaidDay` isn't a multiple of 7) snap onto the shared schedule
+  automatically the next time they're due - no save migration needed. Bank-first/inventory-first
+  source ordering and Shard-untouched behavior from the change above are unaffected - only the
+  TRIGGER timing changed. Not yet playtested - needs a couple of hired guards at staggered hire
+  days, then a 100x-Speed fast-forward past day 7/14 to confirm they all get charged together.
 
 ### 45. Capitol Land-Shop Ruins, Torch Item, Resource-Pickup Sparkle — `Built (2026-08-13), not yet playtested`
 Three pieces of art/content polish from one user round, all user-provided art reviewed before use:
@@ -2285,3 +2296,69 @@ Three pieces of art/content polish from one user round, all user-provided art re
   file - the established plane-first override mechanism, no code path change needed).
 
 Not yet playtested - none of these three have been seen rendered in-game.
+
+### 46. FoW Stage-3 Reveal Gap on Owned Town Land — `Fixed (2026-08-13), not yet playtested`
+User report + screenshot: standing on owned land, fog-of-war still rendered fully dark (Stage 1)
+instead of the expected full reveal (Stage 3) - a variant of a bug class fixed once already today
+for the Capitol specifically (see #45's sibling fix, `fb1da89593a`), but this report was about an
+ordinary player town, a different code path that fix never touched. Root cause:
+`TerritoryControl.processTerritoryExpansion()`'s daily town-growth block revealed only the RAW
+territory radius, not the actual (Outlook-aware, up to 2x) vision circle
+`rebuildPlayerTownVision()` caches for the same town one line above - so a town with an Outlook
+had ground marked "owned"/Stage-3-eligible that the fog `explored[][]` array never actually got
+told to reveal, permanently stuck black past the raw radius. Two-part fix: (1) that reveal call
+now uses the same Outlook-aware radius every other reveal site uses, via a shared
+`TownRestoration.applyTownVisionReveal()` helper (generalized from a Capitol-only version added
+earlier today, now called from 3 sites instead of duplicated); (2) a new
+`TownRestoration.repairAllTownVisionReveal()` self-heals EVERY restored town's vision reveal on
+save load (not just the Capitol), so the user's already-affected save recovers automatically next
+load rather than needing the bug to never have happened. Not yet playtested - needs the user to
+load their existing save and confirm the previously-black ground near an owned town (especially
+one with an Outlook) is now revealed, then build a fresh Outlook on a new town to confirm the gap
+doesn't recur going forward.
+
+### 47. Armory Level 2 Not Showing 8 Items Immediately — `Fixed (2026-08-13), not yet playtested`
+User report: Armory L1 correctly sells 6 items, L2 should sell 8 (per #9's dynamic item-pool
+rework) but still showed only 6 right after upgrading. Root cause: `RewardScene.promptUpgradeArmory()`
+only flipped the persisted Level-2 flag and toggled two buttons - it never re-resolved the shop to
+its L2 shops.json entry or regenerated/redrew the item grid, so the screen the player was already
+looking at kept showing the stale L1 rewards (leaving and re-entering the town should have already
+worked, since `MapStage.loadMap()`'s own L1->L2 redirect is correct - worth the user confirming
+that path too). Fixed by mirroring the shop-reroll/Armory-reroll buttons' own pattern: resolve the
+L2-suffixed ShopData, swap it onto the shop actor, regenerate rewards with the shop's own
+(weekly-refreshing) seed, and redraw immediately. **Caught and fixed by adversarial review before
+deploy**: the first draft resolved the L2 data and charged/upgraded FIRST, discovering only
+afterward (silently) if no L2 entry existed - a real, reachable trap for a separate pre-existing
+data gap (the 5 AI-capital colored `Equipment`/`Items` armory-type shops have no `*L2` shops.json
+sibling at all) that would have permanently burned the player's 300 stone with zero visible effect
+if they ever captured and upgraded one of those. Reordered to resolve the L2 data BEFORE charging
+anything - a missing entry now correctly refuses the upgrade with a notification instead of
+silently eating the payment (matches the existing "no-charge-no-change" pattern used elsewhere in
+this file for an analogous case). The missing shops.json L2 entries for the 5 colored AI-capital
+armories are a separate, still-open data gap - not fixed here, since it needs a design decision
+(what should THOSE upgrades even cost/stock) rather than a mechanical copy-paste.
+
+### 48. Trophy Items Leaking Into the Armory Sell Pool — `Fixed (2026-08-13), not yet playtested`
+User report + screenshots: found "Chandra's Stone" and "Medal of Ultimate Victory" for sale in the
+Armory for 1000 gold, and independently found "Liliana's Stone" too - all three are boss-fight
+mementos (Chandra's/Liliana's Stone drop from beating those two planeswalkers; Medal of Ultimate
+Victory from beating Meloku, the game's real final/hardest fight) with a working grant path, so
+they were never flagged by the earlier item-reachability audit (#41's "Currently Unused" pass) -
+but nobody had ever asked the separate question of whether a reachable item is ALSO appropriate
+for general sale. Root cause: the Armory's Weighted item pool (`ItemListData.getItemNamesByRarity()`)
+only ever excluded quest items and Landscape Sketchbooks - no flag existed for "reachable, but not
+meant to be generally purchasable." A full scan (requested by the user) of item flavor text for
+boss-trophy phrasing, cross-referenced against enemies.json's guaranteed-drop rewards, confirmed
+these are the only 3 items in the catalog that fit this narrow category (as opposed to the ~40
+OTHER boss-signature GEAR items like Teferi's Staff/Garruk's Mighty Axe - those are real,
+functional equipment that happen to also be a boss's signature drop, and have always been
+generally purchasable even before the Armory's dynamic pool rework - pulling those too would be a
+much bigger, unrequested change; flagged for the user to decide separately, not done here). Fix:
+new `ItemData.excludeFromGeneralSale` boolean (deliberately not `questItem` - that flag also wipes
+on New Game+ and disables inventory delete, neither wanted here), wired into
+`getItemNamesByRarity()`, set true on the 3 confirmed items in `items.json`. `getItem()` (the
+boss-reward grant's own lookup) is untouched, so the actual drops still work. A second, independent
+leak in `EconomyBuildings.NON_MYTHIC_ITEM_POOL` (a hardcoded name list backing the Archaeologist's
+5% bonus-item roll) also listed all 3 names - fixed by removing them there too. Not yet playtested
+- needs a few Armory/Archaeologist rolls to confirm the 3 items no longer appear (probabilistic,
+may take several tries either way given how the pool is weighted).

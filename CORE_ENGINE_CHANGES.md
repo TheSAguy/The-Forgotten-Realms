@@ -923,6 +923,30 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   `ResourceSpawnActor.draw()` is untouched (kept as a defensive fallback if an atlas ever fails to
   load, not expected in practice).
 
+### 2026-08-13 (later) Playtest round: FoW gap, Armory L2 refresh, trophy items
+- **`world/WorldSave.java`** — `load()` gained a call to `TownRestoration.
+  repairAllTownVisionReveal(world)` right after `repairCapitolState()`, self-healing every
+  restored town's fog-of-war vision-circle reveal (not just the Capitol's) on every load.
+- **`scene/RewardScene.java`** — `promptUpgradeArmory()` now resolves the shop's L2-suffixed
+  `ShopData` (via `WorldData.getShopList()`) BEFORE charging/flipping the level flag (no-charge-
+  no-change if no L2 entry exists - a real pre-existing shops.json gap for 5 AI-capital colored
+  armory shops), then swaps it onto the actor and regenerates+redraws the reward grid immediately
+  instead of only on the next full map rebuild.
+- **`data/ItemData.java`** — new `excludeFromGeneralSale` boolean field (+ copy-constructor line).
+- **`data/ItemListData.java`** — `getItemNamesByRarity()`'s skip condition gained
+  `|| item.excludeFromGeneralSale` alongside the existing `questItem` check.
+- **`util/TerritoryControl.java`** / **`util/TownRestoration.java`** (both mod files, already
+  inventoried below - listed here anyway per this file's own per-round convention) —
+  `TownRestoration.applyCapitolVisionReveal()` generalized to package-private
+  `applyTownVisionReveal(world, poi, changes)` (works for any restored town, not just the
+  Capitol); new `TownRestoration.repairAllTownVisionReveal(world)`;
+  `TerritoryControl.processTerritoryExpansion()`'s player-town growth block now calls the shared
+  helper instead of a raw `revealArea(..., newTownRadius, ...)`, fixing the reveal radius to
+  match the actual (Outlook-aware) vision circle.
+- **`util/EconomyBuildings.java`** (mod file, inventoried below) — guard-salary payday moved from
+  a per-guard rolling timer to a shared calendar schedule (`nextPayday` formula in
+  `processDaysPassed()`); `NON_MYTHIC_ITEM_POOL` lost 3 trophy-item names (see MOD_CHANGELOG.md).
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

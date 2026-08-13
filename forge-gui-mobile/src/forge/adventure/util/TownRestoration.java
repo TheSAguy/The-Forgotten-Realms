@@ -596,9 +596,13 @@ public class TownRestoration {
         // keyed by POI id - transformInto() re-keys the POI, so without this copy a town's
         // guards silently vanished on upgrade while their salary state was orphaned (2026-08-12
         // review finding). hireGuard()'s day parameter is stored as lastPaidDay, so passing the
-        // old lastPaidDay preserves each guard's salary cycle exactly. Bank balance needs no
-        // equivalent: Bank/Exchange are Capitol-exclusive builds (see EconomyBuildings'
-        // buildSimpleRepairDialog isCapitol gate), so a pre-upgrade town can never hold one.
+        // old lastPaidDay carries it across correctly - since guard salary moved to a fixed
+        // shared payday (2026-08-13, EconomyBuildings.processDaysPassed()'s nextPayday formula),
+        // that value no longer needs to BE a multiple of 7 to work right: it just converges onto
+        // the next 7/14/21/28 boundary the same way any inherited legacy value would. Bank
+        // balance needs no equivalent: Bank/Exchange are Capitol-exclusive builds (see
+        // EconomyBuildings' buildSimpleRepairDialog isCapitol gate), so a pre-upgrade town can
+        // never hold one.
         for (int i = 0; i < oldChanges.getGuardCount(); i++)
             newChanges.hireGuard(oldChanges.getGuardTier(i), oldChanges.getGuardLastPaidDay(i));
         if (oldChanges.getGuardCount() > 0)
@@ -619,7 +623,7 @@ public class TownRestoration {
         // just-rebuilt vision cache above - same "cache updated, nothing repainted" bug class
         // onOutlookChanged()'s own doc comment describes, same fix pattern (revealArea() for any
         // not-yet-explored ring, refreshFogInRadius() to re-tier everything already explored).
-        applyCapitolVisionReveal(world, point, newChanges);
+        applyTownVisionReveal(world, point, newChanges);
         world.refreshWorldMapMarkers(); // the icon changed to the castle-sized capitol art
         updateTownLifeBonus(true); // the Capitol itself is worth +1 max life (user spec 2026-08-09)
 
@@ -763,20 +767,47 @@ public class TownRestoration {
      * </ul>
      */
     /**
-     * One-time-safe fog-of-war reveal over the Capitol's actual (fixed) vision radius - see the
-     * call site in upgradeToCapitol() for why this exists. revealArea() no-ops per-tile on ground
-     * already explored and refreshFogInRadius() is a pure re-derive, so calling this again on an
-     * already-correct Capitol (every load, via repairCapitolState() below) is safe/cheap, not just
-     * safe once - existing saves upgraded before this fix self-heal on their next load instead of
-     * needing a save-specific migration flag.
+     * One-time-safe fog-of-war reveal over a player-owned town's actual vision radius (works for
+     * the Capitol or an ordinary town - getTownVisionRadiusTiles() already branches on isCapitol
+     * internally) - see the call sites in upgradeToCapitol(), repairAllTownVisionReveal(), and
+     * TerritoryControl.processTerritoryExpansion() (same package, calls this directly rather than
+     * duplicating it) for why this exists. revealArea() no-ops per-tile on ground already explored
+     * and refreshFogInRadius() is a pure re-derive, so calling this again on an already-correct
+     * town (every load, via repairAllTownVisionReveal() below) is safe/cheap, not just safe once -
+     * existing saves affected by the gap this closes self-heal on their next load instead of
+     * needing a save-specific migration flag. Package-private (not private) specifically so
+     * TerritoryControl can share it instead of reimplementing the same reveal+refresh pair.
      */
-    private static void applyCapitolVisionReveal(forge.adventure.world.World world, PointOfInterest capitol,
-                                                   PointOfInterestChanges changes) {
-        int centerX = (int) (capitol.getPosition().x / world.getTileSize());
-        int centerY = (int) (capitol.getPosition().y / world.getTileSize());
-        int radius = world.getTownVisionRadiusTiles(capitol, changes);
+    static void applyTownVisionReveal(forge.adventure.world.World world, PointOfInterest poi,
+                                       PointOfInterestChanges changes) {
+        int centerX = (int) (poi.getPosition().x / world.getTileSize());
+        int centerY = (int) (poi.getPosition().y / world.getTileSize());
+        int radius = world.getTownVisionRadiusTiles(poi, changes);
         world.revealArea(centerX, centerY, radius, WorldStage.getInstance()::refreshBackgroundTile);
         world.refreshFogInRadius(centerX, centerY, radius + 2, WorldStage.getInstance()::refreshBackgroundTile);
+    }
+
+    /**
+     * Self-heals fog-of-war for EVERY player-owned restored town, not just the Capitol (2026-08-13
+     * fix - user report: standing on owned ordinary-town land still rendered Stage-1 black). The
+     * Capitol gets covered again here too (redundant with repairCapitolState()'s own call below,
+     * but applyTownVisionReveal() is idempotent - see its own doc comment). Fixes both an already-
+     * broken existing save (this round's TerritoryControl.processTerritoryExpansion() fix only
+     * prevents the gap from recurring going forward, it can't retroactively fix ground already
+     * mis-revealed) and any future drift from a cause not yet found. Cheap early-return mirrors
+     * repairCapitolState()'s own gate - isTownRestored() is never true on any plane without
+     * reconstruction enabled anyway, this just avoids the pointless full-POI scan.
+     */
+    public static void repairAllTownVisionReveal(forge.adventure.world.World world) {
+        ConfigData configData = Config.instance().getConfigData();
+        if (configData == null || !configData.townReconstructionEnabled)
+            return;
+        for (PointOfInterest poi : world.getAllPointOfInterest()) {
+            PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+            if (!isTownRestored(changes))
+                continue;
+            applyTownVisionReveal(world, poi, changes);
+        }
     }
 
     public static void repairCapitolState(forge.adventure.world.World world) {
@@ -796,8 +827,8 @@ public class TownRestoration {
         PointOfInterestChanges changes = WorldSave.getCurrentSave().getPointOfInterestChanges(capitol.getID());
 
         // Self-heals any save whose Capitol upgrade ran before the 2026-08-13 fix above - see
-        // applyCapitolVisionReveal()'s own doc comment for why repeating this every load is safe.
-        applyCapitolVisionReveal(world, capitol, changes);
+        // applyTownVisionReveal()'s own doc comment for why repeating this every load is safe.
+        applyTownVisionReveal(world, capitol, changes);
 
         Integer innId = readInnObjectId(mapPath);
         if (innId != null && changes.getMapFlags().putIfAbsent("shopRebuilt_" + innId, (byte) 1) == null)

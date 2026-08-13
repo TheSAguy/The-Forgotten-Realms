@@ -18,6 +18,7 @@ import forge.haptic.HapticEngine;
 import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.adventure.data.RewardData;
 import forge.adventure.data.ShopData;
+import forge.adventure.data.WorldData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.stage.GameHUD;
@@ -197,10 +198,53 @@ public class RewardScene extends UIScene {
                         + "?\nUnlocks the ability to hire guards to defend this town.",
                 Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
                     removeDialog();
+                    // Resolve the L2-suffixed ShopData BEFORE charging anything (2026-08-13 fix,
+                    // adversarial review finding: some armory-family shops - the 5 AI-capital
+                    // colored Equipment/Items pairs, e.g. RedEquipment/RedItems - have no *L2
+                    // shops.json sibling at all, a pre-existing data gap MapStage.loadMap()'s own
+                    // L1->L2 redirect shares. Charging first and only conditionally refreshing
+                    // would burn the player's stone AND set buildingLevel=2 with no visible
+                    // effect, permanently - even leaving and re-entering doesn't self-heal it,
+                    // since that redirect has the identical gap. No-charge-no-change on failure,
+                    // same pattern promptRerollShopType() above already uses for "nothing this
+                    // could become."
+                    String l2Name = shopActor.getShopData().name + "L2";
+                    ShopData l2Data = null;
+                    for (ShopData candidate : new Array.ArrayIterator<>(WorldData.getShopList())) {
+                        if (l2Name.equals(candidate.name)) {
+                            l2Data = candidate;
+                            break;
+                        }
+                    }
+                    if (l2Data == null) {
+                        GameHUD.getInstance().addNotification(
+                                "[RED]This Armory has no Level 2 stock configured yet - upgrade unavailable.", true);
+                        return;
+                    }
                     EconomyBuildings.payCost(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0);
                     changes.setBuildingLevel(shopActor.getObjectId(), 2);
                     guardsButton.setVisible(true);
                     upgradeButton.setVisible(false);
+                    // Refresh the ALREADY-OPEN screen to the L2 item pool immediately (2026-08-13
+                    // fix - user report: upgrading flipped the buttons but the item grid stayed at
+                    // 6 items until leaving and re-entering the town, since MapStage.loadMap()'s own
+                    // L1->L2 shop-name redirect only runs on a full map rebuild, never on this
+                    // dialog's own confirm). Mirrors promptRerollShopType()/promptRerollArmory()
+                    // above - swap the already-resolved L2 ShopData onto the actor, regenerate
+                    // rewards with the shop's own weekly-refreshing seed (Armory is noRestock -
+                    // same seed selection MapStage.loadMap() itself uses), and redraw.
+                    shopActor.setShopData(l2Data);
+                    clearGenerated();
+                    Array<Reward> ret = new Array<>();
+                    long shopSeed = changes.getWeeklyShopSeed(shopActor.getObjectId(),
+                            WorldSave.getCurrentSave().getWorld().getCurrentDay());
+                    WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
+                    for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
+                            new Array.ArrayIterator<>(l2Data.rewards), changes, l2Data.name)) {
+                        ret.addAll(rdata.generate(false, false));
+                    }
+                    shopActor.setRewardData(ret);
+                    loadRewards(ret, RewardScene.Type.Shop, shopActor);
                 }, this::removeDialog));
     }
 

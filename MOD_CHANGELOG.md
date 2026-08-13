@@ -519,6 +519,124 @@ forward past a guard's due date with both a nonzero bank balance and nonzero inv
 which source actually gets drawn first) and the two checkboxes' visual state across dialog
 rebuilds.
 
+## 2026-08-13 (later): Playtest round - fixed guard payday, FoW gap, Armory L2 refresh, trophy items
+
+Four items from the user's first playtest of the guard/bank feature above, all fixed and
+adversarially reviewed before deploy (two real bugs caught and fixed in review - see below).
+
+**Fixed weekly guard payday** (user spec): `EconomyBuildings.processDaysPassed()`'s salary loop
+replaced its per-guard rolling `while (newDayCount - lastPaid >= 7)` timer with a shared-calendar
+`while (true) { int nextPayday = ((lastPaid / 7) + 1) * 7; if (nextPayday > newDayCount) break; ...
+lastPaid = nextPayday; }`. Every guard now pays on day 7/14/21/28/... regardless of hire date - the
+formula (floor(lastPaid/7)*7 + 7) always rounds strictly up to the next shared boundary, so a
+guard hired day 10 first pays day 14, and any inherited `lastPaidDay` (including legacy non-
+multiple-of-7 values from before this change) converges onto the schedule with zero migration
+code. Multi-payday catch-up after a long fast-forward still works (verified by hand: lastPaid=5,
+jump to day 40, charges at 7/14/21/28/35). Only the trigger timing changed - `payGuardGold()`'s
+bank/inventory split and the shard-untouched-either-way behavior are unaffected.
+
+**FoW Stage-3 reveal gap on ordinary owned towns** (user report + screenshot): a sibling bug to
+the Capitol-specific gap fixed earlier today (`fb1da89593a`), in a code path that fix never
+touched. `TerritoryControl.processTerritoryExpansion()`'s daily player-town growth block called
+`world.revealArea(..., newTownRadius, ...)` - the RAW territory radius - instead of the actual
+vision circle `rebuildPlayerTownVision()` caches one line above via `getTownVisionRadiusTiles()`
+(which doubles for an Outlook-equipped town). Net effect: a town with an Outlook had ground marked
+`isPersistentlyRevealed()==true` (Stage-3-eligible per the ownership cache) that the fog
+`explored[][]` array was never told to actually reveal - permanently stuck Stage-1 black past the
+raw radius, since once a town hits `TOWN_MAX_TERRITORY_RADIUS` the daily loop stops touching it at
+all. Fix, two parts:
+1. `TownRestoration.applyCapitolVisionReveal()` (added earlier today for the Capitol-only fix)
+   generalized to `applyTownVisionReveal(world, poi, changes)` (package-private, not private) -
+   its body was already Capitol-agnostic (`getTownVisionRadiusTiles()` branches on `isCapitol`
+   internally), only the parameter name/doc comment needed updating. `TerritoryControl.java`'s new
+   reveal block now calls this directly (`TownRestoration.applyTownVisionReveal(world, poi,
+   changes)`) instead of reimplementing revealArea()+refreshFogInRadius(radius+2) inline - an
+   adversarial review pass flagged the first draft's inline duplication as a three-way drift risk
+   (EconomyBuildings.onOutlookChanged() already has its own independent copy of this same
+   reveal+refresh pair; better to not add a fourth).
+2. New `TownRestoration.repairAllTownVisionReveal(world)`, called from `WorldSave.load()` right
+   after `repairCapitolState()`: loops every restored town (not just the Capitol) and re-applies
+   `applyTownVisionReveal()`. This is what actually fixes the user's ALREADY-broken save - part 1
+   alone only prevents the gap from recurring going forward, since the affected town's radius has
+   likely already hit its cap and the daily loop stopped revisiting it. Idempotent (verified by
+   reading `revealArea()`/`refreshFogInRadius()` directly, not just trusting the doc comment) -
+   redundant with `repairCapitolState()`'s own Capitol-specific call, harmlessly.
+
+**Armory Level 2 not showing 8 items on the already-open screen** (user report): shops.json/
+RewardData.java were already correct (`Equipment`=6 items, `EquipmentL2`=8, confirmed by direct
+read) - the bug was `RewardScene.promptUpgradeArmory()` only flipping `changes.setBuildingLevel()`
+and two button visibilities, never re-resolving the shop to its L2 shops.json entry or
+regenerating/redrawing the reward grid the player was already looking at (leaving and re-entering
+the town should already work via `MapStage.loadMap()`'s own L1->L2 name redirect, worth the user
+confirming that path too). Fixed by mirroring `promptRerollShopType()`/`promptRerollArmory()`'s
+own pattern in the same file: resolve `shopActor.getShopData().name + "L2"` against
+`WorldData.getShopList()` (same lookup-by-name pattern `MapStage.java`'s pinned-shop resolution
+uses), `shopActor.setShopData(...)`, regenerate rewards seeded via `changes.getWeeklyShopSeed(...)`
+(Armory is `noRestock`, same seed selection `MapStage.loadMap()` itself uses for this shop type),
+`shopActor.setRewardData(...)`, `loadRewards(...)`.
+
+**Caught in adversarial review before deploy**: the first draft resolved the L2 ShopData and only
+THEN charged the 300-stone cost + set the level flag, refreshing the grid conditionally if the
+lookup succeeded. Review found this silently un-safe for a separate, pre-existing shops.json gap:
+the 5 AI-capital colored armory-type shops (`WhiteEquipment`/`RedEquipment`/`BlueEquipment`/
+`BlackEquipment`/`GreenEquipment` and their `*Items` counterparts - all matched by
+`EconomyBuildings.isArmoryShopName()`, reachable if the player ever captures and upgrades one of
+these via Territory Control) have no `*L2` shops.json sibling at all - `MapStage.loadMap()`'s own
+L1->L2 redirect has the identical gap, so this never self-heals even on re-entry. Upgrading one of
+these would have permanently burned the player's 300 stone with the level flag stuck at 2 and the
+item pool never changing, no error shown. Fixed by reordering: resolve the L2 ShopData FIRST, and
+only pay/flip-the-level/refresh if it resolves - a missing entry now shows a red HUD notification
+and refuses the upgrade (no charge, no state change), matching the existing "nothing this could
+become" pattern `promptRerollShopType()` already uses for its own analogous null case. The missing
+`*L2` shops.json entries for the 5 colored AI-capital armories remain an open, separate item (needs
+a cost/stock design decision, not a mechanical fix) - see MOD_SCOPE.md #47.
+
+**Trophy items in the Armory sell pool** (user report + screenshots, "scan for these" request):
+`ItemListData.getItemNamesByRarity()` (the Armory's Weighted-pool gate) only ever excluded
+`questItem` and Landscape-Sketchbook-named items - no flag existed for "reachable, but not meant
+for general sale." A flavor-text scan across all 629 `items.json` entries (grepped for boss-trophy
+phrasing: "recovered after your battle with", "awarded to", "defeated the ultimate", etc.) cross-
+referenced against `enemies.json`'s guaranteed-drop rewards confirmed exactly 3 items fit: "Chandra's
+Stone"/"Liliana's Stone" (bare items, no cost/effect/slot at all, guaranteed drops from their named
+planeswalker fights) and "Medal of Ultimate Victory" (uniquely missing a `cost` field among 7
+sibling "Medal of..." items, granted by Meloku - the game's real final/hardest fight: Mythic tier,
+difficulty 3, `gamesPerMatch:3`, `spawnRate:0`, rewards including the actual Power 9 + a "1996
+World Champion" card). `MOD_SCOPE.md`'s own 2026-08-10 "Item Economy" entry had already called out
+this exact category by name ("Chandra's Stone, Teferi's Staff, Zedruu's Lantern... diluting those
+with a chance at generic loot would work against their own design") - that intent was only ever
+captured as a comment, so it didn't carry forward into the 2026-08-12 Weighted-pool rework. Scope
+note: the broader category of ~40 other boss-signature GEAR items (Teferi's Staff, Garruk's Mighty
+Axe, Zedruu's Lantern, etc.) is deliberately NOT touched here - those are real functional equipment
+that have always been generally purchasable via their own cost fields, so pulling them too would be
+a much bigger, unrequested behavior change; flagged for the user in MOD_SCOPE.md #48, not decided
+unilaterally.
+
+Fix: new `ItemData.excludeFromGeneralSale` boolean (+ copy-constructor line; confirmed via
+`Object.clone()`'s memberwise-copy semantics that `getItem()`'s `clone()`-based lookup would have
+propagated the field correctly even without the copy-constructor edit, so that edit matters only
+for the offline `adventure-editor` tool's own copy path, not the live game). Wired into
+`getItemNamesByRarity()` alongside the existing `questItem` check. Set `true` on the 3 items in
+`The Forgotten Realms/world/items.json` (hand-edited via a small Python script rather than a
+direct string-match edit - this file writes apostrophes as a Unicode numeric-character escape
+in the raw bytes, not a literal apostrophe, which broke naive exact-string matching against the
+visible name; verified the file is still valid JSON afterward, exactly 3 items flagged, and no
+surrounding entry was disturbed). `ItemListData.getItem(name)` - the actual
+boss-reward grant lookup - is completely untouched (confirmed both by reading its body and by
+checking `enemies.json`'s reward entries use the singular `itemName` field, which routes through a
+different `RewardData.java` branch entirely), so the 3 drops still work correctly. A second,
+independent leak in `EconomyBuildings.NON_MYTHIC_ITEM_POOL` (a hardcoded `String[]` backing the
+Archaeologist's 5% bonus-item roll, predates `getItemNamesByRarity()` and isn't derived from it)
+also listed all 3 names verbatim - removed there too (539 entries now, comment updated).
+
+### Verification
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o` clean at every step, including after the
+review-round fixes. Spliced into both installed jars; spot-checked by extracting the 7 touched
+`.class` files and grepping for symbols/strings unique to each fix (`applyTownVisionReveal`,
+`repairAllTownVisionReveal`, `excludeFromGeneralSale`, the "no Level 2 stock configured" HUD
+string). `items.json` re-validated with `python3 -c "import json; json.load(...)"` after the
+apostrophe-escaped hand-edit - 629 items, exactly 3 flagged. None of the four fixes has been seen
+running in-game yet - all four need the user's next playtest session to confirm.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at
