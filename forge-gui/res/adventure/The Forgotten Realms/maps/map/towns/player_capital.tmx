@@ -17738,12 +17738,12 @@
  </layer>
  <layer id="2" name="Ground" width="40" height="40">
   <data encoding="base64" compression="zlib">
-   eJzNmEtOwzAQhr0iDy4Ba6BEvQFCwAlYILFj02tQ1gXUK0A5BAu4ChRYt9AegIzaUf46dmwndpqRRrXSyP4yL48tRPdkFguRpULcJ9smUcsoWbGF5DuLhDivoRdRYbuQfF/5Ot819Ccq2P5i8zrD3bK2wUdsR2l7fCw4xmfIp2KjnDnOn83z399Yz2bL2IRPZTfMmQeIS1/228nnjBT6kpT5VBKaT6cnua0WfSGW/Wq+g/y9Zbzi64Gf2+CzsR/JGGyIdnRlC81HHMynsp3MqeLW8bE05XPVNvgwR7AGdcW/yPdoyGETq28+7GlobVONQT6df5+gtunGtnxoO198uLZpzL+2fD7y4yMt9olPzfh0PZ468HGNVu3DtuI7/mQ+zJG6fC7xx89UfJgbPv3rK/5o713kjIfrPbiL8cfCfpZ7RBffMl/T+JtJ/T36GXuYNvguszLfSDofyTki73Eh+VT2Qz6yXdWZkPhczol7SZnl9caej33JQr1L1TfL8/hSHd8YzpfM2jW+XlqM71u032SwOe91tsk3l+5fRmtbhuS7yuzmxfsD5OsZ/Iu11kYnlu9NK/g4/nj/IL73/PmbIveaxhXq80D/H/Jhj8c1az9R14Y6fPStw3ilNt9M79/F6h6e5DYu5muixEJ8WGtt5kY22/uhOsK9i2mvJ5HPZHxHINtuW3x4J0BMnAuhbOfKp7v3CSl1+ELGmywufORP6ovbYiNx4TPJPwRxnUo=
+   eJzNmEtOwzAQhr0iDy4Ba6BEvQFCwAlYILFj02tQ1gXUK0A5BAu4ChRYt9AeAI/aUf46TmwndpqRRrHc1P4yD3tsIbons1iILBXiPtk2iV5GyYotJN9ZJMR5Db2IctuF5PuS83zX0J8oZ/uLzfMMd4vaBh+xHaXt8bFgG/uQT8dGOXMs++by+RuXs9kyNuHT2Q1z5gHisg7bjvx/ZKkvSZFPJz75SGzj70TaatEXYtmv5juQ7y3jFV8P/NwGn439SMZgQ7SjK1toPuJgPp3tVE4ddxkfS1M+V22DD3ME16Cu+Bf5Hg05bGL1zYc1Dc1tWmOQr8y/T7C2lbVt+dB2vvhwblObn7Z8PvLjI833ic+S9um6PXXg4zVatw/biu/4U/kwR+ryucQf9+n4MDd8+tdX/NHeu5CMh+s9uIvxx8J+VmtEF98yX9P4myn1PfoZa5g2+C6zIt9IOR+pOaLucSH5dPZDPrJd1ZmQ+FzOiXtJkeX1xp6PfclCtUvVN6vj+NIyvjGcL5m1a3y9NG/ft2i/yWBz3Otsk2+u3L+M1rYMyXeV2Y2L9wfI1zP4F9daG51Yvjet4OP44/2D+N5l/5sm95rGFerzoPw35MMaj9es/US/NtTho28dxiu1+WZ6/y7W1/Akt3E+XhMlFuLDtdZmbGSzvR+qI1y7mPZ6EvVMxncEqu22xYd3AsTEuRDKdq58Zfc+IaUOX8h4U8WFj/xJdXFbbCQufCb5BweAme8=
   </data>
  </layer>
  <layer id="6" name="Ground2" width="40" height="40">
   <data encoding="base64" compression="zlib">
-   eJxjYBgF1AJN3NTDw8F9PkaD232kAnq6zwsadn4khCEuu4L1GRhCgDhUnzT3YYu/dmMGhg5j4t1EjPtGYvx2GGCKrbMbGPclxBMfRgPhPmzAk8Syhd7uQwfpRIQxLd23WIeBYYkO6e6ml/sIAW8i4psYe+W1GBgUtKjvPmIAMe6zNmRgsAHiOzqD0320it9R9426b9R9o+6jlvuIqS8G0n3kAHkeYN0FxFycEBqGZXIhtFwuQg5Eo7ORxQiBRCq1CUkFBQb4+biAFxnxTQmwxOIuctIctQG54TfYgAdaWJI6ljAKEAA9LGkJGvjpZ9dwBaDyHATkcgfWHaNgFAx3AACSfQTu
+   eJxjYBgF1AJN3NTDw8F9PkYD7z5S3UBv9+ECXlB3+5Hgflx2BeszMIQAcag+5e5rN2Zg6DAm3k3EuG8k5o8OA0yxdXYD476EeOLDaCDchw14kpGvBzL9pRMRxrR032IdBoYlOqS7m17uIwS8iYhvYuyV12JgUNCivvuIAcS4z9qQgcEGiO/oDE730Sp+R9036r5R9426j1ruI6a+GEj3kQPkeYB1FxBzcUJoGJbJhdByuQg5EI3ORhYjBBKp1CZ0YMHPRwcFBvj5uIAXFft5xABLLO4iJ81RG5AbfoMNeKCFJTX78SMNoIclLUEDP/3sGq4AVJ6DgFzuwLpjFIyC4Q4AvwgFdg==
   </data>
  </layer>
  <layer id="3" name="Walls" width="40" height="40">
@@ -17751,18 +17751,18 @@
    <property name="spriteLayer" type="bool" value="true"/>
   </properties>
   <data encoding="base64" compression="zlib">
-   eJztmM0OgjAMx3cwMZDg86B40PiWqFx8J/Tmx5MIgSV1dutYAbe4f9LItrT9OViTVYgwVGZCHD2xU/bNl6+EWPe2bezKsMIhRgHyb1ZmPmx9iHKHGFT+HPzn2w/4arCPOj7uvo0RS+dLxbwk/BwcXyrmPuXn4PhGPp5vSHzwLMhnyKeeFXU8Nd+jYVkmnT375wMyJ+2V2uUYiw+TT+8Xk098WC326fvD9grOqevqeM7zIS2eD7NvSHyxPvP4MPn0fjH5wFcZ7nstn+0d9JxNw6e7E7b3pZav1qzrfMbmw+Z3i+73nn6Op5Lr9zeXIh9PIfNVhv4RpRLpP2FzlL+uNnH7Q5j/kJg2/SG5rqvTVE028VExMX+oIbXXtja7xuT2z6Ki/kVv1dvYqg==
+   eJztmNsOwiAMhnul2cz2PNN5o77l1N34TtM7D0+ixJGQWaCUHVjkT5pskMI3oM0owDxUZQDHQOyU/fIVOcC6te3Hrh5WMsYolfk3uZkP63dRwRjDNn+hfPNtAr5GWUcdn++6SZ0/56dGzhBFOg4b3yWhz7FYfY0jLt8+BVgmdOOKy7dL6XNMsX4ufDK/cDQGn0+sUfjUWJDPKl83VrrvQ/M9lFh4ts8HpE3aK6XN0RcfppD2F1NIfFguDun8YWultnX7u+9jxoe0GB9m3znxxfzsx4cppP3FFAJfbbjvCT7qHVT83w/Bp7sTivuS4Gs0/TqfvvlM33x32F8fcfnGUuTz05z5akP9yKYKqT9hbTZ/XW7yrQ9h/i5jUupDsl+Xp2052cRnGxPzV+WSe6m5mTumb/0sKupf9AYZX9g5
   </data>
  </layer>
  <layer id="5" name="Overlay" width="40" height="40">
   <data encoding="base64" compression="zlib">
-   eJzt1DEKg0AYROEBD+ARklLWbYKFEXO2xC45h+ZOpvAw2c5CIoQQx+J9MMV2D35YCcAv6kI6pzWFu+T/7pX0qNwV3xlL6VW6KwCfIUrP6K7wOwTpGNwVn7Un6ZI2cSsAsLvm0i2ty90lS322/gYAzPb8nwPYzhtUVg1M
+   eJzt1D0OQEAUReGbWMAsgXIyo1EhrA1rsSkKizGdwk8j8RTnS27xulM9CcAbtZeatNZbl+DKEqU1WlcAsJYHqQjWFfe6SurTttK6BAAwOGlMm5x1ydmcPd8AgMOf/zmA7+xO4go4
   </data>
  </layer>
  <objectgroup id="4" name="Objects">
   <object id="47" template="../../../../common/maps/obj/inn.tx" x="536" y="144"/>
   <object id="53" template="../../../../common/maps/obj/spellsmith.tx" x="452" y="212"/>
-  <object id="55" template="../../../../common/maps/obj/shop.tx" x="465" y="515">
+  <object id="55" template="../../../../common/maps/obj/shop.tx" x="464" y="514">
    <properties>
     <property name="commonShopList" value="Plains"/>
     <property name="fixedShop" type="bool" value="true"/>
@@ -17976,7 +17976,7 @@
     <property name="questtype" value="waste_town_generic"/>
    </properties>
   </object>
-  <object id="77" template="../../../../common/maps/obj/shop.tx" x="416.182" y="480">
+  <object id="77" template="../../../../common/maps/obj/shop.tx" x="416" y="480">
    <properties>
     <property name="commonShopList" value="Forest"/>
     <property name="fixedShop" type="bool" value="true"/>
@@ -17984,7 +17984,7 @@
     <property name="signYOffset" type="float" value="-2"/>
    </properties>
   </object>
-  <object id="78" template="../../../../common/maps/obj/shop.tx" x="432.25" y="416.875">
+  <object id="78" template="../../../../common/maps/obj/shop.tx" x="432" y="416">
    <properties>
     <property name="commonShopList" value="Mountain"/>
     <property name="fixedShop" type="bool" value="true"/>
@@ -17992,7 +17992,7 @@
     <property name="signYOffset" type="float" value="-2"/>
    </properties>
   </object>
-  <object id="79" template="../../../../common/maps/obj/shop.tx" x="544" y="384.875">
+  <object id="79" template="../../../../common/maps/obj/shop.tx" x="544" y="384">
    <properties>
     <property name="commonShopList" value="Swamp"/>
     <property name="fixedShop" type="bool" value="true"/>
@@ -18000,7 +18000,7 @@
     <property name="signYOffset" type="float" value="-2"/>
    </properties>
   </object>
-  <object id="80" template="../../../../common/maps/obj/shop.tx" x="528.25" y="464.625">
+  <object id="80" template="../../../../common/maps/obj/shop.tx" x="528" y="464">
    <properties>
     <property name="commonShopList" value="Island"/>
     <property name="fixedShop" type="bool" value="true"/>
@@ -18008,7 +18008,7 @@
     <property name="signYOffset" type="float" value="-2"/>
    </properties>
   </object>
-  <object id="81" template="../../../../common/maps/obj/shop.tx" x="463.75" y="463.625">
+  <object id="81" template="../../../../common/maps/obj/shop.tx" x="463" y="463">
    <properties>
     <property name="commonShopList" value="Land"/>
     <property name="fixedShop" type="bool" value="true"/>
@@ -18028,9 +18028,6 @@
   </object>
   <object id="86" template="../../../../common/maps/obj/shop.tx" x="79.4545" y="332.545">
    <properties>
-    <!-- Rank-threshold tier gate REMOVED (user spec 2026-08-12): "ArmoryCommon" (Weighted rarity
-         mix internally, see RewardData/shops.json) is now the Armory's only shop list, resolved
-         regardless of player rank - a Mythic can appear from the very first visit. -->
     <property name="commonShopList" value="ArmoryCommon"/>
     <property name="noMigrate" type="bool" value="true"/>
     <property name="noRestock" type="bool" value="true"/>
