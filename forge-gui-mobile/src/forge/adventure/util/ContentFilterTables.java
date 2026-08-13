@@ -118,12 +118,29 @@ public class ContentFilterTables {
      * class never reaches back into ItemListData (no init cycle). Quest items are protected:
      * Include=N on a questItem row is ignored (logged), per the user's confirmed choice.
      */
+    // Quest items with NO discoverable grant path anywhere in this mod's data, stock Shandalar's
+    // own (unmodified) quests.json/enemies.json, any other bundled plane, or the Forge Java
+    // source tree - confirmed 2026-08-12 by a full cross-reference audit (every itemName/
+    // itemNames/addItem/removeItem field across shops.json, enemies.json, quests.json,
+    // points_of_interest.json, config.json, and all 37 plane .tmx files, plus a source grep).
+    // 22 of these are STOCK Forge items (present in common/world/items.json pre-mod) that are
+    // equally dead in vanilla, unmodded Shandalar - not something this project lost; "Ghost
+    // rune" is this project's own addition and has no such excuse. Not auto-excluded (still
+    // Include=Y, still spawnable if some future path is found) - purely informational so this
+    // doesn't need re-auditing by hand later.
+    private static final Set<String> KNOWN_UNUSED_ITEMS = new HashSet<>(Arrays.asList(
+            "Basement Key", "Black rune", "Blue rune", "Cultist's Key", "Fifth Shard", "First Shard",
+            "Fourth Shard", "Ghost rune", "Green rune", "Grolnok's Key", "Illusionist's Key",
+            "Landscape Sketchbook - Coldsnap", "Landscape Sketchbook - Mirage",
+            "Landscape Sketchbook - Urza's Saga", "Outer Gate Key", "Red rune", "Rusty Old Key",
+            "Second Shard", "Sorin's Key", "Third Shard", "Tibalt's Key", "Torturer's Key", "White rune"));
+
     public static void filterItems(Array<ItemData> itemList) {
         if (!isEnabled() || itemList == null)
             return;
         try {
             Map<String, String[]> existing = readCsv(ITEMS_CSV);
-            // Columns: Name,Rarity,Cost,Slot,Quest,Effect,Include
+            // Columns: Name,Rarity,Cost,Slot,Quest,Effect,Include,Notes
             Map<String, String[]> rows = new LinkedHashMap<>();
             for (ItemData item : new Array.ArrayIterator<>(itemList)) {
                 if (item == null || item.name == null)
@@ -137,9 +154,10 @@ public class ContentFilterTables {
                         item.equipmentSlot == null ? "" : item.equipmentSlot,
                         item.questItem ? "Y" : "N",
                         oneLine(item.getDescription()),
-                        normalizeYN(include)});
+                        normalizeYN(include),
+                        KNOWN_UNUSED_ITEMS.contains(item.name) ? "Currently Unused" : ""});
             }
-            writeCsv(ITEMS_CSV, new String[]{"Name", "Rarity", "Cost", "Slot", "Quest", "Effect", "Include"}, rows);
+            writeCsv(ITEMS_CSV, new String[]{"Name", "Rarity", "Cost", "Slot", "Quest", "Effect", "Include", "Notes"}, rows);
             excludedItemNames = new HashSet<>();
             for (String[] row : rows.values()) {
                 if (!"N".equals(row[6]))

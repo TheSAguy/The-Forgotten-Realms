@@ -18028,16 +18028,13 @@
   </object>
   <object id="86" template="../../../../common/maps/obj/shop.tx" x="79.4545" y="332.545">
    <properties>
+    <!-- Rank-threshold tier gate REMOVED (user spec 2026-08-12): "ArmoryCommon" (Weighted rarity
+         mix internally, see RewardData/shops.json) is now the Armory's only shop list, resolved
+         regardless of player rank - a Mythic can appear from the very first visit. -->
     <property name="commonShopList" value="ArmoryCommon"/>
-    <property name="mythicShopList" value="ArmoryMythic"/>
-    <property name="mythicThreshold" type="int" value="97"/>
     <property name="noMigrate" type="bool" value="true"/>
     <property name="noRestock" type="bool" value="true"/>
-    <property name="rareShopList" value="ArmoryRare"/>
-    <property name="rareThreshold" type="int" value="89"/>
     <property name="signYOffset" type="float" value="0"/>
-    <property name="uncommonShopList" value="ArmoryUncommon"/>
-    <property name="uncommonThreshold" type="int" value="29"/>
    </properties>
   </object>
   <object id="87" template="../../../../common/maps/obj/shop.tx" x="208.364" y="331.636">

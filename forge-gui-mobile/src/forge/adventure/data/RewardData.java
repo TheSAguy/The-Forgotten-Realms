@@ -157,6 +157,20 @@ public class RewardData implements Serializable {
         allCards = null;
     }
 
+    // Weighted item-rarity roll (user spec 2026-08-12): Common 60% / Uncommon 30% / Rare 8% /
+    // Mythic 2%, cumulative boundaries. Shared by every "item" reward using itemRarity="Weighted"
+    // (currently the Armory family) so the odds live in exactly one place.
+    private static final String[] WEIGHTED_ITEM_RARITY_TIERS = {"Common", "Uncommon", "Rare", "Mythic"};
+    private static final float[] WEIGHTED_ITEM_RARITY_CUMULATIVE = {60f, 90f, 98f, 100f};
+
+    private static String rollWeightedItemRarity(Random random) {
+        float roll = random.nextFloat() * 100f;
+        for (int i = 0; i < WEIGHTED_ITEM_RARITY_CUMULATIVE.length; i++)
+            if (roll < WEIGHTED_ITEM_RARITY_CUMULATIVE[i])
+                return WEIGHTED_ITEM_RARITY_TIERS[i];
+        return "Mythic"; // unreachable (last boundary is 100), kept as a safe fallback
+    }
+
     public Array<Reward> generate(boolean isForEnemy, boolean useSeedlessRandom) {
         return generate(isForEnemy, null, useSeedlessRandom);
     }
@@ -269,6 +283,30 @@ public class RewardData implements Serializable {
                     }
                     break;
                 case "item":
+                    // Weighted rarity mix (user spec 2026-08-12, Armory): itemRarity="Weighted"
+                    // rolls EACH slot's rarity independently (Common 60% / Uncommon 30% /
+                    // Rare 8% / Mythic 2%) rather than resolving the whole reward to one fixed
+                    // rarity - replaces the old rank-threshold shop-tier gate entirely, so a
+                    // Mythic can appear in stock from the player's very first Armory visit.
+                    if ("Weighted".equals(itemRarity)) {
+                        Set<String> alreadyPicked = new HashSet<>();
+                        int slots = count + addedCount;
+                        for (int i = 0; i < slots; i++) {
+                            String rolledRarity = rollWeightedItemRarity(rewardRandom);
+                            List<String> rarityPool = new ArrayList<>(ItemListData.getItemNamesByRarity(rolledRarity));
+                            rarityPool.removeAll(alreadyPicked); // same no-duplicate-within-one-roll guarantee as below
+                            if (rarityPool.isEmpty())
+                                continue; // this rarity's pool exhausted this roll - skip, don't dupe or crash
+                            String itemName = rarityPool.get(rewardRandom.nextInt(rarityPool.size()));
+                            alreadyPicked.add(itemName);
+                            ItemData itemData = ItemListData.getItem(itemName);
+                            if (itemData != null)
+                                ret.add(new Reward(itemData));
+                            else
+                                System.err.println("Missing item: " + itemName);
+                        }
+                        break;
+                    }
                     // itemRarity expands to the full catalog-by-rarity pool when no explicit
                     // list is given (see the field's own comment). Resolved here at generate
                     // time so the pool tracks the live, filter-table-aware catalog.

@@ -988,7 +988,7 @@
    {
     "type": "item",
     "count": 2,
-    "itemRarity": "Common"
+    "itemRarity": "Weighted"
    }
   ]
  },
@@ -1020,7 +1020,7 @@
    {
     "type": "item",
     "count": 4,
-    "itemRarity": "Uncommon"
+    "itemRarity": "Weighted"
    }
   ]
  },
@@ -1032,7 +1032,7 @@
    {
     "type": "item",
     "count": 6,
-    "itemRarity": "Common"
+    "itemRarity": "Weighted"
    }
   ]
  },
@@ -1044,79 +1044,7 @@
    {
     "type": "item",
     "count": 8,
-    "itemRarity": "Common"
-   }
-  ]
- },
- {
-  "name": "ArmoryUncommon",
-  "spriteAtlas": "maps/tileset/buildings.atlas",
-  "sprite": "EquipmentShop",
-  "rewards": [
-   {
-    "type": "item",
-    "count": 6,
-    "itemRarity": "Uncommon"
-   }
-  ]
- },
- {
-  "name": "ArmoryUncommonL2",
-  "spriteAtlas": "maps/tileset/buildings.atlas",
-  "sprite": "EquipmentShop",
-  "rewards": [
-   {
-    "type": "item",
-    "count": 8,
-    "itemRarity": "Uncommon"
-   }
-  ]
- },
- {
-  "name": "ArmoryRare",
-  "spriteAtlas": "maps/tileset/buildings.atlas",
-  "sprite": "EquipmentShop",
-  "rewards": [
-   {
-    "type": "item",
-    "count": 6,
-    "itemRarity": "Rare"
-   }
-  ]
- },
- {
-  "name": "ArmoryRareL2",
-  "spriteAtlas": "maps/tileset/buildings.atlas",
-  "sprite": "EquipmentShop",
-  "rewards": [
-   {
-    "type": "item",
-    "count": 8,
-    "itemRarity": "Rare"
-   }
-  ]
- },
- {
-  "name": "ArmoryMythic",
-  "spriteAtlas": "maps/tileset/buildings.atlas",
-  "sprite": "EquipmentShop",
-  "rewards": [
-   {
-    "type": "item",
-    "count": 2,
-    "itemRarity": "Mythic"
-   }
-  ]
- },
- {
-  "name": "ArmoryMythicL2",
-  "spriteAtlas": "maps/tileset/buildings.atlas",
-  "sprite": "EquipmentShop",
-  "rewards": [
-   {
-    "type": "item",
-    "count": 8,
-    "itemRarity": "Mythic"
+    "itemRarity": "Weighted"
    }
   ]
  },

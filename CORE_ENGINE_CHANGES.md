@@ -867,6 +867,13 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`scene/DuelScene.java`** — the enemy starting-life line routes through the modifier for
   overworld fights only (`eventData == null && !MapStage.isInMap()`); added MapStage import.
 
+### 2026-08-12 Armory weighted-rarity mix
+- **`data/RewardData.java`** — new `rollWeightedItemRarity()` (60/30/8/2 cumulative) and a
+  `"Weighted"` sentinel branch in the "item" reward case (per-slot independent rarity roll,
+  no-duplicate-within-roll preserved).
+- **`util/ContentFilterTables.java`** (mod file, inventoried below) — items.csv gained a Notes
+  column flagging 23 confirmed-unreachable items "Currently Unused" (informational, not excluded).
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

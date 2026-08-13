@@ -409,6 +409,39 @@ nothing else consumed isNight before this). `[TFR-DayNight]` log line per modifi
 
 **Scope items confirmed Done by user playtest:** #14 Random Resource Spawns, #16 Side-Quest
 Timers, #24 Archaeologist, #43 Multi-Resource Costs.
+## 2026-08-12 (late night): Item audit + Armory weighted-rarity mix
+
+**Item reachability audit, user QC.** User's memory of a "5 colored Keys unlock the central
+temple" mechanic was CONFIRMED real and fully wired (Akroma/Ghalta/Griselbrand/Lathliss/Lorthos
+drop White/Green/Black/Red/Blue Key; consumed at a gate in `spawn.tmx`) - never on any unreachable
+list. Separately audited the 23 items flagged unreachable in the earlier item-count pass: cross-
+checked against STOCK, completely unmodified Shandalar's own `quests.json`/`enemies.json` and
+`common`'s item catalog. Result: 22 of the 23 are stock Forge items (in `common/world/items.json`
+pre-mod) that are EQUALLY unreferenced in vanilla, unmodded Shandalar and every other bundled
+plane's data, and in the entire Forge Java source tree (mobile/gui/desktop/core) - this is
+pre-existing dead content in Card-Forge/forge upstream, not something this project lost copying
+from Shandalar. Only "Ghost rune" is this project's own addition with no such excuse.
+
+**items.csv gained a Notes column** (`ContentFilterTables.filterItems()`): the 23 confirmed-
+unused items are flagged "Currently Unused" - informational only, still `Include=Y`, not
+auto-excluded, so a future fix doesn't need re-discovering.
+
+**Armory weighted-rarity mix** (user spec, replacing the rank-threshold tier gate per user's
+explicit choice among 3 options): every Armory item slot now rolls its OWN rarity independently -
+Common 60% / Uncommon 30% / Rare 8% / Mythic 2%, cumulative - instead of the whole shop resolving
+to one fixed tier gated behind a player-rank threshold (55/85/95). A Mythic can now appear on the
+player's very first Armory visit. New `RewardData.rollWeightedItemRarity()` + a `"Weighted"`
+sentinel value for `itemRarity` (per-slot: roll rarity, pull a random item from that rarity's live
+catalog pool via `ItemListData.getItemNamesByRarity()`, no-duplicate-within-roll preserved).
+All 10 armory-family shops.json entries switched from single-rarity `itemRarity` values to
+`"Weighted"`; the Capitol Armory's `uncommonShopList`/`rareShopList`/`mythicShopList` +
+`*Threshold` tmx properties removed (only `commonShopList="ArmoryCommon"` remains, so MapStage's
+rank-based tier resolution never triggers for the Armory anymore) - which left `ArmoryUncommon`/
+`ArmoryRare`/`ArmoryMythic` and their L2 variants permanently unreachable, so those 6 shops.json
+entries were deleted rather than left as dead config. `ArmoryCommon`/`ArmoryCommonL2` (6/8 slots)
+and the town `Equipment`/`EquipmentL2` (2/4 slots) are the only 4 armory-family entries left, all
+Weighted. Not yet playtested - watch for a Mythic showing up on a fresh, low-rank save.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at
