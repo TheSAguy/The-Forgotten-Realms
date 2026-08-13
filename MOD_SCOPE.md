@@ -325,9 +325,14 @@ events skew toward single-set blocks - by design, research widens the tournament
   running up against it. **Repositioned twice same day** - first to between "Wait" and "Zoom"
   per an annotated screenshot, then back to directly below "Zoom" per a follow-up correction
   (that first move wasn't actually what was wanted, once seen in place).
-- Still to do: certain monsters get buffed in day or night, penalized in the opposite; quest
-  timers; periodic events (trigger every N days, etc) — deferred to follow-up passes once
-  the clock itself is proven out.
+- **Day/night terrain life modifier SHIPPED (2026-08-12, user spec)** - the first real consumer
+  of the clock: overworld roaming fights only (not Arena/Inn/dungeons), by the CURRENT terrain
+  color under the fight. Day (6am-6pm): White terrain +10% enemy life, Green +5%; Black -10%,
+  Red -5%. Night (6pm-6am): flipped. Blue/neutral/player terrain unaffected. Deltas ceil()'d
+  ("rounded up"), floor 1 life. isNight()'s boundary moved 20:00 -> 18:00 to match the spec.
+  Greppable as [TFR-DayNight] in forge.log.
+- Still to do: quest timers; periodic events (trigger every N days, etc) — deferred to follow-up
+  passes once the clock itself is proven out.
 - Added a temporary "10x Speed" HUD checkbox (same slot the fog-of-war debug toggle used to
   occupy) to fast-forward the clock for testing - useful now for the day/night cycle, and will
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
@@ -1165,7 +1170,7 @@ needs its own design pass before any of this gets built:**
   (and thus "5 owned towns") actually exists, or whether Bank/Exchange stay town-buildable and
   only *new* Capitol-exclusive buildings (Archeologist, etc.) get the restriction.
 
-### 14. Random Resource Spawns — `Built (2026-08-08), not yet playtested`
+### 14. Random Resource Spawns — `Done (playtest-confirmed 2026-08-12)`
 - Per user spec: up to **20** walk-over resource pickups on the overworld at any time (world map
   only, never in towns/dungeons), the world starting with a full 20 scattered. Each spawn has its
   own 2-10 day lifetime; expired ones are replaced by fresh random spawns on the daily tick
@@ -1221,7 +1226,7 @@ needs its own design pass before any of this gets built:**
   count (a text-matching false positive from JSON-escaped apostrophes), in `MOD_CHANGELOG.md`.
   **Not yet playtested** - first real test of importing Innistrad content specifically.
 
-### 16. Side-Quest Timers - `Built (2026-08-08), not yet playtested`
+### 16. Side-Quest Timers - `Done (playtest-confirmed 2026-08-12)`
 - Every non-story quest fails 30 in-game days after acceptance (notification on failure); the
   quest log shows "(N days left)" per quest. Opt-in `sideQuestTimerEnabled`. Accepted days persist
   on World keyed by quest id (not on AdventureQuestData - serialization compat, see
@@ -1830,7 +1835,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
     actually differ in-game (visual verification wasn't possible from this session - no way to run
     the libGDX desktop client directly, only compile/deploy).
 
-### 24. Archaeologist Building — `Built (2026-08-11); redesigned + real art + cost added same day (playtest round 2), not yet playtested`
+### 24. Archaeologist Building — `Done (playtest-confirmed 2026-08-12)`
 - **User spec (verbatim, 2026-08-11)**: "Archeologist building. Capitol only building. - sends out
   expeditions. Takes 7 days. Random 5 cards that the player does not have/already own. No mythic.
   25% to also get a booster. 5% chance get an item. No mythic items. If you visit before the 7
@@ -2117,7 +2122,7 @@ script-validated for color/rarity/legality constraints) added to the Challenge p
 arena-exclusive enemies; full-bracket wins pay their signature bounty, and every Challenge run
 drops 1 Rare+ card themed to the last defeated foe.
 
-### 43. Multi-Resource Building Costs — `Built (2026-08-12), not yet playtested`
+### 43. Multi-Resource Building Costs — `Done (playtest-confirmed 2026-08-12)`
 Every construction/upgrade re-priced per the user's cost table, mixing Gold/Wood/Stone/Shards
 (full table in MOD_CHANGELOG); new [+Wood]/[+Stone] cost glyphs added to the plane's items
 atlas. Gives Lumber/Stone (#9) their first real sink.

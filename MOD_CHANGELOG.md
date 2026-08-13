@@ -394,6 +394,21 @@ ItemListData list, Content Filter Table exclusions (#41) apply automatically and
 join with zero data edits. The town armory's 4 fixed staples were deliberately KEPT (authored
 early-game reliability - flag if unwanted). shops.json was re-serialized in the process (large
 formatting-only diff beyond the 10 real changes).
+## 2026-08-12 (later still): Day/night terrain life modifier + 4 scope items confirmed
+
+**Day/night terrain life modifier** (user spec; MOD_SCOPE.md #6's follow-up finally consuming
+the clock): `World.applyDayNightTerrainLife()` adjusts a roaming enemy's starting life by the
+CURRENT color of the terrain the fight happens on (same highestBiome/getBiome lookup the
+re-theme and roaming spawner use, so captured land counts as its new owner): White +10%/-10%
+day/night, Green +5%/-5%, Black -10%/+10%, Red -5%/+5%, Blue/neutral/player terrain untouched.
+Delta = ceil(pct), floored at 1 life. Hooked at DuelScene's single enemy-life line, gated
+`eventData == null && !MapStage.isInMap()` - so Arena, Inn events, and every town/dungeon
+interior are unaffected, exactly "just top world map" per spec. Gated on dayNightCycleEnabled
+(stock planes untouched). `isNight()` boundary moved 20:00 -> 18:00 (day = 6am-6pm per spec;
+nothing else consumed isNight before this). `[TFR-DayNight]` log line per modified fight.
+
+**Scope items confirmed Done by user playtest:** #14 Random Resource Spawns, #16 Side-Quest
+Timers, #24 Archaeologist, #43 Multi-Resource Costs.
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

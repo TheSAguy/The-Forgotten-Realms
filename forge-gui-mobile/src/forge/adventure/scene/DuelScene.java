@@ -16,6 +16,7 @@ import forge.adventure.data.*;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.IAfterMatch;
+import forge.adventure.stage.MapStage;
 import forge.adventure.util.AdventureEventController;
 import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Config;
@@ -470,7 +471,17 @@ public class DuelScene extends ForgeScene {
             enemyPlayer.setAvatarIndex(enemyAvatarKey + i);
             aiPlayer.setPlayer(enemyPlayer);
             aiPlayer.setTeamNumber(currentEnemy.teamNumber);
-            aiPlayer.setStartingLife(eventData != null ? eventData.eventRules.startingLife : Math.round((float) currentEnemy.life * advPlayer.getDifficulty().enemyLifeFactor));
+            int enemyStartingLife = Math.round((float) currentEnemy.life * advPlayer.getDifficulty().enemyLifeFactor);
+            // Day/night terrain life modifier (user spec 2026-08-12): OVERWORLD roaming fights
+            // only - events (Arena/Inn, eventData != null) use their own rules line below, and
+            // town/dungeon interiors are excluded via isInMap(). The enemy sprite's own tile
+            // decides the terrain; the whole nextEnemy chain fights on that same tile.
+            if (this.eventData == null && !MapStage.getInstance().isInMap()) {
+                int tileSize = Current.world().getTileSize();
+                enemyStartingLife = Current.world().applyDayNightTerrainLife(enemyStartingLife,
+                        (int) enemy.getX() / tileSize, (int) enemy.getY() / tileSize);
+            }
+            aiPlayer.setStartingLife(eventData != null ? eventData.eventRules.startingLife : enemyStartingLife);
 
             Array<EffectData> equipmentEffects = new Array<>();
             if (eventData != null && eventData.eventRules.allowsItems) {

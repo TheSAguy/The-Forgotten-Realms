@@ -77,7 +77,9 @@ public class World implements Disposable, SaveFileContent {
     // while the player is on the overworld and not paused/in a dialog - so the clock freezes
     // whenever the player enters a town or dungeon (MapStage) or the game itself is paused.
     private static final float DAY_LENGTH_SECONDS = 10 * 60f; // ~10 real minutes per in-game day
-    private static final float NIGHT_START_HOUR = 20f;
+    // Day = 6am-6pm, night = 6pm-6am (user spec 2026-08-12, set when the day/night terrain life
+    // modifier became the first real consumer of isNight() - was 20f/6f while nothing used it).
+    private static final float NIGHT_START_HOUR = 18f;
     private static final float NIGHT_END_HOUR = 6f;
     private float dayProgress = 0.375f; // fresh world starts at 09:00
     private int dayCount = 1;
@@ -2915,6 +2917,41 @@ public class World implements Disposable, SaveFileContent {
     public boolean isNight() {
         float hour = getHourOfDay();
         return hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR;
+    }
+
+    /**
+     * Day/night terrain life modifier (user spec 2026-08-12; MOD_SCOPE.md #6's long-planned
+     * "monsters buffed by day or night", and the first real consumer of isNight()). OVERWORLD
+     * fights only - the DuelScene call site excludes Arena/Inn events and town/dungeon
+     * interiors. By the CURRENT terrain color under the fight (same tile-ownership lookup the
+     * re-theme/roaming spawner uses, so captured land counts as its new owner):
+     * White +10% day / -10% night; Green +5% / -5%; Black -10% day / +10% night; Red -5% / +5%;
+     * Blue, neutral/wasteland, and player terrain unaffected. The delta is ceil() of the
+     * percentage ("rounded up" per spec, applied to both directions), floored at 1 life.
+     */
+    public int applyDayNightTerrainLife(int baseLife, int tileX, int tileY) {
+        if (!isDayNightCycleEnabled() || baseLife <= 0)
+            return baseLife;
+        int biomeIndex = highestBiome(getBiome(tileX, tileY));
+        java.util.List<BiomeData> biomes = data == null ? null : data.GetBiomes();
+        if (biomes == null || biomeIndex < 0 || biomeIndex >= biomes.size())
+            return baseLife;
+        String terrain = biomes.get(biomeIndex).name;
+        int dayPct;
+        switch (terrain == null ? "" : terrain) {
+            case "white": dayPct = 10; break;
+            case "green": dayPct = 5; break;
+            case "black": dayPct = -10; break;
+            case "red": dayPct = -5; break;
+            default: return baseLife;
+        }
+        int pct = isNight() ? -dayPct : dayPct;
+        int delta = (int) Math.ceil(baseLife * Math.abs(pct) / 100f);
+        int result = pct > 0 ? baseLife + delta : Math.max(1, baseLife - delta);
+        // Diagnostic-only logging - greppable in forge.log as "[TFR-DayNight]".
+        System.out.println("[TFR-DayNight] " + terrain + " terrain, " + (isNight() ? "night" : "day")
+                + ": enemy life " + baseLife + " -> " + result);
+        return result;
     }
 
     // FoW player vision radius scales with difficulty (2026-08-11 user spec): `visionRadius`

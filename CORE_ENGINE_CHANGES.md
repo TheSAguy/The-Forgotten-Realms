@@ -861,6 +861,12 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`data/ItemListData.java`** — new `getItemNamesByRarity()` (excludes quest items and
   Landscape Sketchbooks; reads the live, content-filter-aware list).
 
+### 2026-08-12 day/night terrain life modifier
+- **`world/World.java`** — new `applyDayNightTerrainLife()`; `NIGHT_START_HOUR` 20 -> 18
+  (day/night now 6am-6pm / 6pm-6am per user spec; isNight() had no consumers before this).
+- **`scene/DuelScene.java`** — the enemy starting-life line routes through the modifier for
+  overworld fights only (`eventData == null && !MapStage.isInMap()`); added MapStage import.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.
