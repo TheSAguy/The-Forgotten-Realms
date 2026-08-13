@@ -442,6 +442,83 @@ entries were deleted rather than left as dead config. `ArmoryCommon`/`ArmoryComm
 and the town `Equipment`/`EquipmentL2` (2/4 slots) are the only 4 armory-family entries left, all
 Weighted. Not yet playtested - watch for a Mythic showing up on a fresh, low-rank save.
 
+## 2026-08-13: Guard payment priority + two Bank preference checkboxes
+
+User spec: Capitol guards get paid first each weekly salary sweep, then every other owned town
+with a guard in order of increasing distance from the Capitol. Two new checkboxes in the Bank
+dialog, both checked by default - "Pay Guards from Bank first" (Gold portion of a guard's salary
+draws from that guard's own town's bank balance before the player's inventory; unchecked reverses
+the order - inventory first, then bank; either way, still dismiss-on-insufficient-funds if the
+combined total can't cover it) and "Gold Mine deposits into Bank Directly" (that town's Gold Mine
+production credits the town's bank instead of the player's inventory, when that town has a Bank
+built). Shards (only the Mythic/"Challenger" guard tier costs any) are untouched by either
+checkbox in every code path, including disband - always paid from the player's own inventory,
+exactly as before.
+
+**Capitol-priority ordering** (`EconomyBuildings.townsByCapitolPriority()`): the weekly guard-
+salary pass used to run interleaved inside `processDaysPassed()`'s per-town production/interest
+loop, which iterates `WorldSave.getAllPointOfInterestChanges()` - a plain `HashMap` values()
+collection with no defined order and no back-reference from a town's `PointOfInterestChanges` to
+its own POI id/position. Split guard salary out into its own pass afterward (production/interest
+order genuinely doesn't matter - no town's mine or bank interest competes with another's; guard
+salary does, since it draws on the player's own shared gold/shard inventory), driven instead by
+`World.getAllPointOfInterest()` (a real, sortable `List<PointOfInterest>` with `.getPosition()`),
+sorted with `TownRestoration.findCapitol()`'s result forced first via a `poi == capitol ? -1 : ...`
+comparator trick, then every other POI by ascending `dst2()` (squared distance, sort-order-
+equivalent to real distance, avoids the sqrt) to the Capitol. Falls back to natural POI order if no
+Capitol exists yet (nothing to prioritize against). Each POI's `PointOfInterestChanges` is looked
+up via the read-only `peekPointOfInterestChanges()` (never materializes an empty entry for towns
+that were never touched); towns with no recorded guards are skipped immediately.
+
+**Bank-first/inventory-first split** (`EconomyBuildings.payGuardGold()`): computes how much of a
+guard's weekly Gold cost comes from the guard's own town's bank vs. the player's inventory based on
+the new preference, checks the COMBINED total can cover the cost before moving anything (so a
+shortfall never leaves a partial deduction), then executes the split. Only ever reads/spends that
+SPECIFIC guard's own town's bank - deliberately not a shared/cross-town treasury. Practical
+consequence, since Bank can currently only be built at the Capitol (`buildChooseBuildingDialog()`'s
+`isCapitol` gate, unchanged by this round): both new checkboxes are effectively Capitol-scoped
+today - an ordinary town's guard (max 1) always pays 100% from inventory regardless of the
+checkbox, since its own bank balance is always 0. Flagged to the user rather than silently
+special-cased; revisit if Bank ever becomes buildable in ordinary towns.
+
+**Caught in adversarial review before deploy:** the first draft of `payGuardGold()` read/spent
+`changes.getBankBalance()` unconditionally, with no check that the town still has a Bank built.
+Since destroying a Bank (`refreshBankDialog()`'s "Destroy Building") never zeroes `bankBalance`,
+that would have left a destroyed Bank's orphaned balance silently spendable on guard salaries even
+though the player has no way to view or withdraw it anymore. Fixed by gating the bank-side read on
+`changes.hasEconomyBuildingOfType(BANK)`, mirroring the guard already present on the Gold Mine
+deposit branch below.
+
+**Gold Mine -> Bank** (`processDaysPassed()`'s `GOLD_MINE` case): redirects to
+`changes.addBankBalance(amount)` when the checkbox is on AND that specific town
+(`hasEconomyBuildingOfType(BANK)`) has a Bank; otherwise unchanged (`AdventurePlayer.giveGold()`).
+Same Capitol-only practical scope as above - a Gold Mine anywhere else always deposits to
+inventory regardless of the checkbox.
+
+**Persistence** (`AdventurePlayer.java`): two new booleans, `payGuardsFromBankFirst` /
+`goldMineDepositsToBankDirectly`, both defaulting `true`. Follows the exact existing
+`partnerOverhealActive` field/`clear()`/`save()`/`load()` pattern. Old saves predating this feature
+default both to `true` via an inverted `containsKey` guard (`!data.containsKey(key) ||
+data.readBool(key)`, vs. the plain-`false`-default idiom every other simple boolean in this class
+uses) - `clear()` (which runs first thing inside `load()`, confirmed by reading the method) also
+sets both to `true`, not `false` like its neighboring resets, so a load's containsKey-guarded read
+is never clobbered by clear() running after it.
+
+**UI**: two `Controls.newCheckBox()` rows added to `refreshBankDialog()` - the first CheckBox ever
+embedded in a Dialog in this mod (existing CheckBox usage elsewhere is all full-screen `UIScene`
+root tables). Checked-state is read fresh from `AdventurePlayer.current()` on every rebuild (the
+method clears and recreates every Actor on each call, including from its own Deposit/Withdraw
+button lambdas), so there's no stale-Actor risk.
+
+**Verification**: `mvn -pl forge-gui-mobile -am compile -DskipTests -o` clean both before and after
+the adversarial-review fix; spliced into both installed jars, spot-checked by extracting
+`EconomyBuildings.class`/`AdventurePlayer.class` from each and grepping for `payGuardGold`/
+`townsByCapitolPriority`/`payGuardsFromBankFirst`/`goldMineDepositsToBankDirectly`. Not yet
+playtested in-game - in particular the actual weekly-sweep payment split (needs 100x-Speed fast-
+forward past a guard's due date with both a nonzero bank balance and nonzero inventory gold to see
+which source actually gets drawn first) and the two checkboxes' visual state across dialog
+rebuilds.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

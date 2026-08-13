@@ -105,6 +105,12 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
     private boolean usingCustomDeck = false;
     private boolean announceCustom = false;
 
+    // Bank building preferences (2026-08-13, user spec): control how weekly guard salaries and
+    // Gold Mine income route between a town's bank and the player's own gold - see
+    // EconomyBuildings.payGuardGold()/processDaysPassed(). Both default true.
+    private boolean payGuardsFromBankFirst = true;
+    private boolean goldMineDepositsToBankDirectly = true;
+
     // Signals
     final SignalList onLifeTotalChangeList = new SignalList();
     final SignalList onShardsChangeList = new SignalList();
@@ -145,6 +151,8 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         adventureMode = null;
         blessing = null;
         partnerOverhealActive = false;
+        payGuardsFromBankFirst = true;
+        goldMineDepositsToBankDirectly = true;
         gold = 0;
         maxLife = 20;
         life = 20;
@@ -574,6 +582,9 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         stone = data.containsKey("stone") ? data.readInt("stone") : 0;
         townLifeBonus = data.containsKey("townLifeBonus") ? data.readInt("townLifeBonus") : 0;
         partnerOverhealActive = data.containsKey("partnerOverhealActive") && data.readBool("partnerOverhealActive");
+        // Default true for saves predating this feature (2026-08-13) - inverted containsKey guard.
+        payGuardsFromBankFirst = !data.containsKey("payGuardsFromBankFirst") || data.readBool("payGuardsFromBankFirst");
+        goldMineDepositsToBankDirectly = !data.containsKey("goldMineDepositsToBankDirectly") || data.readBool("goldMineDepositsToBankDirectly");
         colorReputationHalfPoints.clear();
         if (data.containsKey("colorReputationHalfPoints")) {
             Object obj = data.readObject("colorReputationHalfPoints");
@@ -960,6 +971,8 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         data.store("stone", stone);
         data.store("townLifeBonus", townLifeBonus);
         data.store("partnerOverhealActive", partnerOverhealActive);
+        data.store("payGuardsFromBankFirst", payGuardsFromBankFirst);
+        data.store("goldMineDepositsToBankDirectly", goldMineDepositsToBankDirectly);
         data.storeObject("colorReputationHalfPoints", new HashMap<>(colorReputationHalfPoints));
         data.store("deckName", deck.getName());
 
@@ -1232,6 +1245,22 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
 
     public boolean isPartnerOverhealActive() {
         return partnerOverhealActive;
+    }
+
+    public boolean isPayGuardsFromBankFirst() {
+        return payGuardsFromBankFirst;
+    }
+
+    public void setPayGuardsFromBankFirst(boolean val) {
+        payGuardsFromBankFirst = val;
+    }
+
+    public boolean isGoldMineDepositsToBankDirectly() {
+        return goldMineDepositsToBankDirectly;
+    }
+
+    public void setGoldMineDepositsToBankDirectly(boolean val) {
+        goldMineDepositsToBankDirectly = val;
     }
 
     /** Color reputation (MOD_SCOPE.md #1): free top-up to maxLife+2 on entering a Partner-tier

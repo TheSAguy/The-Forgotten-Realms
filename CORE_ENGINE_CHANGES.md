@@ -874,6 +874,17 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`util/ContentFilterTables.java`** (mod file, inventoried below) — items.csv gained a Notes
   column flagging 23 confirmed-unreachable items "Currently Unused" (informational, not excluded).
 
+### 2026-08-13 Guard payment priority + Bank preferences
+- **`player/AdventurePlayer.java`** — two new persisted booleans, `payGuardsFromBankFirst` /
+  `goldMineDepositsToBankDirectly` (both default true; `clear()`/`save()`/`load()` updated, old
+  saves default true via an inverted containsKey guard).
+- **`util/EconomyBuildings.java`** (mod file, inventoried above) — guard-salary payment split into
+  its own pass over towns sorted Capitol-first-then-nearest (`townsByCapitolPriority()`), split
+  per-guard between that town's bank and the player's inventory (`payGuardGold()`); Gold Mine
+  production redirects to the town's bank when it has one and the checkbox is set; two new
+  CheckBoxes added to `refreshBankDialog()` (first Dialog-embedded CheckBox in the mod). See
+  MOD_CHANGELOG.md.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

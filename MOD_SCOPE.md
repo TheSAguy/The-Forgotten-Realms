@@ -2126,3 +2126,21 @@ drops 1 Rare+ card themed to the last defeated foe.
 Every construction/upgrade re-priced per the user's cost table, mixing Gold/Wood/Stone/Shards
 (full table in MOD_CHANGELOG); new [+Wood]/[+Stone] cost glyphs added to the plane's items
 atlas. Gives Lumber/Stone (#9) their first real sink.
+
+### 44. Guard Payment Priority + Bank Preferences — `Built (2026-08-13), not yet playtested`
+User spec: weekly guard salaries now pay the Capitol's own guards first, then every other owned
+town with a guard in order of increasing distance from the Capitol (`townsByCapitolPriority()`).
+Two new checkboxes in the Bank dialog, both checked by default: **"Pay Guards from Bank first"**
+(Gold-only - a guard's own town's bank balance is drawn before the player's inventory; unchecked
+reverses that order; either way still dismisses the guard if the combined total falls short) and
+**"Gold Mine deposits into Bank Directly"** (that town's Gold Mine production credits its own bank
+instead of the player's inventory, when that town has a Bank built). Shards (Mythic/"Challenger"
+tier only) are untouched by either checkbox in every path, always paid from inventory as before.
+Practical scope note: since Bank can currently only be built at the Capitol, both checkboxes are
+effectively Capitol-only today - an ordinary town's guard (max 1) always pays 100% from inventory
+regardless of the setting, and a Gold Mine anywhere but the Capitol always deposits to inventory.
+Flagged rather than special-cased; revisit if Bank ever becomes buildable elsewhere. Full technical
+detail (including a bug an adversarial review pass caught before deploy - a destroyed Bank's
+orphaned balance would otherwise have stayed silently spendable on guard salaries) in
+MOD_CHANGELOG.md. Not yet playtested - needs a 100x-Speed fast-forward past a guard's due salary
+date to actually see the bank-vs-inventory split happen.

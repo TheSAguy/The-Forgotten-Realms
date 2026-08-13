@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Cell;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
@@ -35,6 +36,7 @@ import forge.screens.CoverScreen;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -1236,6 +1238,30 @@ public class EconomyBuildings {
         addContentRow(dialog, "[%80]" + Math.round(INTEREST_RATE * 100) + "% interest every " + INTEREST_PERIOD_DAYS + " days[%]");
         addContentRow(dialog, "Your gold: " + player.getGold() + " [+Gold]");
 
+        // Bank preferences (2026-08-13, user spec) - plain scene2d CheckBoxes, first ever used
+        // inside a Dialog in this mod (existing CheckBox usage elsewhere is all full-screen
+        // UIScene root tables - see Controls.newCheckBox()). State is re-read from AdventurePlayer
+        // on every rebuild since refreshBankDialog() discards and recreates every Actor each call.
+        CheckBox bankFirstBox = Controls.newCheckBox("Pay Guards from Bank first (Gold only)");
+        bankFirstBox.setChecked(player.isPayGuardsFromBankFirst());
+        bankFirstBox.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                player.setPayGuardsFromBankFirst(((CheckBox) actor).isChecked());
+            }
+        });
+        dialog.getContentTable().add(bankFirstBox).width(250f).row();
+
+        CheckBox mineToBankBox = Controls.newCheckBox("Gold Mine deposits into Bank Directly");
+        mineToBankBox.setChecked(player.isGoldMineDepositsToBankDirectly());
+        mineToBankBox.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                player.setGoldMineDepositsToBankDirectly(((CheckBox) actor).isChecked());
+            }
+        });
+        dialog.getContentTable().add(mineToBankBox).width(250f).row();
+
         // Icons after each amount (2026-08-11, round 4 - "follow the Exchange menu's pattern"),
         // via [+Gold] font markup - not difficulty-scaled, deposits/withdrawals move the player's
         // own money rather than costing anything.
@@ -1445,13 +1471,23 @@ public class EconomyBuildings {
         AdventurePlayer.current().checkResearchCompletion(newDayCount);
         for (PointOfInterestChanges changes : WorldSave.getCurrentSave().getAllPointOfInterestChanges()) {
             // A town can now have several economy buildings at once (one of each type) - process
-            // every type it actually has, not just a single registered building.
+            // every type it actually has, not just a single registered building. Iteration order
+            // here doesn't matter - unlike guard salaries below, mine production/bank interest
+            // never compete with another town for a shared resource.
             for (int type : changes.getEconomyBuildingObjectIds().keySet()) {
                 if (isProducingType(type)) {
                     int amount = RESOURCE_PRODUCTION_PER_DAY * daysPassed;
                     switch (type) {
                         case SHARD_MINE: AdventurePlayer.current().addShards(amount); break;
-                        case GOLD_MINE: AdventurePlayer.current().giveGold(amount); break;
+                        case GOLD_MINE:
+                            // "Gold Mine deposits into Bank Directly" (2026-08-13, user spec) -
+                            // only when THIS town actually has a Bank built; otherwise falls back
+                            // to the player's own gold same as always.
+                            if (AdventurePlayer.current().isGoldMineDepositsToBankDirectly() && changes.hasEconomyBuildingOfType(BANK))
+                                changes.addBankBalance(amount);
+                            else
+                                AdventurePlayer.current().giveGold(amount);
+                            break;
                         case LUMBER_MILL: AdventurePlayer.current().addWood(amount); break;
                         case STONE_MINE: AdventurePlayer.current().addStone(amount); break;
                     }
@@ -1465,11 +1501,20 @@ public class EconomyBuildings {
                     }
                 }
             }
-            // Guard weekly salary (2026-08-11, MOD_SCOPE.md #22) - not tied to an economy-building-
-            // type registration like the loop above, checked directly off guard state. Back-to-front
-            // so a mid-loop disband (removeGuardAt) doesn't skip the next guard. A while loop per
-            // guard (not a single if) so a long fast-forward that skips several due weeks at once
-            // still charges/disbands correctly, same reasoning as the Bank interest periods above.
+        }
+        // Guard weekly salary (2026-08-11, MOD_SCOPE.md #22) - a separate pass, deliberately not
+        // folded into the per-town loop above: guard salaries draw on the player's own shared gold/
+        // shard inventory (and now, optionally, a town's bank - see payGuardGold()), so unlike mine
+        // production/interest, PROCESSING ORDER matters here. Capitol-priority ordering (2026-08-13,
+        // user spec): the Capitol's own guards are paid first, then every other town with a guard in
+        // order of increasing distance from the Capitol - see townsByCapitolPriority(). Back-to-front
+        // per town so a mid-loop disband (removeGuardAt) doesn't skip the next guard. A while loop
+        // per guard (not a single if) so a long fast-forward that skips several due weeks at once
+        // still charges/disbands correctly, same reasoning as the Bank interest periods above.
+        for (PointOfInterest poi : townsByCapitolPriority()) {
+            PointOfInterestChanges changes = WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+            if (changes == null || changes.getGuardCount() == 0)
+                continue;
             for (int i = changes.getGuardCount() - 1; i >= 0; i--) {
                 String tier = changes.getGuardTier(i);
                 int lastPaid = changes.getGuardLastPaidDay(i);
@@ -1477,8 +1522,10 @@ public class EconomyBuildings {
                 while (newDayCount - lastPaid >= 7) {
                     int goldCost = guardWeeklyGoldCost(tier);
                     int shardCost = guardWeeklyShardCost(tier);
-                    if (AdventurePlayer.current().getGold() >= goldCost && AdventurePlayer.current().getShards() >= shardCost) {
-                        AdventurePlayer.current().takeGold(goldCost);
+                    // Shards (Challenger/Mythic tier only) always come straight from the player's
+                    // own inventory, untouched by the Bank preference (user spec) - checked first,
+                    // side-effect-free, so a shard shortfall never leaves gold half-spent below.
+                    if (AdventurePlayer.current().getShards() >= shardCost && payGuardGold(changes, goldCost)) {
                         if (shardCost > 0)
                             AdventurePlayer.current().takeShards(shardCost);
                         lastPaid += 7;
@@ -1494,5 +1541,52 @@ public class EconomyBuildings {
                     changes.setGuardLastPaidDay(i, lastPaid);
             }
         }
+    }
+
+    /** Every POI, Capitol first (if one exists) then every other town in order of increasing
+     *  distance from it - see processDaysPassed()'s guard-salary pass. No Capitol yet: natural
+     *  POI order (nothing to prioritize against). */
+    private static List<PointOfInterest> townsByCapitolPriority() {
+        // Every POI on the map, not just towns (dungeons/caves included) - harmless, since the
+        // guard-salary loop below immediately skips anything with no recorded guards.
+        List<PointOfInterest> pois = new ArrayList<>(WorldSave.getCurrentSave().getWorld().getAllPointOfInterest());
+        PointOfInterest capitol = TownRestoration.findCapitol();
+        if (capitol == null)
+            return pois;
+        pois.sort(Comparator.comparingDouble(poi ->
+                poi == capitol ? -1 : poi.getPosition().dst2(capitol.getPosition())));
+        return pois;
+    }
+
+    /** Pays a guard's weekly Gold cost, split between the guard's own town's bank and the player's
+     *  inventory per AdventurePlayer.isPayGuardsFromBankFirst() (user spec, 2026-08-13): checked
+     *  drains the town's bank before the player's gold, unchecked drains the player's gold before
+     *  the bank. Only ever touches THIS guard's own town's bank (today that's a no-op source for
+     *  any non-Capitol town, since Bank can only be built in the Capitol - see buildChooseBuildingDialog()).
+     *  Returns false (nothing moved) if bank+inventory combined can't cover goldCost. */
+    private static boolean payGuardGold(PointOfInterestChanges changes, int goldCost) {
+        if (goldCost <= 0)
+            return true;
+        AdventurePlayer player = AdventurePlayer.current();
+        // Guard against a destroyed Bank's orphaned balance (destroyBuilding() never zeroes
+        // bankBalance) becoming an invisible-but-still-spendable slush fund - same
+        // hasEconomyBuildingOfType(BANK) gate the Gold Mine deposit branch above already uses.
+        int bankAvailable = changes.hasEconomyBuildingOfType(BANK) ? changes.getBankBalance() : 0;
+        int inventoryAvailable = player.getGold();
+        if (bankAvailable + inventoryAvailable < goldCost)
+            return false;
+        int fromBank, fromInventory;
+        if (player.isPayGuardsFromBankFirst()) {
+            fromBank = Math.min(bankAvailable, goldCost);
+            fromInventory = goldCost - fromBank;
+        } else {
+            fromInventory = Math.min(inventoryAvailable, goldCost);
+            fromBank = goldCost - fromInventory;
+        }
+        if (fromBank > 0)
+            changes.addBankBalance(-fromBank);
+        if (fromInventory > 0)
+            player.takeGold(fromInventory);
+        return true;
     }
 }
