@@ -2134,3 +2134,19 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
 - Not yet playtested - needs a fresh New Game to click through (both the normal path and this new
   skip path), and specifically to confirm the item grants/teleport all land correctly and that
   walking up to the Spawn wizard afterward doesn't re-offer the same conversation.
+
+### 41. Content Filter Tables — `Built (2026-08-12), not yet playtested`
+Three auto-generated, user-editable CSVs in the plane's "config tables/" folder (expansions /
+items / enemies), each row full entity details + Include Y/N - flip to N to remove that content
+from the game. Quest content protected; user edits survive updates; see MOD_CHANGELOG.
+
+### 42. Challenge Arena Champions + Themed Drops — `Built (2026-08-12), not yet playtested`
+5 hand-built champion decks (Dovin Baan WU, Kaervek BR, Sidar Kondo GW, Meren BG, Domri Rade RG -
+script-validated for color/rarity/legality constraints) added to the Challenge pool as
+arena-exclusive enemies; full-bracket wins pay their signature bounty, and every Challenge run
+drops 1 Rare+ card themed to the last defeated foe.
+
+### 43. Multi-Resource Building Costs — `Built (2026-08-12), not yet playtested`
+Every construction/upgrade re-priced per the user's cost table, mixing Gold/Wood/Stone/Shards
+(full table in MOD_CHANGELOG); new [+Wood]/[+Stone] cost glyphs added to the plane's items
+atlas. Gives Lumber/Stone (#9) their first real sink.
