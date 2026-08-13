@@ -637,6 +637,86 @@ string). `items.json` re-validated with `python3 -c "import json; json.load(...)
 apostrophe-escaped hand-edit - 629 items, exactly 3 flagged. None of the four fixes has been seen
 running in-game yet - all four need the user's next playtest session to confirm.
 
+## 2026-08-13 (later still): AI-town gate, diagnostic logging, campfire spawn confirmed OK
+
+**AI-town economy-building gate** (user spec: "only the player can build/upgrade stuff... no AI
+towns/cities should be touched, besides the Card Expansion limitations to card shops and Inn
+tournaments"). An investigation confirmed most economy-building actions were already correctly
+unreachable at AI towns - Bank/Exchange/4 Mines/Outlook/Teleporter/Archaeologist/guard hiring/
+Destroy-Building all only trigger from `ShopActor.onPlayerCollide()`'s `isDestroyed()` branch,
+which requires `TownRestoration.isWastelandTown()` (a `BiomeColorless` questTag check) - the 5 AI
+capitals are colored biomes (Forest/Island/Mountain/Plains/Swamp Capital, `BiomeGreen`/`Blue`/
+`Red`/`White`/`Black`), never wasteland, so that whole dialog family structurally never opens
+there. **`RewardScene.java`'s Armory-family buttons were the one path that bypassed this
+entirely**: `guardsButton`/`upgradeButton`/`rerollButton`/`shopTypeRerollButton`'s visibility was
+gated only by shop TYPE (`isArmoryShop()` name-pattern match), the relevant config flag, and
+building level - never town ownership. Confirmed via `mountain_capital.tmx` (and the other 4) that
+each AI capital places `RedEquipment`/`RedItems`-style shop objects that match `isArmoryShop()`.
+Concretely: **"Re-roll Inventory" (100 shards) and "Re-roll Shop Type" (50 shards) were LIVE and
+fully functional at any of the 5 AI capitals today** - a player could pay to reroll an AI-owned
+town's stock with zero restriction; "Upgrade Armory" (300 stone) was visible/clickable there too
+but only failed harmlessly by the unrelated shops.json data gap already documented in #47's fix.
+
+Fix: new `TownRestoration.isCurrentTownPlayerOwned(PointOfInterestChanges changes)` -
+`isTownRestored(changes) || isCurrentTownCapitol()` - folded into `armoryFeatures` (gating
+guards/upgrade/reroll together) and `shopTypeRerollButton`'s own visibility condition in
+`RewardScene.loadRewards()`'s Shop case, plus an early-return using the same check added to each
+of `promptRerollShopType()`/`promptManageGuards()`/`promptUpgradeArmory()`/`promptRerollArmory()`
+as defense-in-depth (in case any other UI entry point - controller/gamepad focus, say - could
+still reach a nominally-hidden button). **Adversarially reviewed before deploy** on both failure
+directions: confirmed `TOWN_RESTORED_FLAG` is only ever set via the wasteland-town restore dialog
+or `upgradeToCapitol()`'s own migration (grepped every write site project-wide - no quest/dialog
+JSON references the flag key either), so it can never land on an AI capital's `PointOfInterestChanges`
+through any path; and confirmed the fix doesn't over-restrict the player's own towns/Capitol -
+traced `upgradeToCapitol()`'s actual code and found `isTownRestored(changes)` alone already
+returns true for the Capitol post-migration (it unconditionally sets the flag on the Capitol's own
+`changes` during transform), making the `isCurrentTownCapitol()` OR redundant-but-harmless rather
+than load-bearing. Also confirmed `RewardScene.changes` is fresh per shop-visit (not stale/cached
+across visits - traced through `MapStage.getChanges()` -> `TileMapScene`'s current `rootPoint`),
+and that `destroyButton`/every other economy action is untouched by this change.
+
+**Diagnostic logging** (standing practice added to `CLAUDE.md`'s ground rules per user request -
+add a greppable `[TFR-<Name>]` line for any mechanic that's hard to verify by just playing). An
+audit of 5 named mechanics found only guard-combat-odds already had proper coverage
+(`[TFR-GuardFight]`); the other 4 had none or only partial/accidental coverage:
+- **`[TFR-MageCap]`** (`TerritoryControl.maxActiveMagesPerColor()`) - difficulty index, player
+  town count, the derived divisor, the town-count bonus, and the final cap (#29's scaling term
+  was previously only visible as an opaque final integer on the "already at cap" skip line).
+- **`[TFR-Targeting]`** (`TerritoryControl.dispatch()`, new) - every attack candidate with its
+  computed weight, the roll value against total weight, and the picked target, consolidated with
+  the dispatching mage's own tier/speed/life in the same line (the pre-existing outcome line only
+  ever showed the WINNING candidate, with zero visibility into the weighting/reputation math that
+  produced it). Captured the roll into a new `originalRoll` local before the existing
+  roll-consuming loop runs (the loop decrements `roll` in place) - confirmed
+  `world.getRandom().nextFloat()` is still called exactly once, no shared-RNG desync risk.
+- **`[TFR-Spawn]`** (`WorldStage.handleMonsterSpawn()`) - extended with `speed=`/`life=` fields;
+  previously printed neither for any roaming enemy.
+- **`[TFR-EnemyLife]`** (`DuelScene.java`, new, unconditional) - raw catalog life, the difficulty
+  `enemyLifeFactor` multiplier, the difficulty-scaled result, and the terrain-adjusted result if
+  different, for EVERY fight - `[TFR-DayNight]` only ever covered the colored-terrain/day-night-
+  enabled subset of overworld roaming fights, leaving neutral terrain, dungeons/towns, and Arena/
+  Inn events with zero starting-life visibility.
+
+**Also confirmed, no fix needed:** the resource-spawn sparkle (#45) not appearing near the
+starting campfire. `ResourceSpawns.java` has no exclusion zone around Spawn specifically (only a
+generic 3-tile clearance from any POI, applied uniformly). There IS a start-specific mechanic -
+`NEAR_START_RADIUS_TILES=12`, a ONE-TIME guarantee that fires the very first tick
+`World.isResourceSpawnsSeeded()` flips false->true for a save, placing one spawn within 12 tiles
+of wherever the player is standing at that moment (added 2026-08-08 "so a fresh game had no
+findable example to verify the mechanic by") - but it never re-fires, doesn't specifically anchor
+to Spawn's coordinates, and even a spawn placed there expires within 2-10 days and gets replaced
+by a fully-random-location spawn with zero bias back toward the start. Per this project's own
+prior resource-spawn playtesting having consistently happened on an existing long-running save
+(not fresh New Games), that one-time window has almost certainly already been spent. Verify via
+the existing debug console `spawn resource` command (radius 4 tiles) instead of waiting/relocating.
+
+### Verification
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o` clean. Two independent adversarial review
+passes (AI-town gate; the 4 logging additions) both came back `correct_no_bugs`. Spliced into both
+installed jars; spot-checked by extracting the 5 touched `.class` files and grepping for
+`isCurrentTownPlayerOwned` and each new/extended log tag's string literals. None of this has been
+playtested in-game yet.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

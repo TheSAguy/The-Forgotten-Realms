@@ -143,6 +143,11 @@ public class RewardScene extends UIScene {
     private void promptRerollShopType() {
         if (shopActor == null || changes == null)
             return;
+        // Defense-in-depth (2026-08-13, AI-town gate) - the button itself is already hidden at
+        // AI towns via shopTypeRerollButton's own playerOwnedTown check in loadRewards(), this
+        // guards against any other path (e.g. controller/gamepad focus) still invoking it.
+        if (!TownRestoration.isCurrentTownPlayerOwned(changes))
+            return;
         if (!shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()))
             return;
         int cost = EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST);
@@ -182,6 +187,11 @@ public class RewardScene extends UIScene {
     private void promptManageGuards() {
         if (shopActor == null || changes == null)
             return;
+        // Defense-in-depth (2026-08-13, AI-town gate) - guardsButton is already hidden at AI
+        // towns (only reachable via armoryFeatures' playerOwnedTown check), this guards against
+        // any other path still invoking it.
+        if (!TownRestoration.isCurrentTownPlayerOwned(changes))
+            return;
         forge.adventure.pointofintrest.PointOfInterest rootPoint = TileMapScene.instance().rootPoint;
         String poiName = rootPoint == null ? null : rootPoint.getData().name;
         EconomyBuildings.openManageGuardsDialog(this, changes, poiName, shopActor.getObjectId());
@@ -189,6 +199,12 @@ public class RewardScene extends UIScene {
 
     private void promptUpgradeArmory() {
         if (shopActor == null || changes == null)
+            return;
+        // Defense-in-depth (2026-08-13, AI-town gate: "only the player can build/upgrade stuff")
+        // - upgradeButton is already hidden at AI towns (only reachable via armoryFeatures'
+        // playerOwnedTown check), this guards against any other path still invoking it. This is
+        // the exact button that was live and exploitable at the 5 AI capitals before today.
+        if (!TownRestoration.isCurrentTownPlayerOwned(changes))
             return;
         // 2026-08-12 cost table: Armory upgrade is 300 stone.
         if (!EconomyBuildings.canAffordCost(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0))
@@ -256,6 +272,12 @@ public class RewardScene extends UIScene {
      *  inventory the same way restockShop() does once the reroll is paid for. */
     private void promptRerollArmory() {
         if (shopActor == null || changes == null)
+            return;
+        // Defense-in-depth (2026-08-13, AI-town gate) - rerollButton is already hidden at AI
+        // towns (only reachable via armoryFeatures' playerOwnedTown check). This was the one
+        // action confirmed LIVE and fully functional (not merely visible) at the 5 AI capitals
+        // before today - no level gate, no other restriction stopped it from actually working.
+        if (!TownRestoration.isCurrentTownPlayerOwned(changes))
             return;
         int day = WorldSave.getCurrentSave().getWorld().getCurrentDay();
         if (!changes.canManuallyRerollShop(shopActor.getObjectId(), day))
@@ -721,12 +743,24 @@ public class RewardScene extends UIScene {
                 if (destroyButton.isVisible())
                     addToSelectable(destroyButton);
                 boolean isArmory = EconomyBuildings.isArmoryShop(shopActor.getShopData());
+                // AI-town gate (2026-08-13, user spec: "only the player can build/upgrade
+                // stuff... no AI towns/cities should be touched"). Every OTHER economy-building
+                // action (Bank/Mines/Outlook/Teleporter/Archaeologist/guard hire/Destroy
+                // Building) is already structurally unreachable at AI towns - they only open via
+                // ShopActor's isDestroyed()/isWastelandTown() branch, which an AI town/capital
+                // never satisfies (never wasteland). This Armory-family block below is the one
+                // path that bypassed that gate entirely: the 5 AI capitals' colored
+                // Equipment/Items shops match isArmoryShop() too, and nothing here checked WHO
+                // owns the town - Re-roll Inventory/Re-roll Shop Type were live and paid-for-
+                // real at any AI capital, and Upgrade Armory only failed harmlessly by the
+                // unrelated coincidence that shops.json has no *L2 entry for those shop names.
+                boolean playerOwnedTown = TownRestoration.isCurrentTownPlayerOwned(changes);
                 // Stock planes (Shandalar) have shops named *Equipment/*Items that match
                 // isArmoryShop, and multi-name shop lists that qualify for the type re-roll -
                 // both are mod features and must stay plane-opt-in (CLAUDE.md ground rule;
                 // 2026-08-12 review finding). isArmory alone still matters below for excluding
                 // Armories from the type re-roll on ANY plane.
-                boolean armoryFeatures = isArmory && Config.instance().getConfigData().armoryGuardsEnabled;
+                boolean armoryFeatures = isArmory && Config.instance().getConfigData().armoryGuardsEnabled && playerOwnedTown;
                 int armoryLevel = changes.getBuildingLevel(shopActor.getObjectId());
                 guardsButton.setVisible(armoryFeatures && armoryLevel >= 2);
                 if (guardsButton.isVisible())
@@ -750,7 +784,7 @@ public class RewardScene extends UIScene {
                 // Armory's own rerollButton above (a shop resolves to exactly one ShopData at a
                 // time, so they share a row position safely).
                 shopTypeRerollButton.setVisible(Config.instance().getConfigData().shopTypeRerollEnabled
-                        && !isArmory && shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()));
+                        && !isArmory && playerOwnedTown && shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()));
                 if (shopTypeRerollButton.isVisible()) {
                     shopTypeRerollButton.setText("[%80]Re-roll Shop Type (" + EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST) + " [+Shards])");
                     addToSelectable(shopTypeRerollButton);

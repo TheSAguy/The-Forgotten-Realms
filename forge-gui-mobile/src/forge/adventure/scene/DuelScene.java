@@ -472,6 +472,7 @@ public class DuelScene extends ForgeScene {
             aiPlayer.setPlayer(enemyPlayer);
             aiPlayer.setTeamNumber(currentEnemy.teamNumber);
             int enemyStartingLife = Math.round((float) currentEnemy.life * advPlayer.getDifficulty().enemyLifeFactor);
+            int lifeBeforeTerrainModifier = enemyStartingLife;
             // Day/night terrain life modifier (user spec 2026-08-12): OVERWORLD roaming fights
             // only - events (Arena/Inn, eventData != null) use their own rules line below, and
             // town/dungeon interiors are excluded via isInMap(). The enemy sprite's own tile
@@ -481,6 +482,15 @@ public class DuelScene extends ForgeScene {
                 enemyStartingLife = Current.world().applyDayNightTerrainLife(enemyStartingLife,
                         (int) enemy.getX() / tileSize, (int) enemy.getY() / tileSize);
             }
+            // Diagnostic logging standard (user request 2026-08-13) - unconditional (unlike
+            // [TFR-DayNight] above, which only fires for the colored-terrain/day-night-enabled
+            // subset of overworld fights), so difficulty-scaled starting life is verifiable for
+            // EVERY fight, including neutral terrain, dungeons/towns, and Arena/Inn events.
+            System.out.println("[TFR-EnemyLife] " + currentEnemy.getName() + " rawLife=" + currentEnemy.life
+                    + " enemyLifeFactor=" + advPlayer.getDifficulty().enemyLifeFactor
+                    + " -> difficultyScaled=" + lifeBeforeTerrainModifier
+                    + (enemyStartingLife != lifeBeforeTerrainModifier ? " -> terrainAdjusted=" + enemyStartingLife : "")
+                    + " (eventOverride=" + (eventData != null) + ")");
             aiPlayer.setStartingLife(eventData != null ? eventData.eventRules.startingLife : enemyStartingLife);
 
             Array<EffectData> equipmentEffects = new Array<>();

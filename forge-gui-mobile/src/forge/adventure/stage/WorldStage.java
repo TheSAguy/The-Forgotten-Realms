@@ -744,9 +744,12 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 // Diagnostic-only (user request 2026-08-10) - the bulk of the log; see
                 // MOD_CHANGELOG.md's "Playtest logging" entry for how to summarize this instead of
                 // reading it line by line (tier distribution, color variety, confirming the 11
-                // colors:"C" enemies fixed this round actually appear, etc.)
+                // colors:"C" enemies fixed this round actually appear, etc.). speed/life added
+                // 2026-08-13 (diagnostic logging standard) - the raw catalog values for a roaming
+                // enemy at the moment it spawns, otherwise not printed anywhere.
                 System.out.println("[TFR-Spawn] " + enemyData.getName() + " (tier=" + enemyData.tier
-                        + ", colors=" + enemyData.colors + ") in " + data.name + " territory (rank=" + difficultyFactor + ")");
+                        + ", colors=" + enemyData.colors + ", speed=" + enemyData.speed
+                        + ", life=" + enemyData.life + ") in " + data.name + " territory (rank=" + difficultyFactor + ")");
             }
         }
         EnemyData extraSpawnForQuests = data.getExtraSpawnEnemy(difficultyFactor);

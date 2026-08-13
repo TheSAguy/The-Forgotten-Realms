@@ -46,6 +46,15 @@ have in its own memory.
   until asked to push.
 - `origin` is the user's own fork (`TheSAguy/mtg-forge-mod`); `upstream` is the original
   `Card-Forge/forge` project, for pulling in engine updates only - never push mod work there.
+- **Add a greppable diagnostic log line for any mechanic that's hard to observe by just playing**
+  (standing practice, user request 2026-08-13) - anything probabilistic, AI-driven, or that fires
+  rarely/off-screen (combat odds, AI targeting decisions, scaling formulas, timers). Follow the
+  established `[TFR-<Name>]` tag convention already used by `[TFR-GuardFight]` (attacker tier,
+  guard tier, computed chance, outcome), `[TFR-DayNight]`, and `[TFR-CaptureOdds]` - one line per
+  relevant event, with enough values printed to verify the mechanic's actual behavior from
+  `forge.log` alone, without needing to catch it live on screen. Add this as part of building the
+  feature, not as an afterthought - it's what lets a future session validate a change the user
+  can't easily reproduce themselves.
 
 ## Build/toolchain
 

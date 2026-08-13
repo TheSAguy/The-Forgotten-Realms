@@ -732,7 +732,8 @@ public class TerritoryControl {
             }
             totalWeight += bonus;
         }
-        float roll = world.getRandom().nextFloat() * totalWeight;
+        float originalRoll = world.getRandom().nextFloat() * totalWeight;
+        float roll = originalRoll;
         int pick = candidates.size() - 1;
         for (int i = 0; i < candidates.size(); i++) {
             roll -= weights.get(i);
@@ -753,6 +754,20 @@ public class TerritoryControl {
         mage.territoryTarget = target;
         mage.territoryColor = color;
         WorldStage.getInstance().spawnAt(mage, new Vector2(castle.getPosition()));
+
+        // Diagnostic logging standard (user request 2026-08-13) - the outcome line below only
+        // ever shows the WINNING candidate; without this, the weighting/reputation math above
+        // (and the mage's own speed/tier/life, otherwise unlogged anywhere for territory mages)
+        // can't be verified from forge.log, only inferred from results over many dispatches.
+        StringBuilder candidateDump = new StringBuilder();
+        for (int i = 0; i < candidates.size(); i++) {
+            if (i > 0) candidateDump.append(", ");
+            candidateDump.append(candidates.get(i).getDisplayName()).append("=").append(weights.get(i));
+        }
+        System.out.println("[TFR-Targeting] " + color + " mage (tier=" + enemyData.tier
+                + ", speed=" + enemyData.speed + ", life=" + enemyData.life + ") candidates=["
+                + candidateDump + "] roll=" + originalRoll + "/" + totalWeight + " -> picked "
+                + target.getDisplayName());
 
         String message = capitalize(color) + " sends a mage toward " + target.getDisplayName() + "!";
         // Extra warning when the target is one of the PLAYER's towns (user request 2026-08-08) -
@@ -795,7 +810,13 @@ public class TerritoryControl {
         // "count Capitol as a town" spec.
         int playerTowns = TownRestoration.countPlayerTowns() + (TownRestoration.capitolExists() ? 1 : 0);
         int townBonus = playerTowns / (11 - index);
-        return 2 + index + townBonus;
+        int cap = 2 + index + townBonus;
+        // Diagnostic logging standard (user request 2026-08-13) - the town-count scaling term is
+        // otherwise invisible: the caller only ever sees the final cap, with no way to tell how
+        // much of it came from the flat difficulty base vs. this rubber-band bonus.
+        System.out.println("[TFR-MageCap] difficultyIndex=" + index + " playerTowns=" + playerTowns
+                + " divisor=" + (11 - index) + " townBonus=" + townBonus + " -> cap=" + cap);
+        return cap;
     }
 
     private static double distToNearestSource(PointOfInterest town, List<PointOfInterest> sources) {

@@ -947,6 +947,23 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   a per-guard rolling timer to a shared calendar schedule (`nextPayday` formula in
   `processDaysPassed()`); `NON_MYTHIC_ITEM_POOL` lost 3 trophy-item names (see MOD_CHANGELOG.md).
 
+### 2026-08-13 (later still) AI-town gate + diagnostic logging
+- **`scene/RewardScene.java`** — Armory-family button visibility (`guardsButton`/`upgradeButton`/
+  `rerollButton`/`shopTypeRerollButton`) and their 4 click handlers now gated on
+  `TownRestoration.isCurrentTownPlayerOwned(changes)` — previously the only economy-building
+  action path reachable at AI-owned towns (Re-roll Inventory/Re-roll Shop Type were live and
+  functional there; Upgrade Armory only failed by an unrelated data gap).
+- **`util/TownRestoration.java`** (mod file, inventoried below) — new
+  `isCurrentTownPlayerOwned(PointOfInterestChanges)` helper.
+- **`util/TerritoryControl.java`** (mod file, inventoried below) — `maxActiveMagesPerColor()`
+  gained `[TFR-MageCap]`; `dispatch()` gained `[TFR-Targeting]` (captures the roll into a new
+  `originalRoll` local before the existing roll-consuming loop, no behavior change).
+- **`stage/WorldStage.java`** — `handleMonsterSpawn()`'s existing `[TFR-Spawn]` line extended
+  with `speed=`/`life=` fields.
+- **`scene/DuelScene.java`** — new unconditional `[TFR-EnemyLife]` line after the difficulty-scaled
+  starting-life computation (raw life, difficulty factor, scaled result, terrain-adjusted result
+  if different).
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

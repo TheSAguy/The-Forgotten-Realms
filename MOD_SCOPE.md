@@ -40,7 +40,7 @@ Helping a color angers its two enemies, not its allies.
 
 ## Features
 
-### 1. Reputation System — `In Progress` (scoring + consequences built 2026-08-07, not yet playtested)
+### 1. Reputation System — `Done (playtest-confirmed 2026-08-13)` (scoring + consequences built 2026-08-07)
 - Player has a reputation score per color (5 tracks).
 - Helping/hurting one color affects reputation with it, and ripples to its allies/enemies
   per the table above (help Green → Blue & Black annoyed).
@@ -142,7 +142,7 @@ Helping a color angers its two enemies, not its allies.
     War, distinct from the Inn-specific `isHealBarred()` above which stays War-only) now also
     gates the base heal.
 
-### 2. Central Wasteland & Town Reconstruction — `In Progress`
+### 2. Central Wasteland & Town Reconstruction — `Done (playtest-confirmed 2026-08-13)`
 - First slice built: towns in the colorless "Wastes" biome (existing stand-in for "the middle
   of the map" until full territory control exists, #7) now start destroyed. The Job Board
   (quest giver) must be restored for 100 gold before any of that town's shops can be
@@ -295,7 +295,7 @@ assumption are in `MOD_CHANGELOG.md`'s "Progressive Set Unlocks" entry - summary
   `[TFR-LootEditions]` (every roaming-monster reward generation), `[TFR-Research]` (start/complete/
   starting-unlock events) - this whole feature is otherwise invisible, so every decision point logs.
 
-### 4b. Race-Based Starting Expansions — `Done (2026-08-12), not yet playtested`
+### 4b. Race-Based Starting Expansions — `Done (playtest-confirmed 2026-08-13)`
 Your chosen race now determines which expansions you start with (user spec: "your starting race
 you pick has no effect. Please assign each race a unique expansion"). Each of the 16 races has 4
 lore-assigned expansions; difficulty decides how many you get: **Easy all 4, Normal random 3,
@@ -337,7 +337,7 @@ events skew toward single-set blocks - by design, research widens the tournament
 - Was: AI strength/deck gradient by distance from castle vs map center. Cut from scope; the
   bestiary difficulty tiers (#19) and territory re-theming (#7) cover the spirit of it.
 
-### 6. Time System (Day/Night Cycle) — `In Progress`
+### 6. Time System (Day/Night Cycle) — `Done (playtest-confirmed 2026-08-13)`
 - Foundational clock built: opt-in via `config.json` → `dayNightCycleEnabled`, ~12 real
   minutes per in-game day, advances continuously while on the overworld (any pace/standing
   still), freezes automatically in towns/dungeons or while paused/in a dialog. Persisted in
@@ -363,7 +363,7 @@ events skew toward single-set blocks - by design, research widens the tournament
   help test #7's multi-day attack cadence once that's built. Only speeds up time advancement,
   nothing else. Remove once these features don't need frequent manual speed-up.
 
-### 7. Dynamic Territory Control — `In Progress` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, fixed a day-reset bug and minimap staleness, then capped captured-town protection radius and fixed a stale-doodad-cache-on-load bug; 2026-08-10 - cross-color targeting activated, mages persist through a loss, Capitol defense forced duel built, not yet playtested)
+### 7. Dynamic Territory Control — `Done (playtest-confirmed 2026-08-13)` (spatially-aware placement redesign added 2026-08-06, extended to daily expansion same day - caused and fixed a freeze, found and fixed a pre-existing doodad/ownership mismatch bug, fixed a day-reset bug and minimap staleness, then capped captured-town protection radius and fixed a stale-doodad-cache-on-load bug; 2026-08-10 - cross-color targeting activated, mages persist through a loss, Capitol defense forced duel built)
 Full design worked out 2026-08-03 - detailed enough to build from. First real slice built
 2026-08-05 (opt-in via new `territoryControlEnabled` flag), through 4 rounds of same-day
 playtesting/fixes - **current approach, as of the 4th round** (earlier rounds tried shrinking each
@@ -982,7 +982,7 @@ needs its own design pass before any of this gets built:**
   grants Stone/Wood - a real sprite reskin would need copying the affected maps into this plane
   first (with all the internal-relative-path-rewrite risk that implies), not done this round.
 
-### 10. Buildings (Economy Buildings) — `In Progress` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09; real Outlook/Arena/Spellsmith art + animated Teleporter + Arena color diversity 2026-08-10; AI capital Armory weekly restock content fixed 2026-08-11, not yet playtested)
+### 10. Buildings (Economy Buildings) — `Done (playtest-confirmed 2026-08-13)` (2026-08-04, playtest fixes same day; Outlook + Teleporter + universal Destroy added 2026-08-09; real Outlook/Arena/Spellsmith art + animated Teleporter + Arena color diversity 2026-08-10; AI capital Armory weekly restock content fixed 2026-08-11)
 - **AI capitals' Armory shops now visibly restock weekly too (2026-08-11).** The weekly-reseed
   mechanism itself (`PointOfInterestChanges.getWeeklyShopSeed()`) already fired correctly for every
   town including AI-owned capitals - the actual gap was that the 5 AI colors' Equipment/Items shop
@@ -1639,7 +1639,7 @@ to depend on each other.
   - **Final state: 0 items unobtainable, 0 enemies unspawnable, all 63 quest items resolve to a
     real, reachable source.**
 
-### 20. Upgradable Arena — `In Progress` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; Deck Tester mode built same day, round 3; playtest round 5 fixed the Upgrade/toggle/Deck Tester buttons rendering off-screen, and a wrong-jar deploy bug that meant round 3 never actually reached the player; round 7 moved Deck Tester next to the mode toggle per user follow-up)
+### 20. Upgradable Arena — `Done (playtest-confirmed 2026-08-13)` (2026-08-11: art, upgrade trigger, Ante-off, and the Challenge Arena mode all built; playtest round 2 same day moved the upgrade/toggle UI and fixed the Level 1 art; Deck Tester mode built same day, round 3; playtest round 5 fixed the Upgrade/toggle/Deck Tester buttons rendering off-screen, and a wrong-jar deploy bug that meant round 3 never actually reached the player; round 7 moved Deck Tester next to the mode toggle per user follow-up)
 - **"No ant in Arena" resolved**: means Ante (the mechanic where match winner takes a card from the
   loser's deck - "ant" was a typo missing the "e"), which is on by default for every match
   currently. **Built**: Ante is now force-disabled for Arena matches specifically (new
@@ -1764,7 +1764,7 @@ to depend on each other.
   handleMonsterSpawn()`'s existing road-speed check already reads the player's current `BiomeData`
   at that point) but not implemented - only this tier speed rebalance was asked for so far.
 
-### 22. Armory Guard Hiring (Level 2 unlock) — `Built (2026-08-11), not yet playtested`
+### 22. Armory Guard Hiring (Level 2 unlock) — `Done (playtest-confirmed 2026-08-13)`
 Full loop is real and reachable in-game from a fresh save: Armory starts Level 1 (unchanged
 behavior) -> "Upgrade Armory (100g)" button on its `RewardScene` page -> confirms, spends gold,
 flips to Level 2 art -> "Manage Guards" button appears -> hire any of 4 tiers (slot-limited,
@@ -1848,7 +1848,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   "/week" to "/wk", and added a `[%75]` text-scale prefix to the Hire labels specifically (Dismiss
   labels are much shorter and untouched). See #23 and `MOD_CHANGELOG.md` for the full round.
 
-### 23. Resource Icons on Building/Shop Menus — `Built (2026-08-11, round 4); wrong-jar deploy bug fixed round 5, same day`
+### 23. Resource Icons on Building/Shop Menus — `Done (playtest-confirmed 2026-08-13)` (built 2026-08-11 round 4; wrong-jar deploy bug fixed round 5, same day)
 - Original ask (2026-08-11): a gold icon next to the Bank's Deposit/Withdraw amounts
   (`EconomyBuildings.refreshBankDialog()`), plain text right now (`"Deposited: N gold"`).
 - **Expanded same day, round 3**: apply the same treatment - resource icon(s) inline after every
@@ -2056,7 +2056,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   sprite's texture in place via a new `TextureSprite.setRegion()` (the sign was previously an
   immutable-region sprite with no way to change its art after construction). Not yet playtested.
 
-### 33. Early Armory Inventory Re-Roll — `Built (2026-08-11, round 7)`
+### 33. Early Armory Inventory Re-Roll — `Done (playtest-confirmed 2026-08-13)`
 - User idea (2026-08-11, wishlist batch): "Re-roll armory inventory early." The Armory's item stock
   currently restocks automatically once a week (#18's Item Economy, `EconomyBuildings`'s weekly-
   restock sweep, MOD_CHANGELOG's "Weekly shop restock" work) - this would let the player pay to
@@ -2075,7 +2075,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   needs the actual current text located and a replacement drafted with the user, not scoped further
   yet.
 
-### 35. Rename Capitol to "Orazca" — `Built (2026-08-11, round 7)`
+### 35. Rename Capitol to "Orazca" — `Done (playtest-confirmed 2026-08-13)`
 - User spec (2026-08-11, wishlist batch): "Capitol name Orazca." The player's Capitol currently has
   internal name `"Player Capitol"` (`TownRestoration.CAPITOL_POI_NAME`, #13) with displayName
   "Camelot" set at upgrade time (`upgradeToCapitol()`'s `transformInto()` call, #13). Checked
@@ -2135,7 +2135,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   who already own/run stock Forge, or a fully standalone build; ties naturally into #28 (promo
   write-up) once this exists, since there'd finally be something easy to point people at.
 
-### 40. Skip Tutorial — `Built (2026-08-11, round 6)`
+### 40. Skip Tutorial — `Done (playtest-confirmed 2026-08-13)`
 - **User request (verbatim)**: remove the two dead buttons on the intro dialog ("I want to find
   the planeswalkers (Future release)" / "I want to make a name for myself (Future release)" - both
   were already `isDisabled: true` in the data, hence "dead"), add a "Skip tutorial" button. Skipping
@@ -2213,7 +2213,7 @@ Every construction/upgrade re-priced per the user's cost table, mixing Gold/Wood
 (full table in MOD_CHANGELOG); new [+Wood]/[+Stone] cost glyphs added to the plane's items
 atlas. Gives Lumber/Stone (#9) their first real sink.
 
-### 44. Guard Payment Priority + Bank Preferences — `Built (2026-08-13), not yet playtested`
+### 44. Guard Payment Priority + Bank Preferences — `Done (playtest-confirmed 2026-08-13)`
 User spec: weekly guard salaries now pay the Capitol's own guards first, then every other owned
 town with a guard in order of increasing distance from the Capitol (`townsByCapitolPriority()`).
 Two new checkboxes in the Bank dialog, both checked by default: **"Pay Guards from Bank first"**
@@ -2362,3 +2362,36 @@ leak in `EconomyBuildings.NON_MYTHIC_ITEM_POOL` (a hardcoded name list backing t
 5% bonus-item roll) also listed all 3 names - fixed by removing them there too. Not yet playtested
 - needs a few Armory/Archaeologist rolls to confirm the 3 items no longer appear (probabilistic,
 may take several tries either way given how the pool is weighted).
+
+### 49. AI Towns Can't Build/Upgrade Anything + Diagnostic Logging — `Fixed (2026-08-13), not yet playtested`
+User spec: "The 5 AI-capital colored armory shops should not be able to upgrade, since they are
+all AI controlled. Only the player can build/upgrade stuff... no AI towns/cities should be
+touched, besides the Card Expansion limitations to card shops and Inn tournaments." An audit
+confirmed every OTHER economy-building action (Bank/Mines/Outlook/Teleporter/Archaeologist/guard
+hiring/Destroy Building) was already correctly unreachable at AI towns - structurally, since they
+only open via a wasteland-town gate an AI town/capital never satisfies - but RewardScene's
+Armory-family buttons bypassed that gate entirely: **"Re-roll Inventory" and "Re-roll Shop Type"
+were LIVE and fully functional today at all 5 AI capitals' colored armory-type shops** (a player
+could pay shards to reroll an AI capital's stock with zero restriction), and "Upgrade Armory" was
+visible/clickable there too, only failing harmlessly by the unrelated shops.json data gap fixed
+in #47. Fixed with a new shared `TownRestoration.isCurrentTownPlayerOwned(changes)` check
+(player-owned restored town OR the player's own Capitol), gating all 4 buttons' visibility plus
+each action's own handler as defense-in-depth. Adversarially reviewed and confirmed correct on
+both directions (doesn't miss the 5 AI capitals, doesn't accidentally block the player's own
+towns or Capitol) before deploy - see MOD_CHANGELOG.md.
+
+**Diagnostic logging** (standing practice, user request - see `CLAUDE.md`): added `[TFR-MageCap]`
+(town-count mage-cap scaling, #29), `[TFR-Targeting]` (AI mage target candidates/weights/roll,
+consolidated with mage speed/tier/life), extended `[TFR-Spawn]` with speed/life fields, and new
+`[TFR-EnemyLife]` (difficulty-scaled starting life for every fight, not just the day/night-modified
+subset `[TFR-DayNight]` already covered). `[TFR-GuardFight]` already covered guard combat odds,
+no change needed there.
+
+**Also confirmed (not a bug, no fix needed):** the resource-spawn sparkle art (#45) not appearing
+near the starting campfire - there's a one-time 12-tile guarantee on a brand-new game's very first
+tick, but it's not a standing invariant (never re-fires, expires with the rest of that spawn's 2-10
+day lifetime, no bias back toward the start afterward). Since this project's resource-spawn
+playtesting has consistently happened on an existing long-running save rather than fresh New
+Games, that one-time window has almost certainly already been spent, long ago, possibly not even
+near Spawn. Use the debug console `spawn resource` command (radius 4 tiles) to verify the sparkle
+art works right now without waiting/relocating.

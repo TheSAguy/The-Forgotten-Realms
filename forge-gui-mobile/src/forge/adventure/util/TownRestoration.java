@@ -437,6 +437,21 @@ public class TownRestoration {
         return point != null && CAPITOL_POI_NAME.equals(point.getData().name);
     }
 
+    /** Is the CURRENTLY-LOADED town player-owned - an ordinary restored town (the passed
+     *  `changes` is that town's own PointOfInterestChanges) or the player's own migrated Capitol
+     *  (isCurrentTownCapitol() reads TileMapScene's rootPoint itself, no separate check needed).
+     *  The gate for every mod economy-building action - guard hire/dismiss, Bank, Mines, Armory
+     *  upgrade/reroll, shop-type reroll, Outlook, Teleporter, Archaeologist, Destroy Building -
+     *  since "only the player can build/upgrade stuff" (user spec, 2026-08-13). Most of those
+     *  are already structurally unreachable at AI towns via isWastelandTown()'s own gate (an AI
+     *  town/capital is never wasteland, so its shops are never "rubble" and this whole dialog
+     *  family never opens there) - RewardScene's Armory-family buttons (Upgrade/Guards/Re-roll
+     *  Inventory/Re-roll Shop Type) were the one path that bypassed that gate entirely, live and
+     *  exploitable at the 5 AI capitals' colored Equipment/Items shops (see MOD_CHANGELOG.md). */
+    public static boolean isCurrentTownPlayerOwned(PointOfInterestChanges changes) {
+        return isTownRestored(changes) || isCurrentTownCapitol();
+    }
+
     /**
      * The Job Board menu only exists to offer the Capitol upgrade (user decision 2026-08-08 late:
      * rename was dropped, and once a Capitol exists - or you're standing in it - a
