@@ -308,11 +308,9 @@ shop restriction). A fully-emptied pool degrades gracefully to the Inn's existin
 this time." Note: multi-set draft BLOCKS need every set allowed, so early-game (few unlocks)
 events skew toward single-set blocks - by design, research widens the tournament scene.
 
-### 5. Distance-Scaled AI — `Not Started`
-- AI strength scales with proximity to "the Castle": closer to Castle = stronger.
-- Closer to map center = weaker.
-- Deck composition follows the same gradient: fewer sets available to AI decks near the
-  center, more sets available near the Castle.
+### 5. Distance-Scaled AI — `Removed (2026-08-12, user decision)`
+- Was: AI strength/deck gradient by distance from castle vs map center. Cut from scope; the
+  bestiary difficulty tiers (#19) and territory re-theming (#7) cover the spirit of it.
 
 ### 6. Time System (Day/Night Cycle) — `In Progress`
 - Foundational clock built: opt-in via `config.json` → `dayNightCycleEnabled`, ~12 real
@@ -894,38 +892,10 @@ needs its own design pass before any of this gets built:**
   own constants (`attackerWinChance()`'s tier table, `GUARD_FIGHT_ATTACKER_BONUS`,
   `OUTLOOK_DEFENSE_BONUS`, `ATTACKER_SACKS_TOWN_CHANCE`) rather than recalled from memory.
 
-### 8. Town Fortifications — `Not Started`
-- Upgradeable defenses that let a town repel attacks (ties into #7 and #2). Now has a concrete
-  purpose beyond flavor: protects a player-restored town's progress from being wiped by a
-  successful capture (see #7). Needs: fortification levels/costs, and how much each level
-  reduces capture chance (currently just "high chance to repel" - not yet numeric).
-- **New idea (2026-08-06), on hold, not scoped - hireable AI guard mages:** let the player hire/
-  station defender mages at a town that intercept and fight incoming attacker mages (#7), as an
-  alternative or addition to a numeric repel-chance. Overlaps with #13's "Barracks" idea
-  (Capitol-exclusive garrison) - needs a decision on whether guards are Capitol-only or available
-  to any fortified town before either gets built.
-  - **Researched (2026-08-06): how Forge actually resolves AI-vs-AI fights.** It's a hybrid, not
-    "always simulated" - any fight involving the human player runs the real Forge duel engine
-    (`DuelScene.initDuels()`), but AI-vs-AI fights that don't involve the player use a
-    statistical shortcut instead: `ArenaScene.setWinner()` weights a random roll by each
-    fighter's `life` stat, and `EventScene.startRound()`'s Inn tournament AI-vs-AI rounds are a
-    flat 50/50 coin flip (literally marked `//Todo: Actually run match simulation here` in the
-    existing code). The engine *can* run two-AI matches headlessly with no human
-    (`forge-gui-desktop`'s `SimulateMatch.java` proves it), but nothing in Adventure mode wires
-    that up today - `DuelScene` always assumes one side is the human.
-  - **Stat gotcha found during that research:** `EnemyData` has no single "power level" field.
-    `life` is what `ArenaScene`'s formula actually weighs, but all 5 "Adept `<Color>` Wizard"
-    enemies `TerritoryControl` already uses for attacker mages share the identical `life: 15` -
-    only `difficulty` differs (0.6-1 across the 5 colors), and `difficulty` currently only
-    affects deck-tier selection, not any win-probability formula. Reusing `ArenaScene`'s formula
-    unchanged today would make a guard fight any attacker mage a flat coin flip regardless of
-    intended strength - a real "power" concept (deliberately higher `life` for guard tiers, or a
-    new stat actually used in the odds formula) needs to be introduced for guard levels to mean
-    anything.
-  - Given Territory Control could generate frequent mage-vs-mage fights at scale, a real
-    simulated duel per fight (the `SimulateMatch` pattern) is likely too expensive to run
-    routinely - leaning toward the same stat-weighted-RNG approach `ArenaScene` already uses for
-    routine defense, reserving anything simulated for rare/important battles.
+### 8. Town Fortifications — `Removed (2026-08-12, user decision)`
+- Was: upgradeable town defenses / numeric fort levels. The Armory guard system (#22) and the
+  Outlook's capture-chance reduction (#10/#17) shipped what this item was really for; the
+  2026-08-06 AI-vs-AI simulation research that lived here moved to #27, which still needs it.
 
 ### 9. Expanded Resources — `In Progress`
 - Wood and Stone added alongside Gold/Shards (`AdventurePlayer.java`, same field/signal/save
@@ -1136,8 +1106,10 @@ needs its own design pass before any of this gets built:**
 - Research lab (ties into #4), Fortifications (ties into #8), Roads (ties into #2), Teleporter -
   still `Not Started`, unrelated to the economy buildings above.
 
-### 11. Map Polish — `Not Started`
-- More visually diverse map, prettier overall.
+### 11. Map Polish & Terrain Customization — `Not Started` (absorbed #36, 2026-08-12 - same ask)
+- More visually diverse map, prettier overall; more terrain variety (new structure/doodad sets
+  per biome - ties to #7's Terrain Switch-Out reskinning machinery, which would pick them up
+  automatically).
 - Possibly larger map size.
 - Source free 16×16 pixel-art tile/sprite packs to expand variety (Forge's adventure art is
   16×16 RGBA8888 PNG, Nearest-neighbor filtering, packed via libGDX TexturePacker `.atlas`,
@@ -1923,13 +1895,8 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   design, ideally against `AdventureDeckEditor.java` (the mod's existing in-game deck editor) to
   see what's already there versus what this would add.
 
-### 26. Research: External Feature Requests — `Not Started` (research task, not a build task)
-- User ask (2026-08-11, wishlist batch): "Look online for features requests." Distinct from every
-  other item on this list - this is a research task (search Forge's own community channels: GitHub
-  issues/discussions on Card-Forge/forge, the Forge subreddit/forums, Discord if accessible) rather
-  than something to design and build directly. Scope still open: whether findings should feed
-  straight into this wishlist as new numbered entries, or come back as a separate report first for
-  the user to triage before anything gets added.
+### 26. Research: External Feature Requests — `Removed (2026-08-12, user decision)`
+- Was: a research task to mine Forge community channels for feature ideas. Cut from scope.
 
 ### 27. Simulate Level 2 Arena Battles — `Not Started`
 - User idea (2026-08-11, wishlist batch): "Simulate lvl 2 arena battles." Ties to #20 (Upgradable
@@ -1937,6 +1904,17 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   Arena bracket (skip watching every fight play out), a balance-testing tool (run N simulated
   brackets and report win rates for tuning the Challenge pool), or something else. Needs
   clarification before scoping.
+- **Groundwork (researched 2026-08-06 under the since-removed #8, moved here 2026-08-12): how
+  Forge actually resolves AI-vs-AI fights.** It's a hybrid - any fight involving the human runs
+  the real duel engine (`DuelScene.initDuels()`), but AI-vs-AI fights use statistical shortcuts:
+  `ArenaScene.setWinner()` weights a random roll by each fighter's `life` stat, and
+  `EventScene.startRound()`'s Inn tournament AI rounds are a flat 50/50 (marked `//Todo: Actually
+  run match simulation here` in stock code). The engine CAN run two-AI matches headlessly
+  (`forge-gui-desktop`'s `SimulateMatch.java` proves it) but Adventure mode never wires that up -
+  `DuelScene` assumes one side is human. **Stat gotcha:** `EnemyData` has no single "power"
+  field - `life` is what the arena formula weighs, `difficulty` only affects deck-tier selection.
+  A real simulated duel per fight is likely too expensive to run routinely; stat-weighted RNG for
+  routine sims, reserving real simulation for rare/important battles, was the leaning.
 
 ### 28. Promo Write-Up — `Not Started` (writing task, not a build task)
 - User ask (2026-08-11, wishlist batch): "Do promo write up." A marketing/announcement write-up for
@@ -1965,14 +1943,12 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   private to public to make the reuse possible. Not yet playtested - needs several in-game days at
   a fast time-multiplier with 10+ owned towns to actually observe the bonus mage count changing.
 
-### 30. AI-Generated Decks for Arena Enemies — `Not Started`
-- User idea (2026-08-11, wishlist batch): "AI deck builds - add to arena." Arena enemies currently
-  draw from a fixed `.dck`-file pool per `ArenaData.enemyPool` (#20), unlike ordinary duels which
-  can already use the genetic-AI deckbuilder (`Config.getConfigData().enableGeneticAI`,
-  `EnemyData.generateDeck()`'s `canUseGeneticAI` branch, #19's own mage-tier work touches this same
-  code). This would extend genetic/AI-generated decks into Arena brackets too, for more deck
-  variety fight-to-fight instead of the same fixed pool every run. Needs scoping: every Arena fight,
-  or just Challenge Arena; and whether pool variety is the actual complaint or something else.
+### 30. AI-Generated Decks for Arena Enemies — `Done (2026-08-12, user-confirmed)`
+- Fulfilled by the 5 Challenge Arena champion decks (#42): AI-built (Claude-designed,
+  script-validated for color/rarity/legality constraints), added to the Challenge pool as
+  arena-exclusive enemies with signature bounties. User confirmed this satisfies the original
+  "AI deck builds - add to arena" ask; the alternative genetic-AI-per-bracket idea sketched here
+  is dropped with it.
 
 ### 31. Custom Building Ruin Art Variety — `Not Started`
 - User idea (2026-08-11, wishlist batch): "Custom building ruins." Ties directly to #2 (Central
@@ -2043,12 +2019,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   `TownRestoration.java`/`TerritoryControl.java`. Confirmed zero remaining "Camelot" references
   anywhere in the mod's own Java source or `The Forgotten Realms` resource folder.
 
-### 36. More Terrain Customization — `Not Started`
-- User idea (2026-08-11, wishlist batch): "More terrain customization." Ties to #7's "Terrain
-  Switch-Out" work (structure/doodad reskinning when territory changes hands) and the underlying
-  biome terrain system generally - not yet clear whether this means more terrain VARIETY (new
-  structure/doodad sets per biome), player-facing terrain editing/decoration tools, or something
-  else. Needs clarification before scoping.
+### 36. More Terrain Customization — `Merged into #11 (2026-08-12, user decision - same ask)`
 
 ### 37. Graph on Info Screen — `Not Started`
 - User idea (2026-08-11, wishlist batch): "Graph on Info Screen." Which "Info Screen" and which
