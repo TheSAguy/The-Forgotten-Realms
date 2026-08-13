@@ -855,6 +855,12 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **Plane assets** (not engine, listed for completeness): `The Forgotten Realms/sprites/
   items.png/.atlas` gained "Wood"/"Stone" 16x16 regions so [+Wood]/[+Stone] font tags resolve.
 
+### 2026-08-12 dynamic armory item pools
+- **`data/RewardData.java`** — new `itemRarity` field (+copy-ctor); the "item" reward case
+  expands it to the full catalog-by-rarity pool when no explicit itemNames list is given.
+- **`data/ItemListData.java`** — new `getItemNamesByRarity()` (excludes quest items and
+  Landscape Sketchbooks; reads the live, content-filter-aware list).
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

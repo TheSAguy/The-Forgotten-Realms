@@ -40,6 +40,10 @@ public class RewardData implements Serializable {
     public String cardName;
     public String itemName;
     public String[] itemNames;
+    // Dynamic item pool by rarity (2026-08-12): when set on an "item"-type reward with no
+    // itemNames, the pool becomes EVERY shop-worthy catalog item of this rarity
+    // (ItemListData.getItemNamesByRarity) - the armory tiers use this instead of hand lists.
+    public String itemRarity;
     public String[] editions;
     public String[] colors;
     public int startDate;
@@ -76,6 +80,7 @@ public class RewardData implements Serializable {
         startDate        = rewardData.startDate;
         endDate          = rewardData.endDate;
         itemNames        = rewardData.itemNames == null ? null : rewardData.itemNames.clone();
+        itemRarity       = rewardData.itemRarity;
         editions         = rewardData.editions == null ? null : rewardData.editions.clone();
         colors           = rewardData.colors == null ? null : rewardData.colors.clone();
         rarity           = rewardData.rarity == null ? null : rewardData.rarity.clone();
@@ -264,7 +269,16 @@ public class RewardData implements Serializable {
                     }
                     break;
                 case "item":
-                    if(itemNames!=null) {
+                    // itemRarity expands to the full catalog-by-rarity pool when no explicit
+                    // list is given (see the field's own comment). Resolved here at generate
+                    // time so the pool tracks the live, filter-table-aware catalog.
+                    String[] resolvedNames = itemNames;
+                    if (resolvedNames == null && itemRarity != null && !itemRarity.isEmpty()) {
+                        java.util.List<String> byRarity = ItemListData.getItemNamesByRarity(itemRarity);
+                        if (!byRarity.isEmpty())
+                            resolvedNames = byRarity.toArray(new String[0]);
+                    }
+                    if(resolvedNames!=null) {
                         // No-duplicates-within-one-roll (2026-08-11, round 8 - user report:
                         // "There should never be 2 of the same item for sale"). The old loop
                         // picked count+addedCount times independently at random, so the same name
@@ -274,7 +288,7 @@ public class RewardData implements Serializable {
                         // across re-renders/same-week visits), but never repeats a name within
                         // this roll - and gracefully caps at the pool's own size if a smaller
                         // pool (e.g. a 2-item pool) is asked for more than it can uniquely provide.
-                        List<String> shuffledNames = new ArrayList<>(Arrays.asList(itemNames));
+                        List<String> shuffledNames = new ArrayList<>(Arrays.asList(resolvedNames));
                         Collections.shuffle(shuffledNames, rewardRandom);
                         int uniqueCount = Math.min(count + addedCount, shuffledNames.size());
                         for (int i = 0; i < uniqueCount; i++) {

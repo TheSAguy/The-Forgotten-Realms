@@ -377,6 +377,23 @@ ResourceDisplayActor's earlier second-atlas attempt (see its comment) did not. C
 [+Gold]/[+Wood]/[+Stone]/[+Shards] glyphs per the standing resource-symbol standard.
 NOT yet visually confirmed in-game - first thing to look at next playtest.
 
+## 2026-08-12 (late): Armory pools now draw from the full item catalog
+
+User QC: armory stock looked near-identical between games. Two findings: (1) NOT an RNG bug -
+the town Armory's "Equipment"/"EquipmentL2" shop data hardcodes 4 guaranteed staples (Manasight
+Stone + the three Staffs) with only 2/4 random picks, and ArmoryMythic was literally count-2-of-
+pool-2; (2) the hand-curated pools used ~5% of the catalog (21-29 names vs 503 eligible items:
+147 Common / 178 Uncommon / 155 Rare / 23 Mythic once quest items + sketchbooks are excluded).
+
+Fix: new dynamic pool marker - RewardData gained `itemRarity` (item-type rewards with no
+itemNames expand to `ItemListData.getItemNamesByRarity()` at generate time: every non-quest,
+non-sketchbook catalog item of that rarity). All 10 armory shop entries in shops.json swapped
+from hand lists to itemRarity markers (Armory<Tier>/L2 -> matching rarity; town "Equipment" ->
+Common, "EquipmentL2" -> Uncommon; L2 tiers stock 8, L1 six). Because the pool reads the LIVE
+ItemListData list, Content Filter Table exclusions (#41) apply automatically and future items
+join with zero data edits. The town armory's 4 fixed staples were deliberately KEPT (authored
+early-game reliability - flag if unwanted). shops.json was re-serialized in the process (large
+formatting-only diff beyond the 10 real changes).
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

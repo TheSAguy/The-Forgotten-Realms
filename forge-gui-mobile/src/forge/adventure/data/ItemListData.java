@@ -31,6 +31,27 @@ public class ItemListData {
         }
         return null;
     }
+    /** All shop-worthy item names of one rarity (Common/Uncommon/Rare/Mythic) - quest items and
+     *  Landscape Sketchbooks excluded, same rule getSketchBooks() applies in reverse. Backs the
+     *  "itemRarity" dynamic reward pools (2026-08-12, user request: armories drew from hand
+     *  lists of ~22 while the catalog holds 500+ eligible items). Reads the live (already
+     *  content-filter-table-filtered) list, so excluded items never appear and new items join
+     *  automatically. */
+    public static java.util.List<String> getItemNamesByRarity(String rarity) {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        if (itemList == null || rarity == null)
+            return names;
+        for (ItemData item : new Array.ArrayIterator<>(itemList)) {
+            if (item == null || item.name == null || item.questItem)
+                continue;
+            if (item.name.contains("Landscape Sketchbook"))
+                continue;
+            if (rarity.equalsIgnoreCase(item.rarity))
+                names.add(item.name);
+        }
+        return names;
+    }
+
     public static Array<ItemData> getSketchBooks() {
         Array<ItemData> sketchbooks = new Array<>();
         if (itemList == null)
