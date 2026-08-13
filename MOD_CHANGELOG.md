@@ -717,6 +717,126 @@ installed jars; spot-checked by extracting the 5 touched `.class` files and grep
 `isCurrentTownPlayerOwned` and each new/extended log tag's string literals. None of this has been
 playtested in-game yet.
 
+## 2026-08-13 (evening): FoW real root cause, button greyout, Torch redesign, Deck Tester AI-vs-AI
+
+Session log review (`%APPDATA%\Forge\forge.log`, a 489-line 100x-speed test session): no
+exceptions, no crashes, no missing-resource warnings beyond one benign world-gen line ("castle not
+found" for the player before any Capitol exists, expected). Directly corroborated the FoW bug
+below: `player: Capitol territory radius now 56/450` growing to 65 then 92 across the session -
+well past the ~20-60 tile fixed vision-circle radius every prior fix attempt was still capped at.
+
+**FoW Stage-3 gap, actual root cause** (user retest: still broken after today's earlier fix - see
+#46's follow-up). The real gap was a THIRD, still-untouched code path:
+`TerritoryControl.processTerritoryExpansion()`'s Capitol daily-territory-expansion block (grows
+"player" ownership out to `MAX_TERRITORY_RADIUS`=450 via `claimWastelandRing()`) had its own
+`revealArea()` call deliberately REMOVED on 2026-08-11, after the user reported a "huge ~450-radius
+Stage 2 FoW circle" around the Capitol - correctly fixing a real complaint under the OLD spec
+(ownership and fog discovery meant to stay separate). The user's spec changed today ("wherever the
+player's lands spread should all be revealed... lose land, lose vision") and directly supersedes
+that decision. Re-added the reveal, this time keyed to the block's own actual growing `newRadius`
+(not the 2026-08-11 version's unconditional whole-450-disc reveal) - `world.revealArea(centerX,
+centerY, newRadius, ...)` + `refreshFogInRadius(..., newRadius + 2, ...)` right after
+`claimWastelandRing()`/`rebuildPlayerTownVision()`. Extended `TownRestoration.
+repairAllTownVisionReveal()` with a Capitol-specific branch sweeping the actual current
+`getColorTerritoryRadius("player")` (not just the fixed keep-radius `applyTownVisionReveal()`
+already sweeps for every town) - so the user's ALREADY-affected save (radius already grown large
+before this fix landed) self-heals on next load instead of only future growth being covered.
+
+Confirmed via re-reading the actual capture-loss code (`TerritoryControl.java` line ~1421) that
+"lose land, lose vision" needs no separate fix: `rebuildPlayerTownVision()` already runs
+unconditionally on every ownership change (including an AI recapturing player-owned ground), and
+`isPersistentlyRevealed()` is a live per-render ownership check, not a cached flag - a
+reconquered tile correctly drops from the bright tier the same tick, for free. Also confirmed (via
+`World.claimWastelandRing()`'s takeover logic) that Capitol territory is NOT strictly one-way-
+growing as an earlier comment assumed - any AI color's own daily claim can retake "player"-owned
+ground outside the Capitol's fixed 20-tile hard-protect keep - pre-existing behavior, not
+introduced by this fix, and already handled correctly by the live-ownership-check design above.
+
+**Caught in adversarial review before deploy**: the first version of this fix called
+`revealArea()`/`refreshFogInRadius()` unconditionally every time the block's `if (innerRadius >=
+0)` branch ran - including on `sourcesChanged`-triggered full re-contests at an ALREADY-maxed
+radius (450==450, nothing new claimed), which happens on ANY unrelated map activity (an AI town
+captured elsewhere) for the rest of the playthrough. `refreshFogInRadius()` has no already-done
+skip (unlike `revealArea()`), so this reran a full ~490,000-tile scan+repaint (World is 700x700)
+indefinitely, long after the Capitol itself stopped growing. Fixed by gating both new calls behind
+`newRadius > currentRadius` - skipped entirely when the radius didn't actually change that tick,
+since there's no new ground to reveal.
+
+**Button greyed-out-when-unaffordable audit** (user report + full-file audit request): confirmed
+`upgradeButton` ("Upgrade Armory") and, newly found by the same audit, `shopTypeRerollButton`
+("Re-roll Shop Type") in `RewardScene.java` were built/shown with `.setVisible()` only, never
+`.setDisabled()` - relying solely on their click handlers' own affordability checks silently
+no-oping. Every other cost-gated button in `RewardScene.java` and `EconomyBuildings.java`
+(`restockButton`/`rerollButton`/`BuyButton`/`addButtonRow()`/`addHalfButton()`/`buildTradeRow()`/
+the `DialogData.isDisabled` path) was confirmed already correctly wired. Fixed by adding the
+missing `.setDisabled(...)` call to each, reusing the exact check each button's own click handler
+already uses - `loadRewards()` already re-executes the whole Shop-case block on every state change
+that could affect affordability, so no extra refresh plumbing was needed (same reason
+`rerollButton`'s existing fix only needed the one call inside `refreshRerollButton()`).
+
+**Guaranteed first-Armory Torch, redesigned after a blocking review finding** (user spec: Torch
+should always show up in the first Armory a player builds, then normal randomness). First attempt:
+a new `RewardData.generate(..., String forceWeightedItemName)` overload forcing one Weighted slot
+at generation time, hooked into `ShopActor.onPlayerCollide()`'s default case, gated by a one-shot
+`characterFlags` entry. **Adversarial review found this genuinely blocking**: the shop's stock can
+be regenerated by FOUR other paths that all call the plain non-forced `generate()` overload -
+`MapStage.loadMap()`'s weekly auto-reseed (`getWeeklyShopSeed()`, every 7 in-game days),
+`promptRerollArmory()`, `promptUpgradeArmory()`, `promptRerollShopType()` - so under perfectly
+ordinary play (don't buy it immediately, or come back a week later, or upgrade/reroll first) the
+"guaranteed" Torch would silently vanish from stock before the player ever bought it, with the
+one-shot flag already permanently burned granting nothing. (A secondary finding: the forced slot
+also consumed zero RNG draws vs. the 1-2 a normal roll would, so the other slots weren't actually
+reproducing what was silently pre-rolled either - moot once the whole approach was replaced.)
+
+Redesigned: reverted the `RewardData.java`/generation-time changes entirely, and instead grant
+Torch DIRECTLY to the player's inventory via the existing `AdventurePlayer.addItem("Torch")` the
+first time the player collides with an Armory-family shop they actually own
+(`TownRestoration.isCurrentTownPlayerOwned()` - correctly excludes the 5 AI capitals' own colored
+armory-type shops), gated by the same one-shot `characterFlags` entry. This has no staleness
+window by construction - nothing can un-grant an item already sitting in `inventoryItems` - and is
+simpler than the generation-time approach it replaced. HUD notification + `[TFR-FirstArmoryTorch]`
+log line on success; a defensive log line (flag still set, matching "never re-fire") if
+`ItemListData.getItem("Torch")` were ever to return null.
+
+**Arena Deck Tester "Simulated" (AI vs AI) mode** (user request: an option for both Deck Tester
+decks to be AI-piloted instead of the player piloting one side). Research confirmed Forge's core
+engine already has a complete, working, watchable AI-vs-AI match path - `HostedMatch`'s
+`humanCount==0` branch registers a `WatchLocalGame` spectator controller (itself a
+`PlayerControllerHuman` subclass with safe no-op input methods), routed through the exact same
+`MatchController.instance`/`MatchScreen` this Adventure client already uses for ordinary duels, so
+no core-engine file needed touching. `DuelScene.initDuels()` gained an `aiControlsPlayerSide`
+overload parameter; `enter()`'s player-seat construction became `aiControlsPlayerSide ?
+GamePlayerUtil.createAiPlayer(advPlayer.getName(), "") : GamePlayerUtil.getGuiPlayer()` - the
+ONLY line that changes; every other codepath already degrades correctly for an AI-backed seat
+(confirmed via reading `HostedMatch`/`DuelScene.enter()`'s `PlayerControllerHuman` instanceof
+gates, which correctly route around the AI seat rather than through it). `ArenaScene.java`'s Deck
+Tester flow restructured: `promptDeckTester()` now shows a "Choose a mode" dialog first ("Coin
+Flip" - the original flow, confirmed byte-for-byte unchanged in behavior; "Simulated" - new), both
+modes share the same renamed `promptDeckTesterFirstDeck()`/`promptDeckTesterSecondDeck()` picker
+dialogs, and a new `launchDeckTesterSimulated()` mirrors the existing `launchDeckTester()`'s
+"Doppelganger" shell-EnemyData trick with `aiControlsPlayerSide=true`. The existing
+`deckTesterMatch` guard in `setWinner()` needed no changes - fully generic, already covers any
+Deck Tester duel regardless of mode.
+
+**Caught in adversarial review before deploy**: a fully-simulated match's spectator controller has
+a null `Player` field (a spectator isn't a seated player) - a PRE-EXISTING, unrelated line in
+`DuelScene.GameEnd()` (`humans.get(0).getPlayer().getNumManaShards()`, persisting mana shards back
+to Adventure after a duel) would NPE on that null every single time, for every Simulated match.
+Harmless in practice (already caught by `GameEnd()`'s surrounding try/catch - win/loss reporting
+via reference-equality `winner` computation happens on the line before and is unaffected) but
+printed a guaranteed stack trace to `forge.log` on every match, contrary to this project's own
+clean-diagnostics standard. Fixed with a null-check (`humans.get(0).getPlayer() != null`) before
+the shard-persistence call.
+
+### Verification
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o` clean at every step, including after all
+three review-round fixes. Spliced into both installed jars; spot-checked by extracting the 6
+touched `.class` files and grepping for symbols unique to each change
+(`isCurrentTownPlayerOwned`/`TFR-FirstArmoryTorch`/`firstArmoryTorchGranted`/`aiControlsPlayerSide`/
+`launchDeckTesterSimulated`/`canAffordCost`). `RewardData.java` confirmed back to byte-identical
+with its pre-Torch-attempt state (`git status` shows it unmodified) after the redesign reverted it
+cleanly. None of this round has been playtested in-game yet.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

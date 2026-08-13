@@ -964,6 +964,27 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   starting-life computation (raw life, difficulty factor, scaled result, terrain-adjusted result
   if different).
 
+### 2026-08-13 (evening) FoW real root cause, button greyout, Torch redesign, Deck Tester AI-vs-AI
+- **`util/TerritoryControl.java`** / **`util/TownRestoration.java`** (both mod files, already
+  inventoried below) — Capitol daily-territory-expansion block's own `revealArea()`/
+  `refreshFogInRadius()` re-added (removed 2026-08-11, superseded by today's changed user spec),
+  gated on the radius having actually grown that tick (adversarial-review perf fix);
+  `repairAllTownVisionReveal()` gained a Capitol-specific extra sweep of the live territory
+  radius.
+- **`scene/RewardScene.java`** — `upgradeButton`/`shopTypeRerollButton` gained the missing
+  `.setDisabled(...)` calls that every other cost-gated button already had.
+- **`character/ShopActor.java`** — `onPlayerCollide()`'s default case gained the guaranteed-
+  first-Armory-Torch grant (`AdventurePlayer.addItem("Torch")`, characterFlags-gated).
+- **`data/RewardData.java`** — a same-day generation-time forcing approach for the Torch feature
+  above was implemented then fully reverted after adversarial review found it blocking (see
+  MOD_CHANGELOG.md); net change to this file today is zero (confirmed via `git status`).
+- **`scene/DuelScene.java`** — new `initDuels(..., boolean aiControlsPlayerSide)` overload;
+  `enter()`'s player-seat construction branches to `GamePlayerUtil.createAiPlayer(...)` when set;
+  `GameEnd()`'s pre-existing mana-shard-persistence line gained a null-check (a fully-simulated
+  match's spectator controller has no `Player`, previously an every-time caught-but-logged NPE).
+- **`scene/ArenaScene.java`** — Deck Tester flow restructured with a mode-choice dialog ahead of
+  the existing deck pickers; new `launchDeckTesterSimulated()`.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

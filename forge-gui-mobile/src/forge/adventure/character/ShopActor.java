@@ -5,10 +5,12 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.data.ShopData;
+import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.RewardScene;
 import forge.adventure.scene.TileMapScene;
+import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.MapStage;
 import forge.adventure.util.ColorReputation;
 import forge.adventure.util.EconomyBuildings;
@@ -124,6 +126,30 @@ public class ShopActor extends MapActor {
                 EconomyBuildings.openArchaeologistDialog(stage, objectId);
                 return;
             default:
+                // Guaranteed first-Armory Torch (user spec, 2026-08-13): the very first time the
+                // player opens ANY Armory-family shop they actually own (isCurrentTownPlayerOwned
+                // - never an AI capital's own colored Equipment/Items shops, matching the gate
+                // those buttons already use), grant a Torch directly to inventory instead of
+                // forcing it into the shop's FOR-SALE stock - characterFlags-gated, resets each
+                // new playthrough. A first draft tried forcing it into a Weighted reward slot at
+                // generation time, but adversarial review found that BLOCKING: every one of the
+                // shop's own OTHER regeneration paths (MapStage.loadMap()'s weekly auto-reseed,
+                // promptRerollArmory()/promptUpgradeArmory()/promptRerollShopType() in
+                // RewardScene.java) calls the plain, non-forced generate() overload, so the
+                // guaranteed Torch could get silently rerolled away before the player ever bought
+                // it - with the one-shot flag already burned granting nothing. A direct grant has
+                // no such staleness window: nothing else can un-grant an item already sitting in
+                // inventoryItems.
+                if (EconomyBuildings.isArmoryShop(shopData) && TownRestoration.isCurrentTownPlayerOwned(changes)
+                        && !AdventurePlayer.current().checkCharacterFlag("firstArmoryTorchGranted")) {
+                    AdventurePlayer.current().setCharacterFlag("firstArmoryTorchGranted", 1);
+                    if (AdventurePlayer.current().addItem("Torch")) {
+                        GameHUD.getInstance().addNotification("A Torch was tucked away in the Armory - it's yours!");
+                        System.out.println("[TFR-FirstArmoryTorch] granted at objectId=" + objectId + " shop=" + shopData.name);
+                    } else {
+                        System.err.println("[TFR-FirstArmoryTorch] \"Torch\" item not found in catalog - flag set, nothing granted");
+                    }
+                }
                 // Straight into the shop - a destroyable shop's Destroy Building button lives on
                 // the RewardScene page itself (user revision 2026-08-09; a first version's
                 // Enter/Destroy/Leave pre-dialog cost an extra click on every visit).

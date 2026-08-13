@@ -82,6 +82,9 @@ public class DuelScene extends ForgeScene {
     boolean arenaBattleChallenge = false;
     boolean isArena = false;
     AdventureEventData eventData;
+    // Deck Tester "Simulated" mode (2026-08-13) - true only for a fully-AI-vs-AI test duel, see
+    // the initDuels() overload's own comment.
+    boolean aiControlsPlayerSide = false;
     final int enemyAvatarKey = 90001;
     final int playerAvatarKey = 90000;
     FOptionPane bossDialogue;
@@ -115,7 +118,16 @@ public class DuelScene extends ForgeScene {
             if (eventData == null || eventData.eventRules.allowsShards) {
                 List<PlayerControllerHuman> humans = hostedMatch.getHumanControllers();
                 {
-                    if (humans.size() == 1) {
+                    // Deck Tester "Simulated" mode (2026-08-13, adversarial review finding):
+                    // with BOTH duel seats AI-controlled, HostedMatch's humanCount==0 branch
+                    // registers exactly one spectator controller (WatchLocalGame) into this same
+                    // humanControllers list - so humans.size()==1 is still true, but its
+                    // getPlayer() is null (a spectator, not a seated player), and
+                    // getNumManaShards() would NPE. Harmless before this null-check (the
+                    // surrounding try/catch already swallowed it), but printed a stack trace on
+                    // every single Simulated match - this codebase's own standing practice is
+                    // clean, greppable diagnostics, not a guaranteed-every-time caught exception.
+                    if (humans.size() == 1 && humans.get(0).getPlayer() != null) {
                         Current.player().setShards(humans.get(0).getPlayer().getNumManaShards());
                     }
                 }
@@ -361,7 +373,15 @@ public class DuelScene extends ForgeScene {
         }
 
         humanPlayer = RegisteredPlayer.forVariants(playerCount, appliedVariants, playerDeck, null, false, null, null);
-        LobbyPlayer playerObject = GamePlayerUtil.getGuiPlayer();
+        // Deck Tester "Simulated" mode (2026-08-13, user spec) - the ONLY line that changes for a
+        // fully-AI-vs-AI test duel; everything else below (avatar/name wiring, starting life/
+        // shards, the humanPlayer RegisteredPlayer itself) is unaffected, since Forge's core
+        // HostedMatch already treats a humanCount==0 match as a normal spectated game (same
+        // MatchController screen, same AdventureWinLose win/lose flow) with no other plumbing
+        // needed.
+        LobbyPlayer playerObject = aiControlsPlayerSide
+                ? GamePlayerUtil.createAiPlayer(advPlayer.getName(), "")
+                : GamePlayerUtil.getGuiPlayer();
         FSkin.getAvatars().put(playerAvatarKey, advPlayer.avatar());
         playerObject.setAvatarIndex(playerAvatarKey);
         humanPlayer.setPlayer(playerObject);
@@ -742,10 +762,22 @@ public class DuelScene extends ForgeScene {
     }
 
     public void initDuels(PlayerSprite playerSprite, EnemySprite enemySprite, boolean isArena, AdventureEventData eventData) {
+        initDuels(playerSprite, enemySprite, isArena, eventData, false);
+    }
+
+    /** Deck Tester "Simulated" mode (user spec, 2026-08-13): aiControlsPlayerSide lets the
+     *  "player" seat itself be AI-piloted too, for a fully-simulated AI-vs-AI match between two
+     *  of the player's own decks (as opposed to the existing mode where the player pilots one
+     *  side). See enter()'s own playerObject construction for the one line this actually changes -
+     *  everything else (avatar wiring, life/shard totals, win/lose flow via MatchController/
+     *  AdventureWinLose) already works unmodified for an AI-controlled seat, since Forge's core
+     *  HostedMatch already supports a fully-AI (humanCount==0) match as a normal spectated game. */
+    public void initDuels(PlayerSprite playerSprite, EnemySprite enemySprite, boolean isArena, AdventureEventData eventData, boolean aiControlsPlayerSide) {
         this.player = playerSprite;
         this.enemy = enemySprite;
         this.isArena = isArena;
         this.eventData = eventData;
+        this.aiControlsPlayerSide = aiControlsPlayerSide;
         if (eventData != null && eventData.eventRules == null)
             eventData.eventRules = new AdventureEventData.AdventureEventRules(AdventureEventController.EventFormat.Constructed, 1.0f);
         this.arenaBattleChallenge = isArena && Current.player().isHardorInsaneDifficulty();

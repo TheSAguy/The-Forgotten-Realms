@@ -822,6 +822,26 @@ public class TownRestoration {
             if (!isTownRestored(changes))
                 continue;
             applyTownVisionReveal(world, poi, changes);
+            // Capitol-specific extra sweep (2026-08-13 fix, alongside the fixed-keep-radius
+            // applyTownVisionReveal() call above): the Capitol's territory radius grows well
+            // past its fixed vision-circle radius (up to MAX_TERRITORY_RADIUS=450 via
+            // TerritoryControl's own daily expansion, tracked separately under
+            // getColorTerritoryRadius("player"), not townTerritoryRadius). A save whose Capitol
+            // already grew past the keep radius BEFORE today's TerritoryControl fix landed has a
+            // large already-mis-revealed band that fix alone can't retroactively repair (it only
+            // prevents the gap from recurring on FUTURE growth) - sweep the actual current radius
+            // here so it self-heals immediately on this load instead of slowly re-covering ring
+            // by ring as the (already-maxed-out) daily growth loop no longer has anything new to
+            // claim.
+            if (CAPITOL_POI_NAME.equals(poi.getData().name)) {
+                Integer capitolRadius = world.getColorTerritoryRadius("player");
+                if (capitolRadius != null && capitolRadius > world.getTownVisionRadiusTiles(poi, changes)) {
+                    int centerX = (int) (poi.getPosition().x / world.getTileSize());
+                    int centerY = (int) (poi.getPosition().y / world.getTileSize());
+                    world.revealArea(centerX, centerY, capitolRadius, WorldStage.getInstance()::refreshBackgroundTile);
+                    world.refreshFogInRadius(centerX, centerY, capitolRadius + 2, WorldStage.getInstance()::refreshBackgroundTile);
+                }
+            }
         }
     }
 

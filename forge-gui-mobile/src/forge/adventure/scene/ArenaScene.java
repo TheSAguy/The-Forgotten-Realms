@@ -276,19 +276,46 @@ public class ArenaScene extends UIScene implements IAfterMatch {
                     Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, this::removeDialog));
             return;
         }
+        // Mode choice (user spec, 2026-08-13): "Coin Flip" is the original mode below - the
+        // player picks one deck to pilot themselves and one for the AI to pilot. "Simulated" is
+        // new - BOTH decks are AI-piloted, a fully-automated matchup the player just watches, for
+        // quickly comparing two decks without manually playing every test game.
+        Dialog modeDialog = new Dialog("Deck Tester", Controls.getSkin());
+        TypingLabel modeLabel = Controls.newTypingLabel("Choose a mode:");
+        modeLabel.setWrap(true);
+        modeLabel.skipToTheEnd();
+        modeDialog.getContentTable().add(modeLabel).width(250f).row();
+        modeDialog.getButtonTable().add(Controls.newTextButton("[%80]Coin Flip (you pilot one deck)", () -> {
+            removeDialog();
+            promptDeckTesterFirstDeck(false);
+        })).width(240f).row();
+        modeDialog.getButtonTable().add(Controls.newTextButton("[%80]Simulated (AI vs AI)", () -> {
+            removeDialog();
+            promptDeckTesterFirstDeck(true);
+        })).width(240f).row();
+        modeDialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
+        modeDialog.setKeepWithinStage(true);
+        showDialog(modeDialog);
+    }
+
+    /** Deck Tester step 1 (both modes) - pick the first deck. "Coin Flip" frames it as "the deck
+     *  YOU will pilot" (unchanged wording from before the mode choice existed); "Simulated" frames
+     *  it neutrally since neither seat is player-controlled. */
+    private void promptDeckTesterFirstDeck(boolean simulated) {
+        int deckCount = AdventurePlayer.current().getDeckCount();
         Dialog dialog = new Dialog("Deck Tester", Controls.getSkin());
-        TypingLabel label = Controls.newTypingLabel("Choose the deck YOU will pilot:");
+        TypingLabel label = Controls.newTypingLabel(simulated ? "Choose the first deck:" : "Choose the deck YOU will pilot:");
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();
         for (int i = 0; i < deckCount; i++) {
             if (Current.player().isEmptyDeck(i))
                 continue;
-            int playerDeckIndex = i;
+            int firstDeckIndex = i;
             String name = Current.player().getDeck(i).getName();
             dialog.getButtonTable().add(Controls.newTextButton(name, () -> {
                 removeDialog();
-                promptDeckTesterAiDeck(playerDeckIndex);
+                promptDeckTesterSecondDeck(firstDeckIndex, simulated);
             })).width(240f).row();
         }
         dialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
@@ -296,23 +323,26 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         showDialog(dialog);
     }
 
-    /** Deck Tester step 2 - "which deck will the AI pilot". No exclusion of playerDeckIndex - a
-     *  same-deck mirror test is a legitimate use case, not a mistake to guard against. */
-    private void promptDeckTesterAiDeck(int playerDeckIndex) {
+    /** Deck Tester step 2 - pick the second deck. No exclusion of firstDeckIndex - a same-deck
+     *  mirror test is a legitimate use case, not a mistake to guard against. */
+    private void promptDeckTesterSecondDeck(int firstDeckIndex, boolean simulated) {
         int deckCount = AdventurePlayer.current().getDeckCount();
         Dialog dialog = new Dialog("Deck Tester", Controls.getSkin());
-        TypingLabel label = Controls.newTypingLabel("Choose the deck the AI will pilot:");
+        TypingLabel label = Controls.newTypingLabel(simulated ? "Choose the second deck:" : "Choose the deck the AI will pilot:");
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();
         for (int i = 0; i < deckCount; i++) {
             if (Current.player().isEmptyDeck(i))
                 continue;
-            int aiDeckIndex = i;
+            int secondDeckIndex = i;
             String name = Current.player().getDeck(i).getName();
             dialog.getButtonTable().add(Controls.newTextButton(name, () -> {
                 removeDialog();
-                launchDeckTester(playerDeckIndex, aiDeckIndex);
+                if (simulated)
+                    launchDeckTesterSimulated(firstDeckIndex, secondDeckIndex);
+                else
+                    launchDeckTester(firstDeckIndex, secondDeckIndex);
             })).width(240f).row();
         }
         dialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
@@ -344,6 +374,38 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         enable = false;
         DuelScene duelScene = DuelScene.instance();
         duelScene.initDuels(WorldStage.getInstance().getPlayerSprite(), testerEnemy, false, null);
+        Current.player().setSelectedDeckSlot(originalSlot);
+        FThreads.invokeInEdtNowOrLater(() -> Forge.setTransitionScreen(new TransitionScreen(() ->
+                Forge.switchScene(duelScene),
+                Forge.takeScreenshot(), true, false, false, false, "", Current.player().avatar(),
+                testerEnemy.getAtlasPath(), Current.player().getName(), testerEnemy.getName())));
+    }
+
+    /** Deck Tester "Simulated" mode (user spec, 2026-08-13) - both decks AI-piloted, a watchable
+     *  auto-played match instead of the player piloting one side. Identical shell trick as
+     *  launchDeckTester() above (a "Doppelganger" EnemyData clone with a fixedDeck), the only
+     *  difference is DuelScene.initDuels()'s new aiControlsPlayerSide=true - the temporary
+     *  selected-deck-slot swap is still needed since that's still how the "player" seat's deck
+     *  gets sourced, it's just AI-controlled now rather than human-controlled. No ante, no
+     *  rewards, no bracket - purely for comparing two decks against each other. */
+    private void launchDeckTesterSimulated(int deckAIndex, int deckBIndex) {
+        EnemyData base = WorldData.getEnemy("Doppelganger");
+        if (base == null)
+            return;
+        EnemyData testerData = new EnemyData(base);
+        testerData.copyPlayerDeck = false;
+        testerData.fixedDeck = Current.player().getDeck(deckBIndex);
+        testerData.nameOverride = "Deck Tester";
+        testerData.noAnte = true;
+        testerData.rewards = new RewardData[0];
+        EnemySprite testerEnemy = new EnemySprite(testerData);
+
+        int originalSlot = Current.player().getSelectedDeckIndex();
+        Current.player().setSelectedDeckSlot(deckAIndex);
+        deckTesterMatch = true;
+        enable = false;
+        DuelScene duelScene = DuelScene.instance();
+        duelScene.initDuels(WorldStage.getInstance().getPlayerSprite(), testerEnemy, false, null, true);
         Current.player().setSelectedDeckSlot(originalSlot);
         FThreads.invokeInEdtNowOrLater(() -> Forge.setTransitionScreen(new TransitionScreen(() ->
                 Forge.switchScene(duelScene),

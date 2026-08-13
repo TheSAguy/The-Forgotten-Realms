@@ -2312,10 +2312,29 @@ now uses the same Outlook-aware radius every other reveal site uses, via a share
 earlier today, now called from 3 sites instead of duplicated); (2) a new
 `TownRestoration.repairAllTownVisionReveal()` self-heals EVERY restored town's vision reveal on
 save load (not just the Capitol), so the user's already-affected save recovers automatically next
-load rather than needing the bug to never have happened. Not yet playtested - needs the user to
-load their existing save and confirm the previously-black ground near an owned town (especially
-one with an Outlook) is now revealed, then build a fresh Outlook on a new town to confirm the gap
-doesn't recur going forward.
+load rather than needing the bug to never have happened.
+
+- **Still broken after the above, real root cause found (2026-08-13, same day)** - user retest:
+  still Stage-1 black on clearly-owned Capitol land. The actual gap was a THIRD, still-untouched
+  code path: `TerritoryControl.processTerritoryExpansion()`'s Capitol daily-territory-expansion
+  block (paints "player" ownership out to `MAX_TERRITORY_RADIUS`=450 via `claimWastelandRing()`)
+  had its own `revealArea()` call deliberately REMOVED on 2026-08-11, after the user reported a
+  "huge ~450-radius Stage 2 FoW circle" appearing around the Capitol - a real, correctly-fixed
+  complaint under the OLD spec, where territory ownership and fog discovery were meant to stay
+  separate. The user's spec changed today ("wherever the player's lands spread should all be
+  revealed... lose land, lose vision") and directly supersedes that 2026-08-11 decision - the
+  reveal is re-added, this time keyed to the block's own actual growing radius (not the old
+  version's whole-450-disc-regardless), so it never over-reveals beyond what was genuinely just
+  claimed. The forge.log from the user's own test session directly confirmed the bug: "Capitol
+  territory radius now 56/450" growing to 65, then 92 - well past the ~20-60 tile fixed vision
+  circle every prior fix in this item was still capped at. Plus a matching self-heal extension so
+  the user's ALREADY-affected save (radius already grown large before this fix landed) recovers on
+  next load instead of only future growth being covered. **Caught in adversarial review before
+  deploy**: the first version of this fix re-ran the (expensive, unclipped, up to ~490,000-tile)
+  reveal/refresh pair on every day ANY unrelated map activity happened, even long after the
+  Capitol's own territory had already maxed out - fixed by gating it on the radius having actually
+  grown that specific day. Not yet playtested - needs the user to load their save and confirm the
+  large black band around the Capitol is now revealed.
 
 ### 47. Armory Level 2 Not Showing 8 Items Immediately — `Fixed (2026-08-13), not yet playtested`
 User report: Armory L1 correctly sells 6 items, L2 should sell 8 (per #9's dynamic item-pool
@@ -2395,3 +2414,54 @@ playtesting has consistently happened on an existing long-running save rather th
 Games, that one-time window has almost certainly already been spent, long ago, possibly not even
 near Spawn. Use the debug console `spawn resource` command (radius 4 tiles) to verify the sparkle
 art works right now without waiting/relocating.
+
+### 50. Buttons Not Greyed Out When Unaffordable — `Fixed (2026-08-13), not yet playtested`
+User report: "Upgrade Armory" button stayed fully lit (not greyed out) when the player couldn't
+afford it, unlike most other cost-gated buttons - asked for a full audit. Found two instances of
+the same bug in `RewardScene.java`: `upgradeButton` ("Upgrade Armory") and `shopTypeRerollButton`
+("Re-roll Shop Type") were both built/shown with `.setVisible(...)` only, never `.setDisabled(...)`
+- relying solely on their own click handlers silently no-oping when unaffordable, unlike
+`restockButton`/`rerollButton`/`BuyButton` in the same file (and `EconomyBuildings.java`'s
+`addButtonRow()`/`addHalfButton()`/`buildTradeRow()`/the `DialogData.isDisabled` path), which all
+correctly wire `.setDisabled()` to a real affordability check. Every other cost-gated button in
+both files was confirmed already correct. Fixed by adding the missing `.setDisabled(...)` call to
+each, reusing the exact affordability check their own click handlers already use. Not yet
+playtested - needs the user to confirm both buttons now grey out correctly when unaffordable.
+
+### 51. Guaranteed Torch on First-Ever Armory Visit — `Fixed (2026-08-13), not yet playtested`
+User spec: the Torch item (#45's vision-radius item) should always show up on the first Armory a
+player builds, then normal randomness after that. First implementation attempt forced Torch into
+one of the shop's Weighted-rarity FOR-SALE slots at generation time, gated by a one-shot player
+flag. **Caught by adversarial review before deploy as a real (blocking-severity) bug**: every
+OTHER path that regenerates that same shop's stock (the weekly auto-refresh, "Re-roll Inventory",
+"Re-roll Shop Type", the Level 2 upgrade refresh) calls the plain, non-forced generation - so the
+guaranteed Torch could get silently rerolled away before the player ever bought it, with the
+one-shot flag already burned and nothing to show for it. Redesigned to grant the Torch DIRECTLY to
+the player's inventory (via the same `AdventurePlayer.addItem()` used elsewhere) the moment the
+player first opens an Armory-family shop they actually own, instead of trying to force it into
+sale stock - immune to the staleness problem by construction, since nothing can un-grant an item
+already sitting in inventory. Gated on `TownRestoration.isCurrentTownPlayerOwned()` (never fires
+at an AI capital's own colored armory-type shops) and a one-shot `characterFlags` entry (resets
+each new playthrough). Not yet playtested - needs the user to build their first Armory and confirm
+a Torch appears in inventory with a HUD notification.
+
+### 52. Arena Deck Tester "Simulated" (AI vs AI) Mode — `Built (2026-08-13), not yet playtested`
+User request: today's Deck Tester has the player pilot one of two chosen decks against an AI
+piloting the other ("Coin Flip" in this write-up, matching the user's own framing - there's no
+actual coin flip in the code, the player explicitly picks both sides via two dialogs). Add an
+option to have BOTH decks AI-piloted instead, for a fully-automated, watchable matchup the player
+doesn't have to manually play. Forge's core engine already has a ready-made, fully-working
+watchable AI-vs-AI match path (`HostedMatch`'s `humanCount==0` spectator branch +
+`WatchLocalGame`, already exercised elsewhere in the engine) - no core-engine file needed
+touching, just two mod-plane files. `DuelScene.initDuels()` gained an `aiControlsPlayerSide`
+parameter that swaps `GamePlayerUtil.getGuiPlayer()` for `GamePlayerUtil.createAiPlayer(...)` on
+the "player" seat; `ArenaScene.java`'s Deck Tester flow gained a "Choose a mode" dialog ahead of
+the existing two deck-picker dialogs (Coin Flip's own flow is byte-for-byte unchanged), plus a new
+`launchDeckTesterSimulated()` mirroring the existing launch method. **Caught by adversarial review
+before deploy**: a fully-simulated match's spectator controller has a null `Player` field, which a
+pre-existing, unrelated line in `DuelScene.GameEnd()` (mana-shard persistence) would have thrown a
+`NullPointerException` on for every single Simulated match - harmless (already caught by a
+surrounding try/catch, win/loss reporting unaffected) but printed a guaranteed stack trace to
+`forge.log` every time, contrary to this project's own clean-logging standard. Fixed with a
+null-check. Not yet playtested - needs the user to run a Simulated match and confirm it plays out
+and reports a winner correctly with no stack trace in the log.

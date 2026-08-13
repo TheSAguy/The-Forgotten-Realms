@@ -770,6 +770,13 @@ public class RewardScene extends UIScene {
                     // Text refreshed here too (round 4, difficulty price multiplier) - was
                     // previously baked in once from the raw constant at construction.
                     upgradeButton.setText("[%80]Upgrade Armory (" + EconomyBuildings.costLabel(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0) + ")");
+                    // Greyed-out-when-unaffordable (2026-08-13 fix, user report) - this button
+                    // was visible but never disabled when unaffordable, relying solely on
+                    // promptUpgradeArmory()'s own click-handler check silently no-oping. Every
+                    // other cost-gated button (restockButton/rerollButton/BuyButton/
+                    // EconomyBuildings' addButtonRow/addHalfButton/buildTradeRow) already does
+                    // this - matches that established pattern.
+                    upgradeButton.setDisabled(!EconomyBuildings.canAffordCost(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0));
                     addToSelectable(upgradeButton);
                 }
                 // Re-roll Inventory (round 7) - Armory-only, any level, independent of the
@@ -787,6 +794,9 @@ public class RewardScene extends UIScene {
                         && !isArmory && playerOwnedTown && shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()));
                 if (shopTypeRerollButton.isVisible()) {
                     shopTypeRerollButton.setText("[%80]Re-roll Shop Type (" + EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST) + " [+Shards])");
+                    // Greyed-out-when-unaffordable (2026-08-13 fix) - same missing-.setDisabled()
+                    // bug as upgradeButton above, same fix.
+                    shopTypeRerollButton.setDisabled(AdventurePlayer.current().getShards() < EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST));
                     addToSelectable(shopTypeRerollButton);
                 }
                 break;
