@@ -2183,6 +2183,24 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
 Three auto-generated, user-editable CSVs in the plane's "config tables/" folder (expansions /
 items / enemies), each row full entity details + Include Y/N - flip to N to remove that content
 from the game. Quest content protected; user edits survive updates; see MOD_CHANGELOG.
+- **User couldn't find the CSVs (2026-08-13) - because they'd never actually been generated
+  anywhere, on either machine.** These are lazily runtime-generated on first use (`ContentFilterTables`),
+  not pre-authored/committed content - `git log --all -- "**/*.csv"` confirmed zero CSVs have ever
+  been committed. `items.csv`/`enemies.csv` now seeded directly into the repo (a Python script
+  reproducing `filterItems()`/`registerEnemies()`'s exact column logic against the plane's own
+  `items.json`/`enemies.json` - 628/1474 rows, all `Include=Y`), so they're real, git-tracked,
+  editable files going forward instead of living only in whichever machine's deployed install last
+  generated them (explains the recent "items.csv Notes column" commit - that edit was made
+  directly to a live-generated file, never committed). **`expansions.csv` NOT seeded** - it needs
+  Forge's live card/edition database (`FModel.getMagicDb()`), which in turn needs the full
+  `GuiBase` app-bootstrap chain (confirmed by trying: a headless harness crashed on
+  `ForgeConstants`'s static init needing `GuiBase.getInterface()`) - not safely reproducible
+  standalone without real risk of a subtly wrong edition list. **Will appear automatically the
+  first time the game actually runs** with `contentFilterTablesEnabled` on (same mechanism that
+  already produced `items.csv`/`enemies.csv` content on whichever machine ran this feature before) -
+  no manual step needed beyond that; once it exists, commit it like any other plane file so both
+  machines share it. All-`Y` baselines have zero functional effect either way (the exclusion set is
+  empty until the user actually flips a row to `N`) - the two seeded tables are ready to edit now.
 
 ### 42. Challenge Arena Champions + Themed Drops — `Built (2026-08-12), not yet playtested`
 5 hand-built champion decks (Dovin Baan WU, Kaervek BR, Sidar Kondo GW, Meren BG, Domri Rade RG -

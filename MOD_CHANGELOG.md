@@ -8032,6 +8032,45 @@ width bump AND scale-down to fit "Hire <tier> (<cost>)" - every label here ("Wit
 same 140f button width unscaled. Shrinking the button area should bring the header/balance/interest
 rows back within the visible screen without touching them directly. Not yet playtested.
 
+## Content Filter Tables CSVs seeded into the repo (2026-08-13, MOD_SCOPE.md #41)
+
+User couldn't find `expansions.csv`/`items.csv`/`enemies.csv` (#41) anywhere in the mod folder.
+Root cause, confirmed by `git log --all -- "**/*.csv"` returning nothing: they were never checked
+in at all, on either machine - `ContentFilterTables.java` generates them lazily on first run with
+the flag on, writing into whichever machine's own deployed `res/adventure/The Forgotten Realms/
+config tables/` happened to run the feature. This also explains this morning's "items.csv Notes
+column" commit (`adc7e0de5d4`) - that edit was made directly to a live-generated file that was
+never itself committed.
+
+**`items.csv` and `enemies.csv` seeded now**, via a Python script (`gen_content_filter_csvs.py`,
+scratch/not committed) that reproduces `ContentFilterTables.filterItems()`/`registerEnemies()`'s
+exact column logic - including `ItemData.getDescription()`/`EffectData.getDescription()`'s
+composition rules for the Effect column - directly against the plane's own `world/items.json`
+(628 rows) and `world/enemies.json` (1474 rows). All rows `Include=Y` (a fresh/first generation is
+always all-Y per the class's own doc comment, so this matches exactly what the real game would
+have produced on its own first run). Spot-checked: RFC-4180 comma-quoting fired correctly (e.g.
+"Bronze Blessing of Speed"'s Effect field), the `Notes` column's "Currently Unused" flag landed on
+exactly the 3 sampled `KNOWN_UNUSED_ITEMS` entries and nowhere else, Akroma's row correctly shows
+Mythic/Boss=Y matching the enemy-speed-rebalance work from earlier today.
+
+**`expansions.csv` NOT seeded - genuinely needs the real game, not worth faking.** Tried a headless
+Java harness first (`GenExpansionsCsvTemp.java`, temporary, deleted after use) calling
+`FModel.initialize(null, null)` directly to get a byte-faithful edition list from the live card
+database (`FModel.getMagicDb().getEditions()`, same source `loadOrRegenerateExpansions()` itself
+reads) - crashed immediately: `ForgeConstants`'s static initializer needs `GuiBase.getInterface()`
+already set, which only a real app bootstrap (`GuiMobile`/`GuiDesktop`, Swing/LibGDX init) provides;
+faking a minimal `IGuiBase` implementation to work around this was judged more likely to introduce
+a subtly wrong edition list than to help, for a gameplay-gating table, so abandoned rather than
+pushed through. Since a fresh Include=Y table has zero functional effect either way (the exclusion
+set stays empty until a row is actually flipped to N), there's no urgency - it'll appear
+automatically the moment the game actually runs once with `contentFilterTablesEnabled` on, same as
+the other two did previously; commit it once it exists so both machines share it going forward.
+
+### Compile status
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o` - BUILD SUCCESS (no Java source changed by
+this round - only new CSV data files). The temporary Java harness class was compiled, run, and
+deleted within this same round; not part of the committed tree.
+
 ### Compile status
 `mvn -pl forge-gui-mobile -am compile -DskipTests -o` - BUILD SUCCESS after both edits
 (`TownRestoration.java`, `EconomyBuildings.java`). Not yet deployed/playtested in-game.
