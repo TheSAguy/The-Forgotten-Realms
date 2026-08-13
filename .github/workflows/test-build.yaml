@@ -1,6 +1,9 @@
 name: Test build
 
-on: [push, pull_request]
+on: [workflow_dispatch]
+# Disabled automatic push/pull_request triggers 2026-08-13 (user near GitHub Actions monthly
+# minutes cap - this ran a full "mvn clean test" of the whole engine, twice (Java 17 + 21), on
+# every single push). Still runnable manually from the Actions tab if ever needed.
 
 jobs:
   build:
