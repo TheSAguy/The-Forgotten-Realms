@@ -1673,6 +1673,20 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         return factor;
     }
 
+    // Torch (MOD_SCOPE.md, 2026-08-13): same equipped-item-effect-product pattern as
+    // equipmentSpeed()/goldModifier() above. World.getVisionRadius() reads this every frame via
+    // setPlayerTilePosition() while the player moves, so equip/unequip takes effect immediately -
+    // no separate cache-invalidation call needed.
+    public float visionRadiusMultiplier() {
+        float factor = 1.0f;
+        for (Long id : equippedItems.values()) {
+            ItemData data = getEquippedItem(id);
+            if (data != null && data.effect != null && data.effect.visionRadiusMultiplier > 0.0)
+                factor *= data.effect.visionRadiusMultiplier;
+        }
+        return factor;
+    }
+
     public float goldModifier(boolean sale) {
         float factor = 1.0f;
         for (Long id: equippedItems.values()) {

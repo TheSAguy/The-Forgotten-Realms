@@ -8074,3 +8074,130 @@ deleted within this same round; not part of the committed tree.
 ### Compile status
 `mvn -pl forge-gui-mobile -am compile -DskipTests -o` - BUILD SUCCESS after both edits
 (`TownRestoration.java`, `EconomyBuildings.java`). Not yet deployed/playtested in-game.
+
+## Capitol land-shop ruins, Torch item, resource-pickup sparkle (2026-08-13, MOD_SCOPE.md #45)
+
+One user round, three pieces of art/content polish, all user-supplied art reviewed (size, color
+mapping, transparency) before wiring anything in.
+
+### Capitol land-shop ruins
+User pointed at `player_capital.tmx` (their own most-recently-edited copy, per their instruction to
+treat it as authoritative) and gave 6 object ids directly: 77 (green), 78 (red), 55 (white), 80
+(blue), 81 (neutral), 79 (black). Cross-checked each against the tmx's own `commonShopList`
+property before trusting the mapping - confirmed exactly: 77=Forest, 78=Mountain, 55=Plains,
+80=Island, 81=Land, 79=Swamp (matches the existing White/Blue/Black/Red/Green/Utility land-shop
+naming used elsewhere in this file, e.g. `getLandShopDisplayName()`).
+
+Read `ShopActor.draw()`/`isDestroyed()` before touching anything: these 6 shops are `fixedShop`
+(no conversion menu, no REBUILT-state icon - baked art covers that), but `fixedShop` never
+affected the DESTROYED-state ruin render, which still goes through the same generic
+`TownRestoration.getBrokenShopSprite(objectId)` 64-variant pool as every other shop in the game -
+exactly matching the user's report ("currently we are using the broken card-shop ruins for
+these"). New `LAND_SHOP_RUIN_REGIONS` (objectId -> color name) + `getLandShopRuinSprite()`,
+checked first inside `getBrokenShopSprite()` before the existing generic fallback.
+
+**Guarded on `isCurrentTownCapitol()` specifically** - not a style choice, a bug-avoidance one.
+The generic picker's own comment documents a real, already-fixed bug from this exact class: every
+town on the map is built from one of a handful of shared `.tmx` templates, and a "shop slot"'s
+raw Tiled object id is identical across every town sharing that template. Without the Capitol
+guard, object id 77 in some unrelated AI-color town template (if one happens to reuse it for an
+ordinary shop) would incorrectly render the green land-shop ruin too.
+
+**Art**: 6 PNGs (`land_shop_broken_{black,blue,generic,green,red,white}.png`, user-provided,
+already 16x16 RGBA with real transparency - verified via a Python/Pillow check, not assumed)
+packed left-to-right into one new sheet, `maps/tileset/land_shop_broken.png` (96x16) +
+`land_shop_broken.atlas`, region names `Green`/`Red`/`White`/`Blue`/`Neutral`/`Black` (generic.png
+-> "Neutral", matching the `Land`/Utility shop's existing naming elsewhere). Drawn via the same
+`ShopActor.drawOverFootprint()` call site as the generic ruins - it already sizes off the region's
+own `getRegionWidth()/Height()` rather than a hardcoded 32, so a 16x16 region naturally sits flush
+with the shop's footprint instead of the generic ruins' deliberate 32x32 "looming" size - which is
+exactly what "match the coordinates... so they sit on-top of" needs, with no coordinate math of
+any kind required in Java (the actor's own runtime x/y already drives placement).
+
+### Torch item (user's first custom item this session)
+Spec: Common rarity, 100g, `Ability2` slot, not a quest item, effect "triples the FoW visible
+radius (Stage 3 around the player)", available in the Armory from level 1.
+
+**Mechanism**: `World.java`'s `visionRadius` field already carried a 2026-08-11 comment flagging
+this exact extension point ("half of the original 6 - items will raise this later") - confirmation
+this was anticipated, not a new architecture decision. New `EffectData.visionRadiusMultiplier`
+(float, default 1.0f, same "Map only" category comment block as the pre-existing `moveSpeed`) +
+new `AdventurePlayer.visionRadiusMultiplier()`, a structural copy of the pre-existing
+`equipmentSpeed()`/`goldModifier()` equipped-item-effect-product pattern (iterate
+`equippedItems.values()`, multiply in each equipped item's effect field, guarded `> 0.0`).
+`World.getVisionRadius()` now returns `Math.round((visionRadius + visionRadiusDifficultyOffset())
+* Current.player().visionRadiusMultiplier())` - multiplies the DIFFICULTY-ADJUSTED radius, not just
+the bare baseline, matching "3x current radius" literally. Recomputed every frame via the existing
+`setPlayerTilePosition()` -> `cachedVisionRadius` refresh while the player moves, so equip/unequip
+takes effect immediately with no extra invalidation call needed.
+
+Noted but NOT fixed (out of scope, flagged for a follow-up): `EffectData`'s copy constructor
+(`EffectData(EffectData effect)`) already didn't copy `moveSpeed`/`goldModifier`/
+`cardRewardBonus`/`startBattleWithCardInCommandZone` before this round - a pre-existing gap, not
+introduced by adding `visionRadiusMultiplier` (also left out of the copy constructor, consistent
+with the existing gap rather than partially fixing it). Doesn't affect the Torch: every consumer
+(`equipmentSpeed()`, `goldModifier()`, the new `visionRadiusMultiplier()`) reads `item.effect`
+directly off the item's own live `ItemData`, never through this copy constructor.
+
+**Armory availability**: automatic, no extra wiring - `ItemListData.getItemNamesByRarity()` (backs
+the Armory's `itemRarity="Weighted"` pool) already draws from "every shop-worthy catalog item of
+this rarity" excluding only quest items and Landscape Sketchbooks. Torch is Common, not a quest
+item -> in the Armory's Common pool (60% per weighted slot roll) from the very first visit.
+
+**Art**: source `torch.png` was 64x64 with **zero transparency** (verified: every pixel alpha=255,
+corners pure white `(255,255,255,255)`) - flagged to the user rather than assumed fine, then fixed:
+a BFS flood-fill from the border (only removing background pixels actually CONNECTED to an edge,
+not any near-white pixel anywhere, to avoid eating into the flame's own bright highlights) made the
+background transparent, then downsampled to 16x16 via Lanczos (source wasn't a clean 4x
+pixel-art upscale - checked block-uniformity before picking a filter, so a plain nearest-neighbor
+crop would've looked wrong).
+
+Extended the shared `items.atlas`/`items.png` rather than a new standalone atlas, to keep every
+OTHER item's `getItemSprite()` lookup working unchanged. **Real near-miss here, caught before
+committing, worth recording**: first attempt copied `common/sprites/items.png` (480x1008, the
+STOCK file) as the base to extend - wrong base entirely. `git status` afterward showed the plane's
+own `sprites/items.atlas`/`items.png` as MODIFIED, not new, which was the tell - a plane-local
+override of this pair already existed (`ebb3996680b`, "Borrow Realm of Legends' expanded item pool
+(306 new items)"), already at 480x1024 with 566 regions, and the naive stock-based rewrite had
+silently thrown all of that away (diff showed 1182 deleted atlas lines). Caught by checking `git
+status`/`git diff --stat` before staging anything, not by luck - reverted both files (`git
+checkout --`) and redid it correctly: extended the REAL plane-local 480x1024 file (verified via a
+SHA-256 hash of the pre-existing pixel region, unchanged after the paste, before writing) to
+480x1040 with the Torch icon in the new bottom row, and appended one `Torch` region to the real
+566-region atlas instead of a fresh 49-region rebuild. Second-attempt diff: 4 insertions, 1
+deletion in the atlas (the header's `size:` line) - the additive, low-risk change this should have
+been from the start. **Lesson for next time a plane-local binary asset needs extending: check
+`git log -- <path>`/`git status` for an existing plane override FIRST, never assume the stock
+common/ copy is the current base.**
+
+### Resource-pickup sparkle, all 5 types
+Gold already drew a real 4-frame sparkle (`WorldStage.getGoldSparkleAnimation()`, `sprites/
+gold.atlas` -> stock `treasure.png`, built 2026-08-09); Wood/Stone/Shards/Mystery only had the
+coded alpha fade-in/out fallback. User supplied a new shared sheet (`resource_drop.png`, 64x80 -
+5 rows of 4 "Idle" frames, one row per resource type) plus 5 matching `.atlas` files (gold/wood/
+stone/shard/random) - confirmed the format exactly matches the stock `gold.atlas`'s own convention
+(same "Idle" region name x4, same 16x16 frame size) before trusting it as drop-in compatible.
+
+`WorldStage`'s `goldSparkleAnimation`/`getGoldSparkleAnimation()` generalized to a `Map<Integer,
+Animation<TextureRegion>>` cache + `getSparkleAnimation(int type)` keyed by `ResourceSpawns.TYPE_*`,
+backed by a small `SPARKLE_ATLASES` map to the new `Paths.WOOD_ATLAS`/`STONE_ATLAS`/`SHARDS_ATLAS`/
+`MYSTERY_ATLAS` constants (`GOLD_ATLAS` unchanged - see below). `refreshResourceSpawnActors()` now
+calls `getSparkleAnimation(spawn[2])` unconditionally instead of gating on `isGold`.
+`ResourceSpawnActor`'s alpha-twinkle path is untouched, kept only as a defensive fallback if an
+atlas somehow fails to resolve (not expected in practice - all 5 types now have a real atlas).
+
+**Gold's own art also switches over with zero code change**: the 5 new files (including the new
+`gold.atlas`) were placed under the plane's own `sprites/` folder rather than overwriting
+`common/sprites/`, so `Paths.GOLD_ATLAS`'s unchanged string value (`"sprites/gold.atlas"`) now
+resolves to the plane's copy first via the ordinary plane-first `Config.getFile()`/`getAtlas()`
+resolution every other plane-scoped asset already relies on - confirmed `GOLD_ATLAS` has exactly
+one consumer in this mod's whole source tree (this same sparkle mechanism) before relying on this,
+so there's no other code path that could be surprised by the swap.
+
+### Compile status
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o` - BUILD SUCCESS across all three pieces
+together. `items.csv`/`enemies.csv` (Content Filter Tables, #41) regenerated to include the new
+Torch row (629 items total) - the generator script's own `effect_description()` needed the same
+`visionRadiusMultiplier` case added as the real `EffectData.getDescription()` to keep the Effect
+column accurate for it. Not yet playtested/deployed - none of the three have been seen rendered
+in-game yet.

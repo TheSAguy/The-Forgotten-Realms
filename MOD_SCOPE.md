@@ -2251,3 +2251,37 @@ date to actually see the bank-vs-inventory split happen.
   balance line was never actually missing from the code (`refreshBankDialog()` has always shown
   it right after the "Bank" header) - it was just off-screen along with the rest of the top of the
   dialog; shrinking the button area should bring it back into view. Not yet playtested.
+
+### 45. Capitol Land-Shop Ruins, Torch Item, Resource-Pickup Sparkle — `Built (2026-08-13), not yet playtested`
+Three pieces of art/content polish from one user round, all user-provided art reviewed before use:
+
+- **Capitol land-shop ruins**: the 6 fixed land shops in the Capitol (id 55 White/Plains, 77
+  Green/Forest, 78 Red/Mountain, 79 Black/Swamp, 80 Blue/Island, 81 Neutral/Land - confirmed
+  against `player_capital.tmx`'s own `commonShopList` properties) were showing a random pick from
+  the generic 64-variant broken-shop pool while unrepaired, instead of anything color-matched.
+  Now use 6 new dedicated 16x16 ruins (user-provided, packed into a new
+  `maps/tileset/land_shop_broken.atlas`), guarded to the Capitol specifically so an unrelated shop
+  in some other town template sharing the same raw object id never picks this up (the exact bug
+  class already hit once for the generic pool).
+- **Torch item** (user's first custom item added this session): Common, 100g, `Ability2` slot, not
+  a quest item, `effect.visionRadiusMultiplier: 3.0` - triples the player's live FoW vision radius
+  (Stage 3 around the player, see #3's stage table) while equipped. New `EffectData.
+  visionRadiusMultiplier` field + `AdventurePlayer.visionRadiusMultiplier()` (same pattern as the
+  pre-existing `equipmentSpeed()`/`goldModifier()`) + `World.getVisionRadius()` now applies it -
+  the exact spot `visionRadius`'s own field comment had already flagged for this ("items will
+  raise this later"). Automatically eligible for the Armory's weighted Common pool from level 1
+  (no separate wiring needed - `ItemListData.getItemNamesByRarity()` already draws from the whole
+  catalog by rarity). Source art (64x64, no transparency - flagged and fixed) had its background
+  flood-filled to transparent and was downsampled to 16x16, added onto a plane-local copy of the
+  shared `items.atlas`/`items.png` (new 16px canvas row appended, zero existing item pixels
+  touched) rather than a separate atlas, to keep every OTHER item's lookup working unchanged.
+- **Resource-pickup sparkle for all 5 types**: Gold already drew a real 4-frame sparkle animation
+  (`sprites/gold.atlas`, stock `treasure.png`); Wood/Stone/Shards/Random ("Mystery") only had a
+  coded alpha fade in/out. User provided a new shared sprite sheet (`resource_drop.png`) plus 5
+  matching `.atlas` files (including a new Gold one) - `WorldStage`'s sparkle mechanism generalized
+  from Gold-only to all 5 `ResourceSpawns.TYPE_*` constants; the alpha-twinkle code path stays only
+  as a defensive fallback if an atlas somehow fails to load. Gold's sparkle now uses the user's new
+  art too (same `GOLD_ATLAS` constant, now resolving to a plane-local override instead of the stock
+  file - the established plane-first override mechanism, no code path change needed).
+
+Not yet playtested - none of these three have been seen rendered in-game.

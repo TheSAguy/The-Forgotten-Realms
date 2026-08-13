@@ -1,5 +1,5 @@
 items.png
-size: 480,1024
+size: 480,1040
 format: RGBA8888
 filter: Nearest,Nearest
 repeat: none      
@@ -1705,4 +1705,7 @@ Wood
   size: 16, 16
 Stone
   xy: 16, 1008
+  size: 16, 16
+Torch
+  xy: 0, 1024
   size: 16, 16

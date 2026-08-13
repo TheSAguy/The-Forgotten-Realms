@@ -27,6 +27,7 @@ public class EffectData implements Serializable {
     public float goldModifier = -1.0f;   //Modifier for shop discounts.
     public int cardRewardBonus = 0;    //Bonus "DeckCard" drops. Max 3.
     public int extraManaShards = 0; //Mana Shard tokens available to spend in battle
+    public float visionRadiusMultiplier = 1.0f; //Fog-of-war live vision radius multiplier. Map only.
 
     //Opponent field.
     public EffectData opponent;          //Effects to be applied to the opponent's side.
@@ -108,6 +109,8 @@ public class EffectData implements Serializable {
             description+="[+MovementSpeed] " + ((moveSpeed > 0) ? "+" : "") + Math.round((moveSpeed-1.f)*100) + "%\n";
         if(goldModifier > 0.0f)
             description+="Shop discount: x" + (goldModifier) + "\n";
+        if(visionRadiusMultiplier != 0 && visionRadiusMultiplier != 1)
+            description+="Vision radius: x" + (visionRadiusMultiplier) + "\n";
         if(cardRewardBonus > 0)
             description += "Bonus enemy deck rewards: +" + (cardRewardBonus) + "\n";
         if(this.opponent != null) {

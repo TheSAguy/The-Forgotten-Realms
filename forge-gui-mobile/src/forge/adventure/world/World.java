@@ -2962,7 +2962,10 @@ public class World implements Disposable, SaveFileContent {
     // together on purpose, first/last tier treated as Easy/Insane regardless of how many
     // difficulties are actually configured.
     public int getVisionRadius() {
-        return visionRadius + visionRadiusDifficultyOffset();
+        // Torch (2026-08-13): the item multiplier applies to the difficulty-adjusted radius, not
+        // just the bare baseline - "3x current radius" per spec, and this is the exact extension
+        // point the class comment above already anticipated ("items will raise this later").
+        return Math.round((visionRadius + visionRadiusDifficultyOffset()) * Current.player().visionRadiusMultiplier());
     }
 
     private int visionRadiusDifficultyOffset() {

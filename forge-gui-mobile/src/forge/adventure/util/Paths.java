@@ -16,6 +16,14 @@ public class Paths {
     public static final String ITEMS_UNUSABLE = "skin/unusable.png";
     public static final String ITEMS_ATLAS = "sprites/items.atlas";
     public static final String GOLD_ATLAS = "sprites/gold.atlas";
+    // Resource-pickup sparkle atlases (2026-08-13, user-provided art, replaces the alpha-twinkle
+    // fallback for these 4 - see WorldStage.getSparkleAnimation()). GOLD_ATLAS above now also
+    // resolves to this same new resource_drop.png sheet via the plane's own sprites/gold.atlas
+    // (plane-first file resolution), replacing the stock treasure.png-based one it used before.
+    public static final String WOOD_ATLAS = "sprites/wood.atlas";
+    public static final String STONE_ATLAS = "sprites/stone.atlas";
+    public static final String SHARDS_ATLAS = "sprites/shard.atlas";
+    public static final String MYSTERY_ATLAS = "sprites/random.atlas";
     public static final String PIXELMANA_ATLAS = "sprites/pixelmana.atlas";
     public static final String KEYS_ATLAS = "skin/keys.atlas";
     public static final String COLOR_FRAME_ATLAS = "ui/color_frames.atlas";

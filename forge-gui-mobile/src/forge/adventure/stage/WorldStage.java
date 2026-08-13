@@ -119,30 +119,47 @@ public class WorldStage extends GameStage implements SaveFileContent {
         return mages;
     }
 
-    // Real sparkle animation for Gold pickups (user request 2026-08-09, confirmed against
-    // templeofchandra.tmx's stock "Gold" reward object): that pickup draws real frame-by-frame
-    // art from sprites/gold.atlas's 4 "Idle" regions via RewardSprite/CharacterSprite's ordinary
-    // animation system, not a coded fade - visibly different from (and per the user, nicer than)
-    // the alpha-twinkle every other resource-spawn type below still uses. Reused verbatim here
-    // (same atlas, same frames) rather than re-authoring new art. No equivalent multi-frame sheet
-    // exists for Shards/Wood/Stone/Mystery - those keep the twinkle. Built lazily/once since
-    // Config's own atlas cache isn't guaranteed to exist yet at class-init time.
-    private static Animation<TextureRegion> goldSparkleAnimation;
+    // Real sparkle animation for resource pickups (Gold: user request 2026-08-09, confirmed
+    // against templeofchandra.tmx's stock "Gold" reward object; extended to all 5 types
+    // 2026-08-13 with the user's own custom resource_drop.png sheet, replacing the alpha-twinkle
+    // fallback below entirely for these types): real frame-by-frame art from each type's own
+    // atlas's 4 "Idle" regions via a plain Animation, not a coded fade. Cached per type since
+    // Config's own atlas cache isn't guaranteed to exist yet at class-init time; ResourceSpawns.
+    // TYPE_* constants index this map directly.
+    private static final java.util.Map<Integer, Animation<TextureRegion>> sparkleAnimations = new java.util.HashMap<>();
 
-    private static Animation<TextureRegion> getGoldSparkleAnimation() {
-        if (goldSparkleAnimation == null) {
+    private static final java.util.Map<Integer, String> SPARKLE_ATLASES = new java.util.HashMap<>();
+    static {
+        SPARKLE_ATLASES.put(ResourceSpawns.TYPE_GOLD, Paths.GOLD_ATLAS);
+        SPARKLE_ATLASES.put(ResourceSpawns.TYPE_SHARDS, Paths.SHARDS_ATLAS);
+        SPARKLE_ATLASES.put(ResourceSpawns.TYPE_WOOD, Paths.WOOD_ATLAS);
+        SPARKLE_ATLASES.put(ResourceSpawns.TYPE_STONE, Paths.STONE_ATLAS);
+        SPARKLE_ATLASES.put(ResourceSpawns.TYPE_MYSTERY, Paths.MYSTERY_ATLAS);
+    }
+
+    // Defensive, not expected in practice: every type above has a real atlas now, so this only
+    // ever returns null if an atlas file is somehow missing/unreadable - ResourceSpawnActor
+    // falls back to the alpha-twinkle in that case rather than drawing nothing.
+    private static Animation<TextureRegion> getSparkleAnimation(int type) {
+        if (sparkleAnimations.containsKey(type))
+            return sparkleAnimations.get(type);
+        Animation<TextureRegion> animation = null;
+        String atlasPath = SPARKLE_ATLASES.get(type);
+        if (atlasPath != null) {
             com.badlogic.gdx.utils.Array<com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion> frames =
-                    Config.instance().getAtlas(Paths.GOLD_ATLAS).findRegions("Idle");
-            goldSparkleAnimation = new Animation<>(0.15f, frames, Animation.PlayMode.LOOP);
+                    Config.instance().getAtlas(atlasPath).findRegions("Idle");
+            if (frames != null && frames.size > 0)
+                animation = new Animation<>(0.15f, frames, Animation.PlayMode.LOOP);
         }
-        return goldSparkleAnimation;
+        sparkleAnimations.put(type, animation);
+        return animation;
     }
 
     // Random resource spawns (see ResourceSpawns): one lightweight actor per active pickup,
     // rendered inside foregroundSprites so it y-sorts with everything else on the map.
     private static class ResourceSpawnActor extends Actor {
         private final Sprite sprite;
-        private final Animation<TextureRegion> sparkleAnimation; // null unless this is a Gold pickup
+        private final Animation<TextureRegion> sparkleAnimation; // null only if a type's atlas failed to load (see getSparkleAnimation())
         // Per-actor random phase so pickups don't all twinkle in lockstep.
         private final float twinklePhase = MathUtils.random(MathUtils.PI2);
         private float twinkleTime;
@@ -203,8 +220,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
             Sprite sprite = ResourceSpawns.spriteFor(spawn[2]);
             if (sprite == null)
                 continue;
-            boolean isGold = spawn[2] == ResourceSpawns.TYPE_GOLD;
-            ResourceSpawnActor actor = new ResourceSpawnActor(sprite, isGold ? getGoldSparkleAnimation() : null);
+            ResourceSpawnActor actor = new ResourceSpawnActor(sprite, getSparkleAnimation(spawn[2]));
             actor.setSize(tileSize, tileSize);
             actor.setPosition(spawn[0] * tileSize, spawn[1] * tileSize);
             foregroundSprites.addActor(actor);

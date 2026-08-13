@@ -894,6 +894,35 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   Deposit/Withdraw buttons switched from `addButtonRow()` (full-width) to `addHalfButton()`
   (half-width, 2 per row) to stop the dialog running taller than the screen. See MOD_CHANGELOG.md.
 
+### 2026-08-13 Capitol land-shop ruins, Torch item, resource-pickup sparkle for all 5 types
+- **`util/TownRestoration.java`** (mod file, inventoried below) — new `LAND_SHOP_RUIN_REGIONS`/
+  `getLandShopRuinSprite()`, called from `getBrokenShopSprite()` before its existing generic-pool
+  fallback - the Capitol's 6 fixed land shops (ids 55/77/78/79/80/81) now get their own
+  color-matched 16x16 ruin instead of a random pick from the shared 64-variant pool. Guarded on
+  `isCurrentTownCapitol()` specifically to avoid the exact objectId-collision bug class the
+  existing generic picker's own comment already documents (shared .tmx templates reuse raw ids
+  across unrelated towns).
+- **`data/EffectData.java`** — **first-ever mod edit to this file.** New `visionRadiusMultiplier`
+  field (default 1.0f, same "Map only" effect category as the pre-existing `moveSpeed`), plus a
+  `getDescription()` line for it, following that field's exact pattern. Backs the new Torch item.
+- **`player/AdventurePlayer.java`** — new `visionRadiusMultiplier()`, exact structural copy of the
+  pre-existing `equipmentSpeed()`/`goldModifier()` equipped-item-effect-product pattern.
+- **`world/World.java`** — `getVisionRadius()` now multiplies in
+  `Current.player().visionRadiusMultiplier()` - the exact extension point `visionRadius`'s own
+  field comment already flagged ("items will raise this later").
+- **`util/Paths.java`** — added `WOOD_ATLAS`/`STONE_ATLAS`/`SHARDS_ATLAS`/`MYSTERY_ATLAS` (new
+  plane-scoped sparkle atlases, see `WorldStage.java` below). Pre-existing `GOLD_ATLAS`'s VALUE is
+  unchanged, but the plane now has its own `sprites/gold.atlas` (pointing at the user's new
+  `resource_drop.png` sheet, not the stock `treasure.png`) that shadows the stock one via the
+  ordinary plane-first file resolution every other plane-scoped asset already uses - no code
+  change needed for Gold's art to switch over.
+- **`stage/WorldStage.java`** — `goldSparkleAnimation`/`getGoldSparkleAnimation()` generalized to a
+  `Map<Integer, Animation>` cache + `getSparkleAnimation(int type)` keyed by `ResourceSpawns.TYPE_*`;
+  `refreshResourceSpawnActors()` now calls it unconditionally instead of gating on `isGold`. All 5
+  resource-pickup types get the real sparkle animation now; the alpha-twinkle fallback in
+  `ResourceSpawnActor.draw()` is untouched (kept as a defensive fallback if an atlas ever fails to
+  load, not expected in practice).
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

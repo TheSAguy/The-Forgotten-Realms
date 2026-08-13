@@ -7579,5 +7579,16 @@
                    },
         "cost":  12000,
         "rarity":  "Rare"
+    },
+    {
+        "name":  "Torch",
+        "equipmentSlot":  "Ability2",
+        "effect":  {
+                       "visionRadiusMultiplier":  3.0
+                   },
+        "description":  "Lights the way, tripling your visible range in the fog of war.",
+        "cost":  100,
+        "iconName":  "Torch",
+        "rarity":  "Common"
     }
 ]

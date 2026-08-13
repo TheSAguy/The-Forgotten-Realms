@@ -215,7 +215,39 @@ public class TownRestoration {
     private static final String BROKEN_SHOP_SPRITE = "ShopBroken";
     private static Array<Sprite> brokenShopSprites;
 
+    // Capitol land-shop ruins (2026-08-13, user-provided art): the 6 fixed land shops in
+    // player_capital.tmx (55 Plains/White, 77 Forest/Green, 78 Mountain/Red, 79 Swamp/Black,
+    // 80 Island/Blue, 81 Land/Neutral - ids confirmed against the tmx's own commonShopList
+    // properties) get their own color-matched 16x16 ruin instead of a random pick from the
+    // generic 64-variant pool below - drawn at native 16x16 via the same drawOverFootprint()
+    // call site (ShopActor already sizes off the region's own width/height, so a 16x16 region
+    // sits flush with the shop's footprint instead of the generic ruins' 32x32 "looming" size).
+    // Guarded on isCurrentTownCapitol(): these are raw Tiled object ids, and this exact bug
+    // class already bit the generic picker below once (every town built from a shared .tmx
+    // template reuses the same slot ids) - without this guard, an unrelated shop in some OTHER
+    // town template that happens to reuse one of these 6 ids would wrongly pick up Capitol art.
+    private static final java.util.Map<Integer, String> LAND_SHOP_RUIN_REGIONS = new java.util.HashMap<>();
+    static {
+        LAND_SHOP_RUIN_REGIONS.put(55, "White");
+        LAND_SHOP_RUIN_REGIONS.put(77, "Green");
+        LAND_SHOP_RUIN_REGIONS.put(78, "Red");
+        LAND_SHOP_RUIN_REGIONS.put(79, "Black");
+        LAND_SHOP_RUIN_REGIONS.put(80, "Blue");
+        LAND_SHOP_RUIN_REGIONS.put(81, "Neutral");
+    }
+    private static final String LAND_SHOP_RUIN_ATLAS = "maps/tileset/land_shop_broken.atlas";
+
+    private static TextureRegion getLandShopRuinSprite(int objectId) {
+        String region = LAND_SHOP_RUIN_REGIONS.get(objectId);
+        if (region == null || !isCurrentTownCapitol())
+            return null;
+        return Config.instance().getAtlasSprite(LAND_SHOP_RUIN_ATLAS, region);
+    }
+
     public static TextureRegion getBrokenShopSprite(int objectId) {
+        TextureRegion landShopRuin = getLandShopRuinSprite(objectId);
+        if (landShopRuin != null)
+            return landShopRuin;
         Array<Sprite> variants = getBrokenShopSprites();
         if (variants == null || variants.size == 0)
             return null;

@@ -1,0 +1,23 @@
+land_shop_broken.png
+size: 96,16
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+Green
+  xy: 0, 0
+  size: 16, 16
+Red
+  xy: 16, 0
+  size: 16, 16
+White
+  xy: 32, 0
+  size: 16, 16
+Blue
+  xy: 48, 0
+  size: 16, 16
+Neutral
+  xy: 64, 0
+  size: 16, 16
+Black
+  xy: 80, 0
+  size: 16, 16
