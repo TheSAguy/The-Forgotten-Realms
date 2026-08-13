@@ -340,6 +340,14 @@ public class MapDialog {
                 if (E.addShards > 0) Current.player().addShards(E.addShards);
                 else Current.player().takeShards(-E.addShards);
             }
+            if (E.addWood != 0) { //Gives (positive or negative) wood to the player. (mod: multi-resource costs)
+                if (E.addWood > 0) Current.player().addWood(E.addWood);
+                else Current.player().takeWood(-E.addWood);
+            }
+            if (E.addStone != 0) { //Gives (positive or negative) stone to the player. (mod)
+                if (E.addStone > 0) Current.player().addStone(E.addStone);
+                else Current.player().takeStone(-E.addStone);
+            }
             if (E.addMapReputation != 0) {
                 if (E.POIReference != null && !E.POIReference.isEmpty()) {
                     if(E.POIReference.contains("$")) {

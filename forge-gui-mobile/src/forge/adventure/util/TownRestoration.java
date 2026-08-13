@@ -23,8 +23,9 @@ import forge.adventure.world.WorldSave;
  */
 public class TownRestoration {
     public static final String TOWN_RESTORED_FLAG = "townRestored";
-    private static final int RESTORE_TOWN_COST = 100;
-    private static final int REBUILD_SHOP_COST = 100;
+    // 2026-08-12 user cost table (multi-resource; see EconomyBuildings' cost helpers).
+    private static final int RESTORE_COST_GOLD = 200;
+    private static final int RESTORE_COST_WOOD = 10;
 
     // Biome json ("colorless.json") whose name pool (town_names_waste.txt) names wasteland towns.
     private static final String WASTE_BIOME_NAME = "waste";
@@ -249,12 +250,6 @@ public class TownRestoration {
         return "shopRebuilt_" + objectId;
     }
 
-    private static DialogData.ActionData spendGoldAction(int cost) {
-        DialogData.ActionData action = new DialogData.ActionData();
-        action.addGold = -cost;
-        return action;
-    }
-
     private static DialogData.ActionData setFlagAction(String key) {
         DialogData.ActionData.QuestFlag flag = new DialogData.ActionData.QuestFlag();
         flag.key = key;
@@ -264,24 +259,21 @@ public class TownRestoration {
         return action;
     }
 
-    private static DialogData.ConditionData hasGoldCondition(int amount) {
-        DialogData.ConditionData condition = new DialogData.ConditionData();
-        condition.hasGold = amount;
-        return condition;
-    }
-
     public static MapDialog buildRestoreTownDialog(MapStage stage, int objectId) {
-        // Difficulty-scaled (round 4, EconomyBuildings.scaledCost()) - computed once so the
-        // description, button label, gold-check condition, and actual deduction all agree.
-        int cost = EconomyBuildings.scaledCost(RESTORE_TOWN_COST);
+        // Multi-resource cost (2026-08-12 user table: 200 gold + 10 wood), each component
+        // difficulty-scaled inside EconomyBuildings' cost helpers - label, affordability, and
+        // deduction all derive from the same base tuple.
+        String label = EconomyBuildings.costLabel(RESTORE_COST_GOLD, RESTORE_COST_WOOD, 0, 0);
         DialogData root = new DialogData();
         root.text = "The Job Board lies buried in rubble. Restoring the town here will cost "
-                + cost + " [+Gold].";
+                + label + ".";
 
         DialogData yes = new DialogData();
-        yes.name = "Restore town (" + cost + " [+Gold])";
-        yes.condition = new DialogData.ConditionData[]{hasGoldCondition(cost)};
-        yes.action = new DialogData.ActionData[]{spendGoldAction(cost), setFlagAction(TOWN_RESTORED_FLAG)};
+        yes.name = "Restore town (" + label + ")";
+        yes.isDisabled = !EconomyBuildings.canAffordCost(RESTORE_COST_GOLD, RESTORE_COST_WOOD, 0, 0);
+        yes.action = new DialogData.ActionData[]{
+                EconomyBuildings.spendCostAction(RESTORE_COST_GOLD, RESTORE_COST_WOOD, 0, 0),
+                setFlagAction(TOWN_RESTORED_FLAG)};
 
         DialogData no = new DialogData();
         no.name = "Not now";
@@ -291,14 +283,24 @@ public class TownRestoration {
     }
 
     public static MapDialog buildRebuildShopDialog(MapStage stage, int objectId) {
-        int cost = EconomyBuildings.scaledCost(REBUILD_SHOP_COST); // difficulty-scaled (round 4)
+        // Plain shop rebuild: 100 gold + 10 wood (2026-08-12 user table).
+        return buildRebuildShopDialog(stage, objectId, 100, 10, 0, 0, "Rebuild");
+    }
+
+    /** Custom-cost variant for non-shop gated buildings (the Arena's OnCollide passes its own
+     *  cost/label through here - 2026-08-12 user table gives it a different price than a shop). */
+    public static MapDialog buildRebuildShopDialog(MapStage stage, int objectId,
+            int gold, int wood, int stone, int shards, String verb) {
+        String label = EconomyBuildings.costLabel(gold, wood, stone, shards);
         DialogData root = new DialogData();
-        root.text = "This shop is buried in rubble. Rebuilding it will cost " + cost + " [+Gold].";
+        root.text = "This building is buried in rubble. Rebuilding it will cost " + label + ".";
 
         DialogData yes = new DialogData();
-        yes.name = "Rebuild (" + cost + " [+Gold])";
-        yes.condition = new DialogData.ConditionData[]{hasGoldCondition(cost)};
-        yes.action = new DialogData.ActionData[]{spendGoldAction(cost), setFlagAction(shopRebuiltFlag(objectId))};
+        yes.name = verb + " (" + label + ")";
+        yes.isDisabled = !EconomyBuildings.canAffordCost(gold, wood, stone, shards);
+        yes.action = new DialogData.ActionData[]{
+                EconomyBuildings.spendCostAction(gold, wood, stone, shards),
+                setFlagAction(shopRebuiltFlag(objectId))};
 
         DialogData no = new DialogData();
         no.name = "Not now";
@@ -323,7 +325,11 @@ public class TownRestoration {
     // (The earlier Rename-town option was dropped the same day per user - names showing in
     // messages/map made it unnecessary.)
     public static final String CAPITOL_POI_NAME = "Player Capitol";
-    private static final int CAPITOL_UPGRADE_COST = 1000;
+    // 2026-08-12 user cost table: 1000 gold + 200 stone + 200 wood + 50 shards.
+    private static final int CAPITOL_COST_GOLD = 1000;
+    private static final int CAPITOL_COST_WOOD = 200;
+    private static final int CAPITOL_COST_STONE = 200;
+    private static final int CAPITOL_COST_SHARDS = 50;
     private static final int CAPITOL_TOWNS_REQUIRED = 5;
 
     /**
@@ -332,7 +338,7 @@ public class TownRestoration {
      * reachable for restored wasteland towns (QuestActor gates on isWastelandTown() +
      * isTownRestored()), so stock planes and stock towns keep the direct-to-quest behavior.
      * The upgrade option: needs CAPITOL_TOWNS_REQUIRED owned towns (shown disabled with the
-     * requirement until then), costs CAPITOL_UPGRADE_COST gold, and disappears once ANY Capitol
+     * requirement until then), costs the CAPITOL_COST_* resource tuple, and disappears once ANY Capitol
      * exists (only one allowed; the Capitol's own board never shows it - its data name IS the
      * capitol).
      */
@@ -360,16 +366,16 @@ public class TownRestoration {
                 needMore.setDisabled(true);
                 dialog.getButtonTable().add(needMore).width(240f).row();
             } else {
-                // Difficulty-scaled (round 4) - one local value shared by the label and the
-                // affordability check; upgradeToCapitol() itself re-derives the same scaled cost
-                // when it actually spends the gold (see its own comment).
-                int cost = EconomyBuildings.scaledCost(CAPITOL_UPGRADE_COST);
+                // Multi-resource cost (2026-08-12 user table: 1000 gold + 200 stone + 200 wood
+                // + 50 shards); upgradeToCapitol() pays the same tuple via EconomyBuildings.payCost().
                 com.github.tommyettinger.textra.TextraButton upgrade = Controls.newTextButton(
-                        "Upgrade to Capitol (" + cost + " [+Gold])", () -> {
+                        "[%90]Upgrade to Capitol (" + EconomyBuildings.costLabel(CAPITOL_COST_GOLD,
+                                CAPITOL_COST_WOOD, CAPITOL_COST_STONE, CAPITOL_COST_SHARDS) + ")", () -> {
                             stage.hideDialog();
                             upgradeToCapitol(stage);
                         });
-                upgrade.setDisabled(Current.player().getGold() < cost);
+                upgrade.setDisabled(!EconomyBuildings.canAffordCost(CAPITOL_COST_GOLD,
+                        CAPITOL_COST_WOOD, CAPITOL_COST_STONE, CAPITOL_COST_SHARDS));
                 dialog.getButtonTable().add(upgrade).width(240f).row();
             }
         }
@@ -496,7 +502,7 @@ public class TownRestoration {
         }
         Integer oldRadius = world.getTownTerritoryRadius(point.getID());
 
-        Current.player().takeGold(EconomyBuildings.scaledCost(CAPITOL_UPGRADE_COST)); // difficulty-scaled (round 4)
+        EconomyBuildings.payCost(CAPITOL_COST_GOLD, CAPITOL_COST_WOOD, CAPITOL_COST_STONE, CAPITOL_COST_SHARDS);
         point.transformInto(capitolData, world.getRandom()); // template name -> displayName "Orazca"
 
         PointOfInterestChanges newChanges = WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID());

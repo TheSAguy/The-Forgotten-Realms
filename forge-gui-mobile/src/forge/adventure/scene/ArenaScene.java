@@ -151,7 +151,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         // edge at 53 and the gold/start buttons starting at x=380) - and a fixed, explicit width
         // (ARENA_WIDE_BUTTON_WIDTH) replaces the doneButton-relative multiplier, since doneButton's
         // own 48-unit width was never a meaningful size reference for these much longer labels.
-        arenaUpgradeButton = Controls.newTextButton("[%80]Upgrade to Level 2 (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])", this::promptUpgradeArena);
+        arenaUpgradeButton = Controls.newTextButton("[%80]Upgrade to Level 2 (" + EconomyBuildings.costLabel(0, EconomyBuildings.ARENA_UPGRADE_WOOD, EconomyBuildings.ARENA_UPGRADE_STONE, 0) + ")", this::promptUpgradeArena);
         arenaUpgradeButton.setSize(ARENA_WIDE_BUTTON_WIDTH, doneButton.getHeight() * 0.8f);
         arenaUpgradeButton.setPosition(doneButton.getX(), doneButton.getY() + doneButton.getHeight() + 10f);
         arenaUpgradeButton.setVisible(false);
@@ -216,7 +216,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         arenaUpgradeButton.setVisible(!midMatch && level < 2);
         // Text refreshed here too (round 4, difficulty price multiplier), not just at
         // construction - the label was previously baked in once from the raw constant.
-        arenaUpgradeButton.setText("[%80]Upgrade to Level 2 (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])");
+        arenaUpgradeButton.setText("[%80]Upgrade to Level 2 (" + EconomyBuildings.costLabel(0, EconomyBuildings.ARENA_UPGRADE_WOOD, EconomyBuildings.ARENA_UPGRADE_STONE, 0) + ")");
         boolean toggleAvailable = !midMatch && level >= 2 && challengeArenaJson != null;
         arenaModeToggleButton.setVisible(toggleAvailable);
         if (toggleAvailable)
@@ -230,14 +230,15 @@ public class ArenaScene extends UIScene implements IAfterMatch {
     private void promptUpgradeArena() {
         if (arenaMapStage == null || arenaMapStage.getChanges() == null)
             return;
-        int cost = EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST); // round 4
-        if (AdventurePlayer.current().getGold() < cost)
+        // 2026-08-12 cost table: Arena upgrade is 300 stone + 300 wood.
+        if (!EconomyBuildings.canAffordCost(0, EconomyBuildings.ARENA_UPGRADE_WOOD, EconomyBuildings.ARENA_UPGRADE_STONE, 0))
             return;
-        showDialog(createGenericDialog("", "Upgrade this Arena to Level 2 for " + cost
-                        + " [+Gold]?\nUnlocks the Challenging Arena.",
+        showDialog(createGenericDialog("", "Upgrade this Arena to Level 2 for "
+                        + EconomyBuildings.costLabel(0, EconomyBuildings.ARENA_UPGRADE_WOOD, EconomyBuildings.ARENA_UPGRADE_STONE, 0)
+                        + "?\nUnlocks the Challenging Arena.",
                 Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
                     removeDialog();
-                    AdventurePlayer.current().takeGold(cost);
+                    EconomyBuildings.payCost(0, EconomyBuildings.ARENA_UPGRADE_WOOD, EconomyBuildings.ARENA_UPGRADE_STONE, 0);
                     arenaMapStage.getChanges().setBuildingLevel(arenaObjectId, 2);
                     refreshArenaBuildingButtons();
                 }, this::removeDialog));

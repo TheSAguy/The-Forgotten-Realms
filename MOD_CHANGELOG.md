@@ -340,6 +340,43 @@ codes, an effective no-op, documented in place). Editions are chosen at event CR
 entry) and persisted in the save, so existing saves keep their already-rolled events; empty
 pool -> the Inn's existing "No events at this time" path, no crash.
 
+## 2026-08-12 (night): Multi-resource building cost overhaul (user's cost table)
+
+Every construction/upgrade cost re-priced per the user's table, most now mixing resources.
+New shared cost core in EconomyBuildings (`costLabel`/`canAffordCost`/`payCost`/
+`spendCostAction`) - one base tuple {gold, wood, stone, shards} feeds label, affordability, and
+deduction, each component difficulty-scaled through the same `scaledCost()` gold always used.
+`DialogData.ActionData` gained `addWood`/`addStone` (handled in `MapDialog.setEffects()`), and
+`OnCollide.withRebuildCost()` lets gated non-shop buildings (Arena) carry their own price.
+
+| What | New cost |
+|---|---|
+| Job Board restore | 200 Gold + 10 Wood |
+| Plain shop rebuild | 100 Gold + 10 Wood |
+| Capitol upgrade | 1000 Gold + 200 Wood + 200 Stone + 50 Shards |
+| Mines (Shard/Gold/Lumber/Stone) | 250 Gold + 150 Stone |
+| Bank | 500 Gold |
+| Exchange | 150 Gold + 150 Wood + 150 Stone |
+| Outlook | 250 Wood |
+| Teleporter | 200 Shards |
+| Archaeologist | 350 Stone |
+| Armory restore | 250 Gold + 250 Wood |
+| Armory -> L2 | 300 Stone |
+| Arena rebuild | 250 Gold |
+| Arena -> L2 | 300 Wood + 300 Stone |
+| Booster shop repair | 200 Gold + 10 Stone |
+| Land shop repair (each) | 50 Gold + 5 Wood |
+| Research (per expansion) | 100 Shards (was 300 Gold) |
+| Unchanged | Armory inventory re-roll 100 Shards; Shop Type re-roll 50 Shards; guard salaries |
+
+**[+Wood]/[+Stone] font glyphs now exist**: appended the Lumber/Stone icons (from
+resource_icons.png) as new 16x16 regions to the PLANE'S OWN sprites/items.png/.atlas - the same
+atlas Controls.getTextraFont() registers, which is why these tags resolve where
+ResourceDisplayActor's earlier second-atlas attempt (see its comment) did not. Canvas grew
+480x1008 -> 480x1024; regions "Wood" (0,1008) and "Stone" (16,1008). All cost text now uses
+[+Gold]/[+Wood]/[+Stone]/[+Shards] glyphs per the standing resource-symbol standard.
+NOT yet visually confirmed in-game - first thing to look at next playtest.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

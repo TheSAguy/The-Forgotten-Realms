@@ -781,7 +781,10 @@ public class MapStage extends GameStage {
                             String challengeJson = prop.containsKey("arenaChallenge") ? prop.get("arenaChallenge").toString() : null;
                             ArenaScene.instance().enterArenaBuilding(this, id, prop.get("arena").toString(), challengeJson);
                             Forge.switchScene(ArenaScene.instance());
-                        }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id))));
+                        }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id)))
+                                // 2026-08-12 cost table: Arena rebuild is 250 gold (vs the plain
+                                // shop default this gate would otherwise charge).
+                                .withRebuildCost(250, 0, 0, 0, "Rebuild Arena"));
                         break;
                     case "researchlab":
                         // Progressive Set Unlocks (MOD_SCOPE.md #4, user spec 2026-08-12): the

@@ -59,8 +59,8 @@ public class ResearchScene extends UIScene {
     // counts"). The floor keeps a tiny supplemental set from becoming a 1-2 card unlock.
     private static final float THRESHOLD_FRACTION = 0.10f;
     private static final int THRESHOLD_MIN = 5;
-    // Not specified by the user - Claude's own proposal, flagged here and in MOD_SCOPE.md.
-    private static final int COST_GOLD = 300;
+    // 2026-08-12 user cost table: research costs shards now, not gold.
+    private static final int COST_SHARDS = 100;
 
     private final Table scrollContainer;
     private final Window scrollWindow;
@@ -209,7 +209,7 @@ public class ResearchScene extends UIScene {
         candidates.sort((a, b) -> Integer.compare(
                 ownedByEdition.getOrDefault(b.getCode(), 0), ownedByEdition.getOrDefault(a.getCode(), 0)));
 
-        int cost = EconomyBuildings.scaledCost(COST_GOLD);
+        int cost = EconomyBuildings.scaledCost(COST_SHARDS);
         for (CardEdition ed : candidates) {
             String code = ed.getCode();
             int owned = ownedByEdition.getOrDefault(code, 0);
@@ -217,7 +217,7 @@ public class ResearchScene extends UIScene {
             int threshold = thresholdFor(total);
             boolean researched = player.hasUnlockedEdition(code);
             boolean eligible = owned >= threshold;
-            boolean canAfford = player.getGold() >= cost;
+            boolean canAfford = player.getShards() >= cost;
 
             // "Name (owned/needed) - N cards" (user spec 2026-08-12: show the expansion's total
             // card count alongside what's needed to start researching).
@@ -234,10 +234,10 @@ public class ResearchScene extends UIScene {
                 doneLabel.setColor(Color.DARK_GRAY);
                 scrollContainer.add(doneLabel).align(Align.left).expandX().padLeft(6);
             } else {
-                // [+Gold] resource glyph, not a "g" suffix - standard for every cost label/button
-                // (user spec 2026-08-12, matching the Armory/Arena upgrade buttons).
-                TextraButton researchButton = Controls.newTextButton("Research (" + cost + "[+Gold])", () -> {
-                    player.takeGold(cost);
+                // Resource glyph, not a letter suffix - standing standard for cost UI
+                // (user spec 2026-08-12; cost switched gold -> shards same day, user table).
+                TextraButton researchButton = Controls.newTextButton("Research (" + cost + "[+Shards])", () -> {
+                    player.takeShards(cost);
                     player.startResearch(code, currentDay);
                     buildList();
                 });

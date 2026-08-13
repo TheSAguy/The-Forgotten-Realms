@@ -61,6 +61,8 @@ public class DialogData implements Serializable {
         public int addLife = 0;           //Gives the player X health. Negative to take.
         public int addGold = 0;           //Gives the player X gold. Negative to take.
         public int addShards = 0;           //Gives the player X shards. Negative to take.
+        public int addWood = 0;           //Gives the player X wood. Negative to take. (mod: multi-resource building costs)
+        public int addStone = 0;          //Gives the player X stone. Negative to take. (mod)
 
         public int deleteMapObject = 0;   //Remove ID from the map. -1 for self.
         public int activateMapObject = 0; //Remove inactive state from ID.
@@ -98,6 +100,8 @@ public class DialogData implements Serializable {
             addLife = other.addLife;
             addGold = other.addGold;
             addShards = other.addShards;
+            addWood = other.addWood;
+            addStone = other.addStone;
             deleteMapObject = other.deleteMapObject;
             activateMapObject = other.activateMapObject;
             battleWithActorID = other.battleWithActorID;

@@ -40,6 +40,17 @@ public class OnCollide extends MapActor {
         return this;
     }
 
+    // Custom rebuild cost/verb (2026-08-12 cost table: the Arena's rebuild price differs from a
+    // plain shop's). Null verb = the default plain-shop cost path.
+    private int[] rebuildCost;
+    private String rebuildVerb;
+
+    public OnCollide withRebuildCost(int gold, int wood, int stone, int shards, String verb) {
+        rebuildCost = new int[]{gold, wood, stone, shards};
+        rebuildVerb = verb;
+        return this;
+    }
+
     private boolean isDestroyed() {
         return gatedStage != null && TownRestoration.isWastelandTown() && !TownRestoration.isShopRebuilt(gatedStage, objectId);
     }
@@ -48,9 +59,14 @@ public class OnCollide extends MapActor {
     protected void onPlayerCollide() {
         if (isDestroyed()) {
             gatedStage.getPlayerSprite().stop();
-            MapDialog dialog = TownRestoration.isTownRestored(gatedStage)
-                    ? TownRestoration.buildRebuildShopDialog(gatedStage, objectId)
-                    : TownRestoration.buildShopLockedDialog(gatedStage, objectId);
+            MapDialog dialog;
+            if (!TownRestoration.isTownRestored(gatedStage))
+                dialog = TownRestoration.buildShopLockedDialog(gatedStage, objectId);
+            else if (rebuildVerb != null)
+                dialog = TownRestoration.buildRebuildShopDialog(gatedStage, objectId,
+                        rebuildCost[0], rebuildCost[1], rebuildCost[2], rebuildCost[3], rebuildVerb);
+            else
+                dialog = TownRestoration.buildRebuildShopDialog(gatedStage, objectId);
             if (dialog.activate())
                 gatedStage.showDialog();
             return;

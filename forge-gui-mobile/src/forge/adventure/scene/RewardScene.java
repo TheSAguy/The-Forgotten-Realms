@@ -105,8 +105,8 @@ public class RewardScene extends UIScene {
         ui.addActor(guardsButton);
         // Upgrade to Level 2 (mod feature, user spec 2026-08-11, Task #8/#13) - Armory-only,
         // Level 1 only (mutually exclusive with Manage Guards, same row/position - a shop is never
-        // both at once). 100g placeholder cost, EconomyBuildings.BUILDING_UPGRADE_COST.
-        upgradeButton = Controls.newTextButton("[%80]Upgrade Armory (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])", this::promptUpgradeArmory);
+        // both at once). 2026-08-12 cost table: 300 stone.
+        upgradeButton = Controls.newTextButton("[%80]Upgrade Armory (" + EconomyBuildings.costLabel(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0) + ")", this::promptUpgradeArmory);
         upgradeButton.setSize(doneButton.getWidth() * 2.2f, doneButton.getHeight() * 0.8f);
         upgradeButton.setPosition(doneButton.getX() + doneButton.getWidth() - upgradeButton.getWidth(),
                 doneButton.getY() + doneButton.getHeight() * 2 + 20f);
@@ -189,14 +189,15 @@ public class RewardScene extends UIScene {
     private void promptUpgradeArmory() {
         if (shopActor == null || changes == null)
             return;
-        int cost = EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST); // round 4
-        if (AdventurePlayer.current().getGold() < cost)
+        // 2026-08-12 cost table: Armory upgrade is 300 stone.
+        if (!EconomyBuildings.canAffordCost(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0))
             return;
-        showDialog(createGenericDialog("", "Upgrade this Armory to Level 2 for " + cost
-                        + " [+Gold]?\nUnlocks the ability to hire guards to defend this town.",
+        showDialog(createGenericDialog("", "Upgrade this Armory to Level 2 for "
+                        + EconomyBuildings.costLabel(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0)
+                        + "?\nUnlocks the ability to hire guards to defend this town.",
                 Forge.getLocalizer().getMessage("lblYes"), Forge.getLocalizer().getMessage("lblNo"), () -> {
                     removeDialog();
-                    AdventurePlayer.current().takeGold(cost);
+                    EconomyBuildings.payCost(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0);
                     changes.setBuildingLevel(shopActor.getObjectId(), 2);
                     guardsButton.setVisible(true);
                     upgradeButton.setVisible(false);
@@ -690,7 +691,7 @@ public class RewardScene extends UIScene {
                 if (upgradeButton.isVisible()) {
                     // Text refreshed here too (round 4, difficulty price multiplier) - was
                     // previously baked in once from the raw constant at construction.
-                    upgradeButton.setText("[%80]Upgrade Armory (" + EconomyBuildings.scaledCost(EconomyBuildings.BUILDING_UPGRADE_COST) + " [+Gold])");
+                    upgradeButton.setText("[%80]Upgrade Armory (" + EconomyBuildings.costLabel(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0) + ")");
                     addToSelectable(upgradeButton);
                 }
                 // Re-roll Inventory (round 7) - Armory-only, any level, independent of the

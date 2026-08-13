@@ -72,7 +72,7 @@ public class EconomyBuildings {
     // PointOfInterestChanges (economyBuildingObjectId) - see that class for why.
     public static final String ECONOMY_TYPE_FLAG = "economyBuildingType";
 
-    private static final int BUILD_COST = 100;
+    // (Flat BUILD_COST retired 2026-08-12 - per-type multi-resource costs live in buildCostFor().)
     private static final int RESOURCE_PRODUCTION_PER_DAY = 5;
     private static final int INTEREST_PERIOD_DAYS = 7;
     private static final float INTEREST_RATE = 0.05f;
@@ -193,7 +193,10 @@ public class EconomyBuildings {
 
     // Placeholder cost per user spec 2026-08-11 ("some 100g for now") - shared by every building
     // upgrade (Arena today; Armory once its level 1 art and Guard-hiring mechanic land, Task #13).
-    public static final int BUILDING_UPGRADE_COST = 100;
+    // 2026-08-12 user cost table: the two building upgrades cost resources, not gold.
+    public static final int ARMORY_UPGRADE_STONE = 300;
+    public static final int ARENA_UPGRADE_STONE = 300;
+    public static final int ARENA_UPGRADE_WOOD = 300;
 
     // Armory manual "Re-roll" button (2026-08-11, round 7 - user spec: "cost 100 shards base"),
     // independent of both the automatic weekly refresh and the ordinary (Armory-blocked, since
@@ -819,6 +822,63 @@ public class EconomyBuildings {
         destroyBuilding(actor.getMapStage(), actor.getObjectId());
     }
 
+    // ---------------------------------------------------------------- multi-resource costs
+    // 2026-08-12 cost overhaul (user's table): building costs now mix Gold/Wood/Stone/Shards.
+    // Every component is difficulty-scaled through the same scaledCost() gold always used, and
+    // the label/affordability/deduction triple always derives from ONE set of scaled values so
+    // they can't disagree. Labels use the [+Gold]/[+Wood]/[+Stone]/[+Shards] font glyphs
+    // (Wood/Stone regions added to the plane's own sprites/items.atlas - the same atlas
+    // Controls.getTextraFont() registers, which is why these two tags work where the old
+    // second-atlas attempt in ResourceDisplayActor's comment did not).
+
+    /** "250 [+Gold] + 150 [+Stone]" from BASE values (each component difficulty-scaled here);
+     *  zero components are skipped. */
+    public static String costLabel(int gold, int wood, int stone, int shards) {
+        StringBuilder sb = new StringBuilder();
+        appendCostPart(sb, gold, "[+Gold]");
+        appendCostPart(sb, wood, "[+Wood]");
+        appendCostPart(sb, stone, "[+Stone]");
+        appendCostPart(sb, shards, "[+Shards]");
+        return sb.length() == 0 ? "free" : sb.toString();
+    }
+
+    private static void appendCostPart(StringBuilder sb, int baseAmount, String icon) {
+        if (baseAmount <= 0)
+            return;
+        if (sb.length() > 0)
+            sb.append(" + ");
+        sb.append(scaledCost(baseAmount)).append(' ').append(icon);
+    }
+
+    public static boolean canAffordCost(int gold, int wood, int stone, int shards) {
+        AdventurePlayer player = AdventurePlayer.current();
+        return player.getGold() >= scaledCost(gold)
+                && player.getWood() >= scaledCost(wood)
+                && player.getStone() >= scaledCost(stone)
+                && player.getShards() >= scaledCost(shards);
+    }
+
+    /** Immediate payment for TextraButton flows (upgrades, research). Callers gate on
+     *  canAffordCost() first - this does not re-check. */
+    public static void payCost(int gold, int wood, int stone, int shards) {
+        AdventurePlayer player = AdventurePlayer.current();
+        if (gold > 0) player.takeGold(scaledCost(gold));
+        if (wood > 0) player.takeWood(scaledCost(wood));
+        if (stone > 0) player.takeStone(scaledCost(stone));
+        if (shards > 0) player.takeShards(scaledCost(shards));
+    }
+
+    /** One ActionData deducting every non-zero (scaled) component - MapDialog handles all four
+     *  fields (addWood/addStone are mod additions to DialogData.ActionData). */
+    public static DialogData.ActionData spendCostAction(int gold, int wood, int stone, int shards) {
+        DialogData.ActionData action = new DialogData.ActionData();
+        action.addGold = -scaledCost(gold);
+        action.addShards = -scaledCost(shards);
+        action.addWood = -scaledCost(wood);
+        action.addStone = -scaledCost(stone);
+        return action;
+    }
+
     private static DialogData.ActionData spendGoldAction(int cost) {
         DialogData.ActionData action = new DialogData.ActionData();
         action.addGold = -cost;
@@ -885,25 +945,42 @@ public class EconomyBuildings {
     // short on gold - just greyed out via isDisabled, same pattern already used by the Bank/
     // Exchange dialogs' addButtonRow(). "Already have one of this type" is still a hard hide via
     // condition though, since that's a structural exclusion, not an affordability one.
+    /** Per-type BASE build costs {gold, wood, stone, shards} - 2026-08-12 user cost table.
+     *  NONE = rebuilding the slot as a plain shop. */
+    private static int[] buildCostFor(int type) {
+        switch (type) {
+            case SHARD_MINE:
+            case GOLD_MINE:
+            case LUMBER_MILL:
+            case STONE_MINE:    return new int[]{250, 0, 150, 0};
+            case BANK:          return new int[]{500, 0, 0, 0};
+            case EXCHANGE:      return new int[]{150, 150, 150, 0};
+            case OUTLOOK:       return new int[]{0, 250, 0, 0};
+            case TELEPORTER:    return new int[]{0, 0, 0, 200};
+            case ARCHAEOLOGIST: return new int[]{0, 0, 350, 0};
+            default:            return new int[]{100, 10, 0, 0}; // NONE / plain shop
+        }
+    }
+
     private static DialogData buildOption(int type, int objectId) {
         DialogData option = new DialogData();
-        // Difficulty-scaled (round 4) - computed once here so the label, affordability check, and
-        // actual deduction below all agree on the same number.
-        int cost = scaledCost(BUILD_COST);
-        String label = buildingName(type) + " (" + cost + " [+Gold])";
+        // One base-cost tuple feeds label, affordability, and deduction (each component
+        // difficulty-scaled inside the helpers) so the three can't disagree.
+        int[] c = buildCostFor(type);
+        String label = buildingName(type) + " (" + costLabel(c[0], c[1], c[2], c[3]) + ")";
         // The 5-total cap is otherwise invisible until it silently stops offering the option -
         // show progress the same way the Capitol upgrade button shows its town count (user spec
         // 2026-08-09).
         if (type == TELEPORTER)
-            label = buildingName(type) + " (" + cost + " [+Gold], "
+            label = buildingName(type) + " (" + costLabel(c[0], c[1], c[2], c[3]) + ", "
                     + (countTownTeleporters() + (capitolHasTeleporter() ? 1 : 0)) + "/" + (MAX_TOWN_TELEPORTERS + 1) + " built)";
         option.name = label;
-        option.isDisabled = AdventurePlayer.current().getGold() < cost;
+        option.isDisabled = !canAffordCost(c[0], c[1], c[2], c[3]);
         if (type == NONE) {
-            option.action = new DialogData.ActionData[]{spendGoldAction(cost), setShopRebuiltAction(objectId)};
+            option.action = new DialogData.ActionData[]{spendCostAction(c[0], c[1], c[2], c[3]), setShopRebuiltAction(objectId)};
         } else {
             option.condition = new DialogData.ConditionData[]{noBuildingOfTypeYetCondition(type)};
-            option.action = new DialogData.ActionData[]{spendGoldAction(cost), setShopRebuiltAction(objectId), setEconomyTypeAction(type), setBuiltFlagAction(type)};
+            option.action = new DialogData.ActionData[]{spendCostAction(c[0], c[1], c[2], c[3]), setShopRebuiltAction(objectId), setEconomyTypeAction(type), setBuiltFlagAction(type)};
         }
         return option;
     }
@@ -1071,10 +1148,20 @@ public class EconomyBuildings {
             what = "Repair Shop";
 
         DialogData repair = new DialogData();
-        int cost = scaledCost(BUILD_COST); // difficulty-scaled (round 4)
-        repair.name = what + " (" + cost + " [+Gold])";
-        repair.isDisabled = AdventurePlayer.current().getGold() < cost;
-        repair.action = new DialogData.ActionData[]{spendGoldAction(cost), setShopRebuiltAction(objectId)};
+        // Per-shop-type repair costs (2026-08-12 user cost table): Armory 250g+250 wood,
+        // Booster 200g+10 stone, the 6 land shops 50g+5 wood, everything else plain-shop cost.
+        int[] c;
+        if (isArmoryShop(data))
+            c = new int[]{250, 250, 0, 0};
+        else if (isBoosterShop(data))
+            c = new int[]{200, 0, 10, 0};
+        else if (landShop != null)
+            c = new int[]{50, 5, 0, 0};
+        else
+            c = new int[]{100, 10, 0, 0};
+        repair.name = what + " (" + costLabel(c[0], c[1], c[2], c[3]) + ")";
+        repair.isDisabled = !canAffordCost(c[0], c[1], c[2], c[3]);
+        repair.action = new DialogData.ActionData[]{spendCostAction(c[0], c[1], c[2], c[3]), setShopRebuiltAction(objectId)};
 
         DialogData notNow = new DialogData();
         notNow.name = "Not now";

@@ -840,6 +840,21 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`data/ConfigData.java`** — new `raceEditions` array field (`RaceEditionData[]`).
 - **`data/RaceEditionData.java`** — NEW mod file (race -> 4 edition codes).
 
+### 2026-08-12 multi-resource cost overhaul
+- **`data/DialogData.java`** — `ActionData` gained `addWood`/`addStone` (+copy-ctor lines).
+- **`util/MapDialog.java`** — `setEffects()` handles the two new fields.
+- **`character/OnCollide.java`** — new `withRebuildCost()` (per-building rebuild price for gated
+  non-shop buildings; Arena uses it via MapStage's arena case).
+- **`util/EconomyBuildings.java`** — multi-resource cost core (`costLabel`/`canAffordCost`/
+  `payCost`/`spendCostAction`), per-type `buildCostFor()`, per-shop-type repair costs; flat
+  BUILD_COST/BUILDING_UPGRADE_COST retired (ARMORY_UPGRADE_STONE/ARENA_UPGRADE_* replace them).
+- **`util/TownRestoration.java`** — restore/rebuild/Capitol costs re-priced (multi-resource),
+  custom-cost `buildRebuildShopDialog` overload; dead gold-only helpers removed.
+- **`scene/RewardScene.java` / `scene/ArenaScene.java` / `scene/ResearchScene.java`** — upgrade/
+  research buttons re-priced (stone/wood/shards) with glyph labels.
+- **Plane assets** (not engine, listed for completeness): `The Forgotten Realms/sprites/
+  items.png/.atlas` gained "Wood"/"Stone" 16x16 regions so [+Wood]/[+Stone] font tags resolve.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

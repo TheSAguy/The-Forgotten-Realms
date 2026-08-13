@@ -1,5 +1,5 @@
 items.png
-size: 480,1008
+size: 480,1024
 format: RGBA8888
 filter: Nearest,Nearest
 repeat: none      
@@ -1700,3 +1700,9 @@ SirDonovansAmulet
 LandscapeSketchbook
   xy:80,672
   size:16,16
+Wood
+  xy: 0, 1008
+  size: 16, 16
+Stone
+  xy: 16, 1008
+  size: 16, 16
