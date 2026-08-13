@@ -1682,19 +1682,62 @@ to depend on each other.
   bracket-tree view per a user screenshot) - now shares a row with the mode toggle, immediately to
   its right.
 
-### 21. Speed Up All Monsters — `Not Started`
-- User idea, not yet scoped or discussed in detail - likely a movement-speed tuning pass across
-  the roaming-enemy roster.
-- Re-raised 2026-08-11 as "Enemy movement speed" - treating as the same ask rather than a separate
-  item (not created as its own numbered entry) since the description matches exactly; flag if a
-  genuinely different idea was meant.
-- **Refined same day, wishlist batch, round 5**: "Increase the speed of enemies by tier" - a
-  tier-scaled version rather than a flat blanket speed-up (tougher enemies move faster, not every
-  roaming enemy uniformly). Ties naturally into the existing `EnemyData.tier`/mage-difficulty-tier
-  system (#19, Common/Uncommon/Rare/Mythic - "Apprentice/Adept/Master/Challenger") rather than
-  needing a new tier concept of its own. Not yet scoped: exact per-tier speed values, and whether
-  this covers Territory Control mages too (#7 - they already move at a fixed pace toward their
-  target) or only ordinary roaming/overworld enemies.
+### 21. Speed Up All Monsters — `Built (2026-08-13), not yet playtested` (tier speed rebalance only)
+- User idea, refined over two rounds into "Increase the speed of enemies by tier" - a tier-scaled
+  rebalance rather than a flat blanket speed-up (tougher enemies move faster, not every roaming
+  enemy uniformly). Ties into the existing `EnemyData.tier`/mage-difficulty-tier system (#19).
+  Research confirmed this DOES cover Territory Control mages too (#7) - checked the actual
+  movement code and mages use the exact same per-enemy `speed()` value as ordinary roaming
+  enemies, just steering toward a town instead of the player; no separate "fixed pace" system
+  exists (an earlier note here speculated otherwise, corrected 2026-08-13).
+- **Data-only rebalance, built 2026-08-13** (`enemies.json`, no code changes). User-specified
+  target windows (min-max, median), flyers biased toward the top of each:
+  - Common: 5-30, median 20
+  - Uncommon: 15-40, median 30
+  - Rare: 25-50, median 40
+  - Mythic: 35-60, median 45
+  - Exception (user spec): the 6 Rare/Mythic enemies that were sitting at speed 1 (Ghalta,
+    Lathliss, Sliver Queen, Akroma, Griselbrand, Lorthos - all big, iconic, deliberately-slow
+    finishers) were hardcoded to 10 instead of being pulled into the general rescale, so they stay
+    notably slower than their tier without literally being "stationary."
+  - **Method**: a two-segment (piecewise) linear rescale per tier - old-min to old-median mapped
+    onto new-min to new-median, old-median to old-max mapped onto new-median to new-max - computed
+    against each tier's CURRENT min/median/max (re-measured fresh at build time, excluding the 6
+    exceptions from that baseline so their speed=1 floor didn't distort the low end for everyone
+    else). This is the only method that can hit an exact target min/max/median simultaneously
+    while still preserving each enemy's relative speed ranking within its tier - a plain single
+    linear min-max rescale can't (checked: Common's old median sat at 25% of its old range, but
+    25% of the new 5-30 range is only ~11, not the target 20).
+  - **Flyer bias**: after the base rescale, each flying enemy's speed is blended 35% of the way
+    toward its tier's new max (`newSpeed = base + (tierMax - base) * 0.35`) - Claude's own
+    proposed mechanism/fraction, not user-specified beyond "flyers on the higher end." Verified
+    flyer averages land above non-flyer averages in every tier except Mythic, where 2 of the 6
+    speed=1 exceptions (Akroma, Griselbrand) are themselves flying and get force-set to 10
+    regardless of the blend - an expected, correct side effect of the exception rule taking
+    priority over the general flyer bias for those two specific enemies.
+  - **6 enemies deliberately left untouched**: Evil Wall, Greater Sandwurm, Wandering Treefolk,
+    Wounded Sliver, Karona (Boss), Bazaar Keeper have no `speed` field in the data at all (found
+    during the analysis, not something the rescale should paper over) - likely intentionally
+    stationary/scripted encounters, so no field was added.
+  - **Verified post-write** (re-read the file fresh from disk, independent of the in-memory
+    values used to compute it): Common min=5/median=20/max=30, Uncommon min=15/median=30/max=40,
+    Rare min=10/median=40/max=50, Mythic min=10/median=45/max=60 - all match target exactly (the
+    "10" floors on Rare/Mythic are the 6 hardcoded exceptions, as intended).
+  - **Edit technique note** (for future large `enemies.json` data passes): a straightforward
+    parse-modify-`ConvertTo-Json`-rewrite was deliberately avoided (reserialization risk on a
+    1474-entry, 4.9MB file - same class of large-diff risk already seen once this project on
+    `shops.json`). Instead used a brace-depth-tracked scan to find each enemy's exact character
+    range in the raw file text, patched only the `"speed"` value within each range positionally,
+    and left every other byte untouched - confirmed via `git diff`, only `"speed"` lines changed
+    (1433 of 1474; the other 35 computed to their existing value and correctly produced no diff).
+- Still open, deliberately not built yet (user: "hold this for now"): a separate terrain/
+  reputation-based PLAYER speed modifier discussed alongside this - +15% on the player's own
+  territory (the dedicated "player" biome painted around owned towns/Capitol, `BiomeData.name`,
+  nothing to do with deck color), and on any other color's terrain a modifier keyed off
+  `ColorReputation.getStatus()` for that color: Unhappy -5%, War -10%, Happy +5%, Partner +10%,
+  Neutral unaffected. Confirmed feasible and mapped to the exact hookpoint (`WorldStage.
+  handleMonsterSpawn()`'s existing road-speed check already reads the player's current `BiomeData`
+  at that point) but not implemented - only this tier speed rebalance was asked for so far.
 
 ### 22. Armory Guard Hiring (Level 2 unlock) — `Built (2026-08-11), not yet playtested`
 Full loop is real and reachable in-game from a fresh save: Armory starts Level 1 (unchanged

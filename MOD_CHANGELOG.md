@@ -7888,3 +7888,79 @@ Full clean build after every incremental piece (`mvn -pl forge-gui-mobile -am co
 -o`, BUILD SUCCESS each time). Not yet playtested in-game - in particular the Research screen's
 layout/scrolling and the Lab's exact collision placement have only been verified by reading code
 and decoded tile data, not by seeing them rendered.
+
+## Enemy tier speed rebalance (2026-08-13, MOD_SCOPE.md #21)
+
+Data-only change to `enemies.json` (1474 enemies) - no Java code touched. User spec: rebalance
+every Common/Uncommon/Rare/Mythic enemy's `speed` into fresh per-tier windows (min-max, target
+median), flyers biased toward the top, with 6 specific Rare/Mythic enemies currently at speed 1
+(Ghalta, Lathliss, Sliver Queen, Akroma, Griselbrand, Lorthos) hardcoded to 10 instead of being
+pulled through the general rescale.
+
+**Research first, since the data had moved since the last analysis** (enemies.json changed 187
+lines in the intervening Gaming PC round - 5 new Challenge Arena champions added, mostly Rare
+tier). Re-measured fresh: Common 425 enemies (min 5/median 24/max 80), Uncommon 350 (15/45/60),
+Rare 664 (15/45/60), Mythic 35 (25/45/60) - the old min for Rare/Mythic already excludes the 6
+speed-1 exceptions. Also found 6 enemies (Evil Wall, Greater Sandwurm, Wandering Treefolk, Wounded
+Sliver, Karona (Boss), Bazaar Keeper) with no `speed` field in the data at all - left untouched
+rather than adding a field that was plausibly intentionally absent (likely stationary/scripted
+encounters).
+
+**Method**: two-segment piecewise-linear rescale per tier (old-min→old-median maps to
+new-min→new-median; old-median→old-max maps to new-median→new-max), which is the only approach
+that hits an exact target min/max/median simultaneously while preserving each enemy's relative
+speed ranking within its tier - flagged during the original feasibility discussion that a plain
+single linear min-max rescale can't do this (verified: Common's old median sat at 25% of its old
+range, but 25% of the new 5-30 target range is only ~11, not the target 20). Old-tier baselines
+(min/median/max) were computed excluding the 6 hardcoded exceptions, so their speed-1 floor
+didn't drag down the low end of the rescale for every other enemy in Rare/Mythic.
+
+**Flyer bias**: after the base rescale, each flying enemy's speed blends 35% of the way toward its
+tier's new max (`newSpeed = base + (tierMax - base) * 0.35`) - the exact fraction is Claude's own
+proposal, not user-specified beyond "flyers on the higher end." Verified flyer averages exceed
+non-flyer averages in every tier except Mythic, where 2 of the 6 hardcoded exceptions (Akroma,
+Griselbrand) are themselves flying and get force-set to 10 regardless of the blend - correct,
+expected precedence (the explicit exception list overrides the general flyer-bias rule for those
+two specific enemies, not a bug).
+
+**Edit technique - three failed attempts before landing on the right one, each caught by
+verification before touching the real file, worth recording for the next large data pass on this
+file**:
+1. First attempt: one combined regex (`"name":"X"[\s\S]*?"speed":\s*NUMBER`) across all 1468
+   target enemies in a single `Regex.Replace` pass. Caught by a pre-write match-count check (1412
+   matched, 56 short) - never touched the file.
+2. Second attempt: split the file into per-object chunks on `(?=\r?\n    \{\r?\n)` and patch each
+   chunk independently. The optional `\r?` in the split pattern turned out to produce a MATCH at
+   two adjacent positions for every single real CRLF (once treating the `\r` as consumed, once as
+   not) - chunk count came back as roughly 2x the real object count. Fixed the immediate symptom by
+   anchoring to a literal `\r\n` instead of `\r?\n` (file confirmed to use consistent CRLF via a
+   byte-level check first), which fixed the chunk count, but name-based lookup still lost 57
+   entries - traced to card/enemy names containing `\uXXXX` JSON escape sequences (accented
+   characters, apostrophes in a few cases) that a naive "strip one backslash" unescape didn't
+   decode correctly, so the raw text didn't string-match the `ConvertFrom-Json`-decoded name used
+   to build the lookup table.
+3. Final approach: a brace-depth-tracked scan of the raw file text (honoring quoted strings and
+   backslash-escapes so braces inside string values are never miscounted) to find each top-level
+   array element's exact character range directly - confirmed this produces exactly 1474 ranges,
+   matching the parsed enemy count exactly. Applied the speed-field replacement POSITIONALLY (range
+   index i ↔ `$enemies[i]`, both derived from the same file in the same order) rather than by name
+   at all, sidestepping the whole escaping problem rather than trying to perfectly reverse every
+   JSON escape variant. Every other byte of the file outside the matched `"speed": N` substrings is
+   copied through unchanged via `StringBuilder`, not reserialized - deliberately avoided a
+   parse-modify-`ConvertTo-Json`-rewrite round trip given the reserialization-diff risk already
+   seen once this project on `shops.json`.
+
+**Verification, in order**: pre-write match count must equal expected count (else abort, no write) →
+post-replace content re-validated as parseable JSON with the same enemy count (else abort, no
+write) → file written UTF-8 **without** BOM via explicit `System.Text.UTF8Encoding($false)` (`Set-
+Content -Encoding utf8` in Windows PowerShell 5.1 actually means "UTF-8 **with** BOM", a known
+gotcha, avoided here) → **re-read from disk** (not the in-memory value used to write it) and
+independently re-verified: all 6 exceptions confirmed at exactly speed 10; per-tier min/median/max
+recomputed from the fresh read exactly matches every target (Common 5/20/30, Uncommon 15/30/40,
+Rare 10/40/50, Mythic 10/45/60 - the "10" floors are the hardcoded exceptions, as intended) → `git
+diff` confirmed only `"speed"` value lines changed (1433 of 1474 - the other 35 enemies' rescaled
+value happened to equal their existing value, correctly producing zero diff for those) and nothing
+else in the file moved.
+
+Not yet playtested in-game - numeric verification only, no way to watch the actual movement
+speeds from here.
