@@ -372,19 +372,13 @@ public class EconomyBuildings {
 
     // ---- Armory Guards (2026-08-11, MOD_SCOPE.md #22) ----
     // Tiers reuse EnemyData.tier's own internal strings (Common/Uncommon/Rare/Mythic - see
-    // TerritoryControl.guardFightAttackerWinChance()); these are the display-only mapping to the
-    // "Apprentice/Adept/Master/Challenger" wording the user (and the mage-tier system) uses.
+    // TerritoryControl.guardFightAttackerWinChance()); display mapping is the shared
+    // "Apprentice/Adept/Master/Grandmaster" convention on EnemyData.tierDisplayName() (2026-08-13
+    // rename, was "Challenger" - now delegated there so guard and enemy tier labels can't drift).
     public static final String[] GUARD_TIERS_ASCENDING = {"Common", "Uncommon", "Rare", "Mythic"};
 
     public static String guardTierDisplayName(String tier) {
-        if (tier == null)
-            return "Apprentice";
-        switch (tier) {
-            case "Uncommon": return "Adept";
-            case "Rare": return "Master";
-            case "Mythic": return "Challenger";
-            default: return "Apprentice";
-        }
+        return forge.adventure.data.EnemyData.tierDisplayName(tier);
     }
 
     // Weekly salary, also paid upfront on hire (user spec exact numbers, 2026-08-11). Both scaled
@@ -1558,7 +1552,7 @@ public class EconomyBuildings {
                         break;
                     int goldCost = guardWeeklyGoldCost(tier);
                     int shardCost = guardWeeklyShardCost(tier);
-                    // Shards (Challenger/Mythic tier only) always come straight from the player's
+                    // Shards (Grandmaster/Mythic tier only) always come straight from the player's
                     // own inventory, untouched by the Bank preference (user spec) - checked first,
                     // side-effect-free, so a shard shortfall never leaves gold half-spent below.
                     if (AdventurePlayer.current().getShards() >= shardCost && payGuardGold(changes, goldCost)) {

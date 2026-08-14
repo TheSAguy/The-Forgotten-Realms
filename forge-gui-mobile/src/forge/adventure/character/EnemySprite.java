@@ -15,6 +15,7 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.StaticData;
+import forge.adventure.data.ConfigData;
 import forge.adventure.data.DialogData;
 import forge.adventure.data.EffectData;
 import forge.adventure.data.EnemyData;
@@ -460,6 +461,20 @@ public class EnemySprite extends CharacterSprite implements Steerable<Vector2> {
         if (nameOverride == null || nameOverride.isEmpty())
             return data.getName();
         return nameOverride;
+    }
+
+    /** Display-only tiered name, e.g. "Red Wizard (Adept)" - see EnemyData.getTieredDisplayName()
+     *  for the convention/gating. Uses this sprite's own getName() so a map-authored nameOverride
+     *  still shows, with the tier suffix applied on top of it. */
+    public String getTieredDisplayName() {
+        String base = getName();
+        ConfigData config = Config.instance().getConfigData();
+        if (config == null || !config.showEnemyTierInName)
+            return base;
+        String tierLabel = EnemyData.tierDisplayName(data.tier);
+        if (base.startsWith(tierLabel + " ") && base.length() > tierLabel.length() + 1)
+            base = base.substring(tierLabel.length() + 1);
+        return base + " (" + tierLabel + ")";
     }
     public String getBossInsult(){
         return data.bossInsult;

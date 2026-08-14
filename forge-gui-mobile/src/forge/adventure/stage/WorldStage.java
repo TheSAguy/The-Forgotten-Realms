@@ -355,7 +355,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
                                 collided = false;
                                 duelScene.initDuels(player, mob);
                                 Forge.switchScene(duelScene);
-                            }, Forge.takeScreenshot(), true, false, false, false, "", Current.player().avatar(), mob.getAtlasPath(), Current.player().getName(), mob.getName()));
+                            }, Forge.takeScreenshot(), true, false, false, false, "", Current.player().avatar(), mob.getAtlasPath(), Current.player().getName(), mob.getTieredDisplayName()));
                             currentMob = mob;
                             WorldSave.getCurrentSave().autoSave();
                         });
@@ -543,7 +543,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 duelScene.initDuels(player, duelMage);
                 Forge.switchScene(duelScene);
             }, Forge.takeScreenshot(), true, false, false, false, "", Current.player().avatar(),
-                    duelMage.getAtlasPath(), Current.player().getName(), duelMage.getName()));
+                    duelMage.getAtlasPath(), Current.player().getName(), duelMage.getTieredDisplayName()));
             WorldSave.getCurrentSave().autoSave();
         });
     }
@@ -992,7 +992,15 @@ public class WorldStage extends GameStage implements SaveFileContent {
         List<Integer> lastDuelDays = new ArrayList<>();
         for (Pair<Float, EnemySprite> enemy : enemies) {
             timeouts.add(enemy.getKey());
-            names.add(enemy.getValue().getData().getName());
+            // Raw name field, NOT getName() (2026-08-13 holistic review, pre-existing bug): the 3
+            // Arena champions share nameOverride "Challenger", and getName() prefers the override -
+            // so all three saved as "Challenger" and load()'s WorldData.getEnemy() lookup (raw-name
+            // pass first, nameOverride fallback second) resolved every one of them back to the
+            // FIRST match, silently swapping a roaming Challenger 21/22 into Challenger 20 with its
+            // deck/rewards. The raw name round-trips exactly; old saves that already stored an
+            // override string still resolve through the same fallback they always used.
+            String rawName = enemy.getValue().getData().name;
+            names.add(rawName != null && !rawName.isEmpty() ? rawName : enemy.getValue().getData().getName());
             x.add(enemy.getValue().getX());
             y.add(enemy.getValue().getY());
             questStageIDs.add(enemy.getValue().questStageID);

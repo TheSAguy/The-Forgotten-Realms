@@ -281,6 +281,7 @@
     "shopTypeRerollEnabled": true,
     "arenaUpgradesEnabled": true,
     "contentFilterTablesEnabled": true,
+    "showEnemyTierInName": true,
     "raceEditions": [
         { "race": "Devil",        "editions": ["RNA", "TOR", "SOI", "VOW"] },
         { "race": "Kor",          "editions": ["ZEN", "BFZ", "ZNR", "ROE"] },

@@ -1509,7 +1509,7 @@ public class MapStage extends GameStage {
                         if (isInMap && effect != null && !mob.ignoreDungeonEffect)
                             duelScene.setDungeonEffect(effect);
                         Forge.switchScene(duelScene);
-                    }, Forge.takeScreenshot(), true, false, false, false, "", Current.player().avatar(), mob.getAtlasPath(), Current.player().getName(), mob.getName()));
+                    }, Forge.takeScreenshot(), true, false, false, false, "", Current.player().avatar(), mob.getAtlasPath(), Current.player().getName(), mob.getTieredDisplayName()));
                 }
             });
         });

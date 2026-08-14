@@ -902,7 +902,7 @@ public class TerritoryControl {
 
     // Guard-fight balance adjustment (user spec 2026-08-11): the base tier-vs-tier formula alone
     // felt too safe for the defender once compounded with the base town-capture roll afterward
-    // (e.g. a Common attacker vs. a hired Challenger guard was ~11%, then another roll on top of
+    // (e.g. a Common attacker vs. a hired Grandmaster guard was ~11%, then another roll on top of
     // that) - a flat attacker bonus, partly countered by a new combat role for the Outlook
     // building (previously vision-radius only) if the town has one. Deliberately NOT applied to
     // guardFightAttackerWinChance() itself - that function stays the pure tier-math baseline,

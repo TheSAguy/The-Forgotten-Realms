@@ -135,6 +135,45 @@ public class EnemyData implements Serializable {
             return name;
         return "(Unnamed Enemy)";
     }
+
+    // Enemy tier naming convention (user spec 2026-08-13): Apprentice -> Adept -> Master ->
+    // Grandmaster, the display mapping for EnemyData.tier's internal Common/Uncommon/Rare/Mythic
+    // values. Single source of truth - guard tier labels (EconomyBuildings.guardTierDisplayName())
+    // delegate here too, so guards and enemies can't drift apart. "Grandmaster" replaced the
+    // original "Challenger" label (user request 2026-08-13) - deliberately distinct from the
+    // Arena's "Challenger 20/21/22" champion enemies and the "Challenging Arena" mode, which kept
+    // their names and were never tier labels.
+    public static String tierDisplayName(String tier) {
+        if (tier == null)
+            return "Apprentice";
+        switch (tier) {
+            case "Uncommon": return "Adept";
+            case "Rare": return "Master";
+            case "Mythic": return "Grandmaster";
+            default: return "Apprentice";
+        }
+    }
+
+    /**
+     * Display-only name with the tier appended, e.g. "Red Wizard (Adept)" (user spec 2026-08-13,
+     * gated on showEnemyTierInName so stock planes are untouched). The tiered wizard enemies'
+     * data names already carry their tier as a prefix ("Adept Red Wizard") - when that prefix
+     * matches the enemy's OWN tier label, it's stripped so the name doesn't state the tier twice.
+     * A non-matching prefix is left alone (it would be part of the actual name, not a tier
+     * marker). Never used for identity - quest matching (EnemyData.match()), deck-number keys
+     * (getEnemyDeckNumber), .tmx "enemy" references, and WorldData.getEnemy() lookups all use the
+     * raw name/getName(), which this method never alters.
+     */
+    public String getTieredDisplayName() {
+        String base = getName();
+        ConfigData config = Config.instance().getConfigData();
+        if (config == null || !config.showEnemyTierInName)
+            return base;
+        String tierLabel = tierDisplayName(tier);
+        if (base.startsWith(tierLabel + " ") && base.length() > tierLabel.length() + 1)
+            base = base.substring(tierLabel.length() + 1);
+        return base + " (" + tierLabel + ")";
+    }
     public String getBossInsult(){
         return bossInsult;
     }

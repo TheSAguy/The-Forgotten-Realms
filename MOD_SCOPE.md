@@ -1771,27 +1771,28 @@ flips to Level 2 art -> "Manage Guards" button appears -> hire any of 4 tiers (s
 cost-gated, upfront payment) or dismiss an existing one -> weekly salary auto-deducts (disbands on
 missed payment) -> an attacking mage must beat every hired guard, strongest first, no weakening
 between fights, before it can proceed to the town's/Capitol's own capture resolution.
-- **Tiers** reuse the plane's existing Apprentice/Adept/Master/Challenger ladder (`EnemyData.tier`,
-  built 2026-08-10 for mage difficulty - not a new parallel system). Towns hold 1 guard, Capitols 2
-  (`EconomyBuildings.maxGuardsForTown()`).
+- **Tiers** reuse the plane's existing Apprentice/Adept/Master/Grandmaster ladder (`EnemyData.tier`,
+  built 2026-08-10 for mage difficulty - not a new parallel system; top tier renamed from
+  "Challenger" 2026-08-13 per user, display-only - internal strings stay Common/Uncommon/Rare/
+  Mythic). Towns hold 1 guard, Capitols 2 (`EconomyBuildings.maxGuardsForTown()`).
 - **Costs** (`EconomyBuildings.guardWeeklyGoldCost()`/`guardWeeklyShardCost()`): 50/100/150/200
-  gold weekly (Apprentice/Adept/Master/Challenger), +5 shards only at Challenger - same amount
+  gold weekly (Apprentice/Adept/Master/Grandmaster), +5 shards only at Grandmaster - same amount
   charged upfront on hire, exact user spec.
 - **Combat odds** (`TerritoryControl.guardFightAttackerWinChance()`): reuses the Item Economy
   round's own Common/Uncommon/Rare/Mythic = 1/2/4/8 power weighting, `attackerPower /
   (attackerPower + defenderPower)`. Base matrix (attacker rows, defender columns) before the
   balance pass below:
 
-  | Attacker \ Defender | Apprentice | Adept | Master | Challenger |
+  | Attacker \ Defender | Apprentice | Adept | Master | Grandmaster |
   |---|---|---|---|---|
   | **Apprentice** | 50% | 33% | 20% | 11% |
   | **Adept** | 67% | 50% | 33% | 20% |
   | **Master** | 80% | 67% | 50% | 33% |
-  | **Challenger** | 89% | 80% | 67% | 50% |
+  | **Grandmaster** | 89% | 80% | 67% | 50% |
 
 - **Balance pass (2026-08-11, same day, after the user saw the matrix above)**: felt too safe for
   the defender once compounded with the base town-capture roll (a Common attacker vs. a hired
-  Challenger guard alone was ~11%, then another roll on top). Attacker gets a flat +10% in any
+  Grandmaster guard alone was ~11%, then another roll on top). Attacker gets a flat +10% in any
   guard fight (`GUARD_FIGHT_ATTACKER_BONUS`), countered by -5% if the defending town has an
   Outlook (`OUTLOOK_DEFENSE_BONUS` - Outlook's first role beyond fog-of-war vision
   radius), net +5%/+10% attacker advantage with/without one, clamped to [0,1]. The pure tier-math
@@ -2220,7 +2221,7 @@ Two new checkboxes in the Bank dialog, both checked by default: **"Pay Guards fr
 (Gold-only - a guard's own town's bank balance is drawn before the player's inventory; unchecked
 reverses that order; either way still dismisses the guard if the combined total falls short) and
 **"Gold Mine deposits into Bank Directly"** (that town's Gold Mine production credits its own bank
-instead of the player's inventory, when that town has a Bank built). Shards (Mythic/"Challenger"
+instead of the player's inventory, when that town has a Bank built). Shards (Mythic/"Grandmaster"
 tier only) are untouched by either checkbox in every path, always paid from inventory as before.
 Practical scope note: since Bank can currently only be built at the Capitol, both checkboxes are
 effectively Capitol-only today - an ordinary town's guard (max 1) always pays 100% from inventory
@@ -2696,3 +2697,24 @@ button (`DeckTesterSimulator.runBatch()` now returns a cancellable `Handle`, pol
 cancellation lands within half a second even mid-game). See `MOD_CHANGELOG.md`'s 2026-08-13 "Deck
 Tester freeze fix..." entry for the full writeup. Still not yet playtested against a live freeze
 repro.
+
+### 58. Grandmaster Tier Rename + Tiered Enemy Display Names — `Built (2026-08-13), not yet playtested`
+User spec: the enemy tier ladder's display convention is now Apprentice → Adept → Master →
+**Grandmaster** (top tier renamed from "Challenger"), and every enemy shows its tier appended to
+its displayed name, e.g. **"Red Wizard (Adept)"**. Display-only throughout: internal tier strings
+stay Common/Uncommon/Rare/Mythic, no enemies.json names changed, and the new name suffix is gated
+on a new `showEnemyTierInName` config flag (on only for this plane). The tiered wizards' names
+already carry their tier as a prefix ("Adept Red Wizard") - a prefix matching the enemy's own tier
+is stripped so the display is "Red Wizard (Adept)", not doubled. Shown on vs-transition screens,
+the in-duel opponent nameplate, and boss intro/loss dialogs; Inn-tournament event opponents stay
+raw (their standings/bracket screens use raw names). **Quest safety confirmed before building**
+(user asked): quest Defeat matching runs on `EnemyData.match()` - raw name + questTags - and every
+other identity path (.tmx enemy refs, `WorldData.getEnemy()`, deck-number keys) also uses raw
+names, all untouched. Known cosmetic quirk left for user decision: the 3 Arena champions
+(nameOverride "Challenger", tier Mythic) display "Challenger (Grandmaster)" - their names were
+never tier labels, so they were deliberately not renamed. Same round also fixed 15
+holistic-review findings across the last 2 days' work - see MOD_CHANGELOG.md's "2026-08-13 (late
+night 2)" entry for the full list (dungeon-chest edition-theme clobbering + wasteland bypass, Deck
+Tester End-Test tally/thread-leak/statistics-pollution, a latent Commander-removal NPE, the
+"edition status" stale-POI readout, a pre-existing roaming-champion save/load collision, a stale
+enemies.csv, and date-label corrections).

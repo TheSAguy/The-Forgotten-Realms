@@ -1012,7 +1012,92 @@ needs a NEW game for the Temple-icon fix (marker is baked at world-gen, current 
 icons), a visit to one of the 4 Mysterious Mage locations, a colored-booster-shop purchase, and a
 town/shop restoration followed by a research purchase to confirm the shop immediately reflects it.
 
-## 2026-08-14: Deck Tester 50x speed, "AI vs. AI - No Watch" headless batch mode, mode rename
+## 2026-08-13 (late night 2): Grandmaster tier rename, tiered enemy display names, 2-day holistic review fixes
+
+Two user requests plus a full holistic review of everything from the last 2 days (16 commits,
+including the same evening's other-session commit `6c1567bcd6d`, which this session had never
+reviewed - 4 parallel reviewers + a verify pass per finding; 15 of 16 candidate findings
+confirmed, all fixed below).
+
+**Tier rename + tiered enemy names (user spec).** The tier display ladder is now
+Apprentice/Adept/Master/**Grandmaster** (was "Challenger" at the top) - display-only, the
+internal `EnemyData.tier` strings stay Common/Uncommon/Rare/Mythic and no data names changed.
+Single source of truth is new `EnemyData.tierDisplayName()`; `EconomyBuildings.guardTierDisplayName()`
+now delegates to it (guard dialogs pick the rename up automatically), and the World Standings
+help text was updated. The Arena's "Challenger 20/21/22" champion enemies and the "Challenging
+Arena" mode were never tier labels and are deliberately untouched. Second part: enemies now
+display their tier appended to their name, e.g. **"Red Wizard (Adept)"** - new
+`EnemyData.getTieredDisplayName()`/`EnemySprite.getTieredDisplayName()`, gated on a new
+`showEnemyTierInName` config flag (false by default, true only in this plane's config.json, per
+the standing opt-in rule). The tiered wizards' data names already carry their tier as a prefix
+("Adept Red Wizard") - when that prefix matches the enemy's own tier label it's stripped, so the
+display is "Red Wizard (Adept)", exactly the user's example, not "Adept Red Wizard (Adept)".
+Applied at display sites only: the overworld/map/arena vs-transition screens, the in-duel
+opponent nameplate, and both boss dialogs (intro + loss insult). **Quest safety confirmed before
+implementing** (user asked explicitly): quest Defeat objectives match via `EnemyData.match()` -
+raw `name` field + questTags, never display names - and every other identity path (.tmx `enemy=`
+references, `WorldData.getEnemy()`, `getEnemyDeckNumber()` keys, quest spawn-boost lists) also
+uses raw names, all untouched. Inn-tournament event duels deliberately stay RAW-named
+(holistic-review finding: EventScene's standings/bracket show raw participant names, and a
+tiered nameplate would have given the same opponent two names within one event). Known cosmetic
+quirk, flagged for user decision: the 3 Arena champions (nameOverride "Challenger", tier Mythic)
+now display "Challenger (Grandmaster)" - consistent with the convention, but juxtaposes the old
+and new tier words; renaming those champions is a data change left un-made deliberately.
+
+**Holistic review fixes (all confirmed by an adversarial verify pass):**
+- **Dungeon-chest edition restriction (2 moderate bugs in the same-evening `6c1567bcd6d`
+  feature, `EditionProgression.restrictDungeonRewardsForCurrentPoi()`):** (1) it OVERWROTE
+  hand-authored `editions` arrays on tmx chest rewards - 21 of this plane's dungeon maps carry
+  authored set themes (the Prismari Classroom's all-STX booster chest, Tarnation's OTJ/BIG/OTP
+  chests, all 5 Classrooms, etc.) that the territory shard silently destroyed. Authored entries
+  now pass through untouched; only open-ended entries get the territory restriction. (2) The
+  documented NEUTRAL fallback never actually fired: `currentColorAtPoi()` returns the raw BIOME
+  name ("waste"/"player"/"ocean" for non-color land - never null in practice), which isn't a
+  shard key, so the lookup came back empty = NO restriction - the exact gap the feature claims
+  to close stayed open on all non-color land, and capturing territory around a dungeon silently
+  UN-restricted its chests. Any color with no shard entry now maps to NEUTRAL.
+- **Deck Tester batch (End Test follow-ups on `6c1567bcd6d`'s Handle rewrite,
+  `DeckTesterSimulator`):** a game aborted mid-run via End Test was tallied as a completed draw
+  (and an abort during the FINAL game produced a "clean full run" with a phantom draw - the
+  ended-early check compares completed vs total). Aborted games are no longer tallied at all.
+  Also, an abandoned (timed-out or cancelled) game's worker thread kept simulating at full CPU
+  indefinitely - `shutdownNow()`'s interrupt is largely ignored by forge-game's engine loop; now
+  `game.setGameOver(Draw)` is called on the abandoned game, the exact mechanism stock
+  `SimulateMatch`'s own timeout handler uses.
+- **Deck Tester statistics pollution (`DuelScene.afterGameEnd()`):** Deck Tester duels (all
+  modes) wrote win/loss rows into the player's permanent duel statistics under "Deck Tester",
+  despite the mode being documented consequence-free - in Watch mode recording whatever the
+  AI-piloted seat happened to do. Skipped now via `EnemyData.fixedDeck != null`, which only Deck
+  Tester's synthetic clones ever set.
+- **Boss loss dialog title** now uses the tiered display name, matching the intro dialog
+  (`enemyName` itself stays raw - it's the statistics identity key).
+- **Latent NPE armed by the Commander-mode removal (`Config.starterDeck()`):** the pre-existing
+  `case Pile:` fall-through into `case Commander:` iterates `commanderDecks`, which the
+  Commander removal left null for this plane - a Pile pick whose color found no match would have
+  thrown. Null-guarded (fall-through itself preserved - it's stock behavior).
+- **"edition status" console command** reported the LAST-visited POI as current when run from
+  the overworld (`rootPoint` is never cleared on exit) - now gated on `MapStage.isInMap()`.
+- **Pre-existing roaming-enemy save/load collision (`WorldStage.save()`):** roaming enemies
+  saved `getName()` (nameOverride-first) - all 3 Arena champions share nameOverride "Challenger",
+  so a roaming Challenger 21/22 silently reloaded as Challenger 20 (first fallback match). Saves
+  now store the raw `name` field, which `WorldData.getEnemy()`'s raw-name-first lookup
+  round-trips exactly; old saves resolve through the same fallback they always used.
+- **enemies.csv regenerated stale:** the Mysterious Mage port added the enemy to enemies.json
+  but not the Content Filter Tables CSV - row appended (matching CRLF/format).
+- **Date corrections:** several comments/doc headers from the previous two rounds said
+  2026-08-14 for work done 2026-08-13 (context-compaction drift) - all corrected, including
+  MOD_SCOPE's guard-section tier tables (now Grandmaster) and this file's Deck Tester header.
+
+### Verification
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o -q` clean. Spliced into both installed jars
+(forge/adventure + FCardPanel + PlaybackSpeed), res folder mirrored (config.json flag,
+enemies.csv row). Spot-checked 8 extracted .class files for symbols unique to each fix
+(Grandmaster, getTieredDisplayName, authored-theme, the End Test abort string, the isInMap gate,
+etc.) plus the deployed config.json/enemies.csv contents. Not yet playtested - the visible bits
+to check: guard dialogs say Grandmaster, enemies show "(Tier)" suffixes on vs-screens/nameplates,
+the Prismari Classroom chest gives STX cards again, End Test mid-game doesn't add a phantom draw.
+
+## 2026-08-13 (night): Deck Tester 50x speed, "AI vs. AI - No Watch" headless batch mode, mode rename
 
 User feedback after trying the AI-vs-AI "Watch" mode (added 2026-08-13): "worked great." Three
 requests: a 50x speed option alongside the existing 10x spectator button; rename "Coin Flip" to

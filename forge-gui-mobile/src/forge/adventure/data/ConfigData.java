@@ -57,6 +57,10 @@ public class ConfigData {
     // User-editable CSV content tables ("config tables/" in the plane folder) that can exclude
     // specific expansions/items/enemies from the game - see ContentFilterTables.java.
     public boolean contentFilterTablesEnabled = false;
+    // Show each enemy's difficulty tier appended to its displayed name, e.g. "Red Wizard (Adept)"
+    // (user spec 2026-08-13) - display-only, see EnemyData.getTieredDisplayName(). Same opt-in
+    // rule as every flag above: false here, true only in "The Forgotten Realms"/config.json.
+    public boolean showEnemyTierInName = false;
     // Per-race starting expansions (user spec 2026-08-12) - see RaceEditionData. When a race has
     // an entry here, it replaces the flat starterEditions first-N seeding; races without an
     // entry (and planes without this array) fall back to starterEditions.

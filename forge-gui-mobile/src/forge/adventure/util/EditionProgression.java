@@ -246,8 +246,25 @@ public class EditionProgression {
      * dungeon's land, same lookup WorldStage's roaming spawner and TerritoryControl's own
      * enemy-re-theming already use - so a dungeon chest re-restricts itself if the surrounding
      * territory changes hands after world-gen, consistent with how its roaming enemies would.
-     * Falls back to NEUTRAL (not "no restriction") when the current territory has no color match,
-     * same fail-safe EnemySprite's loot restriction uses for colorless encounters.
+     * Falls back to NEUTRAL (not "no restriction") when the current territory has no color match.
+     * <p>
+     * Two fixes from the 2026-08-13 holistic review of this (same-day) feature:
+     * <ul>
+     * <li>Hand-authored edition themes win. 21 of this plane's dungeon .tmx maps carry their own
+     * {@code editions} arrays on chest rewards (e.g. the Prismari Classroom's all-STX booster
+     * chest, Tarnation's OTJ/BIG/OTP chests) - restrictToEditions() would silently OVERWRITE those
+     * with the territory shard, destroying the authored set theme (its "overwrite not intersect"
+     * comment was only ever verified against shops.json, where no nested entry carries editions).
+     * An entry that already declares editions is deliberate content, not unrestricted loot - pass
+     * it through untouched, restrict only the open-ended entries.</li>
+     * <li>The NEUTRAL fallback now actually fires for non-color land. currentColorAtPoi() returns
+     * the raw BIOME name and is only null off-map - this plane's wasteland/"player"/ocean biomes
+     * returned "waste"/"player"/"ocean", which aren't shard keys, so getEditionsForColor() came
+     * back empty and restrictToEditions() treated that as NO restriction - the exact gap this
+     * feature claims to close stayed open on all non-color land (and capturing territory around a
+     * dungeon silently UN-restricted its chests). Any color with no shard entry now maps to
+     * NEUTRAL, matching this doc's original claim.</li>
+     * </ul>
      */
     public static Iterable<RewardData> restrictDungeonRewardsForCurrentPoi(Iterable<RewardData> source) {
         World world = WorldSave.getCurrentSave().getWorld();
@@ -257,11 +274,27 @@ public class EditionProgression {
         String color = rootPoint != null ? TerritoryControl.currentColorAtPoi(world, rootPoint) : null;
         String colorLabel = color != null ? color : NEUTRAL;
         List<String> editionRestriction = getEditionsForColor(world, colorLabel);
+        if (editionRestriction.isEmpty()) {
+            colorLabel = NEUTRAL;
+            editionRestriction = getEditionsForColor(world, NEUTRAL);
+        }
+        List<RewardData> restricted = new ArrayList<>();
+        int authored = 0;
+        for (RewardData rd : source) {
+            if (rd != null && rd.editions != null && rd.editions.length > 0) {
+                restricted.add(rd);
+                authored++;
+            } else {
+                for (RewardData clone : restrictToEditions(Collections.singletonList(rd), editionRestriction))
+                    restricted.add(clone);
+            }
+        }
         // Diagnostic-only logging - greppable in forge.log as "[TFR-LootEditions]", same tag
         // EnemySprite's roaming-monster loot restriction already uses, distinguished by the
         // "dungeon-chest" source label instead of an enemy name.
         System.out.println("[TFR-LootEditions] dungeon-chest poi=\"" + (rootPoint != null ? rootPoint.getData().name : "(unknown)")
-                + "\" color=" + colorLabel + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
-        return restrictToEditions(source, editionRestriction);
+                + "\" color=" + colorLabel + " restriction(" + editionRestriction.size() + ")=" + editionRestriction
+                + (authored > 0 ? " (authored-theme entries passed through: " + authored + ")" : ""));
+        return restricted;
     }
 }

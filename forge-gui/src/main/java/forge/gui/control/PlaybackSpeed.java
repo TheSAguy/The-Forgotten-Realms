@@ -4,7 +4,7 @@ public enum PlaybackSpeed {
     SLOW(3),
     NORMAL(1),
     FAST(.1),
-    // Added 2026-08-14 (user request, via the Adventure mod's AI-vs-AI Deck Tester "Watch" mode) -
+    // Added 2026-08-13 (user request, via the Adventure mod's AI-vs-AI Deck Tester "Watch" mode) -
     // an extra tier between FAST and SLOW in the existing NORMAL->FAST->SLOW->NORMAL cycle. This
     // is a shared/global spectator-pacing control (see FControlGamePlayback), not Adventure-mode
     // specific - extending it benefits any spectated/AI-vs-AI match in Forge, not just Adventure.

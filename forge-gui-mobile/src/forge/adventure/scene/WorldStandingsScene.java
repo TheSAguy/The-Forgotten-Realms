@@ -81,7 +81,7 @@ public class WorldStandingsScene extends UIScene {
         showInfoDialog("Expansion",
                 "Each color periodically sends a mage from its Castle toward one of its nearest "
                         + "neutral or enemy towns. Reaching an undefended town gives it a real chance to "
-                        + "capture it - stronger mages (Apprentice/Adept/Master/Challenger) have a much "
+                        + "capture it - stronger mages (Apprentice/Adept/Master/Grandmaster) have a much "
                         + "better chance.\n\n"
                         + "Defending a town:\n"
                         + "- Hire Guards (Armory, Level 2) to fight the attacker before it can capture.\n"

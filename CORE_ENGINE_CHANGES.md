@@ -1080,6 +1080,29 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   territory color - a QC-design-agent proposal, on-demand alternative to grepping `forge.log` for
   the right `[TFR-ShopEditions]`/`[TFR-LootEditions]` line.
 
+### 2026-08-13 (late night 2) Grandmaster rename, tiered enemy names, holistic-review fixes
+- **`data/EnemyData.java`** / **`data/ConfigData.java`** / **`character/EnemySprite.java`** (mod
+  files) — new `tierDisplayName()`/`getTieredDisplayName()` + `showEnemyTierInName` flag.
+- **`scene/DuelScene.java`** — tiered opponent nameplate/boss-dialog titles (raw for event duels);
+  Deck Tester matches no longer write duel statistics (`fixedDeck` discriminator).
+- **`stage/WorldStage.java`** — vs-screen names tiered; roaming-enemy save now stores the raw
+  `name` field instead of `getName()` (pre-existing nameOverride save/load collision fix).
+- **`stage/MapStage.java`** / **`scene/ArenaScene.java`** / **`scene/WorldStandingsScene.java`** /
+  **`util/EconomyBuildings.java`** / **`util/TerritoryControl.java`** /
+  **`pointofintrest/PointOfInterestChanges.java`** — display-site swaps, guardTierDisplayName
+  delegation, Grandmaster label text/comments.
+- **`util/EditionProgression.java`** — dungeon-chest restriction fixes: authored `editions` themes
+  pass through untouched; non-shard territory colors ("waste"/"player"/"ocean") now fall back to
+  NEUTRAL instead of silently unrestricting.
+- **`util/DeckTesterSimulator.java`** — End Test abort no longer tallied as a completed draw;
+  abandoned games stopped via `setGameOver(Draw)` (stock SimulateMatch's own mechanism).
+- **`util/Config.java`** — null-guard on `commanderDecks` in `starterDeck()`'s pre-existing
+  Pile→Commander fall-through (armed by this plane's Commander-mode removal).
+- **`stage/ConsoleCommandInterpreter.java`** — "edition status" gated on isInMap() (stale
+  rootPoint from the overworld).
+- **`toolbox/FCardPanel.java`** / **`gui/control/PlaybackSpeed.java`** (shared files, entries
+  above) — comment date corrections only (08-14 → 08-13).
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

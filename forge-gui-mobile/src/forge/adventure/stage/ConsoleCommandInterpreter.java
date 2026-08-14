@@ -658,8 +658,12 @@ public class ConsoleCommandInterpreter {
             java.util.Set<String> unlocked = Current.player().getUnlockedEditions();
             sb.append("  player-unlocked (").append(unlocked == null ? 0 : unlocked.size()).append("): ")
                     .append(unlocked == null || unlocked.isEmpty() ? "(none)" : String.join(", ", unlocked)).append("\n");
+            // rootPoint is set on POI entry and never cleared on exit (2026-08-13 holistic
+            // review) - without the isInMap() check, running this from the overworld reported the
+            // LAST-visited POI as "current", with its territory color, exactly when the readout
+            // matters most for QC.
             PointOfInterest rootPoint = forge.adventure.scene.TileMapScene.instance().rootPoint;
-            if (rootPoint == null) {
+            if (rootPoint == null || !MapStage.getInstance().isInMap()) {
                 sb.append("  Not currently at a PoI - no local restriction to report.\n");
             } else {
                 String territoryColor = forge.adventure.util.TerritoryControl.currentColorAtPoi(world, rootPoint);

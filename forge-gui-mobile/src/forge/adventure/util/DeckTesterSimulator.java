@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import forge.LobbyPlayer;
 import forge.deck.Deck;
 import forge.game.Game;
+import forge.game.GameEndReason;
 import forge.game.GameRules;
 import forge.game.GameType;
 import forge.game.Match;
@@ -20,6 +21,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
@@ -100,6 +102,7 @@ public class DeckTesterSimulator {
                     }
                     RegisteredPlayer winner = null;
                     RegisteredPlayer rpA = null, rpB = null;
+                    boolean userAborted = false;
                     try {
                         rpA = RegisteredPlayer.forVariants(2, variants, deckA, null, false, null, null);
                         rpA.setPlayer(playerA);
@@ -134,9 +137,11 @@ public class DeckTesterSimulator {
                             t.setDaemon(true);
                             return t;
                         });
+                        final AtomicReference<Game> gameRef = new AtomicReference<>();
                         try {
                             Future<?> future = gameExecutor.submit(() -> {
                                 Game game = match.createGame();
+                                gameRef.set(game);
                                 match.startGame(game);
                             });
                             // Poll in short slices rather than one 90s blocking get() - lets the
@@ -152,6 +157,7 @@ public class DeckTesterSimulator {
                                 } catch (TimeoutException pollTimeout) {
                                     if (handle.cancelled.get()) {
                                         timedOut = true;
+                                        userAborted = true;
                                         System.out.println("[TFR-DeckTesterBatch] game " + gameNumber
                                                 + "/" + count + " abandoned - user ended the test");
                                         break;
@@ -170,6 +176,18 @@ public class DeckTesterSimulator {
                                     + " failed or timed out, counting as a draw: " + e);
                         } finally {
                             gameExecutor.shutdownNow();
+                            // 2026-08-13 holistic review: shutdownNow() only delivers an interrupt,
+                            // which forge-game's engine loop largely ignores - an abandoned game
+                            // kept simulating at full CPU on its daemon thread indefinitely (one
+                            // per timed-out/cancelled game). setGameOver(Draw) is how stock
+                            // SimulateMatch.simulateSingleMatch()'s own timeout handler stops an
+                            // abandoned game's loop - same cross-thread call, same precedent.
+                            if (timedOut && gameRef.get() != null) {
+                                try {
+                                    gameRef.get().setGameOver(GameEndReason.Draw);
+                                } catch (Exception ignored) {
+                                }
+                            }
                         }
                         winner = timedOut ? null : match.getWinner();
                     } catch (Exception | StackOverflowError e) {
@@ -180,6 +198,15 @@ public class DeckTesterSimulator {
                         System.err.println("[TFR-DeckTesterBatch] game " + (i + 1) + "/" + count
                                 + " threw during setup, counting as a draw: " + e);
                     }
+
+                    // 2026-08-13 holistic review: a game the user aborted mid-run via End Test was
+                    // previously tallied as a completed draw (and, when it was the FINAL game,
+                    // made the batch look like a clean full run with a phantom draw in it - the
+                    // caller's "ended early" check compares completed vs total). An aborted game
+                    // is simply not a result - skip the tally entirely and let the loop-top
+                    // cancelled check log the batch-level "ended by user" line and exit.
+                    if (userAborted)
+                        continue;
 
                     if (winner != null && winner == rpA)
                         result.deckAWins++;

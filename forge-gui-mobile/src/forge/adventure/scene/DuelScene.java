@@ -211,8 +211,11 @@ public class DuelScene extends ForgeScene {
                 final FBufferedImage fb = getFBEnemyAvatar();
                 String bossInsultMsg = insult != null ? insult
                         : Forge.getLocalizer().getMessage("AdvBossInsult" + Aggregates.randomInt(1, 44));
+                // Tiered title matches the boss INTRO dialog (2026-08-13 holistic review - the
+                // intro was tiered but this loss dialog still showed the raw name). enemyName
+                // itself stays raw above: it's the statistics identity key in afterGameEnd().
                 bossDialogue = createFOption(bossInsultMsg,
-                        enemyName, fb, () -> {
+                        enemy.getTieredDisplayName(), fb, () -> {
                             exitChain.run();
                             fb.dispose();
                         });
@@ -250,7 +253,14 @@ public class DuelScene extends ForgeScene {
             Forge.clearScreenStack();
             Forge.advFreezePlayerControls = false;
             Scene last = Forge.switchToLast();
-            Current.player().getStatistic().setResult(enemyName, winner);
+            // Deck Tester matches (all modes) are documented as consequence-free - no rewards, no
+            // reputation, no bracket - but previously still wrote a win/loss row into the player's
+            // permanent duel statistics under "Deck Tester" (2026-08-13 holistic review; in Watch
+            // mode the recorded result was whatever the AI-piloted seat happened to do).
+            // EnemyData.fixedDeck is only ever set on Deck Tester's synthetic per-fight clone
+            // (see its own field comment), making it the reliable discriminator here.
+            if (enemy == null || enemy.getData().fixedDeck == null)
+                Current.player().getStatistic().setResult(enemyName, winner);
 
             if (last instanceof IAfterMatch) {
                 ((IAfterMatch) last).setWinner(winner, isArena);
@@ -500,8 +510,17 @@ public class DuelScene extends ForgeScene {
             }
             RegisteredPlayer aiPlayer = RegisteredPlayer.forVariants(playerCount, appliedVariants, deck, null, false, null, null);
 
-            LobbyPlayer enemyPlayer = GamePlayerUtil.createAiPlayer(currentEnemy.getName(), selectAI(currentEnemy.ai));
-            enemyPlayer.setName(enemy.getName()); //Override name if defined in the map.(only supported for 1 enemy atm)
+            // Tiered display name (user spec 2026-08-13, e.g. "Red Wizard (Adept)") - display-only,
+            // gated on showEnemyTierInName inside the helper; the LobbyPlayer name is never used
+            // for identity (winner detection is reference-equality on RegisteredPlayer, quest
+            // matching goes through EnemyData.match() on the raw name field). Inn-tournament event
+            // duels (eventData != null) stay RAW - EventScene's standings/bracket/vs-screen all
+            // show raw participant names, and a tiered in-duel nameplate would give the same
+            // opponent two different names within one event (2026-08-13 holistic review).
+            boolean tierNames = eventData == null;
+            LobbyPlayer enemyPlayer = GamePlayerUtil.createAiPlayer(
+                    tierNames ? currentEnemy.getTieredDisplayName() : currentEnemy.getName(), selectAI(currentEnemy.ai));
+            enemyPlayer.setName(tierNames ? enemy.getTieredDisplayName() : enemy.getName()); //Override name if defined in the map.(only supported for 1 enemy atm)
             TextureRegion enemyAvatar = enemy.getAvatar(i);
             enemyAvatar.flip(true, false); //flip facing left
             FSkin.getAvatars().put(enemyAvatarKey + i, enemyAvatar);
@@ -599,11 +618,11 @@ public class DuelScene extends ForgeScene {
             final FBufferedImage fb = getFBEnemyAvatar();
             String Intro = enemy.getBossIntro();
             if (Intro != null){
-                bossDialogue = createFOption((Intro), enemy.getName(), fb, fb::dispose);
+                bossDialogue = createFOption((Intro), enemy.getTieredDisplayName(), fb, fb::dispose);
                 }
                 else {
                 bossDialogue = createFOption(isDeckMissing ? isDeckMissingMsg : Forge.getLocalizer().getMessage("AdvBossIntro" + Aggregates.randomInt(1, 35)),
-                enemy.getName(), fb, fb::dispose);
+                enemy.getTieredDisplayName(), fb, fb::dispose);
                 }
             matchOverlay = new LoadingOverlay(() -> FThreads.delayInEDT(300, () -> FThreads.invokeInEdtNowOrLater(() ->
             bossDialogue.show())), false, true);

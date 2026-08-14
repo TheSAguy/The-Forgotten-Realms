@@ -121,7 +121,7 @@ public class FCardPanel extends FDisplayObject {
             return;
         }
 
-        // SUPERFAST added 2026-08-14 - must skip animation same as FAST (it's a strictly faster
+        // SUPERFAST added 2026-08-13 - must skip animation same as FAST (it's a strictly faster
         // tier; leaving this at "== FAST" only would have re-enabled animation at the new fastest
         // speed instead of skipping it).
         if (!animate || MatchController.instance.getGameSpeed() == PlaybackSpeed.FAST

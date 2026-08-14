@@ -293,9 +293,16 @@ public class Config {
                     }
                 }
             case Commander:
-                for (ObjectMap.Entry<String, String> entry : difficultyData.commanderDecks) {
-                    if (ColorSet.fromNames(entry.key.toCharArray()).getColor() == color.getColor()) {
-                        return CardUtil.getDeck(entry.value, false, false, "", false, false);
+                // Null-guard (2026-08-13 holistic review): removing Commander mode from a plane's
+                // config.json leaves commanderDecks null there, and the pre-existing Pile->Commander
+                // fall-through above (stock behavior, deliberately preserved) would then NPE for a
+                // Pile pick whose color found no pileDecks match. Harmless on planes that still
+                // ship commanderDecks.
+                if (difficultyData.commanderDecks != null) {
+                    for (ObjectMap.Entry<String, String> entry : difficultyData.commanderDecks) {
+                        if (ColorSet.fromNames(entry.key.toCharArray()).getColor() == color.getColor()) {
+                            return CardUtil.getDeck(entry.value, false, false, "", false, false);
+                        }
                     }
                 }
                 return null;
