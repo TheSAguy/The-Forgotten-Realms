@@ -1709,3 +1709,141 @@ Stone
 Torch
   xy: 0, 1024
   size: 16, 16
+CrownoftheFalseGod
+  xy: 32, 1008
+  size: 16, 16
+KoboldKingsBlade
+  xy: 48, 1008
+  size: 16, 16
+CrownOfTheVale
+  xy: 64, 1008
+  size: 16, 16
+TastyTome
+  xy: 80, 1008
+  size: 16, 16
+ShieldOfAir
+  xy: 96, 1008
+  size: 16, 16
+AttendantsPrayerbook
+  xy: 112, 1008
+  size: 16, 16
+TomeoftheTrove
+  xy: 128, 1008
+  size: 16, 16
+GrovetendersRobes
+  xy: 144, 1008
+  size: 16, 16
+RainbowSpear
+  xy: 160, 1008
+  size: 16, 16
+StaffOfAzar
+  xy: 176, 1008
+  size: 16, 16
+GoblinTrumpet
+  xy: 192, 1008
+  size: 16, 16
+FaerieDragonEgg
+  xy: 208, 1008
+  size: 16, 16
+PrismaticEgg
+  xy: 224, 1008
+  size: 16, 16
+CelestialPrism
+  xy: 240, 1008
+  size: 16, 16
+GuardsShield
+  xy: 256, 1008
+  size: 16, 16
+MillersShoes
+  xy: 272, 1008
+  size: 16, 16
+LeyLineWalkerBoots
+  xy: 288, 1008
+  size: 16, 16
+ShieldOfTheHivelord
+  xy: 304, 1008
+  size: 16, 16
+TorturersHood
+  xy: 320, 1008
+  size: 16, 16
+StaffoftheAges
+  xy: 336, 1008
+  size: 16, 16
+Spyglass
+  xy: 352, 1008
+  size: 16, 16
+FerretFood
+  xy: 368, 1008
+  size: 16, 16
+ShamansStaff
+  xy: 384, 1008
+  size: 16, 16
+IstvansAxe
+  xy: 400, 1008
+  size: 16, 16
+BreathstealersBlade
+  xy: 416, 1008
+  size: 16, 16
+IchorKnife
+  xy: 432, 1008
+  size: 16, 16
+BogGliderGlove
+  xy: 448, 1008
+  size: 16, 16
+UrzasArmor
+  xy: 464, 1008
+  size: 16, 16
+AmuletOfGaea
+  xy: 16, 1024
+  size: 16, 16
+SerrasPrayerBook
+  xy: 32, 1024
+  size: 16, 16
+KrampussHorns
+  xy: 48, 1024
+  size: 16, 16
+SantasHat
+  xy: 64, 1024
+  size: 16, 16
+CrookedScales
+  xy: 80, 1024
+  size: 16, 16
+KryGreaves
+  xy: 96, 1024
+  size: 16, 16
+ImmortalAnklet
+  xy: 112, 1024
+  size: 16, 16
+MarbleMace
+  xy: 128, 1024
+  size: 16, 16
+LifeMatrix
+  xy: 144, 1024
+  size: 16, 16
+GauntletsofChaos
+  xy: 160, 1024
+  size: 16, 16
+BasiliskCollar
+  xy: 176, 1024
+  size: 16, 16
+EvilAnkh
+  xy: 192, 1024
+  size: 16, 16
+DemonCallerStaff
+  xy: 208, 1024
+  size: 16, 16
+ConcordantBoots
+  xy: 224, 1024
+  size: 16, 16
+CrownofGrowth
+  xy: 240, 1024
+  size: 16, 16
+WarrenTendersBaton
+  xy: 256, 1024
+  size: 16, 16
+RobesOfOmniscience
+  xy: 272, 1024
+  size: 16, 16
+MantleofDenial
+  xy: 288, 1024
+  size: 16, 16

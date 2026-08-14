@@ -1103,6 +1103,33 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`toolbox/FCardPanel.java`** / **`gui/control/PlaybackSpeed.java`** (shared files, entries
   above) — comment date corrections only (08-14 → 08-13).
 
+### 2026-08-13 (late night 3) FoW threshold fix, castle strength, printing remap, renames, icons, shops
+- **`world/World.java`** — `claimWastelandRing()` gained an optional `outClaimedTiles` output
+  param (old signature delegates with null); new `isLandTile()`/cached land-tile denominator for
+  `checkFogOfWarStage2()`; new `revealPlayerOwnedTiles()`/`resetFogOfWarToOwnership()`; new
+  `[TFR-FoW]` logging; `cachedLandTileTotal` reset added to both `load()` and `generateNew()`
+  (adversarial-review fix); `redrawAllPoiMarkers()` special-cases the Capitol POI's own sprite.
+- **`util/TerritoryControl.java`** — new `AI_CASTLE_PULL_WEIGHT`/`AI_CASTLE_EXCLUSION_RADIUS_TILES`
+  constants, applied only to the 5 AI castle pull sources; Capitol daily-expansion block now
+  advances its radius only when a ring claims something and reveals exactly the claimed tiles.
+  An initial companion change (`rivalCastleKeepSkip()`, applying the castle exclusion to
+  `repaintBiomeAroundTown()`) was added then fully reverted after adversarial review found it
+  caused a permanent territory-radius/actual-paint desync near rival castles - see
+  MOD_CHANGELOG.md for the full writeup.
+- **`util/TownRestoration.java`** — load-time Capitol vision sweep uses the new
+  `revealPlayerOwnedTiles()` instead of a blind radius-disc reveal.
+- **`stage/WorldStage.java`** — the `[TFR-Intrusion]` roll moved below the `spawnDelay` gate (was
+  running every frame); `load()` gained a null-guard for an unresolvable saved roaming-enemy name.
+- **`util/CardUtil.java`** — new `remapToEditionList()`, called from `generateCards()` and
+  `RewardData`'s Union branch; logging deduped per (card, from, to) triple (adversarial-review
+  fix).
+- **`data/RewardData.java`** — Union branch (both `allCardVariants` and plain paths) now calls
+  `CardUtil.remapToEditionList()` before generating the final card.
+- **`util/EconomyBuildings.java`** — the 3 Challenge Coin item names removed from
+  `NON_MYTHIC_ITEM_POOL` (the Archaeologist expedition table).
+- **`stage/ConsoleCommandInterpreter.java`** — `give wood`/`give stone` now play
+  `SoundEffectType.CoinsDrop` + log `[TFR-Give]`; new `fog reset` command.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

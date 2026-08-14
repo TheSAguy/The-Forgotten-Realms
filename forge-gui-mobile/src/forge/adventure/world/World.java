@@ -282,6 +282,14 @@ public class World implements Disposable, SaveFileContent {
 
         loadWorldData();
 
+        // World is a process-lifetime singleton (WorldSave.currentSave), reused across every
+        // save load/new game within one app run - reset here for the same reason generateNew()
+        // resets dayCount/colorTerritoryRadius/structureSwapCache below (adversarial review
+        // 2026-08-13: this lazy cache was left out of both reset points, so loading a second,
+        // different-land save in the same session kept computing the fully-explored percentage
+        // against the FIRST save's land-tile count).
+        cachedLandTileTotal = -1;
+
         biomeImage = saveFileData.readPixmap("biomeImage");
         biomeMap = (long[][]) saveFileData.readObject("biomeMap");
         terrainMap = (int[][]) saveFileData.readObject("terrainMap");
@@ -628,6 +636,7 @@ public class World implements Disposable, SaveFileContent {
             biomeMap = new long[width][height];
             terrainMap = new int[width][height];
             explored = new boolean[width][height]; // brand new world: nothing explored yet
+            cachedLandTileTotal = -1; // new seed -> different land/ocean split, see load()'s own comment
             structureSwapCache = null; // don't inherit a previous game's random structure picks
             nativeStructurePatternCache.clear(); // same reasoning - a new seed needs fresh patterns
             colorlessRedirectStructureCache.clear(); // same reasoning
@@ -1413,6 +1422,28 @@ public class World implements Disposable, SaveFileContent {
             // without this, a vanished dungeon kept its baked icon until the next full rebake.
             if (!poi.getActive())
                 continue;
+            // Player Capitol (user request 2026-08-13): its minimap marker is a scaled-down copy
+            // of its OWN 64x64 overworld sprite ("Orazca", player_capitol.atlas) instead of the
+            // generic 32x32 "capital" glyph - drawn at 32x32 so it exactly covers the old baked
+            // glyph's footprint on existing saves (biomeImage is persisted with markers baked in;
+            // a smaller icon would leave stale edge pixels). The Capitol only ever exists via
+            // transformInto() at upgrade time (count 0 in points_of_interest.json), and every
+            // runtime redraw path funnels through this method, so no world-gen-side change is
+            // needed.
+            if (TownRestoration.CAPITOL_POI_NAME.equals(poi.getData().name) && poi.getSprite() != null) {
+                com.badlogic.gdx.graphics.g2d.TextureRegion capSprite = poi.getSprite();
+                TextureData capTexData = capSprite.getTexture().getTextureData();
+                if (!capTexData.isPrepared())
+                    capTexData.prepare();
+                Pixmap capPixmap = capTexData.consumePixmap();
+                int dstSize = 32;
+                int cx = (int) ((poi.getPosition().x / data.tileSize) * mm) - dstSize / 2;
+                int cy = (int) ((height - (poi.getPosition().y / data.tileSize)) * mm) - dstSize / 2;
+                biomeImage.drawPixmap(capPixmap, capSprite.getRegionX(), capSprite.getRegionY(),
+                        capSprite.getRegionWidth(), capSprite.getRegionHeight(), cx, cy, dstSize, dstSize);
+                capPixmap.dispose();
+                continue;
+            }
             TextureAtlas.AtlasRegion marker = mapMarker.findRegion(mapMarkerKey(poi.getData()));
             if (marker == null)
                 continue;
@@ -2392,6 +2423,22 @@ public class World implements Disposable, SaveFileContent {
                                     int innerRadiusTiles, int outerRadiusTiles,
                                     BiConsumer<Integer, Integer> onTileRepainted,
                                     BiConsumer<Integer, Integer> onChunkNeedsReload) {
+        return claimWastelandRing(colorBiomeName, center, allPullSources, innerRadiusTiles,
+                outerRadiusTiles, onTileRepainted, onChunkNeedsReload, null);
+    }
+
+    // outClaimedTiles (2026-08-13 FoW fix): lets the player-Capitol expansion reveal exactly the
+    // ground it actually claimed rather than the whole geometric radius disc (which included
+    // ocean and rival-owned land, inflating the fully-explored counter far past what was really
+    // owned or seen - the "map fully explored fired too early" bug). Packed with packTile(wx, wy)
+    // in WORLD coordinates, same encoding the repaint dedup below already uses. Null = don't
+    // collect (AI colors never reveal, so they pass null via the delegate above).
+    public int claimWastelandRing(String colorBiomeName, Vector2 center,
+                                    Map<String, List<float[]>> allPullSources,
+                                    int innerRadiusTiles, int outerRadiusTiles,
+                                    BiConsumer<Integer, Integer> onTileRepainted,
+                                    BiConsumer<Integer, Integer> onChunkNeedsReload,
+                                    Set<Long> outClaimedTiles) {
         if (data == null || biomeMap == null || terrainMap == null)
             return 0;
         List<BiomeData> biomes = data.GetBiomes();
@@ -2656,6 +2703,8 @@ public class World implements Disposable, SaveFileContent {
                 for (int cy = minChunkY; cy <= maxChunkY; cy++)
                     onChunkNeedsReload.accept(cx, cy);
         }
+        if (outClaimedTiles != null)
+            outClaimedTiles.addAll(claimedTiles);
         return tilesClaimed;
     }
 
@@ -2869,19 +2918,51 @@ public class World implements Disposable, SaveFileContent {
      * discovery-flash layer (#3), since a whole-map flash reads as noise, not a moment worth
      * calling out; tiles just settle straight into their ordinary known/dimmed tier.
      */
+    // Lazily-cached land-tile denominator for checkFogOfWarStage2 (2026-08-13 fix) - see below.
+    private transient int cachedLandTileTotal = -1;
+
+    /** True for tiles that are actual explorable land - anything beyond the pure base/ocean
+     *  biome (index 0 by world.json convention: base, colorless, the 5 colors, then player -
+     *  the same ordering claimWastelandRing()'s own untouchable-tile classification relies on). */
+    private boolean isLandTile(int x, int rawY) {
+        return biomeMap != null && highestBiome(biomeMap[x][rawY]) != 0;
+    }
+
     public void checkFogOfWarStage2(BiConsumer<Integer, Integer> onTileRevealed) {
         if (!isFogOfWarEnabled() || explored == null || fogOfWarStage2Revealed)
             return;
-        int total = width * height;
-        if (total <= 0)
+        // 2026-08-13 fix (user report: "the map had revealed itself... but I don't think it was
+        // accurate"): the 80% used to be measured over ALL width*height tiles, ocean included.
+        // Deep ocean can never be walked and (post-fix) is never revealed by territory growth, so
+        // the old denominator both let a huge Capitol reveal disc trip the threshold while the
+        // visible landmass still looked mostly dark, AND would have made the message unreachable
+        // once territory reveals stopped covering ocean. Measured over land tiles only now, which
+        // matches the intuitive meaning of "80% of the map".
+        if (cachedLandTileTotal < 0) {
+            int landCount = 0;
+            for (int x = 0; x < width; x++)
+                for (int rawY = 0; rawY < height; rawY++)
+                    if (isLandTile(x, rawY))
+                        landCount++;
+            cachedLandTileTotal = landCount;
+        }
+        if (cachedLandTileTotal <= 0)
             return;
-        int exploredCount = 0;
+        int exploredLand = 0;
         for (int x = 0; x < width; x++)
-            for (int y = 0; y < height; y++)
-                if (explored[x][y])
-                    exploredCount++;
-        if (exploredCount / (double) total < 0.80)
+            for (int rawY = 0; rawY < height; rawY++)
+                if (explored[x][rawY] && isLandTile(x, rawY))
+                    exploredLand++;
+        double pct = exploredLand / (double) cachedLandTileTotal;
+        // Diagnostic logging standard - one line per daily evaluation so the threshold's actual
+        // inputs are verifiable from forge.log (this whole mechanic previously never logged
+        // itself; the 2026-08-13 early-fire bug had to be reconstructed from territory-radius
+        // lines alone).
+        System.out.println("[TFR-FoW] stage2 check: exploredLand=" + exploredLand + "/" + cachedLandTileTotal
+                + " (" + String.format(java.util.Locale.ROOT, "%.1f", pct * 100) + "%, threshold 80%)");
+        if (pct < 0.80)
             return;
+        System.out.println("[TFR-FoW] stage2 FIRED - revealing the full map");
         fogOfWarStage2Revealed = true;
         for (int x = 0; x < width; x++) {
             for (int rawY = 0; rawY < height; rawY++) {
@@ -2906,6 +2987,86 @@ public class World implements Disposable, SaveFileContent {
         } catch (ArrayIndexOutOfBoundsException e) {
             return false;
         }
+    }
+
+    /**
+     * Reveals only the tiles the player actually OWNS (player biome bit set) within the given
+     * radius of a center - the ownership-accurate replacement (2026-08-13) for the load-time
+     * Capitol sweep that used to reveal the whole geometric territory-radius disc, ocean and
+     * rival land included (a major contributor to the fully-explored-fired-too-early bug).
+     * Returns how many tiles were newly revealed, for the [TFR-FoW] log at the call site.
+     */
+    public int revealPlayerOwnedTiles(int centerWorldX, int centerWorldY, int radius,
+                                       BiConsumer<Integer, Integer> onTileRevealed) {
+        if (!isFogOfWarEnabled() || explored == null || biomeMap == null)
+            return 0;
+        long playerBit = playerBiomeBit();
+        if (playerBit == 0)
+            return 0;
+        int revealed = 0;
+        int minX = Math.max(0, centerWorldX - radius);
+        int maxX = Math.min(width - 1, centerWorldX + radius);
+        int minY = Math.max(0, centerWorldY - radius);
+        int maxY = Math.min(height - 1, centerWorldY + radius);
+        int radiusSq = radius * radius;
+        for (int wx = minX; wx <= maxX; wx++) {
+            int dx = wx - centerWorldX;
+            for (int wy = minY; wy <= maxY; wy++) {
+                int dy = wy - centerWorldY;
+                if (dx * dx + dy * dy > radiusSq)
+                    continue;
+                int rawY = height - wy - 1;
+                if (rawY < 0 || rawY >= height || explored[wx][rawY])
+                    continue;
+                if ((biomeMap[wx][rawY] & playerBit) == 0)
+                    continue;
+                explored[wx][rawY] = true;
+                updateFogOfWarPixmap(wx, rawY);
+                revealed++;
+                if (onTileRevealed != null)
+                    onTileRevealed.accept(wx, wy);
+            }
+        }
+        return revealed;
+    }
+
+    /**
+     * One-shot repair for a save whose explored[][] was over-inflated by the pre-2026-08-13
+     * radius-disc reveals (console command "fog reset"): rebuilds explored from scratch as
+     * player-owned ground plus every owned town's vision circle, and re-arms the Stage-2
+     * fully-explored trigger. Deliberately opt-in - walked-exploration history is not separable
+     * from the over-reveal, so this also forgets legitimately walked ground.
+     */
+    public String resetFogOfWarToOwnership() {
+        if (!isFogOfWarEnabled() || explored == null || biomeMap == null)
+            return "Fog of war is not enabled on this plane.";
+        rebuildPlayerTownVision();
+        long playerBit = playerBiomeBit();
+        int revealed = 0;
+        for (int x = 0; x < width; x++) {
+            for (int rawY = 0; rawY < height; rawY++) {
+                int wy = height - rawY - 1;
+                boolean keep = playerBit != 0 && (biomeMap[x][rawY] & playerBit) != 0;
+                if (!keep) {
+                    for (int[] area : playerTownVisionAreas) {
+                        int dx = x - area[0];
+                        int dy = wy - area[1];
+                        if (dx * dx + dy * dy <= area[2]) {
+                            keep = true;
+                            break;
+                        }
+                    }
+                }
+                explored[x][rawY] = keep;
+                if (keep)
+                    revealed++;
+            }
+        }
+        fogOfWarStage2Revealed = false;
+        rebuildFogOfWarPixmap();
+        System.out.println("[TFR-FoW] reset-to-ownership: " + revealed + " tiles revealed, stage2 flag re-armed");
+        return "Fog rebuilt from ownership: " + revealed + " tiles revealed, full-map trigger re-armed. "
+                + "Save and reload to fully refresh the rendered map.";
     }
 
     // Day/night cycle: opt-in per-plane via config.json ("dayNightCycleEnabled": true), defaulting

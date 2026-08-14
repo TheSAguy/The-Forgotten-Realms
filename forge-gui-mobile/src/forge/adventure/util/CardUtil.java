@@ -320,6 +320,7 @@ public class CardUtil {
             for (int i = 0; i < count; i++) {
                 PaperCard candidate = pool.get(r.nextInt(pool.size()));
                 if (candidate != null) {
+                    candidate = remapToEditionList(candidate, data.editions, r);
                     if (allCardVariants) {
                         // Get a random variant, preserving edition when specified
                         PaperCard finalCandidate = CardUtil.getCardByNameAndEdition(candidate.getCardName(), candidate.getEdition());
@@ -331,6 +332,61 @@ public class CardUtil {
             }
         }
         return result;
+    }
+
+    /**
+     * Progressive Set Unlocks printing fix (2026-08-13, screenshot audit finding): the candidate
+     * pool is built from getUniqueCards() - one "preferred" (latest) printing per name - and
+     * CardPredicate deliberately passes a card when ANY printing of its name is in the
+     * RewardData.editions restriction. That's correct for the NAME pool, but the sold/granted
+     * card then kept the pool candidate's own out-of-list printing (a VOW-restricted shop selling
+     * the DBL reprint, an STX chest granting the PIP printing, etc.) - which also leaks foreign
+     * edition codes into the player's collection/research bookkeeping (ResearchScene tallies by
+     * exact edition code, so an out-of-list printing never credits the shard edition it stands
+     * in for). This remaps the candidate to a printing actually inside the restriction list
+     * before the variant roll. Gated on editionProgressionEnabled so stock planes (whose shop
+     * data can also carry editions arrays) keep their long-standing latest-printing behavior
+     * untouched. Fail-open: if no in-list printing exists (shouldn't happen - the predicate
+     * guaranteed one), the candidate passes through unchanged.
+     * <p>
+     * [TFR-PrintRemap] logging is deduped per distinct (card, from-edition, to-edition) triple for
+     * the life of the process (adversarial review 2026-08-13): shop rewards fully regenerate from
+     * a stable per-shop seed on every ordinary town re-entry/restock/reroll (MapStage.loadMap()),
+     * so an un-deduped log re-fired the SAME remap decision on every single visit - a session with
+     * many town visits could emit thousands of lines, burying every other [TFR-*] tag this
+     * project's diagnostic-logging standard depends on staying greppable. Deduping still logs
+     * every distinct remap at least once.
+     */
+    private static final java.util.Set<String> loggedRemaps = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public static PaperCard remapToEditionList(PaperCard candidate, String[] allowedEditions, Random r) {
+        if (candidate == null || allowedEditions == null || allowedEditions.length == 0)
+            return candidate;
+        forge.adventure.world.World world = Current.world();
+        if (world == null || !world.isEditionProgressionEnabled())
+            return candidate;
+        for (String code : allowedEditions)
+            if (candidate.getEdition().equals(code))
+                return candidate; // already an in-list printing
+        List<PaperCard> printings = FModel.getMagicDb().getCommonCards().getAllCards(candidate);
+        List<PaperCard> inList = new ArrayList<>();
+        for (PaperCard p : printings) {
+            for (String code : allowedEditions) {
+                if (p.getEdition().equals(code)) {
+                    inList.add(p);
+                    break;
+                }
+            }
+        }
+        if (inList.isEmpty())
+            return candidate;
+        PaperCard remapped = inList.get(r.nextInt(inList.size()));
+        String key = candidate.getCardName() + "|" + candidate.getEdition() + "|" + remapped.getEdition();
+        if (loggedRemaps.add(key)) {
+            System.out.println("[TFR-PrintRemap] " + candidate.getCardName() + ": " + candidate.getEdition()
+                    + " -> " + remapped.getEdition());
+        }
+        return remapped;
     }
     private static AdventureReadPriceList.PriceData priceData;
 

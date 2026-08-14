@@ -689,11 +689,22 @@ public class WorldStage extends GameStage implements SaveFileContent {
         BiomeData data = biomeData.get(currentBiome);
         if (data == null) return;
 
+        spawnDelay -= delta;
+        if (spawnDelay >= 0) return;
+        spawnDelay = spawnInterval + (rand.nextFloat() * 4.0f);
+
         // Roaming-spawn intrusion (MOD_SCOPE.md #7 follow-up, user request 2026-08-10): a nearby
         // foreign-color town/capital/castle can bleed its color's monsters into this spawn roll,
         // scaled by reputation with that color (War-tier borders are actively hostile; Partner-tier
         // ones never intrude). Only substitutes THIS roll's biome, not the player's actual location
         // - a cheap per-roll override rather than a real territory change.
+        //
+        // Moved BELOW the spawnDelay gate (2026-08-13 log review): this block previously ran on
+        // EVERY frame, not once per spawn attempt - at ~60fps in War territory that was ~37
+        // [TFR-Intrusion] log lines per second (89.5% of an entire play session's forge.log, 57.6k
+        // lines), plus a wasted RNG draw and territory scan per frame. Only the roll landing on
+        // the frame the delay expired ever affected a spawn; the per-spawn substitution
+        // probability is unchanged by evaluating it once, here, after the gate.
         if (ColorReputation.isEnabled()) {
             String foreignColor = TerritoryControl.findNearbyForeignColor(world, player.pos(), data.name);
             if (foreignColor != null) {
@@ -711,10 +722,6 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 }
             }
         }
-
-        spawnDelay -= delta;
-        if (spawnDelay >= 0) return;
-        spawnDelay = spawnInterval + (rand.nextFloat() * 4.0f);
 
         ArrayList<EnemyData> list = data.getEnemyList();
         if (list == null)
@@ -923,7 +930,18 @@ public class WorldStage extends GameStage implements SaveFileContent {
             // engaged" (-1), same as a freshly-dispatched mage.
             List<Integer> lastDuelDays = data.containsKey("lastDuelDays") ? (List<Integer>) data.readObject("lastDuelDays") : null;
             for (int i = 0; i < timeouts.size(); i++) {
-                EnemySprite sprite = new EnemySprite(WorldData.getEnemy(names.get(i)));
+                // Null-guard (2026-08-13, Challenger-rename companion): an unresolvable saved name
+                // previously hit `new EnemySprite(null)` -> NPE swallowed by this method's empty
+                // catch, silently dropping EVERY remaining roaming enemy plus the globalTimer read.
+                // Reachable via stale saves after a nameOverride change (e.g. pre-rename saves
+                // stored "Challenger", which only resolved through the override fallback).
+                EnemyData resolved = WorldData.getEnemy(names.get(i));
+                if (resolved == null) {
+                    System.err.println("[TFR-RoamLoad] dropping unresolvable roaming enemy \"" + names.get(i)
+                            + "\" from save (renamed or removed from enemies.json?)");
+                    continue;
+                }
+                EnemySprite sprite = new EnemySprite(resolved);
                 sprite.setX(x.get(i));
                 sprite.setY(y.get(i));
                 sprite.questStageID = questStageIDs.get(i);

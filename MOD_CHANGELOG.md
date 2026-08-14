@@ -1191,6 +1191,140 @@ extracting the 5 touched/new `.class` files and grepping for symbols unique to e
 speed", `SUPERFAST` in both `PlaybackSpeed.class` and `FCardPanel.class`). No resource-folder
 changes this round (pure Java). None of this has been playtested yet.
 
+## 2026-08-13 (late night 3): Ten-workstream playtest round - FoW threshold, castle strength, printing remap, renames, icons, shops
+
+User feedback after an extended play session: a long forge.log to review, several new bugs, a
+feature request, and a design question. Investigated with a background workflow (6 parallel
+investigators), then implemented directly, then adversarially reviewed the whole batch (4
+reviewers + a verify pass) before deploy - 3 real bugs caught and fixed, detailed below.
+
+**Log review**: zero exceptions in 64,308 lines. All 17 of 18 `[TFR-*]` diagnostic families that
+fired looked sane (guard-fight odds in range, enemy life matching difficulty, edition-shard lists
+internally consistent). One real bug found: `[TFR-Intrusion]`'s roll ran on every FRAME instead of
+once per spawn attempt - 57,585 identical lines, 89.5% of the session's entire log. Fixed by
+moving the whole block (`WorldStage.java`) below the existing `spawnDelay` gate - per-spawn
+substitution probability unchanged, ~37 lines/sec of spam and a wasted RNG draw per frame gone.
+
+**Fully-explored fired too early, user correctly diagnosed the cause.** The Capitol's territory
+radius grew to its 450 max even after every ring claimed 0 tiles (log showed "claimed 0 tile(s)"
+from radius 281 onward - real ownership stalled around r≈272), and both the daily expansion and a
+load-time repair sweep then revealed the entire *geometric disc* at that radius - ocean and rival
+land included. A 450-radius disc is ~64% of the 700x700 map by itself. The message also lagged the
+visual impression because the 80% threshold counted ocean in its denominator. Four fixes in
+`World.java`/`TerritoryControl.java`/`TownRestoration.java`:
+- `claimWastelandRing()` gained an optional `outClaimedTiles` output set; the Capitol's daily
+  expansion now advances its recorded radius only when a ring actually claims something (mirrors
+  the ordinary-town revert rule that already existed), and reveals exactly the claimed tiles (+1
+  tile margin) instead of the whole disc.
+- The load-time Capitol vision sweep (`TownRestoration.repairAllTownVisionReveal()`) now uses a
+  new `World.revealPlayerOwnedTiles()` - only tiles the player's biome bit actually covers within
+  the radius - instead of `revealArea()`'s blind disc.
+- `World.checkFogOfWarStage2()`'s 80% threshold is now measured over LAND tiles only (a new
+  `isLandTile()`/cached denominator), matching "80% of the map" as a player would read it.
+- New `[TFR-FoW]` diagnostic logging (daily percentage + a FIRED line) and a new console command
+  **`fog reset`** (`World.resetFogOfWarToOwnership()`) - a one-shot repair for the user's existing
+  save, which already has the over-reveal baked into its persisted `explored[][]`; rebuilds
+  exploration from actual ownership + town vision circles and re-arms the trigger. Opt-in since it
+  also forgets legitimately walked ground.
+
+**AI castles strengthened** (user: "a town very near black's castle should have pushed my
+territory away more"). Two levers, AI castles only (`TerritoryControl.java`): a new
+`AI_CASTLE_PULL_WEIGHT=0.85` (was sharing the plain `CASTLE_PULL_WEIGHT=1.0` with the player
+Capitol - equal weight meant zero push advantage against an equal-weight player town, the exact
+reported symptom) and a new `AI_CASTLE_EXCLUSION_RADIUS_TILES=32` hard-protect radius (rivals can
+claim nothing within it; the castle's own color still claims freely) - both consumed only by
+`buildPullSources()`'s castle source feeding `claimWastelandRing()`'s daily expansion/re-contest.
+
+**Progressive Set Unlocks printing fix** (screenshot audit finding, not a user bug report - the
+user asked for a screenshot verification of 3 shop folders against the logged edition-shard
+lists). Verdict: zero card-NAME violations across all 26 screenshots - the shard partition itself
+is correct. But ~54 items across the folders displayed OUT-OF-SHARD PRINTINGS of otherwise-legal
+cards (e.g. a VOW-restricted shop selling the DBL reprint). Root cause: the candidate pool is
+`getUniqueCards()` (one latest printing per name), and `CardPredicate` passes a card when ANY
+printing of its name is in the restriction - correct for the name pool, but the candidate then
+kept its own out-of-list printing. Consequence beyond cosmetics: `ResearchScene` tallies owned
+cards by exact edition code, so an out-of-list printing never credited the shard edition it stood
+in for. Fixed with new `CardUtil.remapToEditionList()`, called from `generateCards()` and
+`RewardData`'s Union branch - remaps the candidate to an in-list printing of the same name before
+the variant roll, gated on `editionProgressionEnabled` so stock planes are untouched. Logs
+`[TFR-PrintRemap]`.
+
+**Data/content fixes:**
+- **46 items had broken icons** (user found 2 - Ichor Knife, Celestial Prism - full-catalog audit
+  found 46 total, ported into `items.json` from Shandalar Old Border without their icon art ever
+  following). Copied all 46 16x16 icons into `The Forgotten Realms/sprites/items.png`'s free slots
+  and appended matching `items.atlas` regions - including fixing an upstream typo (`MantelofDenial`
+  vs. the correct `MantleofDenial` items.json actually references).
+- **Challenge Coins removed from the Armory sale pool again** - the weighted-rarity catalog rework
+  (an earlier round) rebuilt Armory pools from the full item catalog, silently reinstating all 3
+  coin items that a prior round had specifically removed. Set `excludeFromGeneralSale: true` on
+  all 3 (same mechanism as the trophy-item fix); also dropped them from
+  `EconomyBuildings.NON_MYTHIC_ITEM_POOL` (the Archaeologist expedition table). Confirmed not
+  orphaned - they still drop from spawn, Grandmaster champions, quests, and event prizes.
+- **Teleport runes restored to the 5 AI-capital specialty shops** (user: "In the base game it also
+  sells the 'Teleport to \<color\> capitol'... got inadvertently removed"). Confirmed: stock
+  Shandalar's 5 `*Items` shops sell a fixed count-1 rune alongside their pooled items; this mod's
+  copy had the rune stripped when an earlier round purged teleport items from the *player*
+  Equipment/Armory pool (an over-broad purge - `isArmoryShop()` also matched `*Items`). Added a
+  fixed count-1 `"<Color> rune"` entry to each of the 5 AI-capital shops only - the runes are
+  `questItem:true` in this mod (a second layer keeping them out of every Weighted pool), and no
+  player-town map references `*Items` shops at all.
+- **The 3 Arena champions renamed** ("Challenger 20/21/22", shared `nameOverride` "Challenger") to
+  distinct MTG lore names - user asked where they came from (real official Challenger Deck
+  2020/2021/2022 precons, randomized between that year's actual decklists) and requested unused
+  names. Every Battlebond arena-champion legend turned out to already be in the game (the mod's
+  own Valor's Reach Arena roster). Renamed to **Haktos**, **Phage**, **Ixidor** - verified-unused
+  arena-champion lore from MTG's other pit-fighter settings (Akroan games, Otaria's Grand
+  Coliseum), first-name-only matching the mod's existing legend convention. Display-only
+  (`nameOverride` changed, raw names "Challenger 20/21/22" untouched) - zero touches needed to the
+  7 biome spawn jsons or 4 capital arena pools that reference the raw names, and post-2026-08-13
+  saves (which already store raw names) keep loading correctly. Companion fixes: a null-guard in
+  `WorldStage.load()` for an unresolvable saved enemy name (previously silently dropped every
+  remaining roaming enemy in the list on load), and `mountain_capital.tmx`'s dangling
+  "Challenger 1"-"Challenger 4" arena-pool entries (referenced enemies that never existed)
+  corrected to "Challenger 20/21/22" for parity with the other 4 capitals.
+- **Player Capitol minimap icon** (user request) - now a 32x32 scaled-down copy of the Capitol's
+  own 64x64 overworld sprite ("Orazca") instead of the generic "capital" glyph, drawn in
+  `World.redrawAllPoiMarkers()`'s existing marker-baking loop.
+- **give wood/give stone console commands** now play the same pickup sound the sparkle resource
+  pickups use (`SoundEffectType.CoinsDrop`) - previously silent, unlike give gold/give shards.
+
+**Caught and fixed by adversarial review before deploy** (3 confirmed of 4 candidates):
+- **Blocking**: the AI-castle-strength fix's companion change - applying the new 32-tile castle
+  exclusion to `repaintBiomeAroundTown()` (the one-time paint when a town is captured/restored) -
+  had a real ordering bug: `setTownTerritoryRadius()` recorded the FULL requested radius before
+  the exclusion-aware repaint ran, so a town captured/restored within ~22 tiles of a rival castle
+  got 0% of its ground actually painted while vision, fog reveal, and the town's own hard-protect
+  radius all believed the full disc was claimed - permanently, with no self-heal path. Root-caused
+  and fixed by removing this companion mechanism entirely rather than patching the ordering: the
+  castle-strength buff is already fully realized through `buildPullSources()`'s hard-protect
+  radius feeding `claimWastelandRing()` (which already excludes every OTHER color from claiming
+  near a castle while never blocking the castle's own color) - a captured/restored town's ground
+  can still be recontested and reclaimed by the castle on the next `sourcesChanged` re-scan if its
+  pull is genuinely stronger there, with no second, buggy protection layer needed.
+- **Moderate**: `cachedLandTileTotal` (the new land-tile-count cache backing the Stage-2
+  threshold) was never reset in `World.load()`/`generateNew()` - since `World` is a
+  process-lifetime singleton reused across every save load and new game in one app run, playing a
+  second, different-land world in the same session would silently divide by the FIRST world's
+  land-tile count. Reset added to both singleton-reuse points, matching the pattern already
+  established there for `colorTerritoryRadius`/`structureSwapCache`/etc.
+- **Moderate**: `[TFR-PrintRemap]` logged unconditionally on every remap, but shop rewards fully
+  regenerate from a stable per-shop seed on every ordinary town re-entry/restock - so a session
+  with many town visits could re-log the identical remap decision thousands of times, burying
+  every other `[TFR-*]` tag. Deduped per distinct (card, from-edition, to-edition) triple for the
+  life of the process - every distinct remap still logs at least once.
+- Refuted: a concern about `packTile()`'s coordinate encoding at the new Capitol claimed-tile
+  reveal call site - traced and confirmed the encode/decode round-trips correctly.
+
+### Verification
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o -q` clean at every step, including after all
+3 review-round fixes. Spliced into both installed jars; res folder mirrored (icons, shops.json
+rune entries, enemies.json renames, mountain_capital.tmx fix, items.json exclusions). Spot-checked
+by extracting the touched `.class` files and grepping for symbols unique to each fix, including
+confirming `rivalCastleKeepSkip` is fully absent post-revert. None of this has been playtested in
+the live game yet - the user's existing save still has the FoW over-reveal baked in until `fog
+reset` is run.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

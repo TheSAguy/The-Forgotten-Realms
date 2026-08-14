@@ -839,13 +839,23 @@ public class TownRestoration {
             // here so it self-heals immediately on this load instead of slowly re-covering ring
             // by ring as the (already-maxed-out) daily growth loop no longer has anything new to
             // claim.
+            // 2026-08-13 fully-explored fix, part 3: this sweep used to revealArea() the whole
+            // territory-radius DISC (up to 450 - ocean and rival land included) on EVERY save
+            // load, retro-contaminating explored[][] far past what the player actually owns and
+            // massively inflating the Stage-2 fully-explored counter. Now reveals only tiles the
+            // player's biome bit actually covers within that radius - the same ownership test
+            // isPersistentlyRevealed() renders Stage 3 from - so the self-heal ("owned ground
+            // never sits under black fog") is preserved without gifting the aspirational disc.
             if (CAPITOL_POI_NAME.equals(poi.getData().name)) {
                 Integer capitolRadius = world.getColorTerritoryRadius("player");
                 if (capitolRadius != null && capitolRadius > world.getTownVisionRadiusTiles(poi, changes)) {
                     int centerX = (int) (poi.getPosition().x / world.getTileSize());
                     int centerY = (int) (poi.getPosition().y / world.getTileSize());
-                    world.revealArea(centerX, centerY, capitolRadius, WorldStage.getInstance()::refreshBackgroundTile);
-                    world.refreshFogInRadius(centerX, centerY, capitolRadius + 2, WorldStage.getInstance()::refreshBackgroundTile);
+                    int revealed = world.revealPlayerOwnedTiles(centerX, centerY, capitolRadius,
+                            WorldStage.getInstance()::refreshBackgroundTile);
+                    if (revealed > 0)
+                        System.out.println("[TFR-FoW] load-time Capitol sweep: revealed " + revealed
+                                + " newly-covered OWNED tiles within radius " + capitolRadius);
                 }
             }
         }

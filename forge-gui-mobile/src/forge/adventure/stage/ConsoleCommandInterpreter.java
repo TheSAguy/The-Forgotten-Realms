@@ -214,6 +214,10 @@ public class ConsoleCommandInterpreter {
                 return "Can not convert " + s[0] + " to number";
             }
             Current.player().addWood(amount);
+            // Same feedback sound the sparkle pickups use for wood/stone (user request 2026-08-13
+            // - gold/shards already sound via their own addGold/addShards; addWood is silent).
+            forge.sound.SoundSystem.instance.play(forge.sound.SoundEffectType.CoinsDrop, false);
+            System.out.println("[TFR-Give] wood +" + amount);
             return "Added " + amount + " wood";
         };
         registerCommand(new String[]{"give", "wood"}, giveWood);
@@ -230,6 +234,8 @@ public class ConsoleCommandInterpreter {
                 return "Can not convert " + s[0] + " to number";
             }
             Current.player().addStone(amount);
+            forge.sound.SoundSystem.instance.play(forge.sound.SoundEffectType.CoinsDrop, false);
+            System.out.println("[TFR-Give] stone +" + amount);
             return "Added " + amount + " stone";
         });
         registerCommand(new String[]{"give", "quest"}, s -> {
@@ -674,6 +680,11 @@ public class ConsoleCommandInterpreter {
             System.out.println(sb);
             return sb.toString();
         });
+        // One-shot save repair for the 2026-08-13 fully-explored bug (see MOD_SCOPE.md): rebuilds
+        // fog-of-war exploration from actual ownership (owned ground + owned-town vision circles)
+        // and re-arms the 80% full-reveal trigger. Opt-in because it also forgets walked ground.
+        registerCommand(new String[]{"fog", "reset"}, s ->
+                WorldSave.getCurrentSave().getWorld().resetFogOfWarToOwnership());
         registerCommand(new String[]{"reset", "map"}, s -> {
             if(!MapStage.getInstance().isInMap()) {
                 return "Can only be used in maps.";

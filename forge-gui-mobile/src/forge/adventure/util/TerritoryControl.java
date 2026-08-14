@@ -161,6 +161,32 @@ public class TerritoryControl {
     private static final float CAPITAL_PULL_WEIGHT = 1.15f;
     private static final float TOWN_PULL_WEIGHT = 1.3f;
     private static final float PLAYER_TOWN_PULL_WEIGHT = 1.0f; // the player's few towns hold their ground like castles
+    // AI castle strength buff (user request 2026-08-13: "increase the strength of the 5 AI
+    // castles... a town very near black's castle should have pushed my territory away more").
+    // Two levers, both applying to the FIVE AI CASTLES ONLY (the player Capitol keeps plain
+    // castle-grade values - buffing the player too would cancel the intended asymmetry), both
+    // consumed only by buildPullSources()'s castle source -> claimWastelandRing() daily
+    // expansion/re-contest. (An earlier version of this fix ALSO skipped these tiles inside
+    // repaintBiomeAroundTown()'s one-time town-capture/restore paint - reverted, adversarial
+    // review 2026-08-13: that recorded a town's full territory radius via setTownTerritoryRadius()
+    // BEFORE the skip-aware repaint ran, so a town captured/restored within ~22 tiles of a rival
+    // castle got 0% of its ground actually painted while vision/fog/hard-protection all believed
+    // the full disc was claimed - permanently, with no self-heal. claimWastelandRing() already
+    // fully covers "the castle contests this ground" going forward via the castle's own
+    // hard-protect radius below, which blocks every OTHER color from claiming there but never the
+    // castle's own color - so a freshly captured/restored town's ground can still be immediately
+    // recontested and won back by the castle on the very next sourcesChanged re-scan if its pull
+    // is genuinely stronger there, without needing a second, buggy protection layer.):
+    // - AI_CASTLE_PULL_WEIGHT < CASTLE_PULL_WEIGHT: an AI castle now out-pulls anything else at
+    //   equal distance, bowing contested borders away from itself instead of settling on the
+    //   plain perpendicular bisector (weight 1.0 vs 1.0 gave the castle zero push advantage
+    //   against a player town - the exact reported symptom).
+    // - AI_CASTLE_EXCLUSION_RADIUS_TILES > CASTLE_KEEP_RADIUS_TILES: rivals can't claim ANY tile
+    //   within this radius of an AI castle (hard protection), while the castle's own color still
+    //   claims there freely. Deliberately a separate constant - CASTLE_KEEP_RADIUS_TILES itself
+    //   is load-bearing for world-gen placement/neutralize sweeps and must stay 20.
+    private static final float AI_CASTLE_PULL_WEIGHT = 0.85f;
+    private static final int AI_CASTLE_EXCLUSION_RADIUS_TILES = 32;
     // 3 -> 9 per user (2026-08-08): TEMPORARY testing pace so the full spread is watchable in a
     // session or two. Once the systems around it are settled the user intends to drop this to 1
     // tile/day or slower for the real slow-burn pacing - don't treat 9 as the design value.
@@ -399,8 +425,10 @@ public class TerritoryControl {
         for (String color : COLORS) {
             List<float[]> list = new ArrayList<>();
             Vector2 castle = castlePositions.get(color);
+            // AI castles get the buffed pull weight and the wider exclusion ring (2026-08-13,
+            // see the constants' own comment) - the player Capitol below stays castle-grade.
             if (castle != null)
-                list.add(new float[]{castle.x / tileSize, castle.y / tileSize, CASTLE_PULL_WEIGHT, CASTLE_KEEP_RADIUS_TILES});
+                list.add(new float[]{castle.x / tileSize, castle.y / tileSize, AI_CASTLE_PULL_WEIGHT, AI_CASTLE_EXCLUSION_RADIUS_TILES});
             for (PointOfInterest poi : world.getAllPointOfInterest()) {
                 if (!isColorTownOrCapital(poi.getData(), color) || playerTowns.contains(poi))
                     continue;
@@ -638,34 +666,44 @@ public class TerritoryControl {
                 innerRadius = -1; // at cap, landscape unchanged - nothing to do
             }
             if (innerRadius >= 0) {
+                java.util.Set<Long> claimedTiles = new java.util.HashSet<>();
                 int claimed = world.claimWastelandRing("player", capitol.getPosition(), pullSources,
                         innerRadius, newRadius,
                         WorldStage.getInstance()::refreshBackgroundTile,
-                        WorldStage.getInstance()::reloadBackgroundChunkObjects);
+                        WorldStage.getInstance()::reloadBackgroundChunkObjects,
+                        claimedTiles);
                 boolean grew = newRadius > currentRadius;
-                if (grew)
+                // 2026-08-13 fully-explored fix, part 1: only advance the radius when the grown
+                // ring actually claimed something - mirrors the ordinary-town loop's own revert
+                // rule above. Previously the radius marched to MAX_TERRITORY_RADIUS=450 forever
+                // even after every ring claimed 0 tiles (real ownership stalls where rival pull
+                // wins), and the reveal below then granted vision over that whole aspirational
+                // disc. A blocked ring is simply retried on later ticks; a full re-contest after
+                // rival losses can still unblock it.
+                boolean advanced = grew && claimed > 0;
+                if (advanced)
                     world.setColorTerritoryRadius("player", newRadius);
                 world.rebuildPlayerTownVision();
-                // getTownVisionRadiusTiles() still special-cases the Capitol to the fixed
-                // CASTLE_KEEP_RADIUS_TILES for the *cache* used elsewhere (Outlook build/destroy,
-                // load-time self-heal). Per the block comment above (2026-08-13, user spec
-                // supersedes the 2026-08-11 removal), the ACTUAL grown territory ring also needs
-                // its own reveal, keyed to newRadius. Gated on `grew` specifically (adversarial
-                // review finding, 2026-08-13): refreshFogInRadius() has no already-done skip and
-                // unconditionally rescans/repaints the WHOLE disc (up to radius 450, ~half the
-                // 700x700 map) - without this gate, any unrelated sourcesChanged event anywhere
-                // on the map (an AI town captured, a rival's radius growing) re-triggers that full
-                // scan here too, indefinitely, for the rest of the playthrough, even long after
-                // the Capitol itself stopped growing. Skipping when the radius didn't actually
-                // change loses nothing - there's no new ground to reveal.
-                if (grew) {
-                    int centerX = (int) (capitol.getPosition().x / world.getTileSize());
-                    int centerY = (int) (capitol.getPosition().y / world.getTileSize());
-                    world.revealArea(centerX, centerY, newRadius, WorldStage.getInstance()::refreshBackgroundTile);
-                    world.refreshFogInRadius(centerX, centerY, newRadius + 2, WorldStage.getInstance()::refreshBackgroundTile);
+                // 2026-08-13 fully-explored fix, part 2: reveal exactly the ground just CLAIMED
+                // (plus a 1-tile sight margin per tile), not the whole geometric radius disc. The
+                // old disc reveal marked ocean and rival-held land explored - combined with the
+                // runaway radius above, it single-handedly pushed the Stage-2 fully-explored
+                // counter past 80% while the rendered map still looked mostly dark (user report).
+                // Claimed tiles already get their fog-pixmap + background repaint inside
+                // claimWastelandRing() itself; the per-tile revealArea() here just flips
+                // explored[][] for them and their immediate border. The old full-disc
+                // refreshFogInRadius() call is gone entirely - per-tile updates cover everything
+                // this block changes.
+                for (long packed : claimedTiles) {
+                    int tx = (int) (packed >> 32);
+                    int ty = (int) packed;
+                    world.revealArea(tx, ty, 1, WorldStage.getInstance()::refreshBackgroundTile);
                 }
-                System.out.println("[TerritoryControl] player: Capitol territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS
-                        + ", claimed " + claimed + " tile(s) this tick" + (sourcesChanged ? " (full re-contest)" : ""));
+                System.out.println("[TerritoryControl] player: Capitol territory radius now "
+                        + (advanced ? newRadius : currentRadius) + "/" + MAX_TERRITORY_RADIUS
+                        + ", claimed " + claimed + " tile(s) this tick"
+                        + (grew && !advanced ? " (growth blocked, radius held)" : "")
+                        + (sourcesChanged ? " (full re-contest)" : ""));
             }
         }
     }

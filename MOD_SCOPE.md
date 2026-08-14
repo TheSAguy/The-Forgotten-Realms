@@ -2718,3 +2718,39 @@ night 2)" entry for the full list (dungeon-chest edition-theme clobbering + wast
 Tester End-Test tally/thread-leak/statistics-pollution, a latent Commander-removal NPE, the
 "edition status" stale-POI readout, a pre-existing roaming-champion save/load collision, a stale
 enemies.csv, and date-label corrections).
+
+### 59. Playtest Round: FoW Threshold Fix, Castle Strength, Printing Remap, Renames, Icons, Shops — `Built (2026-08-13), not yet playtested`
+Ten-workstream round from a single extended playtest session, covering a log review, a
+user-diagnosed fog-of-war bug, a feature request, a design-verification screenshot audit, and
+several smaller reports. Full detail in MOD_CHANGELOG.md's "2026-08-13 (late night 3)" entry - this
+is a summary index:
+- **Log review**: clean (0 exceptions in 64k lines); found and fixed `[TFR-Intrusion]` running
+  every frame instead of once per spawn (89.5% of the session's log was this one bug).
+- **Fully-explored fired too early** (user correctly diagnosed the cause: the Capitol's territory
+  radius grew to its 450 max even after real ownership stalled far short of it, and the reveal
+  covered the whole geometric disc - ocean included). Fixed at the source (radius only advances on
+  real claims, reveals only claimed ground, 80% threshold measured over land only) plus a new `fog
+  reset` console command to repair the user's existing save.
+- **AI castles strengthened** per user request - a dedicated pull-weight/hard-protect buff for the
+  5 AI castles only, feeding the existing daily-expansion contest system.
+- **Progressive Set Unlocks printing fix** - a screenshot audit (user request, verifying 3 shop
+  folders against logged edition-shard data) found the shard partition itself is correct at the
+  card-NAME level, but ~54 items showed out-of-shard PRINTINGS of otherwise-legal cards, which also
+  silently broke research-progress crediting. Fixed with a printing remap at generation time.
+- **Data/content**: 46 items with broken icons restored (user found 2, full audit found 46);
+  Challenge Coins removed from the Armory pool again (reinstated by an earlier catalog rework);
+  teleport runes restored to the 5 AI-capital specialty shops (user report - removed by an earlier
+  round's over-broad purge); the 3 Arena champions renamed from generic "Challenger" to distinct
+  MTG lore names (Haktos/Phage/Ixidor) at the user's request; Capitol minimap icon now uses its own
+  sprite; give wood/stone console commands now play a sound.
+- **Caught and fixed by adversarial review before deploy** (3 of 4 candidates confirmed, one
+  blocking): an initial version of the castle-strength fix also applied the new exclusion zone to
+  town capture/restore repaints, which desynced a town's recorded territory radius from what was
+  actually painted whenever captured/restored within ~22 tiles of a rival castle - permanently,
+  with no self-heal. Fully reverted that companion mechanism rather than patching it; the intended
+  castle-strength effect survives entirely through the existing daily-expansion contest system.
+  Also fixed: a land-tile-count cache that never reset across the `World` singleton's reuse between
+  games in one session, and unbounded `[TFR-PrintRemap]` log spam from stable per-shop seeds
+  re-logging identical remaps on every town re-entry.
+Not yet playtested - the user's current save needs `fog reset` run to clear its existing
+over-revealed fog; everything else needs a fresh look in-game.

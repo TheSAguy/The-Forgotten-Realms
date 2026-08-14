@@ -1,12 +1,14 @@
 [
     {
         "name":  "Challenge Coin",
+        "excludeFromGeneralSale":  true,
         "description":  "A heavy coin made of gold. Redeem for a free draft.",
         "iconName":  "ChallengeCoin",
         "rarity":  "Common"
     },
     {
         "name":  "Silver Challenge Coin",
+        "excludeFromGeneralSale":  true,
         "description":  "A heavy coin made of silver. Redeem for a free sealed event.",
         "iconName":  "SilverChallengeCoin",
         "rarity":  "Common"
@@ -5366,6 +5368,7 @@
     },
     {
         "name":  "Bronze Challenge Coin",
+        "excludeFromGeneralSale":  true,
         "description":  "A lightweight coin made of bronze",
         "iconName":  "BronzeChallengeCoin",
         "rarity":  "Common"

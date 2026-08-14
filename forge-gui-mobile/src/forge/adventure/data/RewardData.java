@@ -234,14 +234,23 @@ public class RewardData implements Serializable {
                                     // restricted Union shop showed foreign set symbols/art even
                                     // though the card pool itself was correctly restricted
                                     // (user report 2026-08-12, "more than 4 little symbols").
+                                    // Remap first (2026-08-13, screenshot audit): the pool pick
+                                    // itself can BE an out-of-list printing - see
+                                    // CardUtil.remapToEditionList()'s own comment. Safe to key
+                                    // off the OUTER editions here: EditionProgression's
+                                    // restrictToEditions() sets the outer and every nested
+                                    // cardUnion entry to the same list.
+                                    cardTemplate = CardUtil.remapToEditionList(cardTemplate, this.editions, rewardRandom);
                                     PaperCard finalCard = CardUtil.getCardByNameAndEdition(cardTemplate.getCardName(), cardTemplate.getEdition());
                                     if (finalCard != null)
                                         ret.add(new Reward(finalCard, isNoSell));
                                 }
                             } else {
                                 PaperCard card = finalPool.get(rewardRandom.nextInt(finalPool.size()));
-                                if (card != null)
+                                if (card != null) {
+                                    card = CardUtil.remapToEditionList(card, this.editions, rewardRandom);
                                     ret.add(new Reward(card, isNoSell));
+                                }
                             }
                         }
                     }
