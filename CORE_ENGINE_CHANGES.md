@@ -1028,6 +1028,25 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   a `trigger` parameter (the old 3-arg overload was removed, all 6 call sites updated) plus a
   `reason` field and the town name on its `[TFR-ShopEditions]` log line.
 
+### 2026-08-14 Deck Tester 50x speed, "AI vs. AI - No Watch" headless batch mode, mode rename
+- **`gui/control/PlaybackSpeed.java`** (`forge-gui`, shared/global, NOT under `forge/adventure/`) —
+  new `SUPERFAST(.02)` enum constant inserted into the existing 3-way speed cycle
+  (`NORMAL->FAST->SLOW->NORMAL` → `NORMAL->FAST->SUPERFAST->SLOW->NORMAL`), labeled "50x speed".
+  Affects every spectated/AI-vs-AI match in Forge (this control has no per-caller scoping), not just
+  Adventure's Deck Tester — user-requested, low-risk (a strictly-faster tier added to an existing
+  cycle, no other behavior changed).
+- **`toolbox/FCardPanel.java`** (`forge-gui-mobile`, shared UI, NOT under `forge/adventure/`) — a
+  pre-existing `== PlaybackSpeed.FAST` animation-skip check extended to also match `SUPERFAST`
+  (adversarial-review-adjacent self-catch, not a review finding — the fastest tier needs to skip at
+  least as much as FAST, not silently re-enable animation).
+- **`scene/ArenaScene.java`** (mod file) — Deck Tester's `boolean simulated` parameter became a
+  3-value `DeckTesterMode` enum; new `promptMatchCount()` and `launchDeckTesterBatch()` methods for
+  the new "AI vs. AI - No Watch" flow; `promptDeckTester()` gained a `|| !enable` guard.
+- **`util/DeckTesterSimulator.java`** (new mod file) — headless AI-vs-AI batch runner, drives
+  forge-game's `Match`/`Game` engine directly on a background thread, bypassing
+  `HostedMatch`/`MatchController`/`DuelScene` entirely. See MOD_CHANGELOG.md for the adversarial-
+  review-caught blocking exception-handling fix.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.
@@ -1042,6 +1061,7 @@ rather than assumed-safe by omission:
 `EconomyBuildings.java`, `ResourceDisplayActor.java`,
 `ResourceSpawns.java` (random overworld resource pickups), `RubbleOverlay.java`,
 `TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`,
+`DeckTesterSimulator.java` (#20/#52, "AI vs. AI - No Watch" headless batch mode, 2026-08-14),
 `EditionProgression.java` (#4, Progressive Set Unlocks - edition sharding + the clone-and-restrict
 RewardData mechanism, 2026-08-12).
 (`TownCountActor.java` existed briefly, removed the same day - see `MOD_CHANGELOG.md`'s "World

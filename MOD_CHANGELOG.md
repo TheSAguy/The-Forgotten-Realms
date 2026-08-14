@@ -1012,6 +1012,100 @@ needs a NEW game for the Temple-icon fix (marker is baked at world-gen, current 
 icons), a visit to one of the 4 Mysterious Mage locations, a colored-booster-shop purchase, and a
 town/shop restoration followed by a research purchase to confirm the shop immediately reflects it.
 
+## 2026-08-14: Deck Tester 50x speed, "AI vs. AI - No Watch" headless batch mode, mode rename
+
+User feedback after trying the AI-vs-AI "Watch" mode (added 2026-08-13): "worked great." Three
+requests: a 50x speed option alongside the existing 10x spectator button; rename "Coin Flip" to
+"Player vs. AI"; and a new "AI vs. AI - No Watch" mode that asks for a match count (5/10/20) and
+runs them all in the background with no visible duel, reporting only the final win/loss tally.
+
+Researched first via a background Explore agent before writing any code: (1) the "10x speed" button
+is Forge's generic spectator playback-speed control (`forge-gui/src/main/java/forge/gui/control/PlaybackSpeed.java`,
+a 3-value enum cycled by `InputPlaybackControl`'s Cancel-button handler) - purely scales fixed
+`Thread.sleep()` UI-pacing delays in `FControlGamePlayback.java`, not a game-loop tick multiplier;
+shared/global, not Adventure-specific. (2) A true headless AI-vs-AI simulation path already exists
+in stock Forge - `forge-gui-desktop/src/main/java/forge/view/SimulateMatch.simulateSingleMatch()` -
+but that class lives in `forge-gui-desktop`, which `forge-gui-mobile` doesn't depend on, so it's not
+directly callable from Adventure code; its underlying pattern (`Match.createGame()`/`Match.startGame()`,
+pure `forge-game` engine calls, zero GUI coupling) is fully reusable, though. (3) Confirmed the
+existing "Watch" mode is inherently NOT headless - `HostedMatch`'s `humanCount==0` path
+unconditionally wires up `WatchLocalGame` + `FControlGamePlayback` (the same Thread.sleep pacing
+from point 1) even when no screen is ever shown, so "No Watch" needed genuinely new plumbing rather
+than a hidden reuse of "Watch" with the screen just not switched to.
+
+**50x speed** (`PlaybackSpeed.java`, `FCardPanel.java`): inserted a new `SUPERFAST(.02)` enum
+constant into the existing `NORMAL->FAST->SLOW->NORMAL` cycle (now
+`NORMAL->FAST->SUPERFAST->SLOW->NORMAL`), labeled "50x speed" when leaving FAST. Also extended a
+pre-existing card-zoom animation-skip check in `FCardPanel.java` (previously `==
+PlaybackSpeed.FAST` only) to also skip at `SUPERFAST` - the fastest tier should skip at least as
+much animation as FAST, not silently re-enable it. Both are shared/global engine files (not
+Adventure-scoped), so this benefits any spectated/AI-vs-AI match in Forge, not just the mod's Deck
+Tester.
+
+**"AI vs. AI - No Watch" batch mode**: new `forge-gui-mobile/src/forge/adventure/util/DeckTesterSimulator.java` -
+`runBatch(deckAName, deckA, deckBName, deckB, count, onProgress, onComplete)` drives forge-game's
+`Match`/`Game` engine directly (`new Match(rules, players, title)`, `match.createGame()`,
+`match.startGame(game)`, `match.getWinner()`) on a background `Thread`, looped `count` times, each
+game wrapped in its own single-use `ExecutorService` with a 90-second timeout (a fresh executor per
+game, not one shared across the batch, so a timed-out game's abandoned worker thread can't stall
+every subsequent trial behind it on a shared queue). Progress/completion callbacks marshal back onto
+the render thread via `Gdx.app.postRunnable()`. By explicit user decision (asked directly, since
+this changes what "who won" even measures): matches are a pure, symmetric deck-vs-deck comparison -
+both `RegisteredPlayer`s use forge-game's own default starting life/hand (20 life, 7 cards), no
+player equipped-item/blessing effects, no difficulty scaling, no ante - deliberately NOT matching
+"Watch" mode's existing asymmetric rules (one seat = the player's real life/shards/items, the other
+= a difficulty-scaled enemy).
+
+`ArenaScene.java`'s Deck Tester flow restructured: the `boolean simulated` parameter threaded
+through `promptDeckTester()`/`promptDeckTesterFirstDeck()`/`promptDeckTesterSecondDeck()` became a
+3-value `DeckTesterMode` enum (`PLAYER_VS_AI`/`AI_VS_AI_WATCH`/`AI_VS_AI_NO_WATCH`); a new
+`promptMatchCount()` dialog (5/10/20 buttons) follows deck selection on the No-Watch path; new
+`launchDeckTesterBatch()` sets `enable=false` (mirrors the same gate a real duel gets, since nothing
+else keeps the player from re-triggering Deck Tester or other Arena actions while ArenaScene never
+leaves the screen for this mode - unlike a real duel, which naturally prevents that via a scene
+switch), shows a live-updating progress dialog (a plain `TextraLabel`, not `TypingLabel` - avoids
+that class's character-by-character reveal/animation-state complexity for something that just needs
+repeated instant text updates), and on completion shows a final "X won N / Y won M" tally dialog via
+the existing `createGenericDialog()` helper, resetting `enable=true`. `promptDeckTester()` itself
+gained a `|| !enable` guard it didn't need before (previously nothing prevented re-opening the
+dialog mid-batch, since - unlike a real duel - the Arena screen never switches away for this mode).
+
+**Rename** (user spec): "Coin Flip (you pilot one deck)" -> "Player vs. AI"; "Simulated (AI vs AI)"
+-> "AI vs. AI - Watch".
+
+**Caught and fixed by adversarial review before deploy (blocking)**: the first version of
+`DeckTesterSimulator.runBatch()` only wrapped the actual `gameExecutor.submit(...).get(...)` call in
+try/catch - everything else in the per-game loop (`RegisteredPlayer.forVariants`, `new GameRules`,
+`new Match`, `match.createGame()`, `match.getWinner()`) plus the pre-loop `GamePlayerUtil.createAiPlayer`
+calls ran completely unprotected. Since this headless path bypasses whatever deck-legality checks a
+normal `GameLobby`/`HostedMatch` flow applies before ever reaching gameplay, any exception thrown
+there would have killed the background thread silently, before it ever reached the `onComplete`
+callback - and `ArenaScene.launchDeckTesterBatch()`'s `onComplete` lambda is the ONLY place that
+resets `enable` back to `true` for this flow (confirmed by grepping every read/write of that field
+in the file). With `onComplete` never firing, `enable` would have stayed permanently `false` for the
+rest of the app session (`ArenaScene` is a plain lazy singleton, never reconstructed) - blocking the
+Done/Exit button, the Start button, and re-opening Deck Tester, with an undismissable
+zero-button "Simulating matches..." progress dialog left on screen (confirmed `UIScene` has no
+ESC/back-key dialog dismissal anywhere) - recoverable only by restarting the app. Fixed with two
+layers: an inner per-game `try/catch` so one bad game's setup failure counts as a draw and the batch
+continues to the next game (same handling already used for a timeout), and an outer `try/finally`
+around the whole loop that guarantees `onComplete` fires no matter what throws, even before the loop
+starts - so the caller's UI can structurally never get stuck waiting on it again. Both catch clauses
+were also widened to `Exception | StackOverflowError`, matching `SimulateMatch.simulateSingleMatch()`'s
+own established precedent for this exact style of headless AI-vs-AI simulation loop (deliberately
+not a blanket `Throwable` catch, so a genuinely fatal `Error` like `OutOfMemoryError` still
+propagates instead of being silently swallowed).
+
+### Verification
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o -q` clean, including after the adversarial-review
+fix. Spliced into both installed jars (`forge/adventure` package, plus the individually-touched
+stock files `forge/gui/control/PlaybackSpeed.class` and `forge/toolbox/FCardPanel.class`, since
+those live outside the `forge/adventure` package the usual splice command covers); spot-checked by
+extracting the 5 touched/new `.class` files and grepping for symbols unique to each change
+(`DeckTesterBatch`, `launchDeckTesterBatch`, the "No Watch"/"Player vs. AI" button labels, "50x
+speed", `SUPERFAST` in both `PlaybackSpeed.class` and `FCardPanel.class`). No resource-folder
+changes this round (pure Java). None of this has been playtested yet.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at

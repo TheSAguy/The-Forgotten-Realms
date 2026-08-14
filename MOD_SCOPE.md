@@ -2628,3 +2628,57 @@ any of the method's 6 call sites, but a real latent inconsistency). Fixed by rea
 reference once, guarded, and reusing it consistently through the whole method. Not yet playtested -
 these are diagnostic-only additions with no gameplay effect; "testing" here just means confirming
 the new log lines appear correctly formatted in forge.log during normal play.
+
+### 57. Deck Tester: 50x Speed, "AI vs. AI - No Watch" Batch Mode, Mode Rename — `Built (2026-08-14), not yet playtested`
+User request, after trying the AI-vs-AI "Watch" mode from #52 ("worked great"): (1) add a 50x
+option next to the existing "10x speed" spectator button; (2) rename "Coin Flip" to "Player vs.
+AI"; (3) split the AI-vs-AI mode into two - "AI vs. AI - Watch" (today's mode, just renamed) and a
+new "AI vs. AI - No Watch", which asks how many matches (5/10/20) and runs them all in the
+background, as fast as possible, with no visible duel, reporting only the final win/loss tally per
+deck. Researched first (background workflow) whether a true headless simulation path already
+existed on Adventure's classpath - it didn't: `forge-gui-desktop`'s `SimulateMatch.simulateSingleMatch()`
+uses exactly the right pattern (`Match.createGame()`/`Match.startGame()`, forge-game's engine with
+zero GUI coupling) but lives in a module `forge-gui-mobile` doesn't depend on. Also confirmed the
+existing "Watch" mode is inherently NOT headless - it always routes through `HostedMatch`'s
+`humanCount==0` spectator path (`WatchLocalGame` + `FControlGamePlayback`), which unconditionally
+pays a UI-pacing tax (artificial `Thread.sleep`s between game events) even with no screen ever
+shown - so "No Watch" needed genuinely new plumbing, not a hidden reuse of "Watch".
+
+- **50x speed**: `PlaybackSpeed.java` (a shared/global spectator-pacing enum used by ALL of Forge's
+  match-watching, not Adventure-specific) gained a new `SUPERFAST(.02)` tier inserted into the
+  existing `NORMAL->FAST->SLOW->NORMAL` cycle (now `NORMAL->FAST->SUPERFAST->SLOW->NORMAL`). A
+  pre-existing animation-skip check in `FCardPanel.java` (`== PlaybackSpeed.FAST`) was extended to
+  also skip at `SUPERFAST` - the fastest tier should skip at least as much as FAST, not less.
+- **"AI vs. AI - No Watch" batch mode**: new `forge/adventure/util/DeckTesterSimulator.java` -
+  bypasses `HostedMatch`/`MatchController`/`DuelScene` entirely, driving forge-game's `Match`/`Game`
+  engine directly on a background thread (mirroring `SimulateMatch`'s own pattern, reimplemented
+  locally rather than reused since it's not on this module's classpath), looped N times, with a
+  per-game timeout so one stuck AI game can't hang the whole batch. By user decision (asked
+  directly, since this changes what "who won" even measures): matches are a pure, symmetric
+  deck-vs-deck test - both sides use the engine's ordinary default starting life/hand, no player
+  equipped-item/blessing effects, no difficulty scaling, no ante - unlike "Watch" mode, which treats
+  one seat as "the player" (real life/shards/items) and the other as "the enemy"
+  (difficulty-scaled life). `ArenaScene.java`'s Deck Tester flow restructured: the boolean
+  `simulated` parameter became a 3-value `DeckTesterMode` enum (`PLAYER_VS_AI`/`AI_VS_AI_WATCH`/
+  `AI_VS_AI_NO_WATCH`), a new match-count dialog (5/10/20) follows deck selection for the No-Watch
+  path, and a live-updating progress dialog + final tally dialog replace the usual scene-switch
+  for the duration.
+- **Rename**: "Coin Flip (you pilot one deck)" -> "Player vs. AI"; "Simulated (AI vs AI)" -> "AI vs.
+  AI - Watch".
+
+**Caught and fixed by adversarial review before deploy (blocking)**: the first version of
+`DeckTesterSimulator` only wrapped the actual game-execution call in try/catch - per-game SETUP
+(`RegisteredPlayer.forVariants`/`new Match`/`createGame`/`getWinner`) and the pre-loop AI-player
+creation were unprotected. Since this headless path bypasses whatever deck-legality checks a normal
+`GameLobby`/`HostedMatch` flow applies, any exception there would have killed the background thread
+before it ever reached the completion callback - and since that callback is the ONLY place
+`ArenaScene.enable` gets reset back to `true` for this flow, that would have permanently soft-locked
+the entire Arena screen (no exit, no restart, an undismissable "Simulating matches..." dialog with
+no buttons) until the app was killed and restarted. Fixed with two layers: an inner per-game catch
+so one bad game counts as a draw and the batch continues, and an outer try/finally that guarantees
+the completion callback ALWAYS fires no matter what throws, so the UI can never get stuck waiting on
+it. Both catches also match `SimulateMatch`'s own `Exception | StackOverflowError` precedent for
+this style of loop (deliberately not a blanket `Throwable` catch, so a genuinely fatal `Error` still
+propagates). Not yet playtested - needs a 50x-speed watch, and a No-Watch batch run (ideally
+including a case that would previously have hit the fixed exception-handling gap) to confirm the
+tally and that the Arena screen stays usable afterward.

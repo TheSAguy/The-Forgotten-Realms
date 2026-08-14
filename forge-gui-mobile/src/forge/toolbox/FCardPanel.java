@@ -121,7 +121,12 @@ public class FCardPanel extends FDisplayObject {
             return;
         }
 
-        if (!animate || MatchController.instance.getGameSpeed() == PlaybackSpeed.FAST || (MatchController.instance.getGameView() != null && MatchController.instance.getGameView().isMatchOver())) {
+        // SUPERFAST added 2026-08-14 - must skip animation same as FAST (it's a strictly faster
+        // tier; leaving this at "== FAST" only would have re-enabled animation at the new fastest
+        // speed instead of skipping it).
+        if (!animate || MatchController.instance.getGameSpeed() == PlaybackSpeed.FAST
+                || MatchController.instance.getGameSpeed() == PlaybackSpeed.SUPERFAST
+                || (MatchController.instance.getGameView() != null && MatchController.instance.getGameView().isMatchOver())) {
             //don't animate if game is fast or match is over
             rotateTransform(g, x, y, w, h, edgeOffset, false);
             card.updateNeedsTapAnimation(false);

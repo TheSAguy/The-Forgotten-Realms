@@ -23,6 +23,7 @@ import forge.adventure.stage.WorldStage;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.util.*;
 import forge.adventure.world.WorldSave;
+import forge.deck.Deck;
 import forge.gui.FThreads;
 import forge.screens.TransitionScreen;
 
@@ -257,11 +258,23 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         loadArenaData(data, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), challengeMode);
     }
 
+    /** Deck Tester's 3 modes (renamed/split 2026-08-14, user spec). PLAYER_VS_AI is the original
+     *  mode (was labeled "Coin Flip") - the player pilots one deck, the AI pilots the other.
+     *  AI_VS_AI_WATCH is the existing "Simulated" mode, renamed for clarity now that a second
+     *  AI-vs-AI mode exists. AI_VS_AI_NO_WATCH is new - both decks AI-piloted, run headlessly in
+     *  the background (no scene switch, no visible duel) for a player-chosen number of games, with
+     *  only the final win/loss tally shown - see DeckTesterSimulator. */
+    private enum DeckTesterMode {
+        PLAYER_VS_AI,
+        AI_VS_AI_WATCH,
+        AI_VS_AI_NO_WATCH
+    }
+
     /** Deck Tester step 1 (user spec 2026-08-11, MOD_SCOPE.md #20): "which deck will YOU pilot" -
      *  lists every non-empty saved deck slot as a button. Built fresh each open, same convention
      *  as EconomyBuildings' Manage Guards dialog (buildManageGuardsDialog()). */
     private void promptDeckTester() {
-        if (arenaMapStage == null || arenaStarted || roundsWon != 0)
+        if (arenaMapStage == null || arenaStarted || roundsWon != 0 || !enable)
             return;
         int deckCount = AdventurePlayer.current().getDeckCount();
         boolean anyDeck = false;
@@ -276,35 +289,40 @@ public class ArenaScene extends UIScene implements IAfterMatch {
                     Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, this::removeDialog));
             return;
         }
-        // Mode choice (user spec, 2026-08-13): "Coin Flip" is the original mode below - the
-        // player picks one deck to pilot themselves and one for the AI to pilot. "Simulated" is
-        // new - BOTH decks are AI-piloted, a fully-automated matchup the player just watches, for
-        // quickly comparing two decks without manually playing every test game.
+        // Mode choice (user spec, 2026-08-13, renamed/extended 2026-08-14): "Player vs. AI" is the
+        // original mode - the player picks one deck to pilot themselves and one for the AI to
+        // pilot. "AI vs. AI - Watch" - both decks are AI-piloted, a fully-automated matchup the
+        // player watches play out. "AI vs. AI - No Watch" - same, but run headlessly in the
+        // background for several games in a row with just a final tally shown.
         Dialog modeDialog = new Dialog("Deck Tester", Controls.getSkin());
         TypingLabel modeLabel = Controls.newTypingLabel("Choose a mode:");
         modeLabel.setWrap(true);
         modeLabel.skipToTheEnd();
         modeDialog.getContentTable().add(modeLabel).width(250f).row();
-        modeDialog.getButtonTable().add(Controls.newTextButton("[%80]Coin Flip (you pilot one deck)", () -> {
+        modeDialog.getButtonTable().add(Controls.newTextButton("[%80]Player vs. AI", () -> {
             removeDialog();
-            promptDeckTesterFirstDeck(false);
+            promptDeckTesterFirstDeck(DeckTesterMode.PLAYER_VS_AI);
         })).width(240f).row();
-        modeDialog.getButtonTable().add(Controls.newTextButton("[%80]Simulated (AI vs AI)", () -> {
+        modeDialog.getButtonTable().add(Controls.newTextButton("[%80]AI vs. AI - Watch", () -> {
             removeDialog();
-            promptDeckTesterFirstDeck(true);
+            promptDeckTesterFirstDeck(DeckTesterMode.AI_VS_AI_WATCH);
+        })).width(240f).row();
+        modeDialog.getButtonTable().add(Controls.newTextButton("[%80]AI vs. AI - No Watch", () -> {
+            removeDialog();
+            promptDeckTesterFirstDeck(DeckTesterMode.AI_VS_AI_NO_WATCH);
         })).width(240f).row();
         modeDialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
         modeDialog.setKeepWithinStage(true);
         showDialog(modeDialog);
     }
 
-    /** Deck Tester step 1 (both modes) - pick the first deck. "Coin Flip" frames it as "the deck
-     *  YOU will pilot" (unchanged wording from before the mode choice existed); "Simulated" frames
-     *  it neutrally since neither seat is player-controlled. */
-    private void promptDeckTesterFirstDeck(boolean simulated) {
+    /** Deck Tester step 1 (all 3 modes) - pick the first deck. "Player vs. AI" frames it as "the
+     *  deck YOU will pilot" (unchanged wording from before the mode choice existed); both AI-vs-AI
+     *  modes frame it neutrally since neither seat is player-controlled. */
+    private void promptDeckTesterFirstDeck(DeckTesterMode mode) {
         int deckCount = AdventurePlayer.current().getDeckCount();
         Dialog dialog = new Dialog("Deck Tester", Controls.getSkin());
-        TypingLabel label = Controls.newTypingLabel(simulated ? "Choose the first deck:" : "Choose the deck YOU will pilot:");
+        TypingLabel label = Controls.newTypingLabel(mode == DeckTesterMode.PLAYER_VS_AI ? "Choose the deck YOU will pilot:" : "Choose the first deck:");
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();
@@ -315,7 +333,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
             String name = Current.player().getDeck(i).getName();
             dialog.getButtonTable().add(Controls.newTextButton(name, () -> {
                 removeDialog();
-                promptDeckTesterSecondDeck(firstDeckIndex, simulated);
+                promptDeckTesterSecondDeck(firstDeckIndex, mode);
             })).width(240f).row();
         }
         dialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
@@ -325,10 +343,10 @@ public class ArenaScene extends UIScene implements IAfterMatch {
 
     /** Deck Tester step 2 - pick the second deck. No exclusion of firstDeckIndex - a same-deck
      *  mirror test is a legitimate use case, not a mistake to guard against. */
-    private void promptDeckTesterSecondDeck(int firstDeckIndex, boolean simulated) {
+    private void promptDeckTesterSecondDeck(int firstDeckIndex, DeckTesterMode mode) {
         int deckCount = AdventurePlayer.current().getDeckCount();
         Dialog dialog = new Dialog("Deck Tester", Controls.getSkin());
-        TypingLabel label = Controls.newTypingLabel(simulated ? "Choose the second deck:" : "Choose the deck the AI will pilot:");
+        TypingLabel label = Controls.newTypingLabel(mode == DeckTesterMode.PLAYER_VS_AI ? "Choose the deck the AI will pilot:" : "Choose the second deck:");
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();
@@ -339,15 +357,73 @@ public class ArenaScene extends UIScene implements IAfterMatch {
             String name = Current.player().getDeck(i).getName();
             dialog.getButtonTable().add(Controls.newTextButton(name, () -> {
                 removeDialog();
-                if (simulated)
-                    launchDeckTesterSimulated(firstDeckIndex, secondDeckIndex);
-                else
-                    launchDeckTester(firstDeckIndex, secondDeckIndex);
+                switch (mode) {
+                    case PLAYER_VS_AI:
+                        launchDeckTester(firstDeckIndex, secondDeckIndex);
+                        break;
+                    case AI_VS_AI_WATCH:
+                        launchDeckTesterSimulated(firstDeckIndex, secondDeckIndex);
+                        break;
+                    case AI_VS_AI_NO_WATCH:
+                        promptMatchCount(firstDeckIndex, secondDeckIndex);
+                        break;
+                }
             })).width(240f).row();
         }
         dialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
         showDialog(dialog);
+    }
+
+    /** "AI vs. AI - No Watch" step 3 (new, user spec 2026-08-14) - how many games to run. */
+    private void promptMatchCount(int deckAIndex, int deckBIndex) {
+        Dialog dialog = new Dialog("Deck Tester", Controls.getSkin());
+        TypingLabel label = Controls.newTypingLabel("How many matches?");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+        for (int count : new int[]{5, 10, 20}) {
+            dialog.getButtonTable().add(Controls.newTextButton(count + " matches", () -> {
+                removeDialog();
+                launchDeckTesterBatch(deckAIndex, deckBIndex, count);
+            })).width(240f).row();
+        }
+        dialog.getButtonTable().add(Controls.newTextButton(Forge.getLocalizer().getMessage("lblCancel"), this::removeDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog(dialog);
+    }
+
+    /** "AI vs. AI - No Watch" step 4 (new, user spec 2026-08-14) - runs `count` independent games
+     *  headlessly via DeckTesterSimulator (no HostedMatch/DuelScene/MatchController at all, so no
+     *  scene switch and no spectator pacing tax - see that class's own doc comment), showing a
+     *  live-updating progress dialog and a final win/loss tally. `enable=false` for the duration -
+     *  mirrors the same gate a real duel gets via deckTesterMatch/enable, but reset directly in
+     *  the completion callback below instead of through setWinner()/IAfterMatch, since a headless
+     *  batch never goes through DuelScene at all and setWinner() will never fire for it. */
+    private void launchDeckTesterBatch(int deckAIndex, int deckBIndex, int count) {
+        Deck deckA = Current.player().getDeck(deckAIndex);
+        Deck deckB = Current.player().getDeck(deckBIndex);
+        String nameA = deckA.getName();
+        String nameB = deckB.getName();
+        enable = false;
+
+        Dialog progressDialog = new Dialog("Deck Tester", Controls.getSkin());
+        TextraLabel progressLabel = Controls.newTextraLabel("Simulating matches... (0/" + count + " complete)");
+        progressDialog.getContentTable().add(progressLabel).width(250f).row();
+        progressDialog.setKeepWithinStage(true);
+        showDialog(progressDialog);
+
+        DeckTesterSimulator.runBatch(nameA, deckA, nameB, deckB, count,
+                completed -> progressLabel.setText("Simulating matches... (" + completed + "/" + count + " complete)"),
+                result -> {
+                    removeDialog();
+                    enable = true;
+                    String resultText = nameA + " won " + result.deckAWins + "\n"
+                            + nameB + " won " + result.deckBWins
+                            + (result.draws > 0 ? "\nDraws/timeouts: " + result.draws : "");
+                    showDialog(createGenericDialog("Deck Tester Results", resultText,
+                            Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, this::removeDialog));
+                });
     }
 
     /** Launches an ordinary duel where the AI pilots a specific one of the PLAYER's own saved
