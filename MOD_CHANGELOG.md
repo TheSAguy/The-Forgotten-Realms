@@ -9117,3 +9117,97 @@ extracting `ArenaScene.class`/`DeckTesterSimulator.class`/`ConsoleCommandInterpr
 unique to this round's edit ("End Test", the cancellation log message, "Edition progression
 status", "dungeon-chest") - all four found; `ArenaScene.class` also spot-checked in the desktop
 jar. **Not yet playtested.**
+
+## Territory pacing split, Guard Info dialog, dialog text-wrap fix, Spellsmith editions (2026-08-14, MOD_SCOPE.md #60)
+
+Six items from one user round; five built, one (AI mage tier variety) held for a clarification -
+see its own section at the end.
+
+### Rebuild/repair dialog button text wrapping
+User screenshot: "Rebuild Arena (250 [+Gold])" wrapped with the gold icon alone on a second line.
+Traced to `MapDialog.java`'s shared `DialogData`-option-button renderer (used by every rebuild/
+repair/quest-choice dialog in the mod, not something Arena-specific) - button width is a fixed
+`WIDTH - 10` (240px) and `B.getTextraLabel().setWrap(true)` is deliberately always on ("in case
+it's a wordy choice"), so a label just past the fit threshold wraps rather than compressing.
+Fixed at the shared renderer with a `[%88]` scale prefix on every option button's label - a small,
+low-risk universal buffer (still leaves wrap available for genuinely long text) rather than
+widening the dialog itself, which would cascade to every dialog in the game with no way to verify
+the visual effect without running the client.
+
+### Capitol/Town territory growth pacing split
+`TerritoryControl.EXPANSION_TILES_PER_DAY`'s own comment already flagged the intended endpoint:
+"3 -> 9 per user (2026-08-08): TEMPORARY testing pace... the user intends to drop this to 1
+tile/day or slower for the real slow-burn pacing - don't treat 9 as the design value." This round
+made that real, and went further for ordinary towns per the user's explicit ask:
+- **Capitol**: split into its own `CAPITOL_EXPANSION_TILES_PER_DAY = 1` (was sharing the AI
+  castles' 9/day rate). AI castle growth itself is untouched (not requested) - still 9/day via the
+  original constant, now scoped to that one call site only.
+- **Ordinary towns** (player- and AI-owned alike - the mechanism was already shared between them,
+  not separately parameterized): 1 tile per 7 days, not per-day at all. A per-day rate genuinely
+  can't express "1/7 tile per day" as a whole number, so this needed real day-tracking rather than
+  a smaller multiplier - new `World.townLastGrowthDay` (`Map<String, Integer>`, same field/
+  getter/setter/save-load/NG+-clear() pattern already established for `townTerritoryRadius`
+  immediately above it in the file) records each town's own last-grew day. `TerritoryControl`'s
+  town-growth loop now computes `tilesEarned = (currentDay - lastGrowthDay) / 7`, skips entirely
+  if 0, and only advances `lastGrowthDay` by the spent whole-week increment on an ACTUAL successful
+  claim - a blocked attempt (fully contested land) keeps its earned tile(s) banked for the next
+  tick instead of losing them to a temporary block, same spirit as the pre-existing per-day
+  mechanism never permanently losing progress to a block either.
+
+### Guard hiring "Info" button
+User: "Just a brief explanation of the whole mechanic... both for how towns and the capitol
+works." New `EconomyBuildings.buildGuardInfoDialog()`, opened from a new "Info" button on the
+existing Manage Guards dialog. Covers, in the player's own terms rather than raw numbers: guard
+counts (1/town, 2/Capitol) and weekly costs per tier (dynamically read via `guardTierDisplayName()`/
+`guardWeeklyGoldCost()`/`guardWeeklyShardCost()`, not hardcoded strings); that an attacking mage
+must clear every guard, strongest first, before it can even attempt the town, and a guard loss
+doesn't end the defense - the mage just moves to the next guard or the town itself; the combat-odds
+shape (tier matchup, +10% attacker / -5% Outlook); the underlying town-capture roll odds by
+attacker tier once guards are cleared (10/30/70/90% Apprentice/Adept/Master/Grandmaster) and the
+20% sack chance on a won roll; and the Capitol's own added stakes (clearing both its guards AND
+winning that roll triggers the forced defense duel instead of an ordinary capture - losing that
+ends the run). The three percentages (attacker bonus, Outlook defense, sack chance) are literal in
+the text, not read live from `TerritoryControl`'s private constants - same reason the pre-existing
+Outlook info dialog already does this (those fields aren't public) - flagged with a code comment
+to keep the three numbers in sync if they're ever retuned.
+
+### AI-capital Spellsmith: wrong edition pool + no reputation gate
+User report: an AI-colored capital's Spellsmith was showing the PLAYER's own unlocked editions,
+not that color's own dealt 1/5 shard from world-gen - `SpellSmithScene.java`'s edition filter was
+unconditionally `Current.player().getUnlockedEditions()` regardless of whose capital the player
+was standing in. Fixed to branch exactly the way `EditionProgression.restrictShopRewardsForCurrentTown()`
+already does for card shops (same `isCurrentTownCapitol() || isTownRestored(changes)` check):
+player-owned towns/Capitol keep the player's own unlockedEditions unchanged; everywhere else now
+calls the same `EditionProgression.getEditionsForColor()` helper card shops use, keyed off
+`ColorReputation.colorOfTown()`, falling back to the neutral shard if no color match.
+
+Second, separate bug from the same report: nothing gated *access* to an AI-color Spellsmith at
+all - a player at War, or just Neutral standing, could walk right in. New
+`ColorReputation.isSpellsmithAccessible(color)` (Happy or Partner only - user's exact spec,
+deliberately stricter than the general `isEntryBarred()` capital-entry toll, which only fires at
+War) wired into `MapStage.java`'s "spellsmith" collision case: below that threshold, colliding
+with the building shows a blocking `MapDialog` explaining the standing requirement instead of
+opening the scene. Player-owned towns/Capitol and colorless/neutral towns are exempt entirely
+(`colorOfTown()` returns null for both, the same check used to skip the edition-source branch above).
+
+### Compile status
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o` - BUILD SUCCESS across all five. Not yet
+playtested/deployed - none of the five have been seen rendered/exercised in-game yet.
+
+### Held for clarification: AI mage tier variety (not built this round)
+User request: attacking mages an AI color dispatches should be randomly tiered instead of always
+Adept (`TerritoryControl.dispatch()` hardcodes `"Adept " + color + " Wizard"` unconditionally,
+confirmed by direct code read, one call site, no variation by rank/difficulty/day/anything) -
+requested odds Adept 50% / Apprentice 30% / Master 15% / Grandmaster 5%, drawn from "that AI's
+mage pool (mages that player can spawn in its terrain)".
+
+Checked before building: `enemies.json` has exactly one named wizard per color at each of
+Apprentice/Adept/Master tiers ("Apprentice/Adept/Master &lt;Color&gt; Wizard", confirmed for all 5
+colors) - but **no "Grandmaster"/"Challenger" &lt;Color&gt; Wizard exists for any color**. The
+2026-08-13 tier rename (#58) was display-only by design (internal `EnemyData` names untouched,
+only a display-name suffix added) - so this isn't a naming mismatch to work around, there's
+genuinely no top-tier wizard enemy defined per color today. A literal implementation would have
+nothing to dispatch on the 5% Grandmaster roll. Asked the user how to resolve this (pick a
+suitable existing Mythic-tier enemy of that color as a stand-in, and if so by what criteria; or
+widen "mage pool" beyond the 4 tier-named wizards to any thematically-mage-like enemy of that
+color) before writing code that either silently falls back or picks an arbitrary substitute.

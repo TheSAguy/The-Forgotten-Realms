@@ -231,6 +231,12 @@ public class MapDialog {
                     String name; //Get localized label if present.
                     if (option.locname != null && !option.locname.isEmpty()) name = L.getMessage(option.locname);
                     else name = option.name;
+                    // Slight scale-down (2026-08-14, user report: "Rebuild Arena (250 [gold])"
+                    // wrapping with the icon alone on its own line) - shared by every DialogData
+                    // option button (shop rebuild/repair, quest choices, etc.), so this is a small
+                    // universal buffer against marginal-length labels, not an Arena-specific fix.
+                    // Wrap (below) still catches genuinely long/wordy choices same as before.
+                    name = "[%88]" + name;
                     TextraButton B;
                     if (option.isDisabled) {
                         B = Controls.newTextButton(name);

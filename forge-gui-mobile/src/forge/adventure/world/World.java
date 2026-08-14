@@ -153,6 +153,22 @@ public class World implements Disposable, SaveFileContent {
         townTerritoryRadius.put(poiId, radiusTiles);
     }
 
+    // Ordinary-town territory growth pacing (2026-08-14 user spec: 1 tile/week, down from the
+    // 9-tiles/day rate towns previously shared with AI castles/the Capitol) - a per-day rate can't
+    // express "1 tile per 7 days" as a whole number, so this tracks each town's own last-grew day
+    // instead (same "accumulate until a threshold, then advance in whole steps" shape as guard
+    // salary's lastPaidDay), rather than a fractional accumulator needing its own rounding rules.
+    // Same lazy-absent/persistence pattern as townTerritoryRadius above.
+    private final java.util.Map<String, Integer> townLastGrowthDay = new java.util.HashMap<>();
+
+    public Integer getTownLastGrowthDay(String poiId) {
+        return townLastGrowthDay.get(poiId);
+    }
+
+    public void setTownLastGrowthDay(String poiId, int day) {
+        townLastGrowthDay.put(poiId, day);
+    }
+
     // Dungeon rotation (MOD_SCOPE.md, user request 2026-08-08): per-POI lifecycle state, all keyed
     // by PointOfInterest.getID() and persisted like the Territory Control maps above. Logic lives
     // in DungeonRotation (util); these are just the timers/counters. poiDespawnDay: the in-game
@@ -338,6 +354,12 @@ public class World implements Disposable, SaveFileContent {
             townTerritoryRadius.putAll((java.util.Map<String, Integer>) saveFileData.readObject("townTerritoryRadius"));
         }
 
+        townLastGrowthDay.clear();
+        if (saveFileData.containsKey("townLastGrowthDay")) {
+            //noinspection unchecked
+            townLastGrowthDay.putAll((java.util.Map<String, Integer>) saveFileData.readObject("townLastGrowthDay"));
+        }
+
         colorEditionShards.clear();
         if (saveFileData.containsKey("colorEditionShards")) {
             //noinspection unchecked
@@ -405,6 +427,7 @@ public class World implements Disposable, SaveFileContent {
         data.store("fogOfWarStage2Revealed", fogOfWarStage2Revealed);
         data.storeObject("colorTerritoryRadius", colorTerritoryRadius);
         data.storeObject("townTerritoryRadius", townTerritoryRadius);
+        data.storeObject("townLastGrowthDay", townLastGrowthDay);
         data.storeObject("colorEditionShards", colorEditionShards);
         data.storeObject("resourceSpawns", new ArrayList<>(resourceSpawns));
         data.store("resourceSpawnsSeeded", resourceSpawnsSeeded ? 1 : 0);
@@ -654,6 +677,7 @@ public class World implements Disposable, SaveFileContent {
             colorNextAttackDay.clear();
             colorTerritoryRadius.clear();
             townTerritoryRadius.clear();
+            townLastGrowthDay.clear();
             colorEditionShards.clear(); // fresh world re-shards editions in generateNew(), not a stale split
             playerTownVisionAreas.clear(); // fresh world, no owned towns yet
             resourceSpawns.clear();

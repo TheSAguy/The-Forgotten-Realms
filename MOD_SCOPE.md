@@ -2754,3 +2754,50 @@ is a summary index:
   re-logging identical remaps on every town re-entry.
 Not yet playtested - the user's current save needs `fog reset` run to clear its existing
 over-revealed fog; everything else needs a fresh look in-game.
+
+### 60. Territory Pacing, Guard Info, Dialog Text Wrap, Spellsmith Editions — `Built (2026-08-14), not yet playtested`
+Five items from one round; a 6th (AI mage tier variety, see MOD_CHANGELOG.md) held for a user
+clarification before building - no matching "Grandmaster"/"Challenger"-tier wizard enemy exists
+per color today, so a literal reading of the requested odds can't always resolve to something.
+
+- **Rebuild/repair dialog button text wrapping** (e.g. "Rebuild Arena (250 [+Gold])" wrapping with
+  the icon alone on its own line): fixed at the shared `MapDialog` option-button renderer (a `[%88]`
+  scale prefix) rather than Arena-specifically - every DialogData-driven dialog in the mod (shop
+  rebuild/repair, quest choices, etc.) uses this same renderer, so this is a small universal buffer
+  against marginal-length labels. Wrapping itself is untouched, still there for genuinely long text.
+- **Capitol territory growth: 9 tiles/day -> 1 tile/day.** `TerritoryControl.java`'s own long-standing
+  comment on the shared constant already flagged this exact intent ("3 -> 9... TEMPORARY testing
+  pace... the user intends to drop this to 1 tile/day or slower for the real slow-burn pacing") -
+  this round finally splits it off into its own `CAPITOL_EXPANSION_TILES_PER_DAY` constant. AI
+  castles keep the 9-tiles/day pace (not requested to change).
+- **Ordinary-town territory growth: 9 tiles/day -> 1 tile/week.** A per-day rate can't express
+  "1 tile per 7 days" as a whole number, so this needed real day-tracking, not just a smaller
+  multiplier - new `World.townLastGrowthDay` (per-town, same persistence pattern as
+  `townTerritoryRadius`) tracks each town's own last-grew day, mirroring the exact "accumulate
+  until a threshold, advance in whole steps" shape guard salary's `lastPaidDay` already uses.
+  Applies uniformly to both player- and AI-owned ordinary towns (the growth mechanism was already
+  shared between them). A blocked growth attempt (fully contested land) keeps its earned tile(s)
+  banked and retries next tick rather than losing progress to the temporary block.
+- **Guard hiring "Info" button**: a new dialog explaining the whole mechanic in the player's own
+  terms - guard counts per town/Capitol, weekly costs per tier, how a guard fight's odds are
+  computed (tier matchup + the real +10%/-5% Outlook adjustment), what happens on a guard loss
+  (mage moves to the next guard or the town itself) vs. a full defense (attack never reaches the
+  town), the underlying town-capture roll odds by attacker tier once all guards fall, the 20% sack
+  chance, and the Capitol's own added stakes (clearing its 2 guards + winning that roll triggers the
+  forced defense duel, not the ordinary capture - losing it ends the run). Numbers are literal, not
+  read live from `TerritoryControl`'s private constants (same reason the pre-existing Outlook info
+  dialog does this too) - flagged with a comment to keep in sync if those ever change.
+- **AI-capital Spellsmith showing the wrong edition pool + no reputation gate.** Two real bugs, one
+  user report: the Spellsmith at every town (including AI capitals) was filtering its stock to the
+  PLAYER's own unlocked editions regardless of whose capital it was - fixed to use that color's own
+  dealt 1/5 shard instead (`EditionProgression.getEditionsForColor()`, the exact same helper/branch
+  logic `restrictShopRewardsForCurrentTown()` already established for card shops), with player-owned
+  towns/the Capitol keeping the player's own unlocked editions as before. Second: nothing gated
+  *access* to an AI-color Spellsmith at all - new `ColorReputation.isSpellsmithAccessible()`
+  (Happy/Partner only, deliberately stricter than the general War-only capital entry toll, and
+  specific to this one building) now blocks entry with an explanatory dialog below that threshold,
+  wired into `MapStage.java`'s "spellsmith" collision case.
+
+Not yet playtested - needs the user to see the button-text fix, watch both growth rates over
+several in-game days/weeks, read the new Guard Info dialog, and check a low-reputation AI capital's
+Spellsmith (blocked entry) against a Happy/Partner one (right edition pool, not the player's own).

@@ -1130,6 +1130,23 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`stage/ConsoleCommandInterpreter.java`** — `give wood`/`give stone` now play
   `SoundEffectType.CoinsDrop` + log `[TFR-Give]`; new `fog reset` command.
 
+### 2026-08-14 Territory pacing split, Guard Info dialog, dialog text-wrap fix, Spellsmith editions
+- **`util/MapDialog.java`** — shared `DialogData` option-button renderer now prefixes every button
+  label with `[%88]` (text-wrap fix, see MOD_CHANGELOG.md).
+- **`util/TerritoryControl.java`** (mod file, inventoried below) — `EXPANSION_TILES_PER_DAY` split
+  into 3 rates (AI castles unchanged at 9/day, new `CAPITOL_EXPANSION_TILES_PER_DAY = 1`, ordinary
+  towns moved to a day-tracked 1-tile/7-days mechanism via `World.townLastGrowthDay`).
+- **`world/World.java`** — new `townLastGrowthDay` field (`Map<String, Integer>`, get/set/save/
+  load/NG+-clear(), same pattern as `townTerritoryRadius` immediately above it).
+- **`util/EconomyBuildings.java`** (mod file, inventoried below) — new `buildGuardInfoDialog()` +
+  "Info" button on the Manage Guards dialog.
+- **`util/ColorReputation.java`** — new `isSpellsmithAccessible(color)` (Happy/Partner only).
+- **`scene/SpellSmithScene.java`** — edition filter now branches player-owned-town vs. AI-color-town
+  (via `EditionProgression.getEditionsForColor()`) instead of always using the player's own
+  unlockedEditions.
+- **`stage/MapStage.java`** — "spellsmith" collision case gated on `isSpellsmithAccessible()`,
+  showing a blocking dialog below Happy/Partner standing instead of opening the scene.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

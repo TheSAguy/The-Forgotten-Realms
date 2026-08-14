@@ -463,7 +463,52 @@ public class EconomyBuildings {
             });
         }
         finishHalfButtonRow(dialog, column);
+        addButtonRow(dialog, "Info", true, () -> scene.showDialog(buildGuardInfoDialog(scene)));
         dialog.getButtonTable().add(Controls.newTextButton("Close", scene::removeDialog)).colspan(2).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        return dialog;
+    }
+
+    /** "Info" button on the Manage Guards dialog (2026-08-14 user request: "a brief explanation
+     *  of the whole mechanic"). Percentages are literal, not read live from TerritoryControl's
+     *  private GUARD_FIGHT_ATTACKER_BONUS/OUTLOOK_DEFENSE_BONUS/ATTACKER_SACKS_TOWN_CHANCE -
+     *  same pattern the pre-existing Outlook info dialog already uses for the same reason
+     *  (those constants aren't public) - keep these three numbers in sync if those ever change. */
+    private static Dialog buildGuardInfoDialog(UIScene scene) {
+        Dialog dialog = new Dialog("How Guards Work", Controls.getSkin());
+        addContentRow(dialog, "A town holds 1 guard, the Capitol holds 2. Hired guards are paid "
+                + "weekly (upfront on hire too) - miss a payment and that guard disbands.");
+        StringBuilder tiers = new StringBuilder("Tiers, weakest to strongest: ");
+        for (int i = 0; i < GUARD_TIERS_ASCENDING.length; i++) {
+            String tier = GUARD_TIERS_ASCENDING[i];
+            if (i > 0)
+                tiers.append(", ");
+            tiers.append(guardTierDisplayName(tier)).append(" (").append(guardWeeklyGoldCost(tier)).append("g/wk");
+            int shardCost = guardWeeklyShardCost(tier);
+            if (shardCost > 0)
+                tiers.append(" + ").append(shardCost).append(" shards/wk");
+            tiers.append(")");
+        }
+        addContentRow(dialog, tiers.toString());
+        addContentRow(dialog, "When a mage attacks, it must defeat every hired guard, strongest "
+                + "first, before it can even attempt to take the town - lose a guard fight and "
+                + "that guard is gone for good, but the mage moves on to the next one (or to the "
+                + "town itself if none remain). Beat every guard yourself and the attack ends "
+                + "there - it never reaches the town.");
+        addContentRow(dialog, "Each fight's odds come from the two tiers facing off (a higher "
+                + "tier is a stronger fighter), plus the attacker always gets +10%, minus 5% if "
+                + "this town has an Outlook built. Same-tier vs. same-tier is close to 50/50 "
+                + "before that adjustment; a bigger tier gap swings it hard either way.");
+        addContentRow(dialog, "If every guard falls (or none were hired), the mage rolls to take "
+                + "the town itself - odds by the mage's own tier: Apprentice 10%, Adept 30%, "
+                + "Master 70%, Grandmaster 90% (also -5% with an Outlook). Winning that roll still "
+                + "has a further 20% chance to sack the town instead of properly capturing it - "
+                + "sacked, it reverts to a neutral ruin rather than changing hands.");
+        addContentRow(dialog, "The Capitol works the same way through its own 2 guards and this "
+                + "same town-capture roll - but if a mage clears both guards AND wins that roll, "
+                + "it triggers a forced duel for the Capitol itself instead of the ordinary "
+                + "capture. Losing that duel ends the run.");
+        dialog.getButtonTable().add(Controls.newTextButton("Close", scene::removeDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
         return dialog;
     }

@@ -383,8 +383,32 @@ public class SpellSmithScene extends UIScene {
         // nothing below constrained the pool at all, so the smith was a full bypass of the
         // progression lock (and dodged the 4x edition surcharge). The pool itself must honor
         // unlockedEditions whenever the feature is on, independent of the dropdown state.
-        final Set<String> unlockedOnly = Current.world().isEditionProgressionEnabled()
-                ? new HashSet<>(Current.player().getUnlockedEditions()) : null;
+        //
+        // Which edition list, fixed 2026-08-14 (user report: an AI-colored capital's Spellsmith
+        // was showing the PLAYER's own unlocked editions, not that color's own dealt 1/5 shard -
+        // every other edition-restricted system already branches on this exact same check, see
+        // EditionProgression.restrictShopRewardsForCurrentTown()). Player-owned towns/Capitol
+        // keep the player's own unlockedEditions (unchanged); everywhere else uses the current
+        // town's color's own shard, falling back to the neutral shard if no color match.
+        // MapStage's own "spellsmith" collision case already bars entry entirely below Happy
+        // reputation with that color, so reaching this point at all implies access is allowed.
+        final Set<String> unlockedOnly;
+        if (Current.world().isEditionProgressionEnabled()) {
+            forge.adventure.pointofintrest.PointOfInterest rootPoint = TileMapScene.instance().rootPoint;
+            forge.adventure.pointofintrest.PointOfInterestChanges townChanges = rootPoint != null
+                    ? forge.adventure.world.WorldSave.getCurrentSave().peekPointOfInterestChanges(rootPoint.getID()) : null;
+            Collection<String> restriction;
+            if (TownRestoration.isCurrentTownCapitol() || TownRestoration.isTownRestored(townChanges)) {
+                restriction = Current.player().getUnlockedEditions();
+            } else {
+                String townColor = rootPoint != null ? ColorReputation.colorOfTown(rootPoint.getData()) : null;
+                restriction = EditionProgression.getEditionsForColor(Current.world(),
+                        townColor != null ? townColor : EditionProgression.NEUTRAL);
+            }
+            unlockedOnly = new HashSet<>(restriction);
+        } else {
+            unlockedOnly = null;
+        }
         P = StreamUtil.stream(P).filter(input -> {
             //L|Basic Land, C|Common, U|Uncommon, R|Rare, M|Mythic Rare, S|Special, N|None
             if (input == null) return false;

@@ -155,6 +155,18 @@ public class ColorReputation {
         return isEnabled() && color != null && getStatus(color) == Status.WAR;
     }
 
+    /** True when this color's Spellsmith will deal with the player at all (2026-08-14 user spec:
+     *  Happy or Partner only) - deliberately its own, stricter method rather than a reuse of
+     *  isEntryBarred() (War-only): Neutral and Unhappy standing still let the player walk into
+     *  the town itself, just not use this specific building. Disabled feature/no color -> always
+     *  accessible (matches every other reputation gate's "off means nothing is gated" default). */
+    public static boolean isSpellsmithAccessible(String color) {
+        if (!isEnabled() || color == null)
+            return true;
+        Status status = getStatus(color);
+        return status == Status.HAPPY || status == Status.PARTNER;
+    }
+
     /** True when this color's War-tier standing bars the player from healing at its Inns
      *  entirely (Partner-tier Inns are also non-purchasable, but for the opposite reason - see
      *  AdventurePlayer.grantPartnerOverheal(); callers distinguish the two by status, not this). */

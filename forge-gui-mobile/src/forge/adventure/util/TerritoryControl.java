@@ -188,16 +188,24 @@ public class TerritoryControl {
     private static final float AI_CASTLE_PULL_WEIGHT = 0.85f;
     private static final int AI_CASTLE_EXCLUSION_RADIUS_TILES = 32;
     // 3 -> 9 per user (2026-08-08): TEMPORARY testing pace so the full spread is watchable in a
-    // session or two. Once the systems around it are settled the user intends to drop this to 1
-    // tile/day or slower for the real slow-burn pacing - don't treat 9 as the design value.
+    // session or two - AI castles only now (2026-08-14: Capitol and ordinary towns split off their
+    // own, much slower real-pacing rates below, per the user's original intent noted here).
     private static final int EXPANSION_TILES_PER_DAY = 9;
+    // Capitol growth pacing (2026-08-14 user spec): down from the shared 9-tiles/day testing pace
+    // to the real slow-burn value - "just like the AI's" castle mechanism, but its own rate.
+    private static final int CAPITOL_EXPANSION_TILES_PER_DAY = 1;
     private static final int MAX_TERRITORY_RADIUS = 450; // raised 300 -> 450 per user request 2026-08-08
     // Captured towns grow their own small territory too (user request 2026-08-08: "for captured
-    // towns, let's have them expand to 15") - from RECOLOR_RADIUS at capture up to this, at the
-    // same per-day rate as castles. Per-town current radius lives in World.townTerritoryRadius,
-    // seeded at capture (onMageArrived() for AI, TownRestoration's restore path for the player).
-    // A planned "outlook" building will later raise this further per town.
+    // towns, let's have them expand to 15") - from RECOLOR_RADIUS at capture up to this. Per-town
+    // current radius lives in World.townTerritoryRadius, seeded at capture (onMageArrived() for
+    // AI, TownRestoration's restore path for the player). A planned "outlook" building will later
+    // raise this further per town.
     public static final int TOWN_MAX_TERRITORY_RADIUS = 15;
+    // Town growth pacing (2026-08-14 user spec): 1 tile per 7 days, down from the 9-tiles/day rate
+    // towns previously shared with AI castles/the Capitol. A per-day rate can't express "1 tile
+    // per week" as a whole number, so town growth tracks each town's own last-grew day
+    // (World.townLastGrowthDay) instead of a flat per-tick multiply - see its use below.
+    private static final int TOWN_EXPANSION_DAYS_PER_TILE = 7;
 
     // Roaming-spawn intrusion radius (user request 2026-08-10: "if a colored city is in the area,
     // that color might spawn in a certain radius"). Deliberately larger than CASTLE_KEEP_RADIUS_TILES
@@ -532,7 +540,19 @@ public class TerritoryControl {
             }
             if (ownerColor == null)
                 continue; // stale entry (e.g. the town was captured again under a new id) - skip
-            int newTownRadius = Math.min(townRadius + EXPANSION_TILES_PER_DAY * daysPassed, TOWN_MAX_TERRITORY_RADIUS);
+            // 1 tile / TOWN_EXPANSION_DAYS_PER_TILE days (2026-08-14 user spec), not a flat
+            // per-day multiply - see World.getTownLastGrowthDay()'s own comment. First sight of
+            // this town seeds "last grew today" rather than retroactively crediting elapsed days.
+            int currentDay = world.getCurrentDay();
+            Integer lastGrowthDay = world.getTownLastGrowthDay(poi.getID());
+            if (lastGrowthDay == null) {
+                lastGrowthDay = currentDay;
+                world.setTownLastGrowthDay(poi.getID(), lastGrowthDay);
+            }
+            int tilesEarned = (currentDay - lastGrowthDay) / TOWN_EXPANSION_DAYS_PER_TILE;
+            if (tilesEarned <= 0)
+                continue; // hasn't been a full week since this town's last growth tick
+            int newTownRadius = Math.min(townRadius + tilesEarned, TOWN_MAX_TERRITORY_RADIUS);
             // Radius + fog-of-war Revealed cache advance BEFORE the claim, so the claim's own
             // per-tile chunk re-bakes see the grown vision area (order-bug finding)...
             world.setTownTerritoryRadius(poi.getID(), newTownRadius);
@@ -542,8 +562,13 @@ public class TerritoryControl {
                     townRadius, newTownRadius,
                     WorldStage.getInstance()::refreshBackgroundTile,
                     WorldStage.getInstance()::reloadBackgroundChunkObjects);
-            if (claimed == 0) {
-                // ...but REVERTED when the ring took no ground at all (fully blocked by an AI
+            if (claimed > 0) {
+                // Only spend the earned week(s) on an actual successful claim - a blocked attempt
+                // (below) keeps its earned tile(s) banked and retries next tick, same spirit as
+                // the per-day mechanism never permanently losing progress to a temporary block.
+                world.setTownLastGrowthDay(poi.getID(), lastGrowthDay + tilesEarned * TOWN_EXPANSION_DAYS_PER_TILE);
+            } else {
+                // REVERTED when the ring took no ground at all (fully blocked by an AI
                 // color / rivals): advancing anyway would grow the town's protection cap and its
                 // revealed circle over ground it visibly does not hold - the exact
                 // "protection wider than visible ground" mismatch class already caught once.
@@ -652,7 +677,7 @@ public class TerritoryControl {
                 currentRadius = CASTLE_KEEP_RADIUS_TILES; // first tick after the upgrade
                 world.setColorTerritoryRadius("player", currentRadius);
             }
-            int newRadius = Math.min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
+            int newRadius = Math.min(currentRadius + CAPITOL_EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
             int innerRadius;
             if (sourcesChanged) {
                 // Inner radius 1, not the keep: unlike an AI castle (whose keep was generated as

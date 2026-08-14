@@ -783,8 +783,32 @@ public class MapStage extends GameStage {
                         addMapActor(obj, new OnCollide(() -> Forge.switchScene(InnScene.instance(TileMapScene.instance(), TileMapScene.instance().rootPoint.getID(), changes, id))));
                         break;
                     case "spellsmith":
-                        addMapActor(obj, new OnCollide(() -> Forge.switchScene(SpellSmithScene.instance()), id, this)
-                                .withRebuiltIcon(EconomyBuildings.getSpellsmithSprite()));
+                        addMapActor(obj, new OnCollide(() -> {
+                            // Reputation gate (2026-08-14 user spec): an AI-color town/capital's
+                            // Spellsmith only deals with the player at Happy-or-better standing
+                            // with that color - stricter than the general War-only capital entry
+                            // toll (ColorReputation.isEntryBarred()), and specific to this
+                            // building, not the whole town. Player-owned towns/Capitol and
+                            // neutral/colorless towns are exempt entirely (colorOfTown() is null
+                            // for both, same check EditionProgression's shop restriction uses).
+                            PointOfInterest point = TileMapScene.instance().rootPoint;
+                            String townColor = (point != null && !TownRestoration.isCurrentTownCapitol()
+                                    && !TownRestoration.isTownRestored(changes))
+                                    ? ColorReputation.colorOfTown(point.getData()) : null;
+                            if (townColor != null && !ColorReputation.isSpellsmithAccessible(townColor)) {
+                                String displayColor = Character.toUpperCase(townColor.charAt(0)) + townColor.substring(1);
+                                DialogData blocked = new DialogData();
+                                blocked.text = "The " + displayColor + " Spellsmith won't deal with you - "
+                                        + "your standing with " + displayColor + " needs to be Happy or better.";
+                                DialogData ok = new DialogData();
+                                ok.name = "OK";
+                                blocked.options = new DialogData[]{ok};
+                                if (new MapDialog(blocked, this, id, null).activate())
+                                    showDialog();
+                                return;
+                            }
+                            Forge.switchScene(SpellSmithScene.instance());
+                        }, id, this).withRebuiltIcon(EconomyBuildings.getSpellsmithSprite()));
                         break;
                     case "shardtrader":
                         MapActor shardTraderActor = new OnCollide(() -> Forge.switchScene(ShardTraderScene.instance()), id, this);
