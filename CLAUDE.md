@@ -40,10 +40,12 @@ have in its own memory.
   (or a new file added outside that folder) needs a matching entry in `CORE_ENGINE_CHANGES.md` in
   the same round** - same standing requirement as keeping `MOD_CHANGELOG.md` current, just scoped
   to upstream-conflict-relevant changes specifically.
-- Commit changes to `MOD_SCOPE.md`/mod source files as usual, but do **not** push to `origin`
-  unless the user explicitly asks (standing preference reversed 2026-08-13 - user is near their
-  GitHub Actions monthly minutes cap, 90% used, and every push triggers CI). Leave commits local
-  until asked to push.
+- After committing changes to `MOD_SCOPE.md` or mod source files, push to `origin` without
+  waiting to be asked (standing user preference). This was briefly reversed on 2026-08-13 after
+  the user hit ~90% of their GitHub Actions monthly minutes cap (every push was triggering CI) -
+  user addressed it on the repo side (trimmed/disabled the relevant workflow(s), including this
+  same round's `.github/workflows/test-build.yaml` auto-trigger removal) and explicitly asked to
+  resume pushing the same day. Back to the original standing preference.
 - `origin` is the user's own fork (`TheSAguy/mtg-forge-mod`); `upstream` is the original
   `Card-Forge/forge` project, for pulling in engine updates only - never push mod work there.
 - **Add a greppable diagnostic log line for any mechanic that's hard to observe by just playing**
