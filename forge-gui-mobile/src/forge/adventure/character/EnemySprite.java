@@ -541,14 +541,25 @@ public class EnemySprite extends CharacterSprite implements Steerable<Vector2> {
             // restricted, never this.rewards (per-instance overrides a few lines below, reserved
             // for genuinely special-cased encounters like the Deck Tester's AI shell).
             Iterable<RewardData> standardRewardSource = java.util.Arrays.asList(data.rewards);
-            if (Current.world().isEditionProgressionEnabled() && !data.boss && (data.questTags == null || data.questTags.length == 0)) {
-                String color = ColorReputation.singleColorOfEnemy(data.colors);
-                String colorLabel = color != null ? color : EditionProgression.NEUTRAL;
-                List<String> editionRestriction = EditionProgression.getEditionsForColor(Current.world(), colorLabel);
-                // Diagnostic-only logging - greppable in forge.log as "[TFR-LootEditions]".
-                System.out.println("[TFR-LootEditions] enemy=" + data.name + " colors=" + data.colors
-                        + " -> " + colorLabel + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
-                standardRewardSource = EditionProgression.restrictToEditions(standardRewardSource, editionRestriction);
+            if (Current.world().isEditionProgressionEnabled()) {
+                if (!data.boss && (data.questTags == null || data.questTags.length == 0)) {
+                    String color = ColorReputation.singleColorOfEnemy(data.colors);
+                    String colorLabel = color != null ? color : EditionProgression.NEUTRAL;
+                    List<String> editionRestriction = EditionProgression.getEditionsForColor(Current.world(), colorLabel);
+                    // Diagnostic-only logging - greppable in forge.log as "[TFR-LootEditions]".
+                    System.out.println("[TFR-LootEditions] enemy=" + data.name + " colors=" + data.colors
+                            + " -> " + colorLabel + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
+                    standardRewardSource = EditionProgression.restrictToEditions(standardRewardSource, editionRestriction);
+                } else {
+                    // Diagnostic logging (2026-08-13) - this exemption (dedicated boss/quest
+                    // rewards deliberately skip edition restriction, per user spec) previously
+                    // fired completely silently, making "exempted by design" indistinguishable
+                    // from "this code path never ran" when grepping forge.log for a specific
+                    // enemy.
+                    System.out.println("[TFR-LootEditions] enemy=" + data.name + " colors=" + data.colors
+                            + " -> EXEMPT boss=" + data.boss
+                            + " questTagged=" + (data.questTags != null && data.questTags.length > 0));
+                }
             }
             for (RewardData rdata : standardRewardSource) {
                 rewards.addAll(rdata.generate(false,  enemyDeck == null ? null : deckNoBasicLands.toFlatList(),true ));

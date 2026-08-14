@@ -112,7 +112,24 @@ public class DuelScene extends ForgeScene {
         List<PaperCard> anteWonCards = Collections.emptyList();
         List<PaperCard> anteLostCards = Collections.emptyList();
         try {
-            winner = humanPlayer == hostedMatch.getGame().getMatch().getWinner();
+            // Defensive null-check (2026-08-13, found via the user's own forge.log after
+            // extended play - a real, reproducible NPE, not the different one already fixed
+            // above). hostedMatch.getGame() can already be null by the time actionOnQuit() ->
+            // GameEnd() runs, specifically observed for Deck Tester matches: HostedMatch.
+            // endCurrentGame() nulls its game field once the match's own auto-decision
+            // resolves, which can race ahead of the player's win/lose-screen click for a
+            // noAnte/single-game/no-rewards match like Deck Tester. Without this guard, the
+            // exception aborted this ENTIRE try block at its very first line - not just the
+            // winner computation, but shard persistence and ante handling too - and printed a
+            // full stack trace every single time it happened (confirmed twice in one session).
+            // winner correctly stays at its already-initialized false default here - Deck
+            // Tester's own deckTesterMatch guard in ArenaScene.setWinner() doesn't track win/
+            // loss meaningfully anyway (just resets UI state, per its own comment).
+            if (hostedMatch.getGame() != null) {
+                winner = humanPlayer == hostedMatch.getGame().getMatch().getWinner();
+            } else {
+                System.out.println("[TFR-DuelEndRace] hostedMatch.getGame() was already null in GameEnd() - match already torn down before this callback ran, winner defaults false");
+            }
 
             //Persists expended (or potentially gained) shards back to Adventure
             if (eventData == null || eventData.eventRules.allowsShards) {

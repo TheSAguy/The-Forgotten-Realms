@@ -92,6 +92,18 @@ public class DialogData implements Serializable {
         // second, narrower mechanism.
         public String runCommand;
 
+        // Edition-restriction stale-bake-in fix (2026-08-13) - set on the "yes"/"repair" action of
+        // TownRestoration's town-restore/shop-rebuild dialogs, EconomyBuildings.buildOption(NONE)
+        // (plain Card Shop rebuild), and EconomyBuildings.buildSimpleRepairDialog(), so a freshly-
+        // restored/rebuilt shop immediately reflects the player's current unlockedEditions instead
+        // of whatever AI-color/neutral shard it was born with at MapStage's original (necessarily
+        // pre-restoration) build. See MapStage.refreshAllShopRewards(String) for what this
+        // actually does - refreshes every shop in the current town, not just one object, so no ID
+        // payload is needed here. Null/empty = off; non-null = the trigger label passed through to
+        // [TFR-ShopEditions] logging (adversarial review, 2026-08-13 - a hardcoded label here
+        // couldn't distinguish which of the 4 call sites actually fired).
+        public String refreshShopRewardsTrigger = null;
+
         public ActionData(){}
 
         public ActionData(ActionData other){
@@ -126,6 +138,7 @@ public class DialogData implements Serializable {
             addMapReputation = other.addMapReputation;
             POIReference = other.POIReference;
             runCommand = other.runCommand;
+            refreshShopRewardsTrigger = other.refreshShopRewardsTrigger;
         }
     }
 

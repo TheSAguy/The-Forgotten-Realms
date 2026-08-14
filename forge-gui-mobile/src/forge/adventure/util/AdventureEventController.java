@@ -10,10 +10,13 @@ import forge.item.BoosterPack;
 import forge.item.PaperCard;
 import forge.item.SealedTemplate;
 import forge.item.generation.BoosterGenerator;
+import forge.item.generation.BoosterSlots;
 import forge.item.generation.UnOpenedProduct;
 import forge.model.CardBlock;
 import forge.model.FModel;
 import forge.util.Aggregates;
+import com.google.common.collect.ImmutableList;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -170,7 +173,37 @@ public class AdventureEventController implements Serializable {
         return output;
     }
     public Deck generateBoosterByColor(String color) {
-        List<PaperCard> cards = BoosterPack.fromColor(color).getCards();
+        return generateBoosterByColor(color, null);
+    }
+
+    // Progressive Set Unlocks edition-restriction fix (2026-08-13) - BoosterPack.fromColor()
+    // pulls from the whole card database with no edition filter at all, so every colored-booster
+    // shop (White/Blue/Black/Red/Green/Colorless Booster in shops.json) bypassed edition
+    // restriction unconditionally, regardless of town ownership or the player's own
+    // unlockedEditions - confirmed root cause of the "Nature's Nurture Packs" screenshot showing
+    // out-of-shard Green boosters. Mirrors BoosterPack.fromColor()'s own slot layout exactly, just
+    // appending a "fromSets(...)" clause (a stock BoosterGenerator predicate operator, see
+    // BoosterGenerator.buildExtraPredicate()) to each slot when restrictEditions is non-empty.
+    // restrictEditions==null/empty keeps the original unrestricted behavior (stock planes, or a
+    // caller with no restriction to apply).
+    public Deck generateBoosterByColor(String color, String[] restrictEditions) {
+        String setClause = "";
+        if (restrictEditions != null && restrictEditions.length > 0) {
+            // BoosterGenerator.buildExtraPredicate()'s fromSets(...) parser does
+            // operator.substring("fromSets(".length() + 1) - the "+1" is calibrated to also skip
+            // a leading quote (mirrors the color("...") convention right above), matching the
+            // only other caller in the codebase (QuestUtilCards.java:642). Omitting the quote (as
+            // an earlier version of this fix did) shifts that substring by one character and
+            // silently truncates the first edition code (e.g. "ONE" -> "NE", matching zero cards).
+            setClause = ":fromSets(\"" + String.join(",", restrictEditions) + ")";
+        }
+        BoosterPack pack = new BoosterPack(color, new SealedTemplate("?", ImmutableList.of(
+                Pair.of(BoosterSlots.COMMON + ":color(\"" + color + "\"):!" + BoosterSlots.LAND + setClause, 11),
+                Pair.of(BoosterSlots.UNCOMMON + ":color(\"" + color + "\"):!" + BoosterSlots.LAND + setClause, 3),
+                Pair.of(BoosterSlots.RARE_MYTHIC + ":color(\"" + color + "\"):!" + BoosterSlots.LAND + setClause, 1),
+                Pair.of(BoosterSlots.LAND + ":color(\"" + color + "\")" + setClause, 1))
+        ));
+        List<PaperCard> cards = pack.getCards();
         Deck output = new Deck();
         output.getMain().add(cards);
         String editionName = color + " Booster Pack";

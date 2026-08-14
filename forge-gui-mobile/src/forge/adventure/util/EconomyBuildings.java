@@ -984,7 +984,16 @@ public class EconomyBuildings {
         option.name = label;
         option.isDisabled = !canAffordCost(c[0], c[1], c[2], c[3]);
         if (type == NONE) {
-            option.action = new DialogData.ActionData[]{spendCostAction(c[0], c[1], c[2], c[3]), setShopRebuiltAction(objectId)};
+            // Edition-restriction stale-bake-in fix (2026-08-13, adversarial review) - this is the
+            // plain "Card Shop" rebuild option ShopActor.onPlayerCollide() routes every ordinary
+            // wasteland shop through, and the only one of the four restoration/rebuild flows that
+            // was missed the first time (buildRestoreTownDialog/buildRebuildShopDialog/
+            // buildSimpleRepairDialog all got it) - without this, a plain shop rebuilt here (or
+            // Destroy Building + rebuilt again) kept whatever edition shard it was born with
+            // indefinitely, since destroyBuilding() doesn't touch rewardData either.
+            DialogData.ActionData refreshShops = new DialogData.ActionData();
+            refreshShops.refreshShopRewardsTrigger = "shop-rebuild";
+            option.action = new DialogData.ActionData[]{spendCostAction(c[0], c[1], c[2], c[3]), setShopRebuiltAction(objectId), refreshShops};
         } else {
             option.condition = new DialogData.ConditionData[]{noBuildingOfTypeYetCondition(type)};
             option.action = new DialogData.ActionData[]{spendCostAction(c[0], c[1], c[2], c[3]), setShopRebuiltAction(objectId), setEconomyTypeAction(type), setBuiltFlagAction(type)};
@@ -1168,7 +1177,9 @@ public class EconomyBuildings {
             c = new int[]{100, 10, 0, 0};
         repair.name = what + " (" + costLabel(c[0], c[1], c[2], c[3]) + ")";
         repair.isDisabled = !canAffordCost(c[0], c[1], c[2], c[3]);
-        repair.action = new DialogData.ActionData[]{spendCostAction(c[0], c[1], c[2], c[3]), setShopRebuiltAction(objectId)};
+        DialogData.ActionData refreshShops = new DialogData.ActionData();
+        refreshShops.refreshShopRewardsTrigger = "shop-repair";
+        repair.action = new DialogData.ActionData[]{spendCostAction(c[0], c[1], c[2], c[3]), setShopRebuiltAction(objectId), refreshShops};
 
         DialogData notNow = new DialogData();
         notNow.name = "Not now";

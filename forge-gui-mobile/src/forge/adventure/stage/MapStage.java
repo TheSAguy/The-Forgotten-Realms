@@ -295,6 +295,38 @@ public class MapStage extends GameStage {
         return shopActors;
     }
 
+    // Edition-restriction stale-bake-in fix (2026-08-13) - a shop's RewardData is normally only
+    // (re)computed at the moments listed on EditionProgression.restrictShopRewardsForCurrentTown()'s
+    // own doc comment (map load, restock, armory reroll/upgrade, shop-type reroll). None of those
+    // fire when a wasteland town/shop transitions from AI-owned to player-owned via
+    // TownRestoration.buildRestoreTownDialog()/buildRebuildShopDialog(),
+    // EconomyBuildings.buildOption(NONE) (plain Card Shop rebuild), or
+    // EconomyBuildings.buildSimpleRepairDialog() - those dialogs only spend the cost and set a
+    // quest flag, so a freshly-restored shop kept showing whatever AI-color/neutral edition shard
+    // it was born with (MapStage's very first build of it, necessarily before restoration) until
+    // the player left and re-entered the town or paid for an unrelated restock/reroll. Called from
+    // each of those four dialogs' "yes"/"repair" action right after the flag flips. Reuses the
+    // shop's EXISTING seed (same as RewardScene.restockShop()) rather than rerolling one - this
+    // only corrects which editions are eligible, it isn't a free extra reroll.
+    //
+    // trigger (adversarial review, 2026-08-13) - threaded through to [TFR-ShopEditions] so a
+    // hardcoded label can't make every one of the town's shops log an identical, indistinguishable
+    // trigger regardless of which of the 4 call sites actually fired.
+    public void refreshAllShopRewards(String trigger) {
+        PointOfInterestChanges changes = getChanges();
+        for (forge.adventure.character.ShopActor shopActor : getShopActors()) {
+            ShopData data = shopActor.getShopData();
+            Array<Reward> ret = new Array<>();
+            long shopSeed = changes.getShopSeed(shopActor.getObjectId());
+            WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
+            for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
+                    new Array.ArrayIterator<>(data.rewards), changes, data.name, trigger)) {
+                ret.addAll(rdata.generate(false, false));
+            }
+            shopActor.setRewardData(ret);
+        }
+    }
+
     @Override
     public boolean isColliding(Rectangle adjustedBoundingRect) {
         for (Rectangle collision : collisionRect) {
@@ -970,7 +1002,7 @@ public class MapStage extends GameStage {
                         // RewardData objects are the SAME shared instances every other town
                         // resolving to this shop name also uses.
                         Iterable<RewardData> shopRewardSource = EditionProgression.restrictShopRewardsForCurrentTown(
-                                new Array.ArrayIterator<>(data.rewards), changes, data.name);
+                                new Array.ArrayIterator<>(data.rewards), changes, data.name, "init");
                         for (RewardData rdata : shopRewardSource) {
                             ret.addAll(rdata.generate(false, false));
                         }

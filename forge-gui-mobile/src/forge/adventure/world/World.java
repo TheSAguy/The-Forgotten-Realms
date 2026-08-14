@@ -881,7 +881,7 @@ public class World implements Disposable, SaveFileContent {
                                 clearTerrain((int) (x / data.tileSize), (int) (y / data.tileSize), 3);
                                 mapPoiIds.add(newPoint);
 
-                                TextureAtlas.AtlasRegion marker = mapMarker.findRegion(poi.type);
+                                TextureAtlas.AtlasRegion marker = mapMarker.findRegion(mapMarkerKey(poi));
 
                                 if (marker != null) {
                                     int xInPixels = (int) ((x / data.tileSize) * data.miniMapTileSize);
@@ -1360,6 +1360,42 @@ public class World implements Disposable, SaveFileContent {
         return true;
     }
 
+    // Temple-icon minimap bug (2026-08-13) - "Story"-tagged unique landmark POIs (Tarnation,
+    // Wizard Palace, Squirrel Farm, Gitrog Bog, Church of Valgavoth, Kenrith's Court, Eldrazi
+    // Prison) all use type="castle" for its real gameplay side effects (wider vision radius,
+    // castle music track - see TownRestoration/ColorReputation), but map_marker.atlas's "castle"
+    // region is a small grey chapel-shaped icon that reads as a temple, so every one of these
+    // genuinely-different locations baked the identical marker onto the minimap. Two prior
+    // rounds (2026-08-11) only patched each POI's overworld sprite and never this lookup. Per
+    // user decision, Story POIs key off the existing "dungeon" marker instead (no new art) while
+    // `type` itself stays "castle" so the vision-radius/music behavior is untouched.
+    //
+    // Narrowed (adversarial review, 2026-08-13) - an earlier version of this fix keyed off the
+    // "Story" tag alone, which also carries "Story" and is type="castle"/"cave"/"town" for OTHER
+    // reasons: the player's own starting town "Spawn" (type="town"), 9 cave-type Story POIs
+    // (Omenport, Three Tree City, the 5 Classroom POIs, etc.), and the 5 Chapter-1-Boss castles
+    // (Black/Blue/Green/Red/White Castle, additionally tagged "Boss"/"Chapter1Boss") - none of
+    // those were the reported bug (they either weren't castle-typed at all, or are meaningful
+    // bosses that should keep their larger, more prominent 32x32 castle icon). Only remap when
+    // the POI is BOTH type="castle" AND not one of those boss dungeons.
+    private static String mapMarkerKey(PointOfInterestData data) {
+        if (data == null)
+            return null;
+        if ("castle".equals(data.type) && data.questTags != null) {
+            boolean isStory = false;
+            boolean isBoss = false;
+            for (String tag : data.questTags) {
+                if ("Story".equals(tag))
+                    isStory = true;
+                else if ("Boss".equals(tag))
+                    isBoss = true;
+            }
+            if (isStory && !isBoss)
+                return "dungeon";
+        }
+        return data.type;
+    }
+
     // Territory Control (MOD_SCOPE.md #7) only - see generateNew()'s call site. Mirrors the
     // marker-drawing block inside the normal POI-placement loop above (same region lookup/offset
     // math), but draws directly onto biomeImage instead of queuing through drawPixmapLater() -
@@ -1377,7 +1413,7 @@ public class World implements Disposable, SaveFileContent {
             // without this, a vanished dungeon kept its baked icon until the next full rebake.
             if (!poi.getActive())
                 continue;
-            TextureAtlas.AtlasRegion marker = mapMarker.findRegion(poi.getData().type);
+            TextureAtlas.AtlasRegion marker = mapMarker.findRegion(mapMarkerKey(poi.getData()));
             if (marker == null)
                 continue;
             int xInPixels = (int) ((poi.getPosition().x / data.tileSize) * mm);

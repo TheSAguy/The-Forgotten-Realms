@@ -303,9 +303,12 @@ public class TownRestoration {
         DialogData yes = new DialogData();
         yes.name = "Restore town (" + label + ")";
         yes.isDisabled = !EconomyBuildings.canAffordCost(RESTORE_COST_GOLD, RESTORE_COST_WOOD, 0, 0);
+        DialogData.ActionData refreshShops = new DialogData.ActionData();
+        refreshShops.refreshShopRewardsTrigger = "town-restore";
         yes.action = new DialogData.ActionData[]{
                 EconomyBuildings.spendCostAction(RESTORE_COST_GOLD, RESTORE_COST_WOOD, 0, 0),
-                setFlagAction(TOWN_RESTORED_FLAG)};
+                setFlagAction(TOWN_RESTORED_FLAG),
+                refreshShops};
 
         DialogData no = new DialogData();
         no.name = "Not now";
@@ -330,9 +333,12 @@ public class TownRestoration {
         DialogData yes = new DialogData();
         yes.name = verb + " (" + label + ")";
         yes.isDisabled = !EconomyBuildings.canAffordCost(gold, wood, stone, shards);
+        DialogData.ActionData refreshShops = new DialogData.ActionData();
+        refreshShops.refreshShopRewardsTrigger = "shop-rebuild";
         yes.action = new DialogData.ActionData[]{
                 EconomyBuildings.spendCostAction(gold, wood, stone, shards),
-                setFlagAction(shopRebuiltFlag(objectId))};
+                setFlagAction(shopRebuiltFlag(objectId)),
+                refreshShops};
 
         DialogData no = new DialogData();
         no.name = "Not now";

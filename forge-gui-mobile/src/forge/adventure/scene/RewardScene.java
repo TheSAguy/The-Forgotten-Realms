@@ -176,7 +176,7 @@ public class RewardScene extends UIScene {
                     long shopSeed = changes.getShopSeed(shopActor.getObjectId());
                     WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
                     for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
-                            new Array.ArrayIterator<>(newData.rewards), changes, newData.name)) {
+                            new Array.ArrayIterator<>(newData.rewards), changes, newData.name, "shop-reroll")) {
                         ret.addAll(rdata.generate(false, false));
                     }
                     shopActor.setRewardData(ret);
@@ -256,7 +256,7 @@ public class RewardScene extends UIScene {
                             WorldSave.getCurrentSave().getWorld().getCurrentDay());
                     WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
                     for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
-                            new Array.ArrayIterator<>(l2Data.rewards), changes, l2Data.name)) {
+                            new Array.ArrayIterator<>(l2Data.rewards), changes, l2Data.name, "armory-upgrade")) {
                         ret.addAll(rdata.generate(false, false));
                     }
                     shopActor.setRewardData(ret);
@@ -301,7 +301,7 @@ public class RewardScene extends UIScene {
                     long shopSeed = changes.getShopSeed(shopActor.getObjectId());
                     WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
                     for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
-                            new Array.ArrayIterator<>(data.rewards), changes, data.name)) {
+                            new Array.ArrayIterator<>(data.rewards), changes, data.name, "armory-reroll")) {
                         ret.addAll(rdata.generate(false, false));
                     }
                     shopActor.setRewardData(ret);
@@ -569,7 +569,7 @@ public class RewardScene extends UIScene {
         long shopSeed = changes.getShopSeed(shopActor.getObjectId());
         WorldSave.getCurrentSave().getWorld().getRandom().setSeed(shopSeed);
         for (RewardData rdata : EditionProgression.restrictShopRewardsForCurrentTown(
-                new Array.ArrayIterator<>(data.rewards), changes, data.name)) {
+                new Array.ArrayIterator<>(data.rewards), changes, data.name, "restock")) {
             ret.addAll(rdata.generate(false, false));
         }
         shopActor.setRewardData(ret);

@@ -4,6 +4,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.character.EnemySprite;
+import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.RewardScene;
 import forge.adventure.util.AdventureEventController;
@@ -171,10 +172,28 @@ public class AdventureEventData implements Serializable {
 
     private static CardBlock pickCardBlockByFormat(AdventureEventController.EventFormat format) {
         return switch (format) {
-            case Draft, Sealed -> pickWeightedCardBlock();
+            case Draft, Sealed -> pickWeightedCardBlock(format.toString());
             case Jumpstart -> pickJumpstartCardBlock();
             case Constructed -> null;
         };
+    }
+
+    // Diagnostic logging (2026-08-13, user request - "can we somehow create a log for future
+    // testing" for edition-restriction decisions) - Inn tournament/event edition selection had NO
+    // TFR tag at all before this. Unlike [TFR-ShopEditions]/[TFR-LootEditions], this is NOT
+    // per-AI-color: EditionProgression.eventAllowedEditionCodes() computes one global
+    // playerUnlocked+neutralShard set regardless of which town's Inn is visited, so this log line
+    // reflects that - one entry per event roll, not a per-color breakdown.
+    private static void logInnEditions(String format, java.util.Set<String> allowed, CardBlock picked) {
+        List<String> playerUnlocked = AdventurePlayer.current() != null
+                ? new ArrayList<>(AdventurePlayer.current().getUnlockedEditions()) : Collections.emptyList();
+        List<String> neutralShard = forge.adventure.util.EditionProgression.getEditionsForColor(
+                forge.adventure.world.WorldSave.getCurrentSave().getWorld(), forge.adventure.util.EditionProgression.NEUTRAL);
+        System.out.println("[TFR-InnEditions] format=" + format
+                + " playerUnlocked(" + playerUnlocked.size() + ")=" + playerUnlocked
+                + " neutralShard(" + neutralShard.size() + ")=" + neutralShard
+                + " allowed(" + allowed.size() + ")=" + allowed
+                + " -> " + (picked != null && picked.getLandSet() != null ? "picked=" + picked.getLandSet().getCode() : "NONE (no legal blocks)"));
     }
 
     private static final Predicate<CardEdition> filterPioneer = FModel.getFormats().getPioneer().editionLegalPredicate;
@@ -204,7 +223,7 @@ public class AdventureEventData implements Serializable {
 
     private static final Set<String> POWER_NINE = Set.of("Black Lotus", "Mox Emerald", "Mox Pearl", "Mox Ruby", "Mox Sapphire", "Mox Jet", "Ancestral Recall", "Timetwister", "Time Walk");
 
-    private static CardBlock pickWeightedCardBlock() {
+    private static CardBlock pickWeightedCardBlock(String formatForLogging) {
         CardEdition.Collection editions = FModel.getMagicDb().getEditions();
         ConfigData configData = Config.instance().getConfigData();
         Predicate<CardEdition> filter = CardEdition.Predicates.CAN_MAKE_BOOSTER;
@@ -253,7 +272,10 @@ public class AdventureEventData implements Serializable {
 
         List<CardBlock> legalBlocks = getValidDraftBlocks(allEditions);
 
-        return legalBlocks.isEmpty() ? null : Aggregates.random(legalBlocks);
+        CardBlock picked = legalBlocks.isEmpty() ? null : Aggregates.random(legalBlocks);
+        if (progressionAllowed != null)
+            logInnEditions(formatForLogging, progressionAllowed, picked);
+        return picked;
     }
 
     public static List<CardBlock> getValidDraftBlocks(List<CardEdition> validEditions) {
@@ -325,7 +347,10 @@ public class AdventureEventData implements Serializable {
         java.util.Set<String> progressionAllowed = forge.adventure.util.EditionProgression.eventAllowedEditionCodes();
         if (progressionAllowed != null)
             legalBlocks.removeIf(q -> q.getLandSet() == null || !progressionAllowed.contains(q.getLandSet().getCode()));
-        return legalBlocks.isEmpty() ? null : Aggregates.random(legalBlocks);
+        CardBlock picked = legalBlocks.isEmpty() ? null : Aggregates.random(legalBlocks);
+        if (progressionAllowed != null)
+            logInnEditions("Jumpstart", progressionAllowed, picked);
+        return picked;
     }
 
     public void generateSealedPool() {

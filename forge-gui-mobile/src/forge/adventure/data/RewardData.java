@@ -386,8 +386,12 @@ public class RewardData implements Serializable {
                             System.err.println("No booster-capable edition available for cardPackShop reward (editions=" + Arrays.toString(this.editions) + ")");
                         }
                     } else {
+                        // Edition-restriction fix (2026-08-13) - this branch previously ignored
+                        // this.editions entirely, unconditionally bypassing Progressive Set
+                        // Unlocks for every colored-booster shop. See
+                        // AdventureEventController.generateBoosterByColor(String, String[]).
                         for (int i = 0; i < count + addedCount; i++) {
-                            ret.add(new Reward(AdventureEventController.instance().generateBoosterByColor(colors[0])));
+                            ret.add(new Reward(AdventureEventController.instance().generateBoosterByColor(colors[0], this.editions)));
                         }
                     }
                     break;

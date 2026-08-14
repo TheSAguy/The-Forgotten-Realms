@@ -3,6 +3,7 @@ package forge.adventure.util;
 import forge.adventure.data.ConfigData;
 import forge.adventure.data.RewardData;
 import forge.adventure.player.AdventurePlayer;
+import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.TileMapScene;
 import forge.adventure.world.World;
@@ -183,33 +184,55 @@ public class EditionProgression {
     }
 
     /**
-     * Same owner-lookup + restrictToEditions() combination MapStage.java's initial shop-build uses
-     * (see the "[TFR-ShopEditions]" block there), factored out for any OTHER code path that
-     * re-generates a shop's rewards after the map is already loaded - restocking (paid Refresh),
-     * the Armory's own manual re-roll, and the shop-type re-roll all used to read the shop's raw
-     * RewardData directly and skip this restriction entirely, so a single Refresh purchase could
-     * draw cards from every edition again regardless of unlockedEditions/color shard (real bug,
-     * user-reported 2026-08-12, screenshot showed a dozen-plus different sets in a fresh game).
+     * Same owner-lookup + restrictToEditions() combination MapStage.java's initial shop-build uses,
+     * factored out for any OTHER code path that re-generates a shop's rewards after the map is
+     * already loaded - restocking (paid Refresh), the Armory's own manual re-roll, the shop-type
+     * re-roll, and town/shop restoration all used to read the shop's raw RewardData directly and
+     * skip this restriction entirely, so a single Refresh purchase could draw cards from every
+     * edition again regardless of unlockedEditions/color shard (real bug, user-reported 2026-08-12,
+     * screenshot showed a dozen-plus different sets in a fresh game).
      * Reads the CURRENT town the same way the map-build path does (TileMapScene.instance().rootPoint),
      * so this is only valid to call while actually standing in the shop's own town/POI.
      */
+    // Diagnostic logging extension (2026-08-13, user request - "can we somehow create a log for
+    // future testing" for AI-color shop/Inn/monster-drop edition assignments). Adds a caller-
+    // supplied trigger label (init/restock/armory-reroll/armory-upgrade/shop-reroll/town-restore/
+    // shop-rebuild) and the actual town/POI name + branch reason to [TFR-ShopEditions], replacing
+    // the old unconditional "(regen)" suffix that couldn't distinguish first-ever map-load
+    // generation from a player-triggered regeneration, and gave no way to independently verify
+    // ColorReputation.colorOfTown()'s name-prefix heuristic classified a given town correctly.
     public static Iterable<RewardData> restrictShopRewardsForCurrentTown(
-            Iterable<RewardData> source, PointOfInterestChanges changes, String shopNameForLogging) {
+            Iterable<RewardData> source, PointOfInterestChanges changes, String shopNameForLogging, String trigger) {
         World world = WorldSave.getCurrentSave().getWorld();
         if (!world.isEditionProgressionEnabled())
             return source;
+        // Single guarded read (adversarial review, 2026-08-13) - an earlier version of this log
+        // line null-checked rootPoint only for the townName log field, five lines after the
+        // else-branch's color lookup already dereferenced it unguarded; that guard could never
+        // actually help, since a null rootPoint would already have thrown before reaching it.
+        // Reading it once here means the color-match branch below stays covered by this same check.
+        PointOfInterest rootPoint = TileMapScene.instance().rootPoint;
         List<String> editionRestriction;
         String ownerLabel;
-        if (TownRestoration.isCurrentTownCapitol() || TownRestoration.isTownRestored(changes)) {
+        String reason;
+        if (TownRestoration.isCurrentTownCapitol()) {
             editionRestriction = new ArrayList<>(AdventurePlayer.current().getUnlockedEditions());
             ownerLabel = "player-unlocked";
+            reason = "capitol";
+        } else if (TownRestoration.isTownRestored(changes)) {
+            editionRestriction = new ArrayList<>(AdventurePlayer.current().getUnlockedEditions());
+            ownerLabel = "player-unlocked";
+            reason = "restored";
         } else {
-            String townColor = ColorReputation.colorOfTown(TileMapScene.instance().rootPoint.getData());
+            String townColor = rootPoint != null ? ColorReputation.colorOfTown(rootPoint.getData()) : null;
             ownerLabel = townColor != null ? townColor : NEUTRAL;
+            reason = townColor != null ? "color=" + townColor : "no-match-neutral";
             editionRestriction = getEditionsForColor(world, ownerLabel);
         }
-        System.out.println("[TFR-ShopEditions] shop=" + shopNameForLogging + " owner=" + ownerLabel
-                + " restriction(" + editionRestriction.size() + ")=" + editionRestriction + " (regen)");
+        String townName = rootPoint != null ? rootPoint.getData().name : "(unknown)";
+        System.out.println("[TFR-ShopEditions] shop=" + shopNameForLogging + " town=\"" + townName + "\""
+                + " owner=" + ownerLabel + " reason=" + reason + " trigger=" + trigger
+                + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
         return restrictToEditions(source, editionRestriction);
     }
 }

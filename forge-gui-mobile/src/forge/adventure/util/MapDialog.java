@@ -432,6 +432,9 @@ public class MapDialog {
             if (E.runCommand != null && !E.runCommand.isEmpty()) { //Runs a console command, e.g. teleporting via "teleport to poi \"X\"".
                 ConsoleCommandInterpreter.getInstance().command(E.runCommand);
             }
+            if (E.refreshShopRewardsTrigger != null && !E.refreshShopRewardsTrigger.isEmpty()) { //Re-applies edition restriction to every shop in the current town (town/shop restoration).
+                stage.refreshAllShopRewards(E.refreshShopRewardsTrigger);
+            }
         }
     }
 

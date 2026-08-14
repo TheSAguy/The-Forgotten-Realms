@@ -985,6 +985,49 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 - **`scene/ArenaScene.java`** — Deck Tester flow restructured with a mode-choice dialog ahead of
   the existing deck pickers; new `launchDeckTesterSimulated()`.
 
+### 2026-08-13 (late night) DuelScene race fix, Temple-icon root cause, Progressive Set Unlocks bugs, Mysterious Mage, edition-restriction logging
+- **`scene/DuelScene.java`** — `GameEnd()` gained a second null-guard, this time around
+  `hostedMatch.getGame()` itself (a real race against stock `HostedMatch.endCurrentGame()`,
+  confirmed via 2 stack traces in the user's own forge.log) — logs `[TFR-DuelEndRace]` when it
+  fires, `winner` defaults false rather than aborting the whole persistence block.
+- **`world/World.java`** — new private `mapMarkerKey(PointOfInterestData)` helper, called from both
+  minimap-marker-drawing sites (`generateNew()`'s POI-placement loop, `redrawAllPoiMarkers()`) —
+  Story-tagged `type="castle"` POIs (excluding the 5 "Boss"-tagged Chapter-1 castles) resolve to
+  the "dungeon" marker instead of "castle" (Temple-icon collision root cause — see
+  MOD_CHANGELOG.md).
+- **`character/EnemySprite.java`** — the existing edition-restriction loot check gained an
+  `EXEMPT`-logging else-branch for the pre-existing boss/quest-tagged skip (was silent before).
+- **`data/RewardData.java`** — `cardPackShop` case's `colors!=null` branch now passes `this.editions`
+  through to `AdventureEventController.generateBoosterByColor()`'s new restricted overload instead
+  of the old always-unrestricted call (colored-booster edition-restriction bypass fix).
+- **`data/AdventureEventData.java`** — new private `logInnEditions()` helper; `pickWeightedCardBlock()`
+  gained a `formatForLogging` parameter (still routes to the same restriction logic, just labeled
+  for the new log line); both it and `pickJumpstartCardBlock()` now log the new `[TFR-InnEditions]`
+  tag.
+- **`data/DialogData.java`** — `ActionData` gained a new `String refreshShopRewardsTrigger` field
+  (null = off; non-null = trigger label consumed by `MapStage.refreshAllShopRewards(String)`),
+  wired into the copy constructor.
+- **`util/MapDialog.java`** — action-execution loop gained one new branch dispatching
+  `refreshShopRewardsTrigger` to `stage.refreshAllShopRewards(trigger)`.
+- **`util/AdventureEventController.java`** — new `generateBoosterByColor(String, String[])` overload
+  building its own `BoosterPack`/`SealedTemplate` with a `fromSets("...")` predicate clause per slot
+  (a pre-existing stock `BoosterGenerator` operator) when an edition restriction is supplied; the
+  old single-arg method now delegates to it with `null`.
+- **`scene/RewardScene.java`** — its 4 existing `EditionProgression.restrictShopRewardsForCurrentTown()`
+  call sites (`promptRerollShopType`/`promptUpgradeArmory`/`promptRerollArmory`/`restockShop`) each
+  now pass an explicit trigger label instead of relying on a removed default.
+- **`stage/MapStage.java`** — its existing `restrictShopRewardsForCurrentTown()` call site (initial
+  shop-build) now passes `trigger="init"`; new public `refreshAllShopRewards(String trigger)`
+  method (re-derives every `ShopActor`'s rewards in the current town from its existing seed) — see
+  MOD_SCOPE.md #55 for why.
+- **`util/EconomyBuildings.java`** / **`util/TownRestoration.java`** / **`util/EditionProgression.java`**
+  (all 3 mod files, already inventoried below) — `EconomyBuildings.buildOption(NONE,...)` and
+  `buildSimpleRepairDialog()`, and `TownRestoration.buildRestoreTownDialog()`/`buildRebuildShopDialog()`,
+  each now set `refreshShopRewardsTrigger` on their "yes"/"repair" dialog action (stale
+  edition-restriction bake-in fix); `EditionProgression.restrictShopRewardsForCurrentTown()` gained
+  a `trigger` parameter (the old 3-arg overload was removed, all 6 call sites updated) plus a
+  `reason` field and the town name on its `[TFR-ShopEditions]` log line.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.

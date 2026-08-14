@@ -837,6 +837,181 @@ touched `.class` files and grepping for symbols unique to each change
 with its pre-Torch-attempt state (`git status` shows it unmodified) after the redesign reverted it
 cleanly. None of this round has been playtested in-game yet.
 
+## 2026-08-13 (late night): DuelScene race fix, Temple-icon root cause, Progressive Set Unlocks bugs, Mysterious Mage, edition-restriction logging
+
+Follow-up to the same day's earlier "FoW real root cause, button greyout, Torch redesign, Deck
+Tester AI-vs-AI" round. Started from the user asking for a review of forge.log after letting the
+game run much longer, then a batch of new reports: 4 (later confirmed more) locations sharing a
+"Temple"-looking minimap icon despite being genuinely different places, and a request to verify a
+detailed recap of how Progressive Set Unlocks (shops/Inn tournaments/monster loot) is supposed to
+work, plus "can we somehow create a log for future testing" since the user can't easily test AI
+colors themselves. Investigated with a background workflow (3 parallel agents: Temple-icon root
+cause, EditionProgression audit against the user's recap, and diagnostic-logging design), then
+implemented directly, then a second background workflow adversarially reviewed the whole diff (4
+parallel reviewers by change cluster + a verify pass on every finding) before deploy.
+
+**DuelScene second race-condition NPE, found via direct log review.** A DIFFERENT `NullPointerException`
+than the one fixed earlier the same day (that one guarded `humans.get(0).getPlayer()`) - this one
+at `hostedMatch.getGame()` itself returning null before `.getMatch().getWinner()`, 2 occurrences in
+the user's extended session, each immediately preceded by a `[TFR-EnemyLife] Deck Tester...` line.
+Root cause: stock `HostedMatch.endCurrentGame()` sets `game = null`, and for a Deck Tester match
+(`noAnte`, single game, no rewards) this can race ahead of the player's win/lose-screen click
+reaching `GameEnd()`. Since this was the first line inside the method's try block, the exception
+previously aborted the ENTIRE block - shard persistence and ante handling too, not just the winner
+computation. Fixed with a null-guard (logs `[TFR-DuelEndRace]` when it fires) so the rest of the
+block still runs, `winner` defaulting false. **Adversarial review considered but refuted** a
+concern that defaulting `winner=false` here could show an incorrect "you lost" screen for a match
+whose real outcome is unknown - traced `GameEnd()`'s only two callers
+(`AdventureWinLose.actionOnQuit()`, `MatchController.finishGame()`) and confirmed this isn't
+reachable as a live bug.
+
+**Temple-icon root cause, finally found.** Two unrelated mechanisms were conflated in the report:
+(1) the "Strange magical energies flow within this place..." text + item-pair grant
+(`GameStage.effectDialog()`) is a shared, working-as-designed flavor-text wrapper that fires
+whenever a dungeon's own `.tmx` defines a `dungeonEffect` custom property - each Story location's
+grant is actually fixed per map (e.g. Wizard_Palace_1.tmx always grants "Tome of the Infinite" +
+"Wizard Class"), not randomly re-rolled per visit as it first appeared; not a bug. (2) The real icon
+collision: `World.java`'s world-gen code bakes each POI's minimap marker into the persistent
+biome-image texture by looking up the POI's coarse `type` field in `common/sprites/map_marker.atlas`
+- never `sprite`, `name`, or tags. Every mod-added unique "Story"-tagged landmark (Tarnation, Wizard
+Palace, Squirrel Farm, Gitrog Bog, Church of Valgavoth, Kenrith's Court, Eldrazi Prison) is
+`type="castle"` for real, unrelated gameplay reasons (wider vision radius, Castle music track - see
+`TownRestoration`/`ColorReputation`), and the atlas's "castle" region is a small grey chapel-shaped
+icon that reads as a temple at a glance - so all 7 baked the identical marker. This survived TWO
+prior "duplicate castle/temple icon" fix rounds (2026-08-11, Eldrazi Prison and Kenrith's Court)
+because both only swapped the affected POI's overworld `sprite` field, deliberately leaving
+`type="castle"` untouched for its gameplay side effects - neither touched this marker-lookup code
+path at all, so the baked minimap glyph for every Story castle POI - including the two "already
+fixed" ones - never actually changed.
+
+Fixed with a new `World.mapMarkerKey(PointOfInterestData)` helper, called from both marker-drawing
+sites (the `generateNew()` POI-placement loop, and `redrawAllPoiMarkers()` used by every Territory
+Control redraw): Story-tagged POIs resolve to the existing "dungeon" marker instead of `type`,
+while `type` itself stays "castle" so vision-radius/music are untouched. Per user decision: reuses
+an existing marker rather than commissioning new pixel art, and only applies to newly-generated
+worlds - the marker is baked once into the persisted `biomeImage` Pixmap at world-gen time, not
+redrawn per-frame, so an already-affected save keeps its old icons (the user explicitly declined a
+save-repair pass for this one).
+
+**Caught and fixed by adversarial review before deploy**: the first version keyed off the "Story"
+tag alone, with no check on `type` at all - this also incorrectly caught the player's own starting
+town "Spawn" (`type="town"`, also Story-tagged - would have lost its town icon on the minimap), 9
+cave-type Story POIs (Omenport, Three Tree City, Valor's Reach Arena, Court of Paliano, the 5
+Classroom POIs), and the 5 Chapter-1-Boss castles (Black/Blue/Green/Red/White Castle, additionally
+tagged "Boss"/"Chapter1Boss" - would have downgraded their large 32x32 castle icon down to the
+small 16x16 dungeon icon, losing visual prominence for a genuinely significant boss dungeon).
+Narrowed `mapMarkerKey()` to only remap when a POI is BOTH `type="castle"` AND NOT tagged "Boss" -
+matches exactly the 7 originally-intended landmark POIs (each `questTags: ["Story"]` only) and
+nothing else.
+
+**"Mysterious Mage not found" warnings, found while investigating the Temple-icon bug (not a user
+report).** The same 4 Story `.tmx` maps (Tarnation, Gitrog Bog, Squirrel Farm, Wizard Palace) each
+have a spawn-point object property `enemy="Mysterious Mage"`, but that enemy only existed in a
+DIFFERENT plane's data (`Realm of Legends/world/enemies.json`) - so every visit logged "Enemy
+'Mysterious Mage' not found, choosing a random one for current biome" and silently substituted a
+random encounter. Harmless (graceful fallback, no crash) but not the intended content. Fixed by
+porting the definition (`spawnRate: 0` - never randomly spawns outside these explicit references)
+into this plane's own `enemies.json`, plus copying its small "Mystery List" deck (a 1-card "The
+Prismatic Piper" Commander deck - a build-around commander that works with any 99 lands, no
+per-plane customization needed) into this plane's own `decks/legends/` folder to keep the mod
+self-contained; the referenced sprite atlas was already shared under `common/`.
+
+**Progressive Set Unlocks audit against the user's stated design recap.** Verdict: 3 of the user's
+4 points match the code exactly (confirmed via `[TFR-ShopEditions]`/`[TFR-EditionShard]` log
+evidence showing the player's own shop correctly computed `owner=player-unlocked
+restriction(1)=[NPH]` on Insane, contradicting the user's own belief their shop was unrestricted).
+One correction: **Inn tournaments are NOT gated per-town-color at all**, unlike shops/loot -
+`EditionProgression.eventAllowedEditionCodes()` computes a single GLOBAL player-unlocked+neutral
+set with no town/color parameter, identical regardless of which town's Inn is visited. Also
+clarified for the user: the single Insane-difficulty starting edition is not a color assignment -
+`AdventurePlayer.create()` draws it from the chosen RACE's 4-set lore pool (e.g. Phyrexian ->
+`[SOM,MBS,NPH,ONE]`), so New Phyrexia landing in the user's hands was a 1-in-4 race-pool roll, not
+a color-territory assignment - this pool is fully independent of the 6-way `World.colorEditionShards`
+split that governs AI-town shops/monster loot/the Inn neutral slice.
+
+Two real, independent bugs were found and fixed to explain the actual "my card-shop had a lot of
+expansions" screenshot:
+- **Colored-booster shops bypassed edition restriction unconditionally.** `RewardData.generate()`'s
+  `cardPackShop` case has two branches - `colors==null` correctly filters by `this.editions`, but
+  `colors!=null` (every White/Blue/Black/Red/Green/Colorless Booster shop in shops.json) called
+  `AdventureEventController.generateBoosterByColor(color)`, pulling from the entire card database
+  with zero edition filtering, on every playthrough, regardless of town ownership or the player's
+  own unlocked editions. Fixed with a new `generateBoosterByColor(color, restrictEditions)`
+  overload building its own `BoosterPack`/`SealedTemplate` (mirroring `BoosterPack.fromColor()`'s
+  exact slot layout) with a `fromSets(...)` clause appended per slot - a pre-existing stock
+  `BoosterGenerator` predicate operator, not a new mechanism.
+- **Stale edition bake-in on restoration.** A shop's reward pool is generated once, at whatever
+  moment `MapStage` first builds its `ShopActor` - for any wasteland-origin town, necessarily
+  BEFORE the player has restored/rebuilt it. Nothing ever regenerated that pool when the
+  town-restored/shop-rebuilt quest flags later got set, so a freshly-claimed shop kept showing the
+  AI-color/neutral shard it was born with until the player happened to leave/re-enter the town or
+  pay for an unrelated restock/reroll. Fixed with a new `MapStage.refreshAllShopRewards(trigger)`
+  that re-derives every shop's rewards using its EXISTING seed (not a free reroll), wired into a
+  new `DialogData.ActionData.refreshShopRewardsTrigger` field, set by all 4 restoration/rebuild
+  dialogs' "yes"/"repair" actions (`TownRestoration.buildRestoreTownDialog()`,
+  `TownRestoration.buildRebuildShopDialog()`, `EconomyBuildings.buildOption(NONE,...)`,
+  `EconomyBuildings.buildSimpleRepairDialog()`) and dispatched from `MapDialog.java`'s existing
+  action-execution loop.
+
+**Caught and fixed by adversarial review before deploy** (2 rounds, 4 parallel reviewers + a verify
+pass per finding - 5 of 6 candidate findings confirmed, 1 refuted):
+- **Blocking**: the new `fromSets(...)` clause was built without the leading quote
+  `BoosterGenerator.buildExtraPredicate()`'s parser expects - its `substring(...+1)` skip is
+  calibrated to also consume that quote (matching the codebase's one other `fromSets(...)` caller,
+  `QuestUtilCards.java`), so omitting it silently shifted the substring by one character and
+  truncated the FIRST character of the first edition code in the restriction (e.g. "ONE" -> "NE",
+  matching zero cards via `PaperCardPredicates`' exact set-code match). With a single-edition
+  restriction (the realistic Insane-difficulty case) this made every slot's filter unsatisfiable,
+  silently awarding a 0-card booster Reward with no error surfaced anywhere. Fixed by quoting each
+  code, matching the established convention exactly.
+- **Moderate**: `EconomyBuildings.buildOption(NONE, objectId)` - the plain "Card Shop" rebuild
+  option `ShopActor.onPlayerCollide()` routes every ordinary wasteland shop through, and the ONLY
+  one of the four flows repeatable via the existing "Destroy Building" feature (which never touches
+  `rewardData` either) - was missed from the initial refresh wiring (the other 3 dialogs got it).
+  Fixed by adding it there too.
+- **Minor**: `refreshAllShopRewards()` originally took no parameter and hardcoded a single
+  `"restoration"` trigger label for every call, regardless of which of the 4 dialogs actually fired
+  it - making the new diagnostic log unable to distinguish them. Changed to thread a specific
+  trigger string through each call site instead (`town-restore`/`shop-rebuild`/`shop-repair`).
+- **Minor**: the new town-name null-guard on `[TFR-ShopEditions]`'s log line only protected the
+  log-construction itself - the color-match branch's own town-color lookup dereferenced the same
+  `TileMapScene.instance().rootPoint` reference five lines earlier, unguarded, so the added guard
+  could never actually have helped if that scenario ever occurred (not reachable at any of the
+  method's 6 current call sites, but a real latent inconsistency). Fixed by reading the POI
+  reference once, guarded, and reusing it consistently through the whole method.
+- **Refuted**: a reviewer's concern about the DuelScene race-fix's `winner=false` default (see
+  above) - traced the full call graph and confirmed it isn't a live bug.
+
+**Diagnostic logging extended/added** (user request, following the EditionProgression audit above -
+"can we somehow create a log for future testing"). `[TFR-ShopEditions]` and `[TFR-LootEditions]`
+already existed and correctly covered both player AND every AI-color town, but had gaps; Inn
+tournaments had no tag at all:
+- `[TFR-ShopEditions]` (`EditionProgression.restrictShopRewardsForCurrentTown()`) gained a
+  `trigger` parameter threaded from every call site (`init`/`restock`/`armory-reroll`/
+  `armory-upgrade`/`shop-reroll`/`town-restore`/`shop-rebuild`/`shop-repair`, replacing a hardcoded
+  `(regen)` suffix that couldn't distinguish first-ever map-load generation from a player-triggered
+  regeneration), plus the actual town/POI name and a `reason` field
+  (`capitol`/`restored`/`color=<X>`/`no-match-neutral`) so the branch taken is independently
+  verifiable from the log alone.
+- `[TFR-LootEditions]` (`EnemySprite.java`) gained an `EXEMPT` line for the boss/quest-tagged
+  exemption case, previously completely silent - "exempted by design" was indistinguishable from
+  "this code path never ran" when grepping for a specific enemy.
+- New tag `[TFR-InnEditions]` (`AdventureEventData.java`, `pickWeightedCardBlock()`/
+  `pickJumpstartCardBlock()`) - Inn tournament edition selection had zero logging before this.
+  Explicitly scoped in its own log line as a single GLOBAL result per event roll, not per-color,
+  matching the design-audit correction above.
+
+### Verification
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o -q` clean at every step, including after both
+review rounds' fixes. Spliced into both installed jars; spot-checked by extracting the 9 touched
+`.class` files and grepping for symbols unique to each change (`mapMarkerKey`, the quoted
+`fromSets("` literal, `reason=`, `shop-rebuild`, `town-restore`, `refreshAllShopRewards`,
+`refreshShopRewardsTrigger`, `TFR-DuelEndRace`). Resource folder mirrored (new `enemies.json` entry
++ new `decks/legends/mystery_list.dck` file). None of this round has been playtested in-game yet -
+needs a NEW game for the Temple-icon fix (marker is baked at world-gen, current saves keep old
+icons), a visit to one of the 4 Mysterious Mage locations, a colored-booster-shop purchase, and a
+town/shop restoration followed by a research purchase to confirm the shop immediately reflects it.
+
 ## The mod plane: "The Forgotten Realms"
 
 Everything lives on its own selectable Adventure-mode plane at
