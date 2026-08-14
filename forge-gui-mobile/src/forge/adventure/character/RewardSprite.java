@@ -2,8 +2,11 @@ package forge.adventure.character;
 
 import com.badlogic.gdx.utils.Array;
 import forge.adventure.data.RewardData;
+import forge.adventure.util.EditionProgression;
 import forge.adventure.util.JSONStringLoader;
 import forge.adventure.util.Reward;
+
+import java.util.Arrays;
 
 /**
  * RewardSprite
@@ -45,7 +48,12 @@ public class RewardSprite extends CharacterSprite {
     public Array<Reward> getRewards() { //Get list of rewards.
         Array<Reward> ret = new Array<Reward>();
         if(rewards == null) return ret;
-        for(RewardData rdata:rewards) {
+        // Edition-progression restriction (2026-08-13 QC pass) - dungeon treasure/chest pickups
+        // previously drew from every edition regardless of whose territory they're in, unlike
+        // roaming-monster loot and AI-town shops. See EditionProgression.
+        // restrictDungeonRewardsForCurrentPoi()'s own comment for why.
+        Iterable<RewardData> source = EditionProgression.restrictDungeonRewardsForCurrentPoi(Arrays.asList(rewards));
+        for(RewardData rdata : source) {
             ret.addAll(rdata.generate(false, true));
         }
         return ret;

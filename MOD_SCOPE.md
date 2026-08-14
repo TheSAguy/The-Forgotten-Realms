@@ -2629,7 +2629,7 @@ reference once, guarded, and reusing it consistently through the whole method. N
 these are diagnostic-only additions with no gameplay effect; "testing" here just means confirming
 the new log lines appear correctly formatted in forge.log during normal play.
 
-### 57. Deck Tester: 50x Speed, "AI vs. AI - No Watch" Batch Mode, Mode Rename — `Built (2026-08-14), not yet playtested`
+### 57. Deck Tester: 50x Speed, "AI vs. AI - No Watch" Batch Mode, Mode Rename — `Built (2026-08-13), not yet playtested`
 User request, after trying the AI-vs-AI "Watch" mode from #52 ("worked great"): (1) add a 50x
 option next to the existing "10x speed" spectator button; (2) rename "Coin Flip" to "Player vs.
 AI"; (3) split the AI-vs-AI mode into two - "AI vs. AI - Watch" (today's mode, just renamed) and a
@@ -2682,3 +2682,17 @@ this style of loop (deliberately not a blanket `Throwable` catch, so a genuinely
 propagates). Not yet playtested - needs a 50x-speed watch, and a No-Watch batch run (ideally
 including a case that would previously have hit the fixed exception-handling gap) to confirm the
 tally and that the Arena screen stays usable afterward.
+
+**Follow-up (2026-08-13, user report): the adversarial-review fix above wasn't actually enough -
+a real freeze still happened in play.** The per-game catch/finally layers above only ever protected
+against *exceptions*; they did nothing for a plain *hang* (no throw, just blocked forever), and
+`createGame()` was still being called synchronously on the batch thread, outside the timeout-
+protected executor entirely - so a hang there froze the whole batch with no timeout and no error,
+exactly what the user hit. Confirmed via `forge.log`: games 1-3 completed/timed out normally, then
+total silence, no "batch aborted" line ever printed. Fixed by moving `createGame()` inside the same
+per-game executor `startGame()` already used, and replacing the single blocking `future.get(90s)`
+call with a 500ms polling loop against the real deadline. Same round added the requested "End Test"
+button (`DeckTesterSimulator.runBatch()` now returns a cancellable `Handle`, polled every 500ms so
+cancellation lands within half a second even mid-game). See `MOD_CHANGELOG.md`'s 2026-08-13 "Deck
+Tester freeze fix..." entry for the full writeup. Still not yet playtested against a live freeze
+repro.

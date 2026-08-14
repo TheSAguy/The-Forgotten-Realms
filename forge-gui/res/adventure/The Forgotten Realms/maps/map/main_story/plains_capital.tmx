@@ -161,68 +161,7 @@
 	],
     &quot;rounds&quot;:3,
     &quot;entryFee&quot;:100,
-     &quot;rewards&quot;: [[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 100
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Karst Shawl&quot;,&quot;Blight Sickle&quot;,&quot;Mephitic Draught&quot;,&quot;Landscape Sketchbook - Lorwyn Eclipsed&quot;,&quot;Medal of the Outmaneuvered&quot;,&quot;Landscape Sketchbook - Fifth Edition&quot;,&quot;Landscape Sketchbook - The Brothers War&quot;,&quot;Landscape Sketchbook - Theros&quot;,&quot;Landscape Sketchbook - Bloomburrow&quot;,&quot;Tawnos's Wand&quot;,&quot;Smoldering Cloak&quot;,&quot;Chicken Egg&quot;,&quot;Timebug Boots&quot;,&quot;Generous Ring&quot;,&quot;Prayerbook of Return&quot;,&quot;Spidersilk Glove&quot;,&quot;Colossal Dreadmace&quot;,&quot;Basilica Skullbomb&quot;,&quot;Greenseeker's Shoes&quot;,&quot;Landscape Sketchbook - Hour of Devastation&quot;,&quot;Landscape Sketchbook - Unhinged&quot;,&quot;Landscape Sketchbook - Kaldheim&quot;,&quot;Ajani's Amulet&quot;,&quot;Pilgrim's Cloak&quot;,&quot;Malign Prayerbook&quot;,&quot;Nascent Prayerbook&quot;,&quot;Landscape Sketchbook - Seventh Edition&quot;,&quot;Landscape Sketchbook - Starter 1999&quot;,&quot;Prayerbook of Vigor&quot;,&quot;Plated Sliverband&quot;,&quot;Riveteer Greaves&quot;,&quot;Greaves of Glare&quot;,&quot;Sabertooth Bondband&quot;,&quot;Tome of Fire&quot;,&quot;Medal of the Outgunned&quot;,&quot;Scroll of Avacyn&quot;,&quot;Landscape Sketchbook - Dominaria&quot;,&quot;Empyrial Greaves&quot;,&quot;Teeming Stormcrown&quot;,&quot;Acidic Sliverband&quot;,&quot;Bloodsworn Bite&quot;,&quot;Enormous Energy Blade&quot;,&quot;Chimeric Coils&quot;,&quot;Mighty Helm&quot;,&quot;Soul Shoes&quot;,&quot;Forbidden Robes&quot;,&quot;Crown of Winter&quot;,&quot;Captive Soul of a Saint&quot;,&quot;Flaming Armor&quot;,&quot;Breaching Stormcrown&quot;,&quot;Mantle of Denial&quot;,&quot;Chitinous Club&quot;,&quot;Godsire Greaves&quot;,&quot;Map to the World Tree&quot;,&quot;Helm of the Fallen&quot;,&quot;Soul-Guide Gauntlet&quot;,&quot;Fblthp's Lost Fishing Pole&quot;,&quot;Armor of Ramunap&quot;,&quot;Skywise Talisman&quot;,&quot;Hellkite Greaves&quot;,&quot;Little Black Book&quot;,&quot;Shield of the Righteous&quot;,&quot;Battle Cry Boots&quot;,&quot;Lantern-Lit Cloak&quot;,&quot;Petrified Head&quot;,&quot;Urza's Bauble&quot;,&quot;Waterveil Cloak&quot;,&quot;Tome of Blight&quot;,&quot;Sovereign Greaves&quot;,&quot;Teferi's Staff&quot;,&quot;Giant Scythe&quot;,&quot;Unhallowed Sigil&quot;,&quot;Garruk's Mighty Axe&quot;,&quot;Cutthroat Skirt&quot;,&quot;Yore-Tiller Anklet&quot;,&quot;Amulet of Fury&quot;,&quot;Gixian Graft&quot;,&quot;Zedruu's Lantern&quot;,&quot;The Blackstaff of Waterdeep&quot;,&quot;Fortune Coin&quot;,&quot;Spore Skirt&quot;,&quot;Ring of Renewal&quot;,&quot;Celestial Sword&quot;,&quot;Oracle's Robes&quot;,&quot;Shadowspear&quot;,&quot;Caretaker's Cap&quot;,&quot;Girlfriend's Skirt&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;rarity&quot;: [
-                &quot;Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;white&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Karst Shawl&quot;,&quot;Blight Sickle&quot;,&quot;Mephitic Draught&quot;,&quot;Landscape Sketchbook - Lorwyn Eclipsed&quot;,&quot;Medal of the Outmaneuvered&quot;,&quot;Landscape Sketchbook - Fifth Edition&quot;,&quot;Landscape Sketchbook - The Brothers War&quot;,&quot;Landscape Sketchbook - Theros&quot;,&quot;Landscape Sketchbook - Bloomburrow&quot;,&quot;Tawnos's Wand&quot;,&quot;Smoldering Cloak&quot;,&quot;Chicken Egg&quot;,&quot;Timebug Boots&quot;,&quot;Generous Ring&quot;,&quot;Prayerbook of Return&quot;,&quot;Spidersilk Glove&quot;,&quot;Colossal Dreadmace&quot;,&quot;Basilica Skullbomb&quot;,&quot;Greenseeker's Shoes&quot;,&quot;Landscape Sketchbook - Hour of Devastation&quot;,&quot;Landscape Sketchbook - Unhinged&quot;,&quot;Landscape Sketchbook - Kaldheim&quot;,&quot;Ajani's Amulet&quot;,&quot;Pilgrim's Cloak&quot;,&quot;Malign Prayerbook&quot;,&quot;Nascent Prayerbook&quot;,&quot;Landscape Sketchbook - Seventh Edition&quot;,&quot;Landscape Sketchbook - Starter 1999&quot;,&quot;Prayerbook of Vigor&quot;,&quot;Plated Sliverband&quot;,&quot;Riveteer Greaves&quot;,&quot;Greaves of Glare&quot;,&quot;Sabertooth Bondband&quot;,&quot;Tome of Fire&quot;,&quot;Medal of the Outgunned&quot;,&quot;Scroll of Avacyn&quot;,&quot;Landscape Sketchbook - Dominaria&quot;,&quot;Empyrial Greaves&quot;,&quot;Teeming Stormcrown&quot;,&quot;Acidic Sliverband&quot;,&quot;Bloodsworn Bite&quot;,&quot;Enormous Energy Blade&quot;,&quot;Chimeric Coils&quot;,&quot;Mighty Helm&quot;,&quot;Soul Shoes&quot;,&quot;Forbidden Robes&quot;,&quot;Crown of Winter&quot;,&quot;Captive Soul of a Saint&quot;,&quot;Flaming Armor&quot;,&quot;Breaching Stormcrown&quot;,&quot;Mantle of Denial&quot;,&quot;Chitinous Club&quot;,&quot;Godsire Greaves&quot;,&quot;Map to the World Tree&quot;,&quot;Helm of the Fallen&quot;,&quot;Soul-Guide Gauntlet&quot;,&quot;Fblthp's Lost Fishing Pole&quot;,&quot;Armor of Ramunap&quot;,&quot;Skywise Talisman&quot;,&quot;Hellkite Greaves&quot;,&quot;Little Black Book&quot;,&quot;Shield of the Righteous&quot;,&quot;Battle Cry Boots&quot;,&quot;Lantern-Lit Cloak&quot;,&quot;Petrified Head&quot;,&quot;Urza's Bauble&quot;,&quot;Waterveil Cloak&quot;,&quot;Tome of Blight&quot;,&quot;Sovereign Greaves&quot;,&quot;Teferi's Staff&quot;,&quot;Giant Scythe&quot;,&quot;Unhallowed Sigil&quot;,&quot;Garruk's Mighty Axe&quot;,&quot;Cutthroat Skirt&quot;,&quot;Yore-Tiller Anklet&quot;,&quot;Amulet of Fury&quot;,&quot;Gixian Graft&quot;,&quot;Zedruu's Lantern&quot;,&quot;The Blackstaff of Waterdeep&quot;,&quot;Fortune Coin&quot;,&quot;Spore Skirt&quot;,&quot;Ring of Renewal&quot;,&quot;Celestial Sword&quot;,&quot;Oracle's Robes&quot;,&quot;Shadowspear&quot;,&quot;Caretaker's Cap&quot;,&quot;Girlfriend's Skirt&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Gold Armor&quot;,&quot;Gold Shield&quot;,&quot;Gold Boots&quot;,&quot;Bronze Sword&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 2,
-            &quot;rarity&quot;: [
-                &quot;Mythic Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;white&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Karst Shawl&quot;,&quot;Blight Sickle&quot;,&quot;Mephitic Draught&quot;,&quot;Landscape Sketchbook - Lorwyn Eclipsed&quot;,&quot;Medal of the Outmaneuvered&quot;,&quot;Landscape Sketchbook - Fifth Edition&quot;,&quot;Landscape Sketchbook - The Brothers War&quot;,&quot;Landscape Sketchbook - Theros&quot;,&quot;Landscape Sketchbook - Bloomburrow&quot;,&quot;Tawnos's Wand&quot;,&quot;Smoldering Cloak&quot;,&quot;Chicken Egg&quot;,&quot;Timebug Boots&quot;,&quot;Generous Ring&quot;,&quot;Prayerbook of Return&quot;,&quot;Spidersilk Glove&quot;,&quot;Colossal Dreadmace&quot;,&quot;Basilica Skullbomb&quot;,&quot;Greenseeker's Shoes&quot;,&quot;Landscape Sketchbook - Hour of Devastation&quot;,&quot;Landscape Sketchbook - Unhinged&quot;,&quot;Landscape Sketchbook - Kaldheim&quot;,&quot;Ajani's Amulet&quot;,&quot;Pilgrim's Cloak&quot;,&quot;Malign Prayerbook&quot;,&quot;Nascent Prayerbook&quot;,&quot;Landscape Sketchbook - Seventh Edition&quot;,&quot;Landscape Sketchbook - Starter 1999&quot;,&quot;Prayerbook of Vigor&quot;,&quot;Plated Sliverband&quot;,&quot;Riveteer Greaves&quot;,&quot;Greaves of Glare&quot;,&quot;Sabertooth Bondband&quot;,&quot;Tome of Fire&quot;,&quot;Medal of the Outgunned&quot;,&quot;Scroll of Avacyn&quot;,&quot;Landscape Sketchbook - Dominaria&quot;,&quot;Empyrial Greaves&quot;,&quot;Teeming Stormcrown&quot;,&quot;Acidic Sliverband&quot;,&quot;Bloodsworn Bite&quot;,&quot;Enormous Energy Blade&quot;,&quot;Chimeric Coils&quot;,&quot;Mighty Helm&quot;,&quot;Soul Shoes&quot;,&quot;Forbidden Robes&quot;,&quot;Crown of Winter&quot;,&quot;Captive Soul of a Saint&quot;,&quot;Flaming Armor&quot;,&quot;Breaching Stormcrown&quot;,&quot;Mantle of Denial&quot;,&quot;Chitinous Club&quot;,&quot;Godsire Greaves&quot;,&quot;Map to the World Tree&quot;,&quot;Helm of the Fallen&quot;,&quot;Soul-Guide Gauntlet&quot;,&quot;Fblthp's Lost Fishing Pole&quot;,&quot;Armor of Ramunap&quot;,&quot;Skywise Talisman&quot;,&quot;Hellkite Greaves&quot;,&quot;Little Black Book&quot;,&quot;Shield of the Righteous&quot;,&quot;Battle Cry Boots&quot;,&quot;Lantern-Lit Cloak&quot;,&quot;Petrified Head&quot;,&quot;Urza's Bauble&quot;,&quot;Waterveil Cloak&quot;,&quot;Tome of Blight&quot;,&quot;Sovereign Greaves&quot;,&quot;Teferi's Staff&quot;,&quot;Giant Scythe&quot;,&quot;Unhallowed Sigil&quot;,&quot;Garruk's Mighty Axe&quot;,&quot;Cutthroat Skirt&quot;,&quot;Yore-Tiller Anklet&quot;,&quot;Amulet of Fury&quot;,&quot;Gixian Graft&quot;,&quot;Zedruu's Lantern&quot;,&quot;The Blackstaff of Waterdeep&quot;,&quot;Fortune Coin&quot;,&quot;Spore Skirt&quot;,&quot;Ring of Renewal&quot;,&quot;Celestial Sword&quot;,&quot;Oracle's Robes&quot;,&quot;Shadowspear&quot;,&quot;Caretaker's Cap&quot;,&quot;Girlfriend's Skirt&quot;]
-        }
-    ]
-    ]
+     &quot;rewards&quot;: [[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 100}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;rarity&quot;: [&quot;Rare&quot;],&quot;colors&quot;: [&quot;white&quot;]}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;item&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;itemNames&quot;: [&quot;Gold Armor&quot;,&quot;Gold Shield&quot;,&quot;Gold Boots&quot;,&quot;Bronze Sword&quot;]},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 2,&quot;rarity&quot;: [&quot;Mythic Rare&quot;],&quot;colors&quot;: [&quot;white&quot;]}]]
 }</property>
    </properties>
   </object>

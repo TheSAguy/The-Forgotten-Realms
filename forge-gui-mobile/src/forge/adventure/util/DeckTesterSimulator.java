@@ -18,11 +18,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 /**
- * Deck Tester "AI vs AI - No Watch" mode (user spec, 2026-08-14): runs a batch of independent,
+ * Deck Tester "AI vs AI - No Watch" mode (user spec, 2026-08-13): runs a batch of independent,
  * fully-headless single-game matches between two decks, both AI-piloted, with no scene switch,
  * no HostedMatch/MatchController/spectator pacing at all - just forge-game's own Match/Game
  * engine, exactly the pattern forge-gui-desktop's SimulateMatch.simulateSingleMatch() uses (not
@@ -52,18 +54,29 @@ public class DeckTesterSimulator {
     // tighter here since we're running many of these back to back).
     private static final int PER_GAME_TIMEOUT_SECONDS = 90;
 
+    /** Cancellation handle returned by {@link #runBatch}: user-facing "End Test" (2026-08-13
+     *  follow-up). Calling {@link #cancel()} stops the batch at the next poll (at most ~0.5s
+     *  away, even mid-game - see the poll loop below) and still fires onComplete with whatever
+     *  partial tally exists, so the caller's UI can never be left waiting indefinitely. */
+    public static class Handle {
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+        public void cancel() { cancelled.set(true); }
+    }
+
     /**
      * Runs {@code count} independent games between deckA and deckB on a background thread.
      * {@code onProgress} fires after each completed game (marshaled onto the GDX render thread
      * via Gdx.app.postRunnable, so it's safe to touch UI directly), {@code onComplete} fires once
-     * with the final tally. Both callbacks may be null.
+     * with the final tally (partial if cancelled). Both callbacks may be null. Returns a
+     * {@link Handle} the caller can cancel() to abort the whole batch on demand.
      */
-    public static void runBatch(String deckAName, Deck deckA, String deckBName, Deck deckB, int count,
+    public static Handle runBatch(String deckAName, Deck deckA, String deckBName, Deck deckB, int count,
                                  IntConsumer onProgress, Consumer<BatchResult> onComplete) {
+        Handle handle = new Handle();
         Thread batchThread = new Thread(() -> {
             BatchResult result = new BatchResult();
             result.total = count;
-            // Adversarial review (2026-08-14) - the original version only wrapped the game-run
+            // Adversarial review (2026-08-13) - the original version only wrapped the game-run
             // itself in try/catch; per-game SETUP (RegisteredPlayer.forVariants/new Match/
             // createGame/getWinner) and the pre-loop createAiPlayer calls were unprotected, so any
             // exception there (this headless path bypasses whatever legality checks a normal
@@ -80,6 +93,11 @@ public class DeckTesterSimulator {
                 LobbyPlayer playerA = GamePlayerUtil.createAiPlayer(deckAName, "");
                 LobbyPlayer playerB = GamePlayerUtil.createAiPlayer(deckBName, "");
                 for (int i = 0; i < count; i++) {
+                    if (handle.cancelled.get()) {
+                        System.out.println("[TFR-DeckTesterBatch] batch ended by user after "
+                                + result.completed + "/" + count + " games");
+                        break;
+                    }
                     RegisteredPlayer winner = null;
                     RegisteredPlayer rpA = null, rpB = null;
                     try {
@@ -98,22 +116,54 @@ public class DeckTesterSimulator {
                         rules.setWarnAboutAICards(false);
 
                         Match match = new Match(rules, players, "Deck Tester Batch");
-                        Game game = match.createGame();
                         boolean timedOut = false;
                         final int gameNumber = i + 1;
                         // A fresh single-use executor per game (not one shared across the whole
                         // batch) - if a game hangs past the timeout, its still-running worker
                         // thread is abandoned (interrupted via shutdownNow(), daemon so it can't
                         // block JVM exit) rather than blocking every subsequent trial behind it on
-                        // a shared queue.
+                        // a shared queue. createGame() runs INSIDE this executor now, not before
+                        // it - the original version called it synchronously on the batch thread
+                        // itself, unprotected by the timeout below entirely, so a hang there (not
+                        // a thrown exception, an actual hang) blocked the whole batch forever with
+                        // no timeout and no error ever logged. Confirmed via forge.log: games 1-3
+                        // completed normally, then total silence with no "batch aborted" line -
+                        // proof the thread was still alive and blocked, not dead.
                         ExecutorService gameExecutor = Executors.newSingleThreadExecutor(r -> {
                             Thread t = new Thread(r, "DeckTesterBatch-Game-" + gameNumber);
                             t.setDaemon(true);
                             return t;
                         });
                         try {
-                            Future<?> future = gameExecutor.submit(() -> match.startGame(game));
-                            future.get(PER_GAME_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                            Future<?> future = gameExecutor.submit(() -> {
+                                Game game = match.createGame();
+                                match.startGame(game);
+                            });
+                            // Poll in short slices rather than one 90s blocking get() - lets the
+                            // End Test button (handle.cancelled) interrupt within ~0.5s even
+                            // mid-game, without needing the hung task itself to cooperate (same
+                            // "abandon and move on" semantics as a real timeout, just triggered by
+                            // the user instead of the clock).
+                            long deadline = System.currentTimeMillis() + PER_GAME_TIMEOUT_SECONDS * 1000L;
+                            while (true) {
+                                try {
+                                    future.get(500, TimeUnit.MILLISECONDS);
+                                    break;
+                                } catch (TimeoutException pollTimeout) {
+                                    if (handle.cancelled.get()) {
+                                        timedOut = true;
+                                        System.out.println("[TFR-DeckTesterBatch] game " + gameNumber
+                                                + "/" + count + " abandoned - user ended the test");
+                                        break;
+                                    }
+                                    if (System.currentTimeMillis() >= deadline) {
+                                        timedOut = true;
+                                        System.err.println("[TFR-DeckTesterBatch] game " + gameNumber
+                                                + "/" + count + " timed out after " + PER_GAME_TIMEOUT_SECONDS + "s");
+                                        break;
+                                    }
+                                }
+                            }
                         } catch (Exception e) {
                             timedOut = true;
                             System.err.println("[TFR-DeckTesterBatch] game " + gameNumber + "/" + count
@@ -158,5 +208,6 @@ public class DeckTesterSimulator {
         }, "DeckTesterBatch");
         batchThread.setDaemon(true);
         batchThread.start();
+        return handle;
     }
 }

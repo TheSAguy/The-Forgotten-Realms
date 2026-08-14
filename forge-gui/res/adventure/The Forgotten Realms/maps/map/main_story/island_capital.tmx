@@ -159,68 +159,7 @@
 	],
     &quot;rounds&quot;:3,
     &quot;entryFee&quot;:100,
-     &quot;rewards&quot;: [[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 100
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Glimmerbell Bondband&quot;,&quot;Phelddagrif Plate&quot;,&quot;Landscape Sketchbook - Rise of the Eldrazi&quot;,&quot;Hoversail Glove&quot;,&quot;Bearhide Breeches&quot;,&quot;Pyrite Gauntlet&quot;,&quot;Seraphim Wings&quot;,&quot;Landscape Sketchbook - Fourth Edition&quot;,&quot;Landscape Sketchbook - Strixhaven: School of Mages&quot;,&quot;Landscape Sketchbook - Beatdown Box Set&quot;,&quot;Sunbeam Gauntlet&quot;,&quot;Spidersilk Helm&quot;,&quot;Scrapling Shoes&quot;,&quot;Furnace Skullbomb&quot;,&quot;Landscape Sketchbook - Odyssey&quot;,&quot;Ceremonial Knife&quot;,&quot;Chromatic Sphere&quot;,&quot;Cloak of the Wastes&quot;,&quot;Landscape Sketchbook - Unstable&quot;,&quot;Landscape Sketchbook - Lorwyn&quot;,&quot;Phoenix&quot;,&quot;Tome of Dispelling&quot;,&quot;Ephemeral Prayerbook&quot;,&quot;Landscape Sketchbook - Ravnica Allegiance&quot;,&quot;Deathspore Shoes&quot;,&quot;Courier's Boots&quot;,&quot;Landscape Sketchbook - Magic Origins&quot;,&quot;Pandora's Box&quot;,&quot;Bespoke Gauntlet&quot;,&quot;Kor Halberd&quot;,&quot;Landscape Sketchbook - Shards of Alara&quot;,&quot;Landscape Sketchbook - Portal Three Kingdoms&quot;,&quot;Landscape Sketchbook - Kaladesh&quot;,&quot;Landscape Sketchbook - Throne of Eldraine&quot;,&quot;Landscape Sketchbook - Unfinity&quot;,&quot;Landscape Sketchbook - Dragons of Tarkir&quot;,&quot;Landscape Sketchbook - Portal Second Age&quot;,&quot;Ominous Amulet&quot;,&quot;Bonder's Helm&quot;,&quot;Vindicator Greaves&quot;,&quot;Amulet of Aeons Torn&quot;,&quot;Barbarian Armor&quot;,&quot;Charm&quot;,&quot;Joraga Boots&quot;,&quot;Ramosian Greatsword&quot;,&quot;Cloudseeder Shoes&quot;,&quot;Tome of the Builder&quot;,&quot;Witches' Eye&quot;,&quot;War Helm&quot;,&quot;Mamba Bondband&quot;,&quot;Spectral Sliverband&quot;,&quot;Blessed Armor&quot;,&quot;Team Pennant&quot;,&quot;Relic Amulet&quot;,&quot;Cryptologist's Fins&quot;,&quot;Despoiler's Boots&quot;,&quot;Amulet of Annihilation&quot;,&quot;Corroding Stormcrown&quot;,&quot;Prism Ring&quot;,&quot;Mask of Hypochondria&quot;,&quot;The Underworld Cookbook&quot;,&quot;Shell Wand&quot;,&quot;Keys to the House&quot;,&quot;Mantle of Dusk&quot;,&quot;Medal of the Outmatched&quot;,&quot;Tempting Apple&quot;,&quot;Ring of Thune&quot;,&quot;Hengestrider Boots&quot;,&quot;Mask of Compulsion&quot;,&quot;Shield of Kaldra&quot;,&quot;Hallowed Sigil&quot;,&quot;Glint-Eye Anklet&quot;,&quot;Chaos Wand&quot;,&quot;Pack Leader Pants&quot;,&quot;Triassic Egg&quot;,&quot;Bronze Blessing of Speed&quot;,&quot;Change&quot;,&quot;Hivestone&quot;,&quot;Librarian's Robes&quot;,&quot;Ghostfire Blade&quot;,&quot;Triangle of War&quot;,&quot;Sword of the Ur-Dragon&quot;,&quot;Utopia Anklet&quot;,&quot;Scavenger's Bandana&quot;,&quot;Sheldon's Shoes&quot;,&quot;Jace's Signature Hoodie&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;rarity&quot;: [
-                &quot;Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;blue&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Glimmerbell Bondband&quot;,&quot;Phelddagrif Plate&quot;,&quot;Landscape Sketchbook - Rise of the Eldrazi&quot;,&quot;Hoversail Glove&quot;,&quot;Bearhide Breeches&quot;,&quot;Pyrite Gauntlet&quot;,&quot;Seraphim Wings&quot;,&quot;Landscape Sketchbook - Fourth Edition&quot;,&quot;Landscape Sketchbook - Strixhaven: School of Mages&quot;,&quot;Landscape Sketchbook - Beatdown Box Set&quot;,&quot;Sunbeam Gauntlet&quot;,&quot;Spidersilk Helm&quot;,&quot;Scrapling Shoes&quot;,&quot;Furnace Skullbomb&quot;,&quot;Landscape Sketchbook - Odyssey&quot;,&quot;Ceremonial Knife&quot;,&quot;Chromatic Sphere&quot;,&quot;Cloak of the Wastes&quot;,&quot;Landscape Sketchbook - Unstable&quot;,&quot;Landscape Sketchbook - Lorwyn&quot;,&quot;Phoenix&quot;,&quot;Tome of Dispelling&quot;,&quot;Ephemeral Prayerbook&quot;,&quot;Landscape Sketchbook - Ravnica Allegiance&quot;,&quot;Deathspore Shoes&quot;,&quot;Courier's Boots&quot;,&quot;Landscape Sketchbook - Magic Origins&quot;,&quot;Pandora's Box&quot;,&quot;Bespoke Gauntlet&quot;,&quot;Kor Halberd&quot;,&quot;Landscape Sketchbook - Shards of Alara&quot;,&quot;Landscape Sketchbook - Portal Three Kingdoms&quot;,&quot;Landscape Sketchbook - Kaladesh&quot;,&quot;Landscape Sketchbook - Throne of Eldraine&quot;,&quot;Landscape Sketchbook - Unfinity&quot;,&quot;Landscape Sketchbook - Dragons of Tarkir&quot;,&quot;Landscape Sketchbook - Portal Second Age&quot;,&quot;Ominous Amulet&quot;,&quot;Bonder's Helm&quot;,&quot;Vindicator Greaves&quot;,&quot;Amulet of Aeons Torn&quot;,&quot;Barbarian Armor&quot;,&quot;Charm&quot;,&quot;Joraga Boots&quot;,&quot;Ramosian Greatsword&quot;,&quot;Cloudseeder Shoes&quot;,&quot;Tome of the Builder&quot;,&quot;Witches' Eye&quot;,&quot;War Helm&quot;,&quot;Mamba Bondband&quot;,&quot;Spectral Sliverband&quot;,&quot;Blessed Armor&quot;,&quot;Team Pennant&quot;,&quot;Relic Amulet&quot;,&quot;Cryptologist's Fins&quot;,&quot;Despoiler's Boots&quot;,&quot;Amulet of Annihilation&quot;,&quot;Corroding Stormcrown&quot;,&quot;Prism Ring&quot;,&quot;Mask of Hypochondria&quot;,&quot;The Underworld Cookbook&quot;,&quot;Shell Wand&quot;,&quot;Keys to the House&quot;,&quot;Mantle of Dusk&quot;,&quot;Medal of the Outmatched&quot;,&quot;Tempting Apple&quot;,&quot;Ring of Thune&quot;,&quot;Hengestrider Boots&quot;,&quot;Mask of Compulsion&quot;,&quot;Shield of Kaldra&quot;,&quot;Hallowed Sigil&quot;,&quot;Glint-Eye Anklet&quot;,&quot;Chaos Wand&quot;,&quot;Pack Leader Pants&quot;,&quot;Triassic Egg&quot;,&quot;Bronze Blessing of Speed&quot;,&quot;Change&quot;,&quot;Hivestone&quot;,&quot;Librarian's Robes&quot;,&quot;Ghostfire Blade&quot;,&quot;Triangle of War&quot;,&quot;Sword of the Ur-Dragon&quot;,&quot;Utopia Anklet&quot;,&quot;Scavenger's Bandana&quot;,&quot;Sheldon's Shoes&quot;,&quot;Jace's Signature Hoodie&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Gold Armor&quot;,&quot;Gold Shield&quot;,&quot;Gold Boots&quot;,&quot;Dagger&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 2,
-            &quot;rarity&quot;: [
-                &quot;Mythic Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;blue&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Glimmerbell Bondband&quot;,&quot;Phelddagrif Plate&quot;,&quot;Landscape Sketchbook - Rise of the Eldrazi&quot;,&quot;Hoversail Glove&quot;,&quot;Bearhide Breeches&quot;,&quot;Pyrite Gauntlet&quot;,&quot;Seraphim Wings&quot;,&quot;Landscape Sketchbook - Fourth Edition&quot;,&quot;Landscape Sketchbook - Strixhaven: School of Mages&quot;,&quot;Landscape Sketchbook - Beatdown Box Set&quot;,&quot;Sunbeam Gauntlet&quot;,&quot;Spidersilk Helm&quot;,&quot;Scrapling Shoes&quot;,&quot;Furnace Skullbomb&quot;,&quot;Landscape Sketchbook - Odyssey&quot;,&quot;Ceremonial Knife&quot;,&quot;Chromatic Sphere&quot;,&quot;Cloak of the Wastes&quot;,&quot;Landscape Sketchbook - Unstable&quot;,&quot;Landscape Sketchbook - Lorwyn&quot;,&quot;Phoenix&quot;,&quot;Tome of Dispelling&quot;,&quot;Ephemeral Prayerbook&quot;,&quot;Landscape Sketchbook - Ravnica Allegiance&quot;,&quot;Deathspore Shoes&quot;,&quot;Courier's Boots&quot;,&quot;Landscape Sketchbook - Magic Origins&quot;,&quot;Pandora's Box&quot;,&quot;Bespoke Gauntlet&quot;,&quot;Kor Halberd&quot;,&quot;Landscape Sketchbook - Shards of Alara&quot;,&quot;Landscape Sketchbook - Portal Three Kingdoms&quot;,&quot;Landscape Sketchbook - Kaladesh&quot;,&quot;Landscape Sketchbook - Throne of Eldraine&quot;,&quot;Landscape Sketchbook - Unfinity&quot;,&quot;Landscape Sketchbook - Dragons of Tarkir&quot;,&quot;Landscape Sketchbook - Portal Second Age&quot;,&quot;Ominous Amulet&quot;,&quot;Bonder's Helm&quot;,&quot;Vindicator Greaves&quot;,&quot;Amulet of Aeons Torn&quot;,&quot;Barbarian Armor&quot;,&quot;Charm&quot;,&quot;Joraga Boots&quot;,&quot;Ramosian Greatsword&quot;,&quot;Cloudseeder Shoes&quot;,&quot;Tome of the Builder&quot;,&quot;Witches' Eye&quot;,&quot;War Helm&quot;,&quot;Mamba Bondband&quot;,&quot;Spectral Sliverband&quot;,&quot;Blessed Armor&quot;,&quot;Team Pennant&quot;,&quot;Relic Amulet&quot;,&quot;Cryptologist's Fins&quot;,&quot;Despoiler's Boots&quot;,&quot;Amulet of Annihilation&quot;,&quot;Corroding Stormcrown&quot;,&quot;Prism Ring&quot;,&quot;Mask of Hypochondria&quot;,&quot;The Underworld Cookbook&quot;,&quot;Shell Wand&quot;,&quot;Keys to the House&quot;,&quot;Mantle of Dusk&quot;,&quot;Medal of the Outmatched&quot;,&quot;Tempting Apple&quot;,&quot;Ring of Thune&quot;,&quot;Hengestrider Boots&quot;,&quot;Mask of Compulsion&quot;,&quot;Shield of Kaldra&quot;,&quot;Hallowed Sigil&quot;,&quot;Glint-Eye Anklet&quot;,&quot;Chaos Wand&quot;,&quot;Pack Leader Pants&quot;,&quot;Triassic Egg&quot;,&quot;Bronze Blessing of Speed&quot;,&quot;Change&quot;,&quot;Hivestone&quot;,&quot;Librarian's Robes&quot;,&quot;Ghostfire Blade&quot;,&quot;Triangle of War&quot;,&quot;Sword of the Ur-Dragon&quot;,&quot;Utopia Anklet&quot;,&quot;Scavenger's Bandana&quot;,&quot;Sheldon's Shoes&quot;,&quot;Jace's Signature Hoodie&quot;]
-        }
-    ]
-    ]
+     &quot;rewards&quot;: [[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 100}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;rarity&quot;: [&quot;Rare&quot;],&quot;colors&quot;: [&quot;blue&quot;]}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;item&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;itemNames&quot;: [&quot;Gold Armor&quot;,&quot;Gold Shield&quot;,&quot;Gold Boots&quot;,&quot;Dagger&quot;]},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 2,&quot;rarity&quot;: [&quot;Mythic Rare&quot;],&quot;colors&quot;: [&quot;blue&quot;]}]]
 }</property>
    </properties>
   </object>

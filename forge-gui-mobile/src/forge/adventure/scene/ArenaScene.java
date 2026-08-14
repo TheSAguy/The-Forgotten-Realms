@@ -206,7 +206,14 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         // Stock planes' capitals (common/maps/map/main_story/*_capital.tmx) carry arena objects
         // too, so without this gate Shandalar players got the mod's upgrade economy (2026-08-12
         // review finding; CLAUDE.md opt-in ground rule). Flag off = plain stock arena.
-        if (arenaMapStage == null || !Config.instance().getConfigData().arenaUpgradesEnabled) {
+        // AI-capitals ownership gate (2026-08-13, user spec: "let's have those be game default...
+        // don't add anything new to them") - same isCurrentTownPlayerOwned check RewardScene's
+        // Armory buttons already got in the 2026-08-13 round for the identical exploit shape (see
+        // TownRestoration.isCurrentTownPlayerOwned's own comment). Without it, arenaUpgradesEnabled
+        // being plane-wide meant the player could pay to upgrade an AI capital's own Arena too.
+        boolean playerOwnedTown = arenaMapStage != null && arenaMapStage.getChanges() != null
+                && TownRestoration.isCurrentTownPlayerOwned(arenaMapStage.getChanges());
+        if (arenaMapStage == null || !Config.instance().getConfigData().arenaUpgradesEnabled || !playerOwnedTown) {
             arenaUpgradeButton.setVisible(false);
             arenaModeToggleButton.setVisible(false);
             deckTesterButton.setVisible(false);
@@ -230,6 +237,11 @@ public class ArenaScene extends UIScene implements IAfterMatch {
 
     private void promptUpgradeArena() {
         if (arenaMapStage == null || arenaMapStage.getChanges() == null)
+            return;
+        // Defense-in-depth (2026-08-13, AI-capital gate) - arenaUpgradeButton is already hidden
+        // at AI capitals via refreshArenaBuildingButtons()'s own playerOwnedTown check, this
+        // guards against any other path (e.g. controller/gamepad focus) still invoking it.
+        if (!TownRestoration.isCurrentTownPlayerOwned(arenaMapStage.getChanges()))
             return;
         // 2026-08-12 cost table: Arena upgrade is 300 stone + 300 wood.
         if (!EconomyBuildings.canAffordCost(0, EconomyBuildings.ARENA_UPGRADE_WOOD, EconomyBuildings.ARENA_UPGRADE_STONE, 0))
@@ -258,7 +270,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         loadArenaData(data, WorldSave.getCurrentSave().getWorld().getRandom().nextLong(), challengeMode);
     }
 
-    /** Deck Tester's 3 modes (renamed/split 2026-08-14, user spec). PLAYER_VS_AI is the original
+    /** Deck Tester's 3 modes (renamed/split 2026-08-13, user spec). PLAYER_VS_AI is the original
      *  mode (was labeled "Coin Flip") - the player pilots one deck, the AI pilots the other.
      *  AI_VS_AI_WATCH is the existing "Simulated" mode, renamed for clarity now that a second
      *  AI-vs-AI mode exists. AI_VS_AI_NO_WATCH is new - both decks AI-piloted, run headlessly in
@@ -289,7 +301,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
                     Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, this::removeDialog));
             return;
         }
-        // Mode choice (user spec, 2026-08-13, renamed/extended 2026-08-14): "Player vs. AI" is the
+        // Mode choice (user spec, 2026-08-13, renamed/extended 2026-08-13): "Player vs. AI" is the
         // original mode - the player picks one deck to pilot themselves and one for the AI to
         // pilot. "AI vs. AI - Watch" - both decks are AI-piloted, a fully-automated matchup the
         // player watches play out. "AI vs. AI - No Watch" - same, but run headlessly in the
@@ -375,7 +387,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         showDialog(dialog);
     }
 
-    /** "AI vs. AI - No Watch" step 3 (new, user spec 2026-08-14) - how many games to run. */
+    /** "AI vs. AI - No Watch" step 3 (new, user spec 2026-08-13) - how many games to run. */
     private void promptMatchCount(int deckAIndex, int deckBIndex) {
         Dialog dialog = new Dialog("Deck Tester", Controls.getSkin());
         TypingLabel label = Controls.newTypingLabel("How many matches?");
@@ -393,7 +405,7 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         showDialog(dialog);
     }
 
-    /** "AI vs. AI - No Watch" step 4 (new, user spec 2026-08-14) - runs `count` independent games
+    /** "AI vs. AI - No Watch" step 4 (new, user spec 2026-08-13) - runs `count` independent games
      *  headlessly via DeckTesterSimulator (no HostedMatch/DuelScene/MatchController at all, so no
      *  scene switch and no spectator pacing tax - see that class's own doc comment), showing a
      *  live-updating progress dialog and a final win/loss tally. `enable=false` for the duration -
@@ -410,17 +422,31 @@ public class ArenaScene extends UIScene implements IAfterMatch {
         Dialog progressDialog = new Dialog("Deck Tester", Controls.getSkin());
         TextraLabel progressLabel = Controls.newTextraLabel("Simulating matches... (0/" + count + " complete)");
         progressDialog.getContentTable().add(progressLabel).width(250f).row();
+        // End Test (user spec, follow-up to the 2026-08-13 freeze fix): lets the player abort a
+        // batch that's taking too long (a genuinely slow/large AI deck, not just the createGame()
+        // hang that fix addressed) instead of waiting out the worst case. The click listener is
+        // wired at construction (TextraButton has no post-hoc setter), but the Handle it needs to
+        // cancel doesn't exist until runBatch() returns below - so it closes over a one-element
+        // holder array instead, filled in once runBatch() hands back its Handle.
+        final DeckTesterSimulator.Handle[] handleHolder = new DeckTesterSimulator.Handle[1];
+        TextraButton endTestButton = Controls.newTextButton("End Test", () -> {
+            if (handleHolder[0] != null)
+                handleHolder[0].cancel();
+        });
+        progressDialog.getButtonTable().add(endTestButton).width(240f).row();
         progressDialog.setKeepWithinStage(true);
         showDialog(progressDialog);
 
-        DeckTesterSimulator.runBatch(nameA, deckA, nameB, deckB, count,
+        handleHolder[0] = DeckTesterSimulator.runBatch(nameA, deckA, nameB, deckB, count,
                 completed -> progressLabel.setText("Simulating matches... (" + completed + "/" + count + " complete)"),
                 result -> {
                     removeDialog();
                     enable = true;
+                    boolean endedEarly = result.completed < result.total;
                     String resultText = nameA + " won " + result.deckAWins + "\n"
                             + nameB + " won " + result.deckBWins
-                            + (result.draws > 0 ? "\nDraws/timeouts: " + result.draws : "");
+                            + (result.draws > 0 ? "\nDraws/timeouts: " + result.draws : "")
+                            + (endedEarly ? "\n(ended early - " + result.completed + "/" + result.total + " games ran)" : "");
                     showDialog(createGenericDialog("Deck Tester Results", resultText,
                             Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, this::removeDialog));
                 });

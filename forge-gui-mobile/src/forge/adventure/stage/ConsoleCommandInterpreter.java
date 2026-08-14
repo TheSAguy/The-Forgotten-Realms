@@ -636,6 +636,40 @@ public class ConsoleCommandInterpreter {
             InnScene.replaceLocalEvent(eventFormat, eventCardBlock);
             return "Replaced local event with " + eventFormat.name() + " - " + eventCardBlock.getName();
         });
+        // QC diagnostic (2026-08-13, user request: "hard for me to test... hoping you can have
+        // some QC steps in the background") - dumps everything needed to verify the edition-
+        // progression shard assignments on demand, without hunting forge.log for the individual
+        // [TFR-ShopEditions]/[TFR-LootEditions]/[TFR-InnEditions] lines each action already prints.
+        registerCommand(new String[]{"edition", "status"}, s -> {
+            forge.adventure.world.World world = WorldSave.getCurrentSave().getWorld();
+            if (!world.isEditionProgressionEnabled())
+                return "Edition progression is not enabled for this plane/save.";
+            StringBuilder sb = new StringBuilder("Edition progression status:\n");
+            Map<String, List<String>> shards = world.getColorEditionShards();
+            if (shards == null || shards.isEmpty()) {
+                sb.append("  No shards seeded yet.\n");
+            } else {
+                for (String color : new String[]{"white", "blue", "black", "red", "green", forge.adventure.util.EditionProgression.NEUTRAL}) {
+                    List<String> shard = shards.get(color);
+                    sb.append("  ").append(color).append(" (").append(shard == null ? 0 : shard.size()).append("): ")
+                            .append(shard == null ? "(none)" : String.join(", ", shard)).append("\n");
+                }
+            }
+            java.util.Set<String> unlocked = Current.player().getUnlockedEditions();
+            sb.append("  player-unlocked (").append(unlocked == null ? 0 : unlocked.size()).append("): ")
+                    .append(unlocked == null || unlocked.isEmpty() ? "(none)" : String.join(", ", unlocked)).append("\n");
+            PointOfInterest rootPoint = forge.adventure.scene.TileMapScene.instance().rootPoint;
+            if (rootPoint == null) {
+                sb.append("  Not currently at a PoI - no local restriction to report.\n");
+            } else {
+                String territoryColor = forge.adventure.util.TerritoryControl.currentColorAtPoi(world, rootPoint);
+                sb.append("  current PoI: \"").append(rootPoint.getData().name).append("\" (type=")
+                        .append(rootPoint.getData().type).append(", territory color=")
+                        .append(territoryColor == null ? "(none)" : territoryColor).append(")\n");
+            }
+            System.out.println(sb);
+            return sb.toString();
+        });
         registerCommand(new String[]{"reset", "map"}, s -> {
             if(!MapStage.getInstance().isInMap()) {
                 return "Can only be used in maps.";

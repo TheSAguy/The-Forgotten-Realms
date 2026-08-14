@@ -235,4 +235,33 @@ public class EditionProgression {
                 + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
         return restrictToEditions(source, editionRestriction);
     }
+
+    /**
+     * Dungeon treasure/chest pickups (RewardSprite.getRewards(), a POI object placed directly in
+     * a dungeon .tmx - not a shop, not an enemy drop) had NO edition restriction at all until now
+     * (2026-08-13 QC pass, user report: "hard to verify by eye... hoping you can have some QC
+     * steps in the background" for dungeon loot specifically) - a real gap, since roaming-monster
+     * loot in the same territory already respects the color's shard via restrictToEditions() in
+     * EnemySprite. Keyed off TerritoryControl.currentColorAtPoi() - the CURRENT owner of the
+     * dungeon's land, same lookup WorldStage's roaming spawner and TerritoryControl's own
+     * enemy-re-theming already use - so a dungeon chest re-restricts itself if the surrounding
+     * territory changes hands after world-gen, consistent with how its roaming enemies would.
+     * Falls back to NEUTRAL (not "no restriction") when the current territory has no color match,
+     * same fail-safe EnemySprite's loot restriction uses for colorless encounters.
+     */
+    public static Iterable<RewardData> restrictDungeonRewardsForCurrentPoi(Iterable<RewardData> source) {
+        World world = WorldSave.getCurrentSave().getWorld();
+        if (!world.isEditionProgressionEnabled())
+            return source;
+        PointOfInterest rootPoint = TileMapScene.instance().rootPoint;
+        String color = rootPoint != null ? TerritoryControl.currentColorAtPoi(world, rootPoint) : null;
+        String colorLabel = color != null ? color : NEUTRAL;
+        List<String> editionRestriction = getEditionsForColor(world, colorLabel);
+        // Diagnostic-only logging - greppable in forge.log as "[TFR-LootEditions]", same tag
+        // EnemySprite's roaming-monster loot restriction already uses, distinguished by the
+        // "dungeon-chest" source label instead of an enemy name.
+        System.out.println("[TFR-LootEditions] dungeon-chest poi=\"" + (rootPoint != null ? rootPoint.getData().name : "(unknown)")
+                + "\" color=" + colorLabel + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
+        return restrictToEditions(source, editionRestriction);
+    }
 }

@@ -154,68 +154,7 @@
 	],
     &quot;rounds&quot;:3,
     &quot;entryFee&quot;:100,
-     &quot;rewards&quot;: [[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 100
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Landscape Sketchbook - Modern Horizons&quot;,&quot;Cragflame&quot;,&quot;Prayerbook of Fortunes&quot;,&quot;Landscape Sketchbook - Thrones of Eldraine&quot;,&quot;Runed Stalactite&quot;,&quot;Landscape Sketchbook - Sixth Edition&quot;,&quot;Scarecrow Socks&quot;,&quot;Petalmane Pants&quot;,&quot;Landscape Sketchbook - Magic 2021&quot;,&quot;Landscape Sketchbook - Mercadian Masques&quot;,&quot;Volatile Prayerbook&quot;,&quot;Mad Hat&quot;,&quot;Landscape Sketchbook - Starter 2000&quot;,&quot;Landscape Sketchbook - Tarkir: Dragonstorm&quot;,&quot;Infernal Armor&quot;,&quot;Aether Gauntlet&quot;,&quot;Kobold Boots&quot;,&quot;Landscape Sketchbook - Portal&quot;,&quot;Kaleidostone&quot;,&quot;Chandra's Stone&quot;,&quot;Landscape Sketchbook - Shadows Over Innistrad&quot;,&quot;Landscape Sketchbook - Scars of Mirrodin&quot;,&quot;Landscape Sketchbook - Aetherdrift&quot;,&quot;Meadow Outfit&quot;,&quot;Landscape Sketchbook - Limited Edition Alpha&quot;,&quot;Trickster's Shoes&quot;,&quot;Landscape Sketchbook - Tempest&quot;,&quot;Landscape Sketchbook - Zendikar&quot;,&quot;Bandar Boots&quot;,&quot;Prayerbook of Fertility&quot;,&quot;Lotus Petal&quot;,&quot;Obscura Shoes&quot;,&quot;Firefrightener Shoes&quot;,&quot;Enduring Sliverband&quot;,&quot;Bloodfire Boots&quot;,&quot;Landscape Sketchbook - Edge of Eternities&quot;,&quot;Tome of Triumph&quot;,&quot;Heavy Armor&quot;,&quot;Barrier Breeches&quot;,&quot;Anklet of the End&quot;,&quot;Sol Ring&quot;,&quot;Medal of the Outnumbered&quot;,&quot;Jolly Boots&quot;,&quot;Sorcerer's Wand&quot;,&quot;Fleshwright Chaps&quot;,&quot;Cunning Mask&quot;,&quot;Trusty Machete&quot;,&quot;Siren Song Lyre&quot;,&quot;Jeskai Gauntlet&quot;,&quot;Tome of Binding&quot;,&quot;Nomad Armor&quot;,&quot;Starforged Sword&quot;,&quot;Medal of the Overwhelmed Champion&quot;,&quot;Mask of Narcissism&quot;,&quot;Amulet of Compleation&quot;,&quot;Ring of Xathrid&quot;,&quot;Encroaching Stormcrown&quot;,&quot;Mardu Gauntlet&quot;,&quot;Abzan Gauntlet&quot;,&quot;Novijen Cloak&quot;,&quot;Rix Maadi Cloak&quot;,&quot;Victual Sliverband&quot;,&quot;Vitu-Ghazi Cloak&quot;,&quot;Princely Greaves&quot;,&quot;Valorous Greaves&quot;,&quot;Staff of Invisibility&quot;,&quot;Centaur Armor&quot;,&quot;Amulet of Mischief&quot;,&quot;Slobad's Iron Boots&quot;,&quot;Sanctuary Armor&quot;,&quot;Parun's Armor&quot;,&quot;Arguel's Amulet&quot;,&quot;Xira's Fancy Hat&quot;,&quot;Mask of Valgavoth&quot;,&quot;Artist's Beret&quot;,&quot;Veilstone Amulet&quot;,&quot;Armor of Urami&quot;,&quot;Mantle of Ancient Lore&quot;,&quot;Dune-Brood Anklet&quot;,&quot;Grolnok's Skin&quot;,&quot;Tibalt's Bag of Tricks&quot;,&quot;Crucible Armor&quot;,&quot;Nahiri's Armory&quot;,&quot;Helm of Myth&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;rarity&quot;: [
-                &quot;Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;red&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Landscape Sketchbook - Modern Horizons&quot;,&quot;Cragflame&quot;,&quot;Prayerbook of Fortunes&quot;,&quot;Landscape Sketchbook - Thrones of Eldraine&quot;,&quot;Runed Stalactite&quot;,&quot;Landscape Sketchbook - Sixth Edition&quot;,&quot;Scarecrow Socks&quot;,&quot;Petalmane Pants&quot;,&quot;Landscape Sketchbook - Magic 2021&quot;,&quot;Landscape Sketchbook - Mercadian Masques&quot;,&quot;Volatile Prayerbook&quot;,&quot;Mad Hat&quot;,&quot;Landscape Sketchbook - Starter 2000&quot;,&quot;Landscape Sketchbook - Tarkir: Dragonstorm&quot;,&quot;Infernal Armor&quot;,&quot;Aether Gauntlet&quot;,&quot;Kobold Boots&quot;,&quot;Landscape Sketchbook - Portal&quot;,&quot;Kaleidostone&quot;,&quot;Chandra's Stone&quot;,&quot;Landscape Sketchbook - Shadows Over Innistrad&quot;,&quot;Landscape Sketchbook - Scars of Mirrodin&quot;,&quot;Landscape Sketchbook - Aetherdrift&quot;,&quot;Meadow Outfit&quot;,&quot;Landscape Sketchbook - Limited Edition Alpha&quot;,&quot;Trickster's Shoes&quot;,&quot;Landscape Sketchbook - Tempest&quot;,&quot;Landscape Sketchbook - Zendikar&quot;,&quot;Bandar Boots&quot;,&quot;Prayerbook of Fertility&quot;,&quot;Lotus Petal&quot;,&quot;Obscura Shoes&quot;,&quot;Firefrightener Shoes&quot;,&quot;Enduring Sliverband&quot;,&quot;Bloodfire Boots&quot;,&quot;Landscape Sketchbook - Edge of Eternities&quot;,&quot;Tome of Triumph&quot;,&quot;Heavy Armor&quot;,&quot;Barrier Breeches&quot;,&quot;Anklet of the End&quot;,&quot;Sol Ring&quot;,&quot;Medal of the Outnumbered&quot;,&quot;Jolly Boots&quot;,&quot;Sorcerer's Wand&quot;,&quot;Fleshwright Chaps&quot;,&quot;Cunning Mask&quot;,&quot;Trusty Machete&quot;,&quot;Siren Song Lyre&quot;,&quot;Jeskai Gauntlet&quot;,&quot;Tome of Binding&quot;,&quot;Nomad Armor&quot;,&quot;Starforged Sword&quot;,&quot;Medal of the Overwhelmed Champion&quot;,&quot;Mask of Narcissism&quot;,&quot;Amulet of Compleation&quot;,&quot;Ring of Xathrid&quot;,&quot;Encroaching Stormcrown&quot;,&quot;Mardu Gauntlet&quot;,&quot;Abzan Gauntlet&quot;,&quot;Novijen Cloak&quot;,&quot;Rix Maadi Cloak&quot;,&quot;Victual Sliverband&quot;,&quot;Vitu-Ghazi Cloak&quot;,&quot;Princely Greaves&quot;,&quot;Valorous Greaves&quot;,&quot;Staff of Invisibility&quot;,&quot;Centaur Armor&quot;,&quot;Amulet of Mischief&quot;,&quot;Slobad's Iron Boots&quot;,&quot;Sanctuary Armor&quot;,&quot;Parun's Armor&quot;,&quot;Arguel's Amulet&quot;,&quot;Xira's Fancy Hat&quot;,&quot;Mask of Valgavoth&quot;,&quot;Artist's Beret&quot;,&quot;Veilstone Amulet&quot;,&quot;Armor of Urami&quot;,&quot;Mantle of Ancient Lore&quot;,&quot;Dune-Brood Anklet&quot;,&quot;Grolnok's Skin&quot;,&quot;Tibalt's Bag of Tricks&quot;,&quot;Crucible Armor&quot;,&quot;Nahiri's Armory&quot;,&quot;Helm of Myth&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Aladdin's Ring&quot;,&quot;Axt&quot;,&quot;Ring of Immortals&quot;,&quot;Jandor's Ring&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 2,
-            &quot;rarity&quot;: [
-                &quot;Mythic Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;red&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Landscape Sketchbook - Modern Horizons&quot;,&quot;Cragflame&quot;,&quot;Prayerbook of Fortunes&quot;,&quot;Landscape Sketchbook - Thrones of Eldraine&quot;,&quot;Runed Stalactite&quot;,&quot;Landscape Sketchbook - Sixth Edition&quot;,&quot;Scarecrow Socks&quot;,&quot;Petalmane Pants&quot;,&quot;Landscape Sketchbook - Magic 2021&quot;,&quot;Landscape Sketchbook - Mercadian Masques&quot;,&quot;Volatile Prayerbook&quot;,&quot;Mad Hat&quot;,&quot;Landscape Sketchbook - Starter 2000&quot;,&quot;Landscape Sketchbook - Tarkir: Dragonstorm&quot;,&quot;Infernal Armor&quot;,&quot;Aether Gauntlet&quot;,&quot;Kobold Boots&quot;,&quot;Landscape Sketchbook - Portal&quot;,&quot;Kaleidostone&quot;,&quot;Chandra's Stone&quot;,&quot;Landscape Sketchbook - Shadows Over Innistrad&quot;,&quot;Landscape Sketchbook - Scars of Mirrodin&quot;,&quot;Landscape Sketchbook - Aetherdrift&quot;,&quot;Meadow Outfit&quot;,&quot;Landscape Sketchbook - Limited Edition Alpha&quot;,&quot;Trickster's Shoes&quot;,&quot;Landscape Sketchbook - Tempest&quot;,&quot;Landscape Sketchbook - Zendikar&quot;,&quot;Bandar Boots&quot;,&quot;Prayerbook of Fertility&quot;,&quot;Lotus Petal&quot;,&quot;Obscura Shoes&quot;,&quot;Firefrightener Shoes&quot;,&quot;Enduring Sliverband&quot;,&quot;Bloodfire Boots&quot;,&quot;Landscape Sketchbook - Edge of Eternities&quot;,&quot;Tome of Triumph&quot;,&quot;Heavy Armor&quot;,&quot;Barrier Breeches&quot;,&quot;Anklet of the End&quot;,&quot;Sol Ring&quot;,&quot;Medal of the Outnumbered&quot;,&quot;Jolly Boots&quot;,&quot;Sorcerer's Wand&quot;,&quot;Fleshwright Chaps&quot;,&quot;Cunning Mask&quot;,&quot;Trusty Machete&quot;,&quot;Siren Song Lyre&quot;,&quot;Jeskai Gauntlet&quot;,&quot;Tome of Binding&quot;,&quot;Nomad Armor&quot;,&quot;Starforged Sword&quot;,&quot;Medal of the Overwhelmed Champion&quot;,&quot;Mask of Narcissism&quot;,&quot;Amulet of Compleation&quot;,&quot;Ring of Xathrid&quot;,&quot;Encroaching Stormcrown&quot;,&quot;Mardu Gauntlet&quot;,&quot;Abzan Gauntlet&quot;,&quot;Novijen Cloak&quot;,&quot;Rix Maadi Cloak&quot;,&quot;Victual Sliverband&quot;,&quot;Vitu-Ghazi Cloak&quot;,&quot;Princely Greaves&quot;,&quot;Valorous Greaves&quot;,&quot;Staff of Invisibility&quot;,&quot;Centaur Armor&quot;,&quot;Amulet of Mischief&quot;,&quot;Slobad's Iron Boots&quot;,&quot;Sanctuary Armor&quot;,&quot;Parun's Armor&quot;,&quot;Arguel's Amulet&quot;,&quot;Xira's Fancy Hat&quot;,&quot;Mask of Valgavoth&quot;,&quot;Artist's Beret&quot;,&quot;Veilstone Amulet&quot;,&quot;Armor of Urami&quot;,&quot;Mantle of Ancient Lore&quot;,&quot;Dune-Brood Anklet&quot;,&quot;Grolnok's Skin&quot;,&quot;Tibalt's Bag of Tricks&quot;,&quot;Crucible Armor&quot;,&quot;Nahiri's Armory&quot;,&quot;Helm of Myth&quot;]
-        }
-    ]
-    ]
+     &quot;rewards&quot;: [[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 100}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;rarity&quot;: [&quot;Rare&quot;],&quot;colors&quot;: [&quot;red&quot;]}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;item&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;itemNames&quot;: [&quot;Aladdin's Ring&quot;,&quot;Axt&quot;,&quot;Ring of Immortals&quot;,&quot;Jandor's Ring&quot;]},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 2,&quot;rarity&quot;: [&quot;Mythic Rare&quot;],&quot;colors&quot;: [&quot;red&quot;]}]]
 }</property>
    </properties>
   </object>

@@ -134,13 +134,6 @@
         "R":"decks/starter/pile_red_e.json",
         "G":"decks/starter/pile_green_e.json"
       },
-      "commanderDecks": {
-        "W":"decks/starter/commander/white_01.dck",
-        "B":"decks/starter/commander/black_01.dck",
-        "U":"decks/starter/commander/blue_01.dck",
-        "R":"decks/starter/commander/red_01.dck",
-        "G":"decks/starter/commander/green_01.dck"
-      },
       "startItems": [
         "Manasight Amulet",
         "Leather Boots"
@@ -179,13 +172,6 @@
         "R":"decks/starter/pile_red_n.json",
         "G":"decks/starter/pile_green_n.json"
       },
-      "commanderDecks": {
-        "W":"decks/starter/commander/white_01.dck",
-        "B":"decks/starter/commander/black_01.dck",
-        "U":"decks/starter/commander/blue_01.dck",
-        "R":"decks/starter/commander/red_01.dck",
-        "G":"decks/starter/commander/green_01.dck"
-      },
       "startItems": [
         "Leather Boots"
       ]
@@ -221,13 +207,6 @@
         "U":"decks/starter/pile_blue_h.json",
         "R":"decks/starter/pile_red_h.json",
         "G":"decks/starter/pile_green_h.json"
-      },
-      "commanderDecks": {
-        "W":"decks/starter/commander/white_01.dck",
-        "B":"decks/starter/commander/black_01.dck",
-        "U":"decks/starter/commander/blue_01.dck",
-        "R":"decks/starter/commander/red_01.dck",
-        "G":"decks/starter/commander/green_01.dck"
       }
     },{
       "name": "Insane",
@@ -261,13 +240,6 @@
         "U":"decks/starter/pile_blue_h.json",
         "R":"decks/starter/pile_red_h.json",
         "G":"decks/starter/pile_green_h.json"
-      },
-      "commanderDecks": {
-        "W":"decks/starter/commander/white_01.dck",
-        "B":"decks/starter/commander/black_01.dck",
-        "U":"decks/starter/commander/blue_01.dck",
-        "R":"decks/starter/commander/red_01.dck",
-        "G":"decks/starter/commander/green_01.dck"
       }
     }
   ],

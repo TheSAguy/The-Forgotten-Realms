@@ -1028,7 +1028,10 @@ public class TerritoryControl {
 
     // Current color of the land this POI sits on right now (may differ from homeColorOfPoi() once
     // territory has changed hands) - same tile-ownership lookup WorldStage's roaming spawner uses.
-    private static String currentColorAtPoi(World world, PointOfInterest poi) {
+    // Made public (2026-08-13) so EditionProgression.restrictDungeonRewardsForCurrentPoi() can
+    // reuse it for dungeon-chest loot restriction, the same "current territory color" a dungeon's
+    // own roaming enemies are already implicitly placed by.
+    public static String currentColorAtPoi(World world, PointOfInterest poi) {
         Vector2 pos = poi.getPosition();
         int biomeIndex = World.highestBiome(world.getBiome((int) pos.x / world.getTileSize(), (int) pos.y / world.getTileSize()));
         List<BiomeData> biomes = world.getData().GetBiomes();

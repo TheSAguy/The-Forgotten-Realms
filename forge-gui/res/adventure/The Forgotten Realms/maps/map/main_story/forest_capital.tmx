@@ -175,68 +175,7 @@
 	],
     &quot;rounds&quot;:3,
     &quot;entryFee&quot;:100,
-     &quot;rewards&quot;: [[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 100
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Fblthp's Lost Socks&quot;,&quot;Amnesiac Prayerbook&quot;,&quot;Landscape Sketchbook - Streets of New Capenna&quot;,&quot;Tome of Removal&quot;,&quot;Amulet of Kroog&quot;,&quot;Faerie Anklet&quot;,&quot;Generous Necklace&quot;,&quot;Gingerboots&quot;,&quot;Brokers Boots&quot;,&quot;Kiora's Bident&quot;,&quot;Coiled Anklet&quot;,&quot;Liliana's Stone&quot;,&quot;Scroll of Griselbrand&quot;,&quot;Angelic Ring&quot;,&quot;Landscape Sketchbook - Khans of Tarkir&quot;,&quot;Jousting Lance&quot;,&quot;Maze Skullbomb&quot;,&quot;Tome of Might&quot;,&quot;Sky Skiff Turnkey&quot;,&quot;Landscape Sketchbook - Amonkhet&quot;,&quot;Surgical Skullbomb&quot;,&quot;Landscape Sketchbook - Limited Edition Beta&quot;,&quot;Landscape Sketchbook - Ikoria: Lair of Behemoths&quot;,&quot;Lifespark Gauntlet&quot;,&quot;Landscape Sketchbook - Innistrad&quot;,&quot;Captive Soul of a Priest&quot;,&quot;Winter Boots&quot;,&quot;Pirate Hat in Hand&quot;,&quot;Medal of Ultimate Victory&quot;,&quot;Blistering Breeches&quot;,&quot;Isle Shirt&quot;,&quot;Landscape Sketchbook - Mirrodin Besieged&quot;,&quot;Caravaneer's Greaves&quot;,&quot;Generous Armor&quot;,&quot;Maestro Loafers&quot;,&quot;Landscape Sketchbook - 30th Anniversary Edition&quot;,&quot;Acorn Amulet&quot;,&quot;Spy Kit&quot;,&quot;Brimstone Boots&quot;,&quot;Artificial Sliverband&quot;,&quot;Packsong Pants&quot;,&quot;Jewel of Blessings&quot;,&quot;Pinecrest Cloak&quot;,&quot;Vampiric Amulet&quot;,&quot;Silverskin Gauntlet&quot;,&quot;Sultai Gauntlet&quot;,&quot;Ring of Dragon Blood&quot;,&quot;Cloak of Orzhova&quot;,&quot;Armor of Ifnir&quot;,&quot;Ring of Evos Isle&quot;,&quot;Tranquil Cloak&quot;,&quot;Poisoner's Glove&quot;,&quot;Liliana's Veil&quot;,&quot;Armor of Ipnu&quot;,&quot;Jewel of Rage&quot;,&quot;Cursed Ring&quot;,&quot;Ring of Valkas&quot;,&quot;Rancher's Garb&quot;,&quot;Ring of Kalonia&quot;,&quot;Cloudcrest Cloak&quot;,&quot;Full Moon Necklace&quot;,&quot;Draped Dragonhide&quot;,&quot;Ghoulish Jewel&quot;,&quot;Thirsting Axe&quot;,&quot;Jinxed Ring&quot;,&quot;Cloak of Prahv&quot;,&quot;Explorer's Cloak&quot;,&quot;Aladdin's Lamp&quot;,&quot;Poet's Quill&quot;,&quot;Draconian Cylix&quot;,&quot;Amulet of Mirth&quot;,&quot;Amulet of Vigor&quot;,&quot;Ink-Treader Anklet&quot;,&quot;Aegis of the Meek&quot;,&quot;Diamond Belt&quot;,&quot;Disrupting Scepter&quot;,&quot;Slime-Covered Boots&quot;,&quot;Worn Coin&quot;,&quot;Dire Flail&quot;,&quot;Ooze Amulet&quot;,&quot;Amulet of Scorn&quot;,&quot;Amulet of Awakening&quot;,&quot;Acolyte's Anklet&quot;,&quot;Fblthp's Lost Shirt&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;rarity&quot;: [
-                &quot;Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;green&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Fblthp's Lost Socks&quot;,&quot;Amnesiac Prayerbook&quot;,&quot;Landscape Sketchbook - Streets of New Capenna&quot;,&quot;Tome of Removal&quot;,&quot;Amulet of Kroog&quot;,&quot;Faerie Anklet&quot;,&quot;Generous Necklace&quot;,&quot;Gingerboots&quot;,&quot;Brokers Boots&quot;,&quot;Kiora's Bident&quot;,&quot;Coiled Anklet&quot;,&quot;Liliana's Stone&quot;,&quot;Scroll of Griselbrand&quot;,&quot;Angelic Ring&quot;,&quot;Landscape Sketchbook - Khans of Tarkir&quot;,&quot;Jousting Lance&quot;,&quot;Maze Skullbomb&quot;,&quot;Tome of Might&quot;,&quot;Sky Skiff Turnkey&quot;,&quot;Landscape Sketchbook - Amonkhet&quot;,&quot;Surgical Skullbomb&quot;,&quot;Landscape Sketchbook - Limited Edition Beta&quot;,&quot;Landscape Sketchbook - Ikoria: Lair of Behemoths&quot;,&quot;Lifespark Gauntlet&quot;,&quot;Landscape Sketchbook - Innistrad&quot;,&quot;Captive Soul of a Priest&quot;,&quot;Winter Boots&quot;,&quot;Pirate Hat in Hand&quot;,&quot;Medal of Ultimate Victory&quot;,&quot;Blistering Breeches&quot;,&quot;Isle Shirt&quot;,&quot;Landscape Sketchbook - Mirrodin Besieged&quot;,&quot;Caravaneer's Greaves&quot;,&quot;Generous Armor&quot;,&quot;Maestro Loafers&quot;,&quot;Landscape Sketchbook - 30th Anniversary Edition&quot;,&quot;Acorn Amulet&quot;,&quot;Spy Kit&quot;,&quot;Brimstone Boots&quot;,&quot;Artificial Sliverband&quot;,&quot;Packsong Pants&quot;,&quot;Jewel of Blessings&quot;,&quot;Pinecrest Cloak&quot;,&quot;Vampiric Amulet&quot;,&quot;Silverskin Gauntlet&quot;,&quot;Sultai Gauntlet&quot;,&quot;Ring of Dragon Blood&quot;,&quot;Cloak of Orzhova&quot;,&quot;Armor of Ifnir&quot;,&quot;Ring of Evos Isle&quot;,&quot;Tranquil Cloak&quot;,&quot;Poisoner's Glove&quot;,&quot;Liliana's Veil&quot;,&quot;Armor of Ipnu&quot;,&quot;Jewel of Rage&quot;,&quot;Cursed Ring&quot;,&quot;Ring of Valkas&quot;,&quot;Rancher's Garb&quot;,&quot;Ring of Kalonia&quot;,&quot;Cloudcrest Cloak&quot;,&quot;Full Moon Necklace&quot;,&quot;Draped Dragonhide&quot;,&quot;Ghoulish Jewel&quot;,&quot;Thirsting Axe&quot;,&quot;Jinxed Ring&quot;,&quot;Cloak of Prahv&quot;,&quot;Explorer's Cloak&quot;,&quot;Aladdin's Lamp&quot;,&quot;Poet's Quill&quot;,&quot;Draconian Cylix&quot;,&quot;Amulet of Mirth&quot;,&quot;Amulet of Vigor&quot;,&quot;Ink-Treader Anklet&quot;,&quot;Aegis of the Meek&quot;,&quot;Diamond Belt&quot;,&quot;Disrupting Scepter&quot;,&quot;Slime-Covered Boots&quot;,&quot;Worn Coin&quot;,&quot;Dire Flail&quot;,&quot;Ooze Amulet&quot;,&quot;Amulet of Scorn&quot;,&quot;Amulet of Awakening&quot;,&quot;Acolyte's Anklet&quot;,&quot;Fblthp's Lost Shirt&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Dungeon Map&quot;,&quot;Mad Staff&quot;,&quot;Gold Boots&quot;,&quot;Disrupting Scepter&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 2,
-            &quot;rarity&quot;: [
-                &quot;Mythic Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;green&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Fblthp's Lost Socks&quot;,&quot;Amnesiac Prayerbook&quot;,&quot;Landscape Sketchbook - Streets of New Capenna&quot;,&quot;Tome of Removal&quot;,&quot;Amulet of Kroog&quot;,&quot;Faerie Anklet&quot;,&quot;Generous Necklace&quot;,&quot;Gingerboots&quot;,&quot;Brokers Boots&quot;,&quot;Kiora's Bident&quot;,&quot;Coiled Anklet&quot;,&quot;Liliana's Stone&quot;,&quot;Scroll of Griselbrand&quot;,&quot;Angelic Ring&quot;,&quot;Landscape Sketchbook - Khans of Tarkir&quot;,&quot;Jousting Lance&quot;,&quot;Maze Skullbomb&quot;,&quot;Tome of Might&quot;,&quot;Sky Skiff Turnkey&quot;,&quot;Landscape Sketchbook - Amonkhet&quot;,&quot;Surgical Skullbomb&quot;,&quot;Landscape Sketchbook - Limited Edition Beta&quot;,&quot;Landscape Sketchbook - Ikoria: Lair of Behemoths&quot;,&quot;Lifespark Gauntlet&quot;,&quot;Landscape Sketchbook - Innistrad&quot;,&quot;Captive Soul of a Priest&quot;,&quot;Winter Boots&quot;,&quot;Pirate Hat in Hand&quot;,&quot;Medal of Ultimate Victory&quot;,&quot;Blistering Breeches&quot;,&quot;Isle Shirt&quot;,&quot;Landscape Sketchbook - Mirrodin Besieged&quot;,&quot;Caravaneer's Greaves&quot;,&quot;Generous Armor&quot;,&quot;Maestro Loafers&quot;,&quot;Landscape Sketchbook - 30th Anniversary Edition&quot;,&quot;Acorn Amulet&quot;,&quot;Spy Kit&quot;,&quot;Brimstone Boots&quot;,&quot;Artificial Sliverband&quot;,&quot;Packsong Pants&quot;,&quot;Jewel of Blessings&quot;,&quot;Pinecrest Cloak&quot;,&quot;Vampiric Amulet&quot;,&quot;Silverskin Gauntlet&quot;,&quot;Sultai Gauntlet&quot;,&quot;Ring of Dragon Blood&quot;,&quot;Cloak of Orzhova&quot;,&quot;Armor of Ifnir&quot;,&quot;Ring of Evos Isle&quot;,&quot;Tranquil Cloak&quot;,&quot;Poisoner's Glove&quot;,&quot;Liliana's Veil&quot;,&quot;Armor of Ipnu&quot;,&quot;Jewel of Rage&quot;,&quot;Cursed Ring&quot;,&quot;Ring of Valkas&quot;,&quot;Rancher's Garb&quot;,&quot;Ring of Kalonia&quot;,&quot;Cloudcrest Cloak&quot;,&quot;Full Moon Necklace&quot;,&quot;Draped Dragonhide&quot;,&quot;Ghoulish Jewel&quot;,&quot;Thirsting Axe&quot;,&quot;Jinxed Ring&quot;,&quot;Cloak of Prahv&quot;,&quot;Explorer's Cloak&quot;,&quot;Aladdin's Lamp&quot;,&quot;Poet's Quill&quot;,&quot;Draconian Cylix&quot;,&quot;Amulet of Mirth&quot;,&quot;Amulet of Vigor&quot;,&quot;Ink-Treader Anklet&quot;,&quot;Aegis of the Meek&quot;,&quot;Diamond Belt&quot;,&quot;Disrupting Scepter&quot;,&quot;Slime-Covered Boots&quot;,&quot;Worn Coin&quot;,&quot;Dire Flail&quot;,&quot;Ooze Amulet&quot;,&quot;Amulet of Scorn&quot;,&quot;Amulet of Awakening&quot;,&quot;Acolyte's Anklet&quot;,&quot;Fblthp's Lost Shirt&quot;]
-        }
-    ]
-    ]
+     &quot;rewards&quot;: [[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 100}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;rarity&quot;: [&quot;Rare&quot;],&quot;colors&quot;: [&quot;green&quot;]}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;item&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;itemNames&quot;: [&quot;Dungeon Map&quot;,&quot;Mad Staff&quot;,&quot;Gold Boots&quot;,&quot;Disrupting Scepter&quot;]},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 2,&quot;rarity&quot;: [&quot;Mythic Rare&quot;],&quot;colors&quot;: [&quot;green&quot;]}]]
 }</property>
    </properties>
   </object>

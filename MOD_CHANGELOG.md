@@ -8788,3 +8788,113 @@ Torch row (629 items total) - the generator script's own `effect_description()` 
 `visionRadiusMultiplier` case added as the real `EffectData.getDescription()` to keep the Effect
 column accurate for it. Not yet playtested/deployed - none of the three have been seen rendered
 in-game yet.
+
+## Deck Tester freeze fix, AI-Arena drift cleanup, dungeon-loot edition gap, Commander removed (2026-08-13)
+
+Seven-item round from a single user report (screenshot showed "Deck Tester... (0/5 complete)"
+apparently frozen at Orazca Arena) plus a follow-up QC/cleanup request.
+
+**Deck Tester "AI vs. AI - No Watch" total freeze - real bug, root-caused.**
+`DeckTesterSimulator.runBatch()` called `match.createGame()` synchronously on the batch thread,
+*before* the per-game timeout wrapper - only `match.startGame(game)` was ever protected by
+`future.get(PER_GAME_TIMEOUT_SECONDS, TimeUnit.SECONDS)`. A hang inside `createGame()` itself (not
+an exception - an actual block) froze the whole batch forever with no timeout and no error logged.
+Confirmed via `forge.log`: games 1-3 completed/timed out normally, then total silence with no
+"batch aborted" line ever printed - proof the thread was alive and blocked, not dead. Fixed by
+moving `createGame()` inside the same per-game executor as `startGame()`, and replacing the single
+blocking timeout wait with a 500ms polling loop against the real deadline.
+
+**"End Test" button** (same request): `runBatch()` now returns a `DeckTesterSimulator.Handle`
+(an `AtomicBoolean` cancellation flag) instead of `void`. The poll loop checks it every 500ms, so
+cancellation lands within half a second even mid-game, and still fires `onComplete` with whatever
+partial tally exists - the caller's UI can never be left stuck waiting. `ArenaScene.
+launchDeckTesterBatch()` wires a new button into the progress dialog; since the button's click
+listener has to be built before `runBatch()` returns a `Handle` to close over, it goes through a
+one-element holder array (`TextraButton` has no post-construction listener setter).
+
+**5 AI-color capital Arenas - "let's have those be game default... don't add anything new to
+them."** Investigated before touching anything (background agent, ~4.5 min): no champion-deck
+leakage, no `arenaChallenge` property on any of the 5 (that's player-Capitol-only) - but two real,
+*pre-existing* (not from today) deviations from stock were found:
+  - Each of the 5 AI capitals' arena loot pools had been intentionally modified by the 2026-08-10
+    "item economy overhaul" (a genuine `git diff` surprise at first - these 5 `.tmx` files are
+    plane-local copies of `common`'s stock capitals, first created *by* that same Aug-10 commit,
+    so there was no earlier version at this exact path to `git checkout` back to). Reverted by
+    diffing each file's current `rewards` JSON against `common`'s untouched original and splicing
+    the original array back in via a small Python script (bracket-matched on the `rewards` key
+    specifically, so `enemyPool`/`rounds`/`entryFee` and all surrounding formatting were left
+    byte-identical - confirmed by `git diff` showing only the `rewards` line changed). All 5 are
+    back to stock probability-1 gold/card/item rewards, no injected bonus entry.
+  - `ArenaScene.refreshArenaBuildingButtons()`/`promptUpgradeArena()` had no per-town ownership
+    check - `arenaUpgradesEnabled` is a single plane-wide flag, so the Upgrade-to-Level-2 button
+    (and the Level-2 toggle/Deck Tester buttons that depend on it) showed at the 5 AI capitals too,
+    letting the player pay to upgrade land that isn't theirs. Same exploit shape RewardScene's
+    Armory buttons got fixed for on 2026-08-13; same fix applied here -
+    `TownRestoration.isCurrentTownPlayerOwned(arenaMapStage.getChanges())` now gates button
+    visibility, plus a defense-in-depth check inside `promptUpgradeArena()` itself.
+
+**Player's own Level 1 Arena - removed the 5 "Apprentice \[Color\] Wizard" entries** from
+`player_capital.tmx`'s `enemyPool` (user request, clarified mid-round: not the broader "Common"
+tier, which also covers ~19 unnamed generic creatures like Cleric/Knight/Griffin - just the 5
+wizard entries actually named "Apprentice", confirmed via `enemies.json` to share `tier: "Common"`
+with those generics but be the only ones carrying that specific name).
+
+**Resource pickup radius - real bug, not just "a little small."** `ResourceSpawns.checkPickup()`
+required the player's raw `getX()/getY()` (the sprite's *corner*, not its visual center) to floor-
+divide to the exact spawn tile - meaning the corner of the player's hitbox, not the character the
+user sees standing on the icon, had to land on that one tile. Switched to a real distance check
+from the player's *center* (`getX() + getWidth()/2`, matching how `WorldStage`'s own nav-arrow
+positioning already computes it) to the spawn tile's center, with a little added tolerance
+(`PICKUP_RADIUS_TILES = 0.75`) on top per the user's request.
+
+**Dungeon-chest loot had no edition restriction at all - real gap, found by a QC-design background
+agent** (tasked with figuring out how to help verify "AI shops/Inn/monster loot only draw from
+their assigned shard" without requiring the user to eyeball it). Existing `[TFR-*]` logging
+coverage for shops/Inn/roaming-monster-loot was already comprehensive and correct - but
+`RewardSprite.getRewards()` (dungeon treasure/chest pickups, a POI object placed directly in a
+`.tmx`, distinct from shop and enemy-drop rewards) called `RewardData.generate()` directly with no
+restriction and no logging whatsoever. Fixed via a new `EditionProgression.
+restrictDungeonRewardsForCurrentPoi()`, keyed off `TerritoryControl.currentColorAtPoi()` (made
+public - the same current-territory-ownership lookup `WorldStage`'s roaming spawner and the
+enemy-re-theming system already use, so a dungeon chest re-restricts itself if the surrounding
+territory changes hands after world-gen, same as its roaming enemies would) - falls back to the
+neutral shard when the dungeon's land has no color match. Logs `[TFR-LootEditions]` (same tag
+roaming-monster loot uses, distinguished by a `dungeon-chest` source label).
+
+**New `edition status` console command** (the QC agent's other proposal): dumps every color's
+assigned shard, the player's own unlocked editions, and - if currently standing at a PoI - that
+PoI's name/type/current-territory-color, all in one shot instead of hunting `forge.log` for the
+right `[TFR-ShopEditions]`/`[TFR-LootEditions]` line.
+
+**Commander mode removed from character creation** (user: doesn't believe Commander is actually
+playable in Shandalar/this mod). `NewGameScene.java`'s mode list only adds `AdventureModes.
+Commander` when the *first* difficulty tier's `commanderDecks` is non-null - entirely data-driven,
+so the fix is plane-config-only: removed the `commanderDecks` block from all 4 of this plane's
+`config.json` difficulty entries (Easy/Normal/Hard/Insane all pointed at the same 5 real
+`decks/starter/commander/*_01.dck` files, so the decks aren't broken, just no longer offered as a
+Mode here). Zero Java touched - Shandalar and any other plane with its own `commanderDecks`
+configured is completely unaffected, per the standing per-plane-opt-in rule. `CommanderPrecon`
+(a separate mode, gated by a `commanderPreconDecks` key this plane's `config.json` never had in
+the first place) was already absent from the menu - nothing to do there.
+
+**Game log review**: swept the latest `forge.log` (705 lines, one full session) for
+ERROR/Exception/WARN/"not found"/"failed"/"missing"/"cannot" - found exactly two things, both
+already accounted for above: the Deck Tester timeout/interrupt pair from the bug just fixed, and
+one totally benign `[TerritoryControl] player: placement - castle not found` line (expected -
+the player doesn't start with a pre-placed castle at world-gen, unlike the 5 AI colors). Nothing
+else turned up.
+
+**Also fixed in passing**: several comments written earlier in this same round were mis-dated
+2026-08-14 instead of 2026-08-13 (carried over from a context-compaction boundary mid-session) -
+caught and corrected via a blanket string replace across the 7 touched Java files before commit,
+so the dated-comment convention stays trustworthy for future sessions tracing history.
+
+### Compile/deploy status
+`mvn -pl forge-gui-mobile -am compile -DskipTests -o` - BUILD SUCCESS. Spliced into both
+`forge-gui-mobile-dev-...jar` and `forge-gui-desktop-...jar`; `The Forgotten Realms` res folder
+mirrored (the 5 AI capital `.tmx` files, `player_capital.tmx`, `config.json`). Spot-checked by
+extracting `ArenaScene.class`/`DeckTesterSimulator.class`/`ConsoleCommandInterpreter.class`/
+`EditionProgression.class` from the spliced mobile-dev jar and grepping each for a string literal
+unique to this round's edit ("End Test", the cancellation log message, "Edition progression
+status", "dungeon-chest") - all four found; `ArenaScene.class` also spot-checked in the desktop
+jar. **Not yet playtested.**

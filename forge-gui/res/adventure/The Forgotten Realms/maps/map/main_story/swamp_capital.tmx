@@ -81,68 +81,7 @@
 	],
     &quot;rounds&quot;:3,
     &quot;entryFee&quot;:100,
-     &quot;rewards&quot;: [[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 100
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Wedding Invitation&quot;,&quot;Landscape Sketchbook - Battle for Zendikar&quot;,&quot;Mire Leather&quot;,&quot;Landscape Sketchbook - Onslaught&quot;,&quot;Snack&quot;,&quot;Referee's Shoes&quot;,&quot;Landscape Sketchbook - Unglued&quot;,&quot;Symbiote Bondband&quot;,&quot;Adventuring Gear&quot;,&quot;Thaumaton Torpedo&quot;,&quot;Truth Butcher's Armor&quot;,&quot;Short Sword&quot;,&quot;Strider Reins&quot;,&quot;Bladed Bracer&quot;,&quot;Silvergill Tailband&quot;,&quot;Goldvein Pick&quot;,&quot;Landscape Sketchbook - Duskmourn: House of Horror&quot;,&quot;Tome of the Executioner&quot;,&quot;Landscape Sketchbook - New Phyrexia&quot;,&quot;Echo Shield&quot;,&quot;Dross Skullbomb&quot;,&quot;Landscape Sketchbook - Tempest&quot;,&quot;Lookout's Harness&quot;,&quot;Deathspitter Skirt&quot;,&quot;Cabaretti Kicks&quot;,&quot;Landscape Sketchbook - Battle Royale&quot;,&quot;Landscape Sketchbook - Outlaws of Thunder Junction&quot;,&quot;Sandals&quot;,&quot;Helm of Battle&quot;,&quot;Witch's Shoes&quot;,&quot;Imposter's Sliverband&quot;,&quot;Landscape Sketchbook - Ice Age&quot;,&quot;Generous Coin&quot;,&quot;Landscape Sketchbook - Revised Edition&quot;,&quot;Generous Pants&quot;,&quot;Necrogen Gauntlet&quot;,&quot;Landscape Sketchbook - Kamigawa Neon Dynasty&quot;,&quot;Sage's Robes&quot;,&quot;Cabal Armor&quot;,&quot;Jade Anklet&quot;,&quot;Roiling Stormcrown&quot;,&quot;Steelclaw Lance&quot;,&quot;Manaforce Mace&quot;,&quot;Peddler's Shoes&quot;,&quot;Mask of Mortiphobia&quot;,&quot;Thunder Lasso&quot;,&quot;Jewel of War&quot;,&quot;Glacial Armor&quot;,&quot;Nivix Vest&quot;,&quot;Cephalid Armor&quot;,&quot;Sinister Concoction&quot;,&quot;Shoes of the Swarm&quot;,&quot;Dungeon Map&quot;,&quot;Medal of the Overpowered Opponent&quot;,&quot;Outlaw's Hat&quot;,&quot;High Ground Helm&quot;,&quot;Skargg Cloak&quot;,&quot;Beastbreaker Boots&quot;,&quot;Brawler's Cestus&quot;,&quot;Leech Breeches&quot;,&quot;Manasight Amulet&quot;,&quot;Cloak of Svogthos&quot;,&quot;Mask of Pyromania&quot;,&quot;Mishra's Bauble&quot;,&quot;Sunhome Cloak&quot;,&quot;Giant's Bracer&quot;,&quot;Helm of Contemplation&quot;,&quot;Temur Gauntlet&quot;,&quot;Bear Helm&quot;,&quot;Ghoulcaller Greaves&quot;,&quot;Urza's Robe&quot;,&quot;Alesha's War Skirt&quot;,&quot;Crystalline Armor&quot;,&quot;Skyclave Maul&quot;,&quot;Slimefoot's Slimy Staff&quot;,&quot;Glorious Helm&quot;,&quot;Fblthp's Lost Bauble&quot;,&quot;Jandor's Ring&quot;,&quot;Armor of the First&quot;,&quot;Witch-Maw Anklet&quot;,&quot;Pinnacle Circlet&quot;,&quot;Generous Ingot&quot;,&quot;Amulet of Agony&quot;,&quot;Amulet of Favor&quot;,&quot;Gold Boots&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;rarity&quot;: [
-                &quot;Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;black&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Wedding Invitation&quot;,&quot;Landscape Sketchbook - Battle for Zendikar&quot;,&quot;Mire Leather&quot;,&quot;Landscape Sketchbook - Onslaught&quot;,&quot;Snack&quot;,&quot;Referee's Shoes&quot;,&quot;Landscape Sketchbook - Unglued&quot;,&quot;Symbiote Bondband&quot;,&quot;Adventuring Gear&quot;,&quot;Thaumaton Torpedo&quot;,&quot;Truth Butcher's Armor&quot;,&quot;Short Sword&quot;,&quot;Strider Reins&quot;,&quot;Bladed Bracer&quot;,&quot;Silvergill Tailband&quot;,&quot;Goldvein Pick&quot;,&quot;Landscape Sketchbook - Duskmourn: House of Horror&quot;,&quot;Tome of the Executioner&quot;,&quot;Landscape Sketchbook - New Phyrexia&quot;,&quot;Echo Shield&quot;,&quot;Dross Skullbomb&quot;,&quot;Landscape Sketchbook - Tempest&quot;,&quot;Lookout's Harness&quot;,&quot;Deathspitter Skirt&quot;,&quot;Cabaretti Kicks&quot;,&quot;Landscape Sketchbook - Battle Royale&quot;,&quot;Landscape Sketchbook - Outlaws of Thunder Junction&quot;,&quot;Sandals&quot;,&quot;Helm of Battle&quot;,&quot;Witch's Shoes&quot;,&quot;Imposter's Sliverband&quot;,&quot;Landscape Sketchbook - Ice Age&quot;,&quot;Generous Coin&quot;,&quot;Landscape Sketchbook - Revised Edition&quot;,&quot;Generous Pants&quot;,&quot;Necrogen Gauntlet&quot;,&quot;Landscape Sketchbook - Kamigawa Neon Dynasty&quot;,&quot;Sage's Robes&quot;,&quot;Cabal Armor&quot;,&quot;Jade Anklet&quot;,&quot;Roiling Stormcrown&quot;,&quot;Steelclaw Lance&quot;,&quot;Manaforce Mace&quot;,&quot;Peddler's Shoes&quot;,&quot;Mask of Mortiphobia&quot;,&quot;Thunder Lasso&quot;,&quot;Jewel of War&quot;,&quot;Glacial Armor&quot;,&quot;Nivix Vest&quot;,&quot;Cephalid Armor&quot;,&quot;Sinister Concoction&quot;,&quot;Shoes of the Swarm&quot;,&quot;Dungeon Map&quot;,&quot;Medal of the Overpowered Opponent&quot;,&quot;Outlaw's Hat&quot;,&quot;High Ground Helm&quot;,&quot;Skargg Cloak&quot;,&quot;Beastbreaker Boots&quot;,&quot;Brawler's Cestus&quot;,&quot;Leech Breeches&quot;,&quot;Manasight Amulet&quot;,&quot;Cloak of Svogthos&quot;,&quot;Mask of Pyromania&quot;,&quot;Mishra's Bauble&quot;,&quot;Sunhome Cloak&quot;,&quot;Giant's Bracer&quot;,&quot;Helm of Contemplation&quot;,&quot;Temur Gauntlet&quot;,&quot;Bear Helm&quot;,&quot;Ghoulcaller Greaves&quot;,&quot;Urza's Robe&quot;,&quot;Alesha's War Skirt&quot;,&quot;Crystalline Armor&quot;,&quot;Skyclave Maul&quot;,&quot;Slimefoot's Slimy Staff&quot;,&quot;Glorious Helm&quot;,&quot;Fblthp's Lost Bauble&quot;,&quot;Jandor's Ring&quot;,&quot;Armor of the First&quot;,&quot;Witch-Maw Anklet&quot;,&quot;Pinnacle Circlet&quot;,&quot;Generous Ingot&quot;,&quot;Amulet of Agony&quot;,&quot;Amulet of Favor&quot;,&quot;Gold Boots&quot;]
-        }
-    ],[
-        {
-            &quot;type&quot;: &quot;gold&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 200
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Death Ring&quot;,&quot;Dark Armor&quot;,&quot;Dark Shield&quot;,&quot;Dark Boots&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;card&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 2,
-            &quot;rarity&quot;: [
-                &quot;Mythic Rare&quot;
-            ],
-            &quot;colors&quot;: [&quot;black&quot;]
-        },
-        {
-            &quot;type&quot;: &quot;item&quot;,
-            &quot;probability&quot;: 0.5,
-            &quot;count&quot;: 1,
-            &quot;itemNames&quot;: [&quot;Wedding Invitation&quot;,&quot;Landscape Sketchbook - Battle for Zendikar&quot;,&quot;Mire Leather&quot;,&quot;Landscape Sketchbook - Onslaught&quot;,&quot;Snack&quot;,&quot;Referee's Shoes&quot;,&quot;Landscape Sketchbook - Unglued&quot;,&quot;Symbiote Bondband&quot;,&quot;Adventuring Gear&quot;,&quot;Thaumaton Torpedo&quot;,&quot;Truth Butcher's Armor&quot;,&quot;Short Sword&quot;,&quot;Strider Reins&quot;,&quot;Bladed Bracer&quot;,&quot;Silvergill Tailband&quot;,&quot;Goldvein Pick&quot;,&quot;Landscape Sketchbook - Duskmourn: House of Horror&quot;,&quot;Tome of the Executioner&quot;,&quot;Landscape Sketchbook - New Phyrexia&quot;,&quot;Echo Shield&quot;,&quot;Dross Skullbomb&quot;,&quot;Landscape Sketchbook - Tempest&quot;,&quot;Lookout's Harness&quot;,&quot;Deathspitter Skirt&quot;,&quot;Cabaretti Kicks&quot;,&quot;Landscape Sketchbook - Battle Royale&quot;,&quot;Landscape Sketchbook - Outlaws of Thunder Junction&quot;,&quot;Sandals&quot;,&quot;Helm of Battle&quot;,&quot;Witch's Shoes&quot;,&quot;Imposter's Sliverband&quot;,&quot;Landscape Sketchbook - Ice Age&quot;,&quot;Generous Coin&quot;,&quot;Landscape Sketchbook - Revised Edition&quot;,&quot;Generous Pants&quot;,&quot;Necrogen Gauntlet&quot;,&quot;Landscape Sketchbook - Kamigawa Neon Dynasty&quot;,&quot;Sage's Robes&quot;,&quot;Cabal Armor&quot;,&quot;Jade Anklet&quot;,&quot;Roiling Stormcrown&quot;,&quot;Steelclaw Lance&quot;,&quot;Manaforce Mace&quot;,&quot;Peddler's Shoes&quot;,&quot;Mask of Mortiphobia&quot;,&quot;Thunder Lasso&quot;,&quot;Jewel of War&quot;,&quot;Glacial Armor&quot;,&quot;Nivix Vest&quot;,&quot;Cephalid Armor&quot;,&quot;Sinister Concoction&quot;,&quot;Shoes of the Swarm&quot;,&quot;Dungeon Map&quot;,&quot;Medal of the Overpowered Opponent&quot;,&quot;Outlaw's Hat&quot;,&quot;High Ground Helm&quot;,&quot;Skargg Cloak&quot;,&quot;Beastbreaker Boots&quot;,&quot;Brawler's Cestus&quot;,&quot;Leech Breeches&quot;,&quot;Manasight Amulet&quot;,&quot;Cloak of Svogthos&quot;,&quot;Mask of Pyromania&quot;,&quot;Mishra's Bauble&quot;,&quot;Sunhome Cloak&quot;,&quot;Giant's Bracer&quot;,&quot;Helm of Contemplation&quot;,&quot;Temur Gauntlet&quot;,&quot;Bear Helm&quot;,&quot;Ghoulcaller Greaves&quot;,&quot;Urza's Robe&quot;,&quot;Alesha's War Skirt&quot;,&quot;Crystalline Armor&quot;,&quot;Skyclave Maul&quot;,&quot;Slimefoot's Slimy Staff&quot;,&quot;Glorious Helm&quot;,&quot;Fblthp's Lost Bauble&quot;,&quot;Jandor's Ring&quot;,&quot;Armor of the First&quot;,&quot;Witch-Maw Anklet&quot;,&quot;Pinnacle Circlet&quot;,&quot;Generous Ingot&quot;,&quot;Amulet of Agony&quot;,&quot;Amulet of Favor&quot;,&quot;Gold Boots&quot;]
-        }
-    ]
-    ]
+     &quot;rewards&quot;: [[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 100}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;rarity&quot;: [&quot;Rare&quot;],&quot;colors&quot;: [&quot;black&quot;]}],[{&quot;type&quot;: &quot;gold&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 200},{&quot;type&quot;: &quot;item&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 1,&quot;itemNames&quot;: [&quot;Death Ring&quot;,&quot;Dark Armor&quot;,&quot;Dark Shield&quot;,&quot;Dark Boots&quot;]},{&quot;type&quot;: &quot;card&quot;,&quot;probability&quot;: 1,&quot;count&quot;: 2,&quot;rarity&quot;: [&quot;Mythic Rare&quot;],&quot;colors&quot;: [&quot;black&quot;]}]]
 }</property>
    </properties>
   </object>

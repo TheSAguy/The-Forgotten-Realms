@@ -1028,7 +1028,7 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   a `trigger` parameter (the old 3-arg overload was removed, all 6 call sites updated) plus a
   `reason` field and the town name on its `[TFR-ShopEditions]` log line.
 
-### 2026-08-14 Deck Tester 50x speed, "AI vs. AI - No Watch" headless batch mode, mode rename
+### 2026-08-13 Deck Tester 50x speed, "AI vs. AI - No Watch" headless batch mode, mode rename
 - **`gui/control/PlaybackSpeed.java`** (`forge-gui`, shared/global, NOT under `forge/adventure/`) —
   new `SUPERFAST(.02)` enum constant inserted into the existing 3-way speed cycle
   (`NORMAL->FAST->SLOW->NORMAL` → `NORMAL->FAST->SUPERFAST->SLOW->NORMAL`), labeled "50x speed".
@@ -1047,6 +1047,39 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   `HostedMatch`/`MatchController`/`DuelScene` entirely. See MOD_CHANGELOG.md for the adversarial-
   review-caught blocking exception-handling fix.
 
+### 2026-08-13 (later still) Deck Tester real freeze fix, Arena ownership gate, dungeon-loot edition gap, edition status command
+- **`util/DeckTesterSimulator.java`** (new mod file) — the earlier round's adversarial-review fix
+  only guarded against exceptions; a genuine hang (`Match.createGame()` called synchronously on the
+  batch thread, outside the timeout-protected executor) could still freeze the whole batch forever,
+  which is what the user hit. `createGame()` moved inside the same per-game executor `startGame()`
+  already used; the single blocking `future.get(90s)` replaced with a 500ms poll loop against the
+  real deadline. `runBatch()` signature changed `void` → new `DeckTesterSimulator.Handle`
+  (an `AtomicBoolean` cancel flag) for the new "End Test" button.
+- **`scene/ArenaScene.java`** (mod file) — `launchDeckTesterBatch()` captures the new `Handle` and
+  wires an "End Test" button into the progress dialog. `refreshArenaBuildingButtons()`/
+  `promptUpgradeArena()` gained a `TownRestoration.isCurrentTownPlayerOwned(...)` check (nested
+  inside the pre-existing `arenaUpgradesEnabled` flag, so inert wherever that flag is already off) —
+  previously the 5 AI-color capitals showed the same Upgrade-to-Level-2 button as the player's own
+  Capitol, same exploit shape the Armory buttons were fixed for on 2026-08-13 (see that entry above).
+- **`util/TerritoryControl.java`** (new mod file) — `currentColorAtPoi()` changed `private` → `public`
+  (zero behavior change), so `EditionProgression` can reuse it for dungeon-loot restriction below.
+- **`util/EditionProgression.java`** (new mod file) — new `restrictDungeonRewardsForCurrentPoi()`,
+  keyed off `TerritoryControl.currentColorAtPoi()`; early-returns the source unchanged when
+  `editionProgressionEnabled` is off, same fail-open contract as the rest of this class.
+- **`character/RewardSprite.java`** (mod file) — `getRewards()` (dungeon treasure/chest pickups) now
+  routes through `EditionProgression.restrictDungeonRewardsForCurrentPoi()` before generating -
+  previously drew from every edition unconditionally, unlike roaming-monster loot and AI-town shops
+  (real gap, found by a background QC-design pass, not a user report).
+- **`util/ResourceSpawns.java`** (new mod file) — `checkPickup()` switched from an exact-tile-
+  equality check on the player sprite's raw (corner) `getX()/getY()` to a real distance check from
+  the sprite's center (matching how `WorldStage`'s nav-arrow already computes it) to the spawn
+  tile's center, plus a small added tolerance (`PICKUP_RADIUS_TILES = 0.75`). User report: "I feel
+  like I run over it a few times before it picks up" — the corner-vs-center gap was the actual bug.
+- **`stage/ConsoleCommandInterpreter.java`** (mod file) — new `edition status` command: dumps every
+  color's shard, the player's unlocked editions, and (if standing at a PoI) that PoI's current
+  territory color - a QC-design-agent proposal, on-demand alternative to grepping `forge.log` for
+  the right `[TFR-ShopEditions]`/`[TFR-LootEditions]` line.
+
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.
@@ -1061,7 +1094,7 @@ rather than assumed-safe by omission:
 `EconomyBuildings.java`, `ResourceDisplayActor.java`,
 `ResourceSpawns.java` (random overworld resource pickups), `RubbleOverlay.java`,
 `TerritoryControl.java`, `TimeOfDayActor.java`, `TownRestoration.java`,
-`DeckTesterSimulator.java` (#20/#52, "AI vs. AI - No Watch" headless batch mode, 2026-08-14),
+`DeckTesterSimulator.java` (#20/#52, "AI vs. AI - No Watch" headless batch mode, 2026-08-13),
 `EditionProgression.java` (#4, Progressive Set Unlocks - edition sharding + the clone-and-restrict
 RewardData mechanism, 2026-08-12).
 (`TownCountActor.java` existed briefly, removed the same day - see `MOD_CHANGELOG.md`'s "World

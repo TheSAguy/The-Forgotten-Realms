@@ -40,6 +40,11 @@ public class ResourceSpawns {
     private static final int POI_CLEARANCE_TILES = 3; // don't spawn on/right next to a town/dungeon icon
     private static final int PLACEMENT_ATTEMPTS = 200; // per spawn - plenty for a mostly-open map
     private static final int NEAR_START_RADIUS_TILES = 12; // the guaranteed new-game spawn lands within this of the start
+    // Pickup catch radius, in tiles from the spawn's center (2026-08-13, user report: "I feel
+    // like I run over it a few times before it picks up"). 0.75 tiles - a little more forgiving
+    // than the old effective ~0.5-tile-radius exact-tile check, without reaching into neighboring
+    // tiles' worth of extra range.
+    private static final float PICKUP_RADIUS_TILES = 0.75f;
 
     // Spawn entry layout: {tileX, tileY, type, value, expiryDay} in world tile space.
     // TYPE_MYSTERY (the diamond icon, user request 2026-08-08): contents decided at PICKUP, not
@@ -215,18 +220,31 @@ public class ResourceSpawns {
         }
     }
 
-    // Walk-over collection: the spawn is picked up when the player's center stands on its tile.
+    // Walk-over collection: picked up once the player's center comes within PICKUP_RADIUS_TILES
+    // of the spawn tile's center. Was an exact-tile-equality check keyed off the player sprite's
+    // raw getX()/getY() (its corner, not its visual center) - meaning the corner, not the
+    // character the user actually sees standing on the icon, had to land on that exact tile,
+    // which is why it often took a few passes. Switched to a real distance check off the
+    // sprite's center, matching how WorldStage already computes it elsewhere (see navArrow
+    // positioning), with a little extra tolerance on top per the user's report.
     private static boolean checkPickup(World world) {
         WorldStage stage = WorldStage.getInstance();
-        if (stage.getPlayerSprite() == null)
+        forge.adventure.character.PlayerSprite playerSprite = stage.getPlayerSprite();
+        if (playerSprite == null)
             return false;
-        int playerTileX = (int) (stage.getPlayerSprite().getX() / world.getTileSize());
-        int playerTileY = (int) (stage.getPlayerSprite().getY() / world.getTileSize());
+        int tileSize = world.getTileSize();
+        float playerCenterX = playerSprite.getX() + playerSprite.getWidth() / 2f;
+        float playerCenterY = playerSprite.getY() + playerSprite.getHeight() / 2f;
+        float pickupRadiusPx = PICKUP_RADIUS_TILES * tileSize;
         Iterator<int[]> it = world.getResourceSpawns().iterator();
         boolean changed = false;
         while (it.hasNext()) {
             int[] spawn = it.next();
-            if (spawn[0] != playerTileX || spawn[1] != playerTileY)
+            float spawnCenterX = spawn[0] * tileSize + tileSize / 2f;
+            float spawnCenterY = spawn[1] * tileSize + tileSize / 2f;
+            float dx = playerCenterX - spawnCenterX;
+            float dy = playerCenterY - spawnCenterY;
+            if (dx * dx + dy * dy > pickupRadiusPx * pickupRadiusPx)
                 continue;
             award(world, spawn[2], spawn[3]);
             it.remove();
