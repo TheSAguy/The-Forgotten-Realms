@@ -9194,20 +9194,43 @@ opening the scene. Player-owned towns/Capitol and colorless/neutral towns are ex
 `mvn -pl forge-gui-mobile -am compile -DskipTests -o` - BUILD SUCCESS across all five. Not yet
 playtested/deployed - none of the five have been seen rendered/exercised in-game yet.
 
-### Held for clarification: AI mage tier variety (not built this round)
+### AI mage tier variety, resolved and built (2026-08-14, same round as above)
 User request: attacking mages an AI color dispatches should be randomly tiered instead of always
-Adept (`TerritoryControl.dispatch()` hardcodes `"Adept " + color + " Wizard"` unconditionally,
+Adept (`TerritoryControl.dispatch()` hardcoded `"Adept " + color + " Wizard"` unconditionally,
 confirmed by direct code read, one call site, no variation by rank/difficulty/day/anything) -
 requested odds Adept 50% / Apprentice 30% / Master 15% / Grandmaster 5%, drawn from "that AI's
 mage pool (mages that player can spawn in its terrain)".
 
-Checked before building: `enemies.json` has exactly one named wizard per color at each of
-Apprentice/Adept/Master tiers ("Apprentice/Adept/Master &lt;Color&gt; Wizard", confirmed for all 5
-colors) - but **no "Grandmaster"/"Challenger" &lt;Color&gt; Wizard exists for any color**. The
-2026-08-13 tier rename (#58) was display-only by design (internal `EnemyData` names untouched,
-only a display-name suffix added) - so this isn't a naming mismatch to work around, there's
-genuinely no top-tier wizard enemy defined per color today. A literal implementation would have
-nothing to dispatch on the 5% Grandmaster roll. Asked the user how to resolve this (pick a
-suitable existing Mythic-tier enemy of that color as a stand-in, and if so by what criteria; or
-widen "mage pool" beyond the 4 tier-named wizards to any thematically-mage-like enemy of that
-color) before writing code that either silently falls back or picks an arbitrary substitute.
+**Held first, for a real gap found before building**: `enemies.json` has exactly one named wizard
+per color at each of Apprentice/Adept/Master tiers ("Apprentice/Adept/Master &lt;Color&gt; Wizard",
+confirmed for all 5 colors) - but no "Grandmaster"/"Challenger" &lt;Color&gt; Wizard exists for any
+color (the 2026-08-13 tier rename, #58, was display-only by design - internal `EnemyData` names
+untouched). A literal implementation would have nothing to dispatch on the 5% Grandmaster roll.
+
+**Re-checked, broader than the wizard-named subset, before asking the user to decide**: is the
+4-tier system itself actually populated across each color's full roster, not just its named
+wizards? Queried each color's own biome file's roaming-enemy list directly (not just an
+enemies.json-wide name search) - every color genuinely has a real Mythic-tier population: White 26,
+Black 18, Blue 17, Red 18, Green 18. The gap is narrow (specifically wizard-NAMED Grandmaster
+enemies), not systemic. Presented both findings to the user, recommended picking randomly from that
+color's own Mythic-tier roaming pool for Grandmaster (a real, already-established threat for that
+color, just not literally called "Wizard") rather than inventing an arbitrary stand-in - user
+confirmed.
+
+**Built**: new `TerritoryControl.DISPATCH_TIERS`/`DISPATCH_TIER_CUMULATIVE` (30/80/95/100 cumulative
+= Apprentice 30% / Adept 50% / Master 15% / Grandmaster 5%) + `rollDispatchMageTier()`, same
+cumulative-boundary pattern `RewardData.rollWeightedItemRarity()` already established. For
+Apprentice/Adept/Master, `dispatch()` builds the exact same named-wizard lookup as before
+(`EnemyData.tierDisplayName(tier) + " " + color + " Wizard"` - confirmed this reproduces the
+existing literal names exactly, since the pre-rename wizard names and the post-rename tier-display
+words happen to already match for these 3 tiers). For Grandmaster, new
+`pickGrandmasterMage(world, color)` filters that color's `BiomeData.getEnemyList()` (already
+content-filter-table-aware, #41's Include=N exclusions apply for free) to Mythic-tier, non-boss,
+non-quest-tagged entries (same boss/quest-tag exclusion `EnemySprite.getRewards()` already uses
+for its own edition-restriction exemption) and picks one at random. Every dispatch now logs
+`[TerritoryControl] <color>: dispatch rolled tier <internal> (<display>) -> <enemy name>` so the
+actual tier mix is verifiable from forge.log without needing to watch it live.
+
+Not yet playtested - needs enough real dispatches watched/logged to confirm the tier mix roughly
+tracks the requested odds, and that a Grandmaster-tier dispatch actually resolves to a real enemy
+for all 5 colors (not just the ones spot-checked here).

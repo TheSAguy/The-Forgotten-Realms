@@ -1135,7 +1135,10 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
   label with `[%88]` (text-wrap fix, see MOD_CHANGELOG.md).
 - **`util/TerritoryControl.java`** (mod file, inventoried below) — `EXPANSION_TILES_PER_DAY` split
   into 3 rates (AI castles unchanged at 9/day, new `CAPITOL_EXPANSION_TILES_PER_DAY = 1`, ordinary
-  towns moved to a day-tracked 1-tile/7-days mechanism via `World.townLastGrowthDay`).
+  towns moved to a day-tracked 1-tile/7-days mechanism via `World.townLastGrowthDay`). Also:
+  `dispatch()`'s hardcoded "Adept `<Color>` Wizard" replaced with a weighted tier roll
+  (`rollDispatchMageTier()`) + a new `pickGrandmasterMage()` (that color's own Mythic-tier roaming
+  pool, since no color has a named Grandmaster wizard).
 - **`world/World.java`** — new `townLastGrowthDay` field (`Map<String, Integer>`, get/set/save/
   load/NG+-clear(), same pattern as `townTerritoryRadius` immediately above it).
 - **`util/EconomyBuildings.java`** (mod file, inventoried below) — new `buildGuardInfoDialog()` +

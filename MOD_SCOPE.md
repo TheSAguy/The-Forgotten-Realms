@@ -2755,11 +2755,22 @@ is a summary index:
 Not yet playtested - the user's current save needs `fog reset` run to clear its existing
 over-revealed fog; everything else needs a fresh look in-game.
 
-### 60. Territory Pacing, Guard Info, Dialog Text Wrap, Spellsmith Editions — `Built (2026-08-14), not yet playtested`
-Five items from one round; a 6th (AI mage tier variety, see MOD_CHANGELOG.md) held for a user
-clarification before building - no matching "Grandmaster"/"Challenger"-tier wizard enemy exists
-per color today, so a literal reading of the requested odds can't always resolve to something.
+### 60. Territory Pacing, Guard Info, Dialog Text Wrap, Spellsmith Editions, AI Mage Tier Variety — `Built (2026-08-14), not yet playtested`
+Six items from one round - the 6th (AI mage tier variety) was held for a user clarification before
+building (no matching "Grandmaster"-tier wizard enemy exists per color, so a literal reading of the
+requested odds couldn't always resolve to something), then built once the user confirmed a direction.
 
+- **AI-dispatched mage tier variety.** Was hardcoded to always dispatch "Adept &lt;Color&gt; Wizard" -
+  every attack, every color, forever (confirmed by direct code read: one call site, zero variation
+  by rank/difficulty/day/anything). Now a weighted roll: Apprentice 30% / Adept 50% / Master 15% /
+  Grandmaster 5% (user's exact odds), same cumulative-boundary pattern `RewardData.
+  rollWeightedItemRarity()` already established. Apprentice/Adept/Master still use the real named
+  wizard for that color (unchanged behavior for those 3 tiers). Grandmaster has no named wizard for
+  any color, confirmed - per user decision, picks randomly from that color's own Mythic-tier roaming
+  pool instead of inventing a stand-in (17-26 real candidates per color, confirmed directly against
+  each color's own biome file), excluding bosses/quest-tagged enemies (same exclusion
+  `EnemySprite.getRewards()` already uses for its own edition-restriction exemption) - a real,
+  already-established threat for that color, not literally named "Wizard" but not arbitrary either.
 - **Rebuild/repair dialog button text wrapping** (e.g. "Rebuild Arena (250 [+Gold])" wrapping with
   the icon alone on its own line): fixed at the shared `MapDialog` option-button renderer (a `[%88]`
   scale prefix) rather than Arena-specifically - every DialogData-driven dialog in the mod (shop
@@ -2799,5 +2810,7 @@ per color today, so a literal reading of the requested odds can't always resolve
   wired into `MapStage.java`'s "spellsmith" collision case.
 
 Not yet playtested - needs the user to see the button-text fix, watch both growth rates over
-several in-game days/weeks, read the new Guard Info dialog, and check a low-reputation AI capital's
-Spellsmith (blocked entry) against a Happy/Partner one (right edition pool, not the player's own).
+several in-game days/weeks, read the new Guard Info dialog, check a low-reputation AI capital's
+Spellsmith (blocked entry) against a Happy/Partner one (right edition pool, not the player's own),
+and watch enough mage dispatches to confirm the tier mix (`[TFR-...]` isn't tagged for this yet -
+plain `[TerritoryControl]` log lines show "dispatch rolled tier X (Y) -> Z" per dispatch).

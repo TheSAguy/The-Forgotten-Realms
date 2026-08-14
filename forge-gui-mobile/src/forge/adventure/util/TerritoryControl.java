@@ -733,6 +733,49 @@ public class TerritoryControl {
         }
     }
 
+    // Dispatched-mage tier variety (2026-08-14 user spec): was hardcoded to always "Adept
+    // <Color> Wizard" - every attack, every color, forever, confirmed by direct code read before
+    // this round (one call site, zero variation). Weighted roll instead: Apprentice 30% / Adept
+    // 50% / Master 15% / Grandmaster 5%, same cumulative-boundary pattern as RewardData.
+    // rollWeightedItemRarity(). Internal tier strings (Common/Uncommon/Rare/Mythic), matching
+    // EnemyData.tier - display names are Apprentice/Adept/Master/Grandmaster (#58's rename).
+    private static final String[] DISPATCH_TIERS = {"Common", "Uncommon", "Rare", "Mythic"};
+    private static final float[] DISPATCH_TIER_CUMULATIVE = {30f, 80f, 95f, 100f};
+
+    private static String rollDispatchMageTier(Random random) {
+        float roll = random.nextFloat() * 100f;
+        for (int i = 0; i < DISPATCH_TIER_CUMULATIVE.length; i++)
+            if (roll < DISPATCH_TIER_CUMULATIVE[i])
+                return DISPATCH_TIERS[i];
+        return "Mythic"; // unreachable (last boundary is 100), kept as a safe fallback
+    }
+
+    // No color has a Mythic-tier NAMED wizard ("Grandmaster <Color> Wizard" doesn't exist for any
+    // color, confirmed 2026-08-14 - the hand-tuned wizard roster only ever had 3 tiers). Per user
+    // decision: pick randomly from that color's own Mythic-tier roaming pool instead of inventing
+    // a stand-in - a real, already-established threat for that color (17-26 candidates per color,
+    // confirmed), just not literally named "Wizard". Same boss/quest-tag exclusion
+    // EnemySprite.getRewards() already uses for the analogous edition-restriction exemption, and
+    // getEnemyList() is already content-filter-table-aware (#41 Include=N exclusions respected
+    // here for free). Returns null if that color's pool has no eligible Mythic entry at all.
+    private static EnemyData pickGrandmasterMage(World world, String color) {
+        for (BiomeData biome : world.getData().GetBiomes()) {
+            if (!color.equals(biome.name))
+                continue;
+            List<EnemyData> candidates = new ArrayList<>();
+            for (EnemyData e : biome.getEnemyList()) {
+                if (e == null || e.boss || (e.questTags != null && e.questTags.length > 0))
+                    continue;
+                if ("Mythic".equals(e.tier))
+                    candidates.add(e);
+            }
+            if (candidates.isEmpty())
+                return null;
+            return candidates.get(world.getRandom().nextInt(candidates.size()));
+        }
+        return null;
+    }
+
     // Every early-return below prints why, not just the success path - the only way to tell
     // "dispatch is quietly never firing" apart from "dispatch fires but something after it is
     // broken" without being able to run the game directly. Same reasoning behind the on-screen
@@ -825,8 +868,18 @@ public class TerritoryControl {
         }
         PointOfInterest target = candidates.get(pick);
 
-        String enemyName = "Adept " + capitalize(color) + " Wizard";
-        EnemyData enemyData = WorldData.getEnemy(enemyName);
+        String dispatchTier = rollDispatchMageTier(world.getRandom());
+        EnemyData enemyData;
+        String enemyName;
+        if ("Mythic".equals(dispatchTier)) {
+            enemyData = pickGrandmasterMage(world, color);
+            enemyName = enemyData != null ? enemyData.getName() : "(no Mythic-tier " + color + " enemy available)";
+        } else {
+            enemyName = EnemyData.tierDisplayName(dispatchTier) + " " + capitalize(color) + " Wizard";
+            enemyData = WorldData.getEnemy(enemyName);
+        }
+        System.out.println("[TerritoryControl] " + color + ": dispatch rolled tier " + dispatchTier
+                + " (" + EnemyData.tierDisplayName(dispatchTier) + ") -> " + enemyName);
         if (enemyData == null) {
             System.out.println("[TerritoryControl] " + color + ": enemy \"" + enemyName + "\" not found, skipping dispatch");
             return;
