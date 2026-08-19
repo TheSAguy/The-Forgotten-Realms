@@ -85,6 +85,61 @@ public class EditionProgression {
         }
     }
 
+    /**
+     * Removes the player's race-assigned editions from the 5 AI COLOR shards (2026-08-16 user
+     * spec: "These should be exclusive" - a real playtest showed AFR in both the black shard and
+     * the player's own unlocked set). Runs as a second pass because seedColorShards() fires
+     * inside World.generateNew(), BEFORE a player exists (WorldSave.generateNewWorld() line
+     * order), so the seed pass can't know what to exclude. Removes the race's FULL edition pool
+     * (all 4), not just the difficulty-scaled unlocked subset - on Hard/Insane the locked
+     * remainder is still this character's thematic set and shouldn't fly an AI banner either.
+     * The NEUTRAL shard is deliberately untouched: neutral is unowned land, not a rival color,
+     * and thinning it would shrink every neutral town's shop pool for no exclusivity gain.
+     * Falls back to the player's actual unlockedEditions when the race has no raceEditions
+     * entry (the starterEditions fallback pool is large - excluding all of it would gut the
+     * shards). Idempotent, so it also runs on every save LOAD as a migration for worlds seeded
+     * before this existed - logs only when it actually removed something.
+     */
+    public static void reservePlayerEditions(World world, forge.adventure.player.AdventurePlayer player) {
+        if (world == null || player == null || !world.isEditionProgressionEnabled())
+            return;
+        Map<String, List<String>> shards = world.getColorEditionShards();
+        if (shards == null || shards.isEmpty())
+            return;
+        Set<String> reserved = new HashSet<>();
+        String raceName = forge.adventure.data.HeroListData.getRawRaceName(player.getHeroRace());
+        forge.adventure.data.RaceEditionData[] raceEditions = Config.instance().getConfigData().raceEditions;
+        if (raceName != null && raceEditions != null) {
+            for (forge.adventure.data.RaceEditionData entry : raceEditions) {
+                if (entry != null && raceName.equalsIgnoreCase(entry.race)
+                        && entry.editions != null && entry.editions.length > 0) {
+                    reserved.addAll(Arrays.asList(entry.editions));
+                    break;
+                }
+            }
+        }
+        if (reserved.isEmpty())
+            reserved.addAll(player.getUnlockedEditions());
+        if (reserved.isEmpty())
+            return;
+        List<String> removedLog = new ArrayList<>();
+        for (String group : GROUPS) {
+            if (NEUTRAL.equals(group))
+                continue;
+            List<String> shard = shards.get(group);
+            if (shard == null)
+                continue;
+            for (String code : reserved) {
+                if (shard.remove(code))
+                    removedLog.add(code + " (from " + group + ")");
+            }
+        }
+        if (!removedLog.isEmpty()) {
+            System.out.println("[TFR-EditionShard] reserved for player (race=" + raceName + "): "
+                    + reserved + " - removed from AI color shards: " + removedLog);
+        }
+    }
+
     /** The editions assigned to a color (or "neutral") for this save - empty if the sharding
      *  hasn't been seeded yet (feature disabled, or an older save from before this existed). */
     public static List<String> getEditionsForColor(World world, String color) {
@@ -113,6 +168,17 @@ public class EditionProgression {
      * that want a hard restriction to an empty pool should filter it out before calling this.
      */
     public static List<RewardData> restrictToEditions(Iterable<RewardData> original, List<String> editionCodes) {
+        return restrictToEditions(original, editionCodes, false);
+    }
+
+    /**
+     * uniqueCards gate (2026-08-15 review finding): this helper is shared by shop rewards, dungeon
+     * chests, and roaming-monster loot alike, but the shop dedup opt-in below must NOT leak into
+     * the latter two (they legitimately want repeats) - only {@link #restrictShopRewardsForCurrentTown}
+     * passes true. The public 2-arg overload above always passes false, so every other existing
+     * caller (EnemySprite's monster loot, {@link #restrictDungeonRewardsForCurrentPoi}) is unaffected.
+     */
+    private static List<RewardData> restrictToEditions(Iterable<RewardData> original, List<String> editionCodes, boolean uniqueCards) {
         List<RewardData> result = new ArrayList<>();
         if (original == null)
             return result;
@@ -122,6 +188,12 @@ public class EditionProgression {
             RewardData clone = new RewardData(rd);
             if (restrict) {
                 clone.editions = editionsArray;
+                // Shop dedup opt-in (2026-08-15, screenshot audit: 8/8 slots of the same card
+                // when the restriction shrank a shop type's legal pool to one name) - see
+                // RewardData.uniqueCards' own comment.
+                if (uniqueCards) {
+                    clone.uniqueCards = true;
+                }
                 // "Union"-type rewards build their card pool exclusively from the NESTED
                 // cardUnion entries (RewardData.generate()'s Union branch never consults the
                 // outer .editions), and the copy constructor only shallow-clones that array -
@@ -233,7 +305,7 @@ public class EditionProgression {
         System.out.println("[TFR-ShopEditions] shop=" + shopNameForLogging + " town=\"" + townName + "\""
                 + " owner=" + ownerLabel + " reason=" + reason + " trigger=" + trigger
                 + " restriction(" + editionRestriction.size() + ")=" + editionRestriction);
-        return restrictToEditions(source, editionRestriction);
+        return restrictToEditions(source, editionRestriction, true);
     }
 
     /**

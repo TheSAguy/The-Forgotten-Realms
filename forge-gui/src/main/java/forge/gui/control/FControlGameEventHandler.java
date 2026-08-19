@@ -5,8 +5,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.eventbus.Subscribe;
 import forge.game.GameView;
+import forge.game.card.Card;
 import forge.game.card.CardView;
 import forge.game.event.*;
+import forge.game.player.Player;
 import forge.game.player.PlayerView;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.zone.ZoneType;
@@ -231,7 +233,22 @@ public class FControlGameEventHandler extends IGameEventVisitor.Base<Void> {
             options.add(fakeCard);
             options.add(kv.getValue());
         }
-        humanController.getGui().reveal("These cards were chosen to ante", options);
+        // Ante Re-roll (2026-08-16, Adventure mode only - every other IGuiGame implementation's
+        // revealAnteCards() defaults straight to reveal(), so this call is behavior-identical to
+        // the old direct reveal() call for anyone that doesn't override it): the reroll supplier
+        // re-runs Game.rerollAnte() (same selection rules the original roll used) and rebuilds
+        // the identical "-- From X's deck --"-flattened display shape built above, so a rerolled
+        // display is formatted exactly like the original.
+        humanController.getGui().revealAnteCards("These cards were chosen to ante", options, () -> {
+            Multimap<Player, Card> rerolled = humanController.getPlayer().getGame().rerollAnte();
+            final List<CardView> rerolledOptions = Lists.newArrayList();
+            for (final Entry<Player, Card> kv : rerolled.entries()) {
+                final CardView fakeCard = new CardView(-1, null, "  -- From " + Lang.getInstance().getPossesive(kv.getKey().getName()) + " deck --");
+                rerolledOptions.add(fakeCard);
+                rerolledOptions.add(CardView.get(kv.getValue()));
+            }
+            return rerolledOptions;
+        });
         return null;
     }
 

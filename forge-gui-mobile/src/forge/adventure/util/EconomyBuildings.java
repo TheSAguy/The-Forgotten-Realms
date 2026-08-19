@@ -8,6 +8,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Cell;
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Array;
@@ -21,6 +22,7 @@ import forge.adventure.data.ItemData;
 import forge.adventure.data.ItemListData;
 import forge.adventure.data.RewardData;
 import forge.adventure.data.ShopData;
+import forge.adventure.data.TuningData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.scene.RewardScene;
 import forge.adventure.scene.UIScene;
@@ -75,7 +77,8 @@ public class EconomyBuildings {
     public static final String ECONOMY_TYPE_FLAG = "economyBuildingType";
 
     // (Flat BUILD_COST retired 2026-08-12 - per-type multi-resource costs live in buildCostFor().)
-    private static final int RESOURCE_PRODUCTION_PER_DAY = 5;
+    // (Flat RESOURCE_PRODUCTION_PER_DAY=5-for-every-type retired 2026-08-16 - per-resource weekly
+    // amounts now live in TuningData, see mineWeeklyAmount() below.)
     private static final int INTEREST_PERIOD_DAYS = 7;
     private static final float INTEREST_RATE = 0.05f;
 
@@ -210,6 +213,9 @@ public class EconomyBuildings {
     // 50 shards"). Difficulty-scaled like every other cost via scaledCost() - see
     // RewardScene.promptRerollShopType()/MapStage.rerollShopType().
     public static final int SHOP_TYPE_REROLL_SHARD_COST = 50;
+
+    // (Ante Re-roll's own base cost/escalation rate migrated 2026-08-16 into TuningData -
+    // anteRerollBaseShardCost/anteRerollEscalationRate - see MatchController.revealAnteCards().)
 
     // Difficulty price multiplier (user spec 2026-08-11, round 4): building repair/construction/
     // upgrade costs and guard hiring costs scale with difficulty - Easy 25% cheaper, Normal
@@ -463,21 +469,27 @@ public class EconomyBuildings {
             });
         }
         finishHalfButtonRow(dialog, column);
-        addButtonRow(dialog, "Info", true, () -> scene.showDialog(buildGuardInfoDialog(scene)));
-        dialog.getButtonTable().add(Controls.newTextButton("Close", scene::removeDialog)).colspan(2).width(240f).row();
+        // Info/Close shrunk and placed side-by-side (user request 2026-08-14 - both were full-
+        // width 240f buttons stacked on their own rows, taking up more vertical space than the
+        // dialog needed). Same addHalfButton()/finishHalfButtonRow() pattern the Hire/Dismiss rows
+        // above already use - `column` is already back at 0 from the finishHalfButtonRow() call
+        // just above, so this starts a fresh half-width row.
+        addHalfButton(dialog, column, "Info", true, EconomyBuildings::showGuardInfo);
+        addHalfButton(dialog, column, "Close", true, scene::removeDialog);
+        finishHalfButtonRow(dialog, column);
         dialog.setKeepWithinStage(true);
         return dialog;
     }
 
     /** "Info" button on the Manage Guards dialog (2026-08-14 user request: "a brief explanation
-     *  of the whole mechanic"). Percentages are literal, not read live from TerritoryControl's
+     *  of the whole mechanic"). Redesigned same day onto InfoTextScene (see its own class comment)
+     *  after the original Dialog-based ScrollPane attempt turned out to be fundamentally broken,
+     *  not just under-tuned - a Dialog's pack()-driven outer size can't be capped from an inner
+     *  ScrollPane cell. Percentages below are literal, not read live from TerritoryControl's
      *  private GUARD_FIGHT_ATTACKER_BONUS/OUTLOOK_DEFENSE_BONUS/ATTACKER_SACKS_TOWN_CHANCE -
      *  same pattern the pre-existing Outlook info dialog already uses for the same reason
      *  (those constants aren't public) - keep these three numbers in sync if those ever change. */
-    private static Dialog buildGuardInfoDialog(UIScene scene) {
-        Dialog dialog = new Dialog("How Guards Work", Controls.getSkin());
-        addContentRow(dialog, "A town holds 1 guard, the Capitol holds 2. Hired guards are paid "
-                + "weekly (upfront on hire too) - miss a payment and that guard disbands.");
+    private static void showGuardInfo() {
         StringBuilder tiers = new StringBuilder("Tiers, weakest to strongest: ");
         for (int i = 0; i < GUARD_TIERS_ASCENDING.length; i++) {
             String tier = GUARD_TIERS_ASCENDING[i];
@@ -489,28 +501,30 @@ public class EconomyBuildings {
                 tiers.append(" + ").append(shardCost).append(" shards/wk");
             tiers.append(")");
         }
-        addContentRow(dialog, tiers.toString());
-        addContentRow(dialog, "When a mage attacks, it must defeat every hired guard, strongest "
-                + "first, before it can even attempt to take the town - lose a guard fight and "
-                + "that guard is gone for good, but the mage moves on to the next one (or to the "
-                + "town itself if none remain). Beat every guard yourself and the attack ends "
-                + "there - it never reaches the town.");
-        addContentRow(dialog, "Each fight's odds come from the two tiers facing off (a higher "
-                + "tier is a stronger fighter), plus the attacker always gets +10%, minus 5% if "
-                + "this town has an Outlook built. Same-tier vs. same-tier is close to 50/50 "
-                + "before that adjustment; a bigger tier gap swings it hard either way.");
-        addContentRow(dialog, "If every guard falls (or none were hired), the mage rolls to take "
-                + "the town itself - odds by the mage's own tier: Apprentice 10%, Adept 30%, "
-                + "Master 70%, Grandmaster 90% (also -5% with an Outlook). Winning that roll still "
-                + "has a further 20% chance to sack the town instead of properly capturing it - "
-                + "sacked, it reverts to a neutral ruin rather than changing hands.");
-        addContentRow(dialog, "The Capitol works the same way through its own 2 guards and this "
-                + "same town-capture roll - but if a mage clears both guards AND wins that roll, "
-                + "it triggers a forced duel for the Capitol itself instead of the ordinary "
-                + "capture. Losing that duel ends the run.");
-        dialog.getButtonTable().add(Controls.newTextButton("Close", scene::removeDialog)).width(240f).row();
-        dialog.setKeepWithinStage(true);
-        return dialog;
+        java.util.List<String> paragraphs = java.util.Arrays.asList(
+                "A town holds 1 guard, the Capitol holds 2. Hired guards are paid weekly "
+                        + "(upfront on hire too) - miss a payment and that guard disbands.",
+                tiers.toString(),
+                "When a mage attacks, it must defeat every hired guard, strongest first, before "
+                        + "it can even attempt to take the town - lose a guard fight and that "
+                        + "guard is gone for good, but the mage moves on to the next one (or to "
+                        + "the town itself if none remain). Beat every guard yourself and the "
+                        + "attack ends there - it never reaches the town.",
+                "Each fight's odds come from the two tiers facing off (a higher tier is a "
+                        + "stronger fighter), plus the attacker always gets +10%, minus 5% if "
+                        + "this town has an Outlook built. Same-tier vs. same-tier is close to "
+                        + "50/50 before that adjustment; a bigger tier gap swings it hard either way.",
+                "If every guard falls (or none were hired), the mage rolls to take the town "
+                        + "itself - odds by the mage's own tier: Apprentice 10%, Adept 30%, "
+                        + "Master 70%, Grandmaster 90% (also -5% with an Outlook). Winning that "
+                        + "roll still has a further 20% chance to sack the town instead of "
+                        + "properly capturing it - sacked, it reverts to a neutral ruin rather "
+                        + "than changing hands.",
+                "The Capitol works the same way through its own 2 guards and this same "
+                        + "town-capture roll - but if a mage clears both guards AND wins that "
+                        + "roll, it triggers a forced duel for the Capitol itself instead of the "
+                        + "ordinary capture. Losing that duel ends the run.");
+        forge.adventure.scene.InfoTextScene.show("How Guards Work", paragraphs);
     }
 
     // Teleporter art (2026-08-10, user spec): reuses the stock "portal4" (blue) animated portal
@@ -575,16 +589,34 @@ public class EconomyBuildings {
         return data != null && isArmoryShopName(data.name);
     }
 
-    // The Capitol's 6 fixed basic-land shops (player_capital.tmx, commonShopList "Plains"/
-    // "Forest"/"Mountain"/"Swamp"/"Island"/"Land" - each a single-name list, so the resolved
-    // ShopData.name is always exactly one of these 6 shops.json entries). Also noRestock=true,
-    // same weekly-reseed mechanism as Armory (2026-08-11 user request: same "Restocks weekly"
-    // note Armory already got).
-    private static final java.util.Set<String> LAND_SHOP_NAMES = new java.util.HashSet<>(java.util.Arrays.asList(
-            "Plains", "Island", "Swamp", "Mountain", "Forest", "Land"));
-
-    public static boolean isLandShop(ShopData data) {
-        return data != null && data.name != null && LAND_SHOP_NAMES.contains(data.name);
+    /**
+     * Guaranteed-in-stock Torch, redesigned 2026-08-14 (user report: a Torch appeared directly in
+     * their inventory unbought - the prior design granted it straight to inventory on first Armory
+     * visit, per the user's own clarification that was never the intent; the guarantee was always
+     * meant to mean "purchasable from the shop", not "free"). A FIRST attempt at exactly that (see
+     * MOD_CHANGELOG.md, 2026-08-13) hit a real, adversarial-review-confirmed bug: forcing the Torch
+     * into stock only at generation time left it exposed to 5 separate regeneration paths (weekly
+     * auto-reseed, re-roll shop type, re-roll inventory, Level 2 upgrade, initial load) that could
+     * silently wipe it out before the player ever bought it. This version closes that gap by being
+     * a PERSISTENT injection: called from every one of those same 5 sites, it keeps re-adding a
+     * Torch to freshly-generated stock every single time, for as long as the guarantee remains
+     * unfulfilled - not a one-shot forced generation-time slot. The `characterFlags` key
+     * "firstArmoryTorchGranted" is reused with INVERTED semantics from the old design: it now means
+     * "the guarantee has been fulfilled" (set when the player actually buys a Torch - see
+     * RewardScene.java's BuyButton), not "already granted on open".
+     */
+    public static void injectGuaranteedTorchIfOwed(Array<Reward> ret, ShopData data, PointOfInterestChanges changes) {
+        if (!isArmoryShop(data) || !TownRestoration.isCurrentTownPlayerOwned(changes))
+            return;
+        if (AdventurePlayer.current().checkCharacterFlag("firstArmoryTorchGranted"))
+            return;
+        ItemData torch = ItemListData.getItem("Torch");
+        if (torch == null) {
+            System.err.println("[TFR-FirstArmoryTorch] \"Torch\" item not found in catalog - nothing injected");
+            return;
+        }
+        ret.add(new Reward(torch));
+        System.out.println("[TFR-FirstArmoryTorch] guaranteed Torch injected into stock (shop=" + data.name + ")");
     }
 
     public static boolean isSpecialShop(ShopData data) {
@@ -628,6 +660,20 @@ public class EconomyBuildings {
         }
     }
 
+    /** Weekly payout amount for a mine type, sourced from TuningData (2026-08-16, user spec:
+     *  "Gold: 50g/week. Wood: 25/w Stone 25/w Shards 20/w") - not difficulty-scaled, same as the
+     *  flat RESOURCE_PRODUCTION_PER_DAY it replaces never was either. */
+    private static int mineWeeklyAmount(int type) {
+        TuningData tuning = Config.instance().getTuningData();
+        switch (type) {
+            case SHARD_MINE: return tuning.mineWeeklyShardPayout;
+            case GOLD_MINE: return tuning.mineWeeklyGoldPayout;
+            case LUMBER_MILL: return tuning.mineWeeklyWoodPayout;
+            case STONE_MINE: return tuning.mineWeeklyStonePayout;
+            default: return 0;
+        }
+    }
+
     public static void openProductionInfoDialog(MapStage stage, int type, int objectId) {
         refreshProductionInfoDialog(stage, type, objectId);
         stage.showDialog();
@@ -638,11 +684,35 @@ public class EconomyBuildings {
         dialog.getContentTable().clear();
         dialog.getButtonTable().clear();
         dialog.clearListeners();
-        TypingLabel label = Controls.newTypingLabel(buildingName(type) + "\nProduces " + RESOURCE_PRODUCTION_PER_DAY
-                + " " + resourceProducedName(type) + " per day.");
-        label.setWrap(true);
-        label.skipToTheEnd();
-        dialog.getContentTable().add(label).width(250f).row();
+        TypingLabel nameLabel = Controls.newTypingLabel(buildingName(type));
+        nameLabel.setWrap(true);
+        nameLabel.skipToTheEnd();
+        dialog.getContentTable().add(nameLabel).width(250f).row();
+
+        // Weekly payout (2026-08-16, user spec), with real icons - "[+Name]" inline markup only
+        // resolves a picture for Gold/Shards; Wood/Stone's markup is recognized but silently
+        // fails to render one (see ResourceDisplayActor's own class comment), so those two get
+        // real Image actors instead, the same proven pattern refreshExchangeDialog() already uses.
+        int amount = mineWeeklyAmount(type);
+        Table productionRow = new Table();
+        if (type == GOLD_MINE || type == SHARD_MINE) {
+            String tag = type == GOLD_MINE ? "[+Gold]" : "[+Shards]";
+            TypingLabel amountLabel = Controls.newTypingLabel("Produces " + amount + " " + tag + " per week.");
+            amountLabel.setWrap(true);
+            amountLabel.skipToTheEnd();
+            productionRow.add(amountLabel).width(250f);
+        } else {
+            TypingLabel prefix = Controls.newTypingLabel("Produces " + amount + " ");
+            prefix.skipToTheEnd();
+            productionRow.add(prefix);
+            Sprite icon = Config.instance().getAtlasSprite(RESOURCE_ICON_ATLAS, type == LUMBER_MILL ? "Lumber" : "Stone");
+            if (icon != null)
+                productionRow.add(new Image(new TextureRegionDrawable(icon))).size(14f).padRight(2f);
+            TypingLabel suffix = Controls.newTypingLabel(resourceProducedName(type) + " per week.");
+            suffix.skipToTheEnd();
+            productionRow.add(suffix);
+        }
+        dialog.getContentTable().add(productionRow).width(250f).row();
         addButtonRow(dialog, "Destroy Building", true, () ->
                 openDestroyConfirmDialog(stage, objectId, () -> refreshProductionInfoDialog(stage, type, objectId)));
         dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
@@ -866,6 +936,25 @@ public class EconomyBuildings {
      */
     public static void destroyShopFromRewardScene(ShopActor actor) {
         destroyBuilding(actor.getMapStage(), actor.getObjectId());
+        // Re-roll the shop's TYPE right at destruction (2026-08-15 user report: "destroy a Shop,
+        // then re-build... it's the same type shop that gets rebuilt. I would have thought that
+        // it would be random"). Clearing state alone would NOT achieve that: the load-time type
+        // roll is deliberately deterministic per POI (the world RNG is reseeded from the POI's
+        // own seedOffset before every map load), so without an explicit new pin the same type
+        // always comes back. rerollShopType() is the existing machinery - picks a different
+        // random type from this object's own candidate pool, pins it (so it survives re-entry),
+        // and swaps the sign sprite (which stays hidden while the shop is rubble, so no spoiler).
+        // Null return = this object had no multi-name candidate pool to roll from - keep the old
+        // identity, same graceful fallback the Re-roll Shop Type button itself has.
+        ShopData newData = actor.getMapStage().rerollShopType(actor.getObjectId(), actor.getShopData().name);
+        if (newData != null) {
+            actor.setShopData(newData);
+            // Fresh inventory seed too (also clears cardsBought) - the new identity shouldn't
+            // inherit the old shop's purchase history or stock roll.
+            actor.getMapStage().getChanges().generateNewShopSeed(actor.getObjectId());
+            System.out.println("[TFR-ShopRebuild] destroyed shop " + actor.getObjectId()
+                    + " will rebuild as '" + newData.name + "'");
+        }
     }
 
     // ---------------------------------------------------------------- multi-resource costs
@@ -985,6 +1074,10 @@ public class EconomyBuildings {
         changes.setEconomyBuildingObjectId(type, objectId);
         changes.getMapFlags().put("shopRebuilt_" + objectId, (byte) 1);
         changes.getMapFlags().put(builtFlag(type), (byte) 1);
+        // Mine weekly-payout baseline (2026-08-16) - a migrated mine's weekly cycle restarts
+        // fresh from the migration day, same as a freshly-built one would.
+        if (isProducingType(type))
+            changes.setEconomyBuildingLastPayoutDay(type, WorldSave.getCurrentSave().getWorld().getCurrentDay());
     }
 
     // Always shown (rather than hidden via a condition) so the player can see the cost even when
@@ -1154,6 +1247,13 @@ public class EconomyBuildings {
                 int chosenType = stage.getQuestFlag(ECONOMY_TYPE_FLAG);
                 if (chosenType != NONE && !changes.hasEconomyBuildingOfType(chosenType)) {
                     changes.setEconomyBuildingObjectId(chosenType, objectId);
+                    // Mine weekly-payout baseline (2026-08-16, user spec: "if you build it on day
+                    // 3, it will still payout day 7 the first time") - seeding lastPayoutDay to
+                    // the construction day is all processDaysPassed()'s boundary math needs to
+                    // land the first payout on the next shared day-7-multiple, same as
+                    // hireGuard() seeding guardLastPaidDay to the hire day.
+                    if (isProducingType(chosenType))
+                        changes.setEconomyBuildingLastPayoutDay(chosenType, WorldSave.getCurrentSave().getWorld().getCurrentDay());
                     // Full visual refresh, not just the cache rebuild - see onOutlookChanged()
                     // (the cache-only version was the "built an Outlook, nothing happened" bug).
                     if (chosenType == OUTLOOK)
@@ -1352,9 +1452,13 @@ public class EconomyBuildings {
             refreshBankDialog(stage, changes, objectId);
         });
         finishHalfButtonRow(dialog, column);
-        addButtonRow(dialog, "Destroy Building", true, () ->
+        // Side-by-side, shrunk (2026-08-15 user request - was two stacked full-width rows,
+        // visually lopsided against the half-width Deposit/Withdraw buttons above) - same
+        // addHalfButton() pairing already used for those and for the Guards dialog's Info/Close.
+        addHalfButton(dialog, column, "Destroy Building", true, () ->
                 openDestroyConfirmDialog(stage, objectId, () -> refreshBankDialog(stage, changes, objectId)));
-        dialog.getButtonTable().add(Controls.newTextButton("Close", stage::hideDialog)).width(240f).row();
+        addHalfButton(dialog, column, "Close", true, stage::hideDialog);
+        finishHalfButtonRow(dialog, column);
         dialog.setKeepWithinStage(true);
     }
 
@@ -1432,11 +1536,35 @@ public class EconomyBuildings {
         dialog.clearListeners();
 
         AdventurePlayer player = AdventurePlayer.current();
-        TypingLabel label = Controls.newTypingLabel("Exchange\nGold: " + player.getGold() + "  Shards: " + player.getShards()
-                + "  Wood: " + player.getWood() + "  Stone: " + player.getStone());
-        label.setWrap(true);
-        label.skipToTheEnd();
-        dialog.getContentTable().add(label).width(250f).row();
+        TypingLabel title = Controls.newTypingLabel("Exchange");
+        title.skipToTheEnd();
+        dialog.getContentTable().add(title).row();
+
+        // Resource summary row, real icons instead of text words (2026-08-15 user request). Gold/
+        // Shards use the standard "[+Name]" inline markup (registered on the shared font); Wood/
+        // Stone can't - see ResourceDisplayActor's own class comment for why that markup silently
+        // fails to resolve a picture for a second atlas - so they get real Image actors instead,
+        // the same proven pattern buildTradeRow() below already uses for its own icons.
+        Table summary = new Table();
+        TypingLabel goldLabel = Controls.newTypingLabel("[+Gold]" + player.getGold());
+        goldLabel.skipToTheEnd();
+        summary.add(goldLabel).padRight(10f);
+        TypingLabel shardsLabel = Controls.newTypingLabel("[+Shards]" + player.getShards());
+        shardsLabel.skipToTheEnd();
+        summary.add(shardsLabel).padRight(10f);
+        Sprite lumberSprite = Config.instance().getAtlasSprite(RESOURCE_ICON_ATLAS, "Lumber");
+        if (lumberSprite != null)
+            summary.add(new Image(new TextureRegionDrawable(lumberSprite))).size(14f).padRight(2f);
+        TypingLabel woodLabel = Controls.newTypingLabel(String.valueOf(player.getWood()));
+        woodLabel.skipToTheEnd();
+        summary.add(woodLabel).padRight(10f);
+        Sprite stoneSprite = Config.instance().getAtlasSprite(RESOURCE_ICON_ATLAS, "Stone");
+        if (stoneSprite != null)
+            summary.add(new Image(new TextureRegionDrawable(stoneSprite))).size(14f).padRight(2f);
+        TypingLabel stoneLabel = Controls.newTypingLabel(String.valueOf(player.getStone()));
+        stoneLabel.skipToTheEnd();
+        summary.add(stoneLabel);
+        dialog.getContentTable().add(summary).padBottom(6f).row();
 
         // Compacted (user request 2026-08-09, "the Exchange menu is very big"): one row per
         // resource, Buy and Sell as two side-by-side buttons - the dialog is half as tall as the
@@ -1541,21 +1669,36 @@ public class EconomyBuildings {
             // never compete with another town for a shared resource.
             for (int type : changes.getEconomyBuildingObjectIds().keySet()) {
                 if (isProducingType(type)) {
-                    int amount = RESOURCE_PRODUCTION_PER_DAY * daysPassed;
-                    switch (type) {
-                        case SHARD_MINE: AdventurePlayer.current().addShards(amount); break;
-                        case GOLD_MINE:
-                            // "Gold Mine deposits into Bank Directly" (2026-08-13, user spec) -
-                            // only when THIS town actually has a Bank built; otherwise falls back
-                            // to the player's own gold same as always.
-                            if (AdventurePlayer.current().isGoldMineDepositsToBankDirectly() && changes.hasEconomyBuildingOfType(BANK))
-                                changes.addBankBalance(amount);
-                            else
-                                AdventurePlayer.current().giveGold(amount);
+                    // Mine weekly payout (2026-08-16, user spec: moved off the old flat
+                    // RESOURCE_PRODUCTION_PER_DAY-per-day rate onto the SAME fixed shared payday
+                    // schedule Guards/Bank interest already use - day 7, 14, 21, ... regardless of
+                    // this specific mine's own build day, not a rolling "N days since last payout"
+                    // timer. A mine built day 3 has lastPayoutDay=3, so its first nextPayday here
+                    // is still day 7. Identical while-loop shape to the guard-salary pass below so
+                    // a long fast-forward that skips several paydays at once still pays each one.
+                    int lastPaid = changes.getEconomyBuildingLastPayoutDay(type);
+                    while (true) {
+                        int nextPayday = ((lastPaid / 7) + 1) * 7;
+                        if (nextPayday > newDayCount)
                             break;
-                        case LUMBER_MILL: AdventurePlayer.current().addWood(amount); break;
-                        case STONE_MINE: AdventurePlayer.current().addStone(amount); break;
+                        int amount = mineWeeklyAmount(type);
+                        switch (type) {
+                            case SHARD_MINE: AdventurePlayer.current().addShards(amount); break;
+                            case GOLD_MINE:
+                                // "Gold Mine deposits into Bank Directly" (2026-08-13, user spec) -
+                                // only when THIS town actually has a Bank built; otherwise falls
+                                // back to the player's own gold same as always.
+                                if (AdventurePlayer.current().isGoldMineDepositsToBankDirectly() && changes.hasEconomyBuildingOfType(BANK))
+                                    changes.addBankBalance(amount);
+                                else
+                                    AdventurePlayer.current().giveGold(amount);
+                                break;
+                            case LUMBER_MILL: AdventurePlayer.current().addWood(amount); break;
+                            case STONE_MINE: AdventurePlayer.current().addStone(amount); break;
+                        }
+                        lastPaid = nextPayday;
                     }
+                    changes.setEconomyBuildingLastPayoutDay(type, lastPaid);
                 } else if (type == BANK && changes.getBankBalance() > 0) {
                     int periodsBefore = (newDayCount - daysPassed - 1) / INTEREST_PERIOD_DAYS;
                     int periodsAfter = (newDayCount - 1) / INTEREST_PERIOD_DAYS;

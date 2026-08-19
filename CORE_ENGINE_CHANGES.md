@@ -483,8 +483,12 @@ Grouped by subsystem. Each entry: what changed, why (one line — full reasoning
   3 new label keys (`lblFogOfWar`, `lblFastTimeToggle`, `lblWait`) were added directly to the
   shared file. Low conflict risk (pure additions at the end of a large file, plus later value edits
   - `lblFastTimeToggle`'s text updated 10x -> 50x -> 100x across two rounds to match the actual
-  multiplier, most recently per an explicit request to speed up Territory Control playtesting) but
-  worth knowing this is the one exception to "everything lives in the mod folder." **Deploy note**:
+  multiplier, most recently per an explicit request to speed up Territory Control playtesting, then
+  changed a 4th time (2026-08-14) from the numeric "100x Speed" wording to plain "Speed-Up" - the
+  multiplier itself moved into `tuning.json` the same round (`TuningData.speedUpMultiplier`,
+  defaulted down to 50x from the hardcoded 100x) and no longer belongs in the button's own label at
+  all, since it's now a tunable rather than a fixed number) but worth knowing this is the one
+  exception to "everything lives in the mod folder." **Deploy note**:
   unlike `.java` changes, this file isn't bundled inside the jar - Forge loads it directly from
   `res/languages/en-US.properties` next to the executable, so a source edit here needs a plain file
   copy to the deploy directory, not a `jar uf`.
@@ -1153,6 +1157,79 @@ One round: first Progressive Set Unlocks playtest fixes + a Fable deep-dive revi
 ### Trivial / non-gameplay
 - **`.gitignore`** — stopped ignoring `.claude/skills/` specifically so project skills travel with
   the repo, while still ignoring the rest of `.claude/`. Not engine code, listed for completeness.
+
+### 2026-08-14 (later) Color Defeat endgame consequence, colorless spawn mix-in, 8 dead enemy refs
+- **`util/TerritoryControl.java`** (mod file, inventoried below) — new `defeatColor(World, String)`
+  (the whole endgame consequence: full-map terrain/town revert to neutral via
+  `neutralizeTerritoryOutsideRadius(color, castlePos, 0, ...)` + per-POI `transformInto()`,
+  `regenerateDoodadsForBiome("waste")`, reputation penalty, forced-ally-targeting), new public
+  `onCastleQuestFlagSet(String, int)` and `castleCompleteFlagName(String)`. `maxActiveMagesPerColor()`
+  gained a `World` parameter (+1 cap per `World.getDefeatedColorCount()`) and `rollDispatchMageTier()`
+  gained one too (tier-shift via new `dispatchTierCumulative(World)`) - every call site updated.
+  `dispatch()`'s target-selection was restructured to hoist `candidates`/`weights`/`originalRoll`/
+  `totalWeight` above the (now-conditional) weighted-pick block so the forced-player-targeting branch
+  can bypass it while the existing `[TFR-Targeting]` diagnostic log below still compiles.
+  `processDaysPassed()` and `buildPullSources()` both skip a color once `World.isColorDefeated()`.
+- **`world/World.java`** — new `defeatedColors`/`forcedPlayerTargetPending` (`Set<String>`) with
+  get/set/save (`storeObject`)/load (`readObject` + `containsKey` guard)/new-game-`.clear()`, same
+  persistence pattern as `colorNextAttackDay` immediately above them.
+- **`util/ColorReputation.java`** — new `applyColorDefeatPenalty(color)`: flat -50
+  (`DEFEAT_PENALTY_HALF_POINTS = -100`), deliberately NOT zero-sum (the class's own net-zero
+  invariant is documented as being for duel events specifically).
+- **`stage/MapStage.java`** — `setQuestFlag()` now also calls `TerritoryControl.onCastleQuestFlagSet()`
+  (the one real call site every castle's boss-defeat dialog action fires).
+- **`stage/ConsoleCommandInterpreter.java`** — new `defeat castle <color>` command, **testing-only,
+  marked for removal** once the feature is playtested (user request 2026-08-14) - replicates the
+  real flag-write + quest notification, then calls `defeatColor()` directly.
+- **`stage/WorldStage.java`** — new `PLAYER_COLORLESS_MIX_CHANCE` (8%): `handleMonsterSpawn()` can
+  now substitute the colorless/Wasteland roster for a roll on the player's own biome, independent of
+  the existing foreign-color intrusion mechanism.
+
+### 2026-08-14 (even later) Adversarial-review fixes, in-flight-mage fix, SpellSmith/Arena/Torch/Armory/Guard-dialog/shop-reroll round
+- **`util/TerritoryControl.java`** (mod file, inventoried above) — 9 fixes from adversarial review
+  (`onCastleQuestFlagSet()`'s real hook moved OUT of this file entirely, to `player/AdventurePlayer.
+  java` - see below; `repairMissingCapitals()`/`processTerritoryExpansion()` both gained
+  `isColorDefeated()` skips; `defeatColor()` no longer calls `regenerateDoodadsForBiome()`, clears
+  its own `forcedPlayerTargetPending` entry, and its ally-arming comment corrected; `dispatch()`'s
+  forced-target Capitol add now deduped; `dispatchTierCumulative()`'s `grandmasterShare` no longer
+  dead code; `findNearbyForeignColor()` gained an `isColorDefeated()` check). Separately, a real
+  playtest found ANOTHER bug the review missed: `onMageArrived()` now checks `isColorDefeated()`
+  first (before even the Capitol-defense branch) so an already-in-flight mage from a just-defeated
+  color can't still capture a town or trigger the Capitol's forced duel.
+- **`player/AdventurePlayer.java`** — `setQuestFlag()` now calls `TerritoryControl.
+  onCastleQuestFlagSet()` (the REAL call site the boss-defeat dialog action fires, via
+  `Current.player().setQuestFlag()` - `stage/MapStage.java`'s identically-named but unrelated
+  method was the original, incorrect hook, reverted below).
+- **`stage/MapStage.java`** — the incorrect `onCastleQuestFlagSet()` hook removed from
+  `setQuestFlag()` (see above). Separately: `rerollShopType()` now requires
+  `EconomyBuildings.isBoosterShop(candidateData) == currentIsBooster` (Booster/regular shops kept
+  separate on reroll, MOD_SCOPE.md #32); both `refreshAllShopRewards()` and the initial-load shop
+  generation now call `EconomyBuildings.injectGuaranteedTorchIfOwed()`.
+- **`stage/ConsoleCommandInterpreter.java`** — `defeat castle <color>` now calls `Current.player().
+  setQuestFlag()` directly (the real path) instead of manually replicating the old, wrong one.
+- **`scene/SpellSmithScene.java`** — new shared `currentEditionRestriction()` helper; both
+  `visibleEditions()` (previously unbranched - the actual bug) and `filterResults()` now call it.
+- **`scene/RewardScene.java`** — `promptRerollShopType()`/`promptUpgradeArmory()`/
+  `promptRerollArmory()` all now call `EconomyBuildings.injectGuaranteedTorchIfOwed()`; the
+  `BuyButton` click listener now marks the Torch guarantee fulfilled on purchase.
+- **`character/ShopActor.java`** — the old direct-to-inventory Torch grant removed from
+  `onPlayerCollide()`'s default case entirely (unused `AdventurePlayer`/`GameHUD` imports removed
+  too - caught by checkstyle).
+- **`util/EconomyBuildings.java`** — new `injectGuaranteedTorchIfOwed()`; Guards dialog's Info/Close
+  buttons now `addHalfButton()`-paired instead of full-width-stacked; new `addTableRow()` +
+  `buildGuardInfoDialog()`'s content now wrapped in a `ScrollPane`.
+- **`util/TownRestoration.java`** — `buildRebuildShopDialog()`'s body text no longer repeats the
+  cost (Arena/Spellsmith/Shard Trader all share this template).
+- **`util/AdventureQuestController.java`** (first tracked edit here, 2026-08-18, MOD_SCOPE.md
+  #79) — `updateQuestsWin(EnemySprite, ArrayList<EnemySprite>)` now calls `DungeonRotation.
+  onDungeonClear(TileMapScene.instance().rootPoint)` right after it computes its own
+  `allEnemiesCleared` boolean for quest "Clear" objectives, nested inside the existing
+  `enemies != null` branch specifically (the single-enemy overworld-duel overload of this same
+  method passes `enemies=null`, and a bare `allEnemiesCleared` check would misfire on every
+  ordinary overworld win since that boolean defaults `true` with no list to check against).
+- **`util/TownRestoration.java`** — reputation bonus for upgrading a town to the Capitol
+  (`upgradeToCapitol()`, see the #13/#1 entries above) raised from +1 to +2 (2026-08-18, user
+  spec) - `newChanges.addMapReputation(oldChanges.getMapReputation() + 2)`, was `+ 1`.
 
 ## New files (won't conflict with an upstream merge, but worth an inventory)
 

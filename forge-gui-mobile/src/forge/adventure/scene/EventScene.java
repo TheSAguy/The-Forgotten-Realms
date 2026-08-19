@@ -1,11 +1,14 @@
 package forge.adventure.scene;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.ui.CheckBox;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.Window;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Array;
@@ -23,8 +26,10 @@ import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.IAfterMatch;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.util.AdventureEventController;
+import forge.adventure.util.Config;
 import forge.adventure.util.Controls;
 import forge.adventure.util.Current;
+import forge.adventure.util.DeckTesterSimulator;
 import forge.adventure.world.WorldSave;
 import forge.deck.Deck;
 import forge.deck.DeckSection;
@@ -32,8 +37,10 @@ import forge.gui.FThreads;
 import forge.screens.TransitionScreen;
 import forge.util.MyRandom;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static forge.adventure.util.AdventureEventController.EventStatus.*;
 
@@ -147,10 +154,50 @@ public class EventScene extends MenuScene implements IAfterMatch {
         entryDialog = new Array<>();
         entryDialog.add(introDialog);
 
-        TypingLabel blessingScroll = Controls.newTypingLabel("[BLACK]" + currentEvent.getDescription(changes));
-        blessingScroll.skipToTheEnd();
-        blessingScroll.setAlignment(Align.topLeft);
-        blessingScroll.setWrap(true);
+        // Split the description right before "Pay 1 Entry Fee" (present whenever eventStatus is
+        // Available - the state this checkbox actually matters most in, since that's before the
+        // player has committed) so the AI-sim checkbox sits above the entry-fee/Prizes text
+        // instead of below it (user follow-up 2026-08-17: first attempt - splitting before
+        // "Prizes" instead - still left the checkbox below the fold since the Event Type/Block/
+        // Boosters/Competition Style/Entry Fee text alone already exceeds the panel's visible
+        // height; "move it up, above 'Pay 1 Entry Fee'" is explicit this time). Falls back to
+        // showing the whole description on top with the checkbox right after it whenever
+        // "Pay 1 Entry Fee" isn't present (event already joined/started, no entry fee shown) -
+        // that text is short enough on its own to not need scrolling anyway.
+        String fullDescription = currentEvent.getDescription(changes);
+        int entryFeeIndex = fullDescription.indexOf("Pay 1 Entry Fee");
+        String topDescription = entryFeeIndex >= 0 ? fullDescription.substring(0, entryFeeIndex) : fullDescription;
+        String bottomDescription = entryFeeIndex >= 0 ? fullDescription.substring(entryFeeIndex) : "";
+
+        TypingLabel blessingScrollTop = Controls.newTypingLabel("[BLACK]" + topDescription);
+        blessingScrollTop.skipToTheEnd();
+        blessingScrollTop.setAlignment(Align.topLeft);
+        blessingScrollTop.setWrap(true);
+
+        TypingLabel blessingScrollBottom = Controls.newTypingLabel("[BLACK]" + bottomDescription);
+        blessingScrollBottom.skipToTheEnd();
+        blessingScrollBottom.setAlignment(Align.topLeft);
+        blessingScrollBottom.setWrap(true);
+
+        // AI-vs-AI match simulation toggle (user report 2026-08-17: the round-15 Settings-screen
+        // checkbox wasn't discoverable - "I did not see update 3... There should be a check-box
+        // in the Inn Tournaments"). Surfaced directly on the tournament screen itself, right where
+        // the player decides whether to enter/advance the event; still backed by the same
+        // Config.instance().getSettingData().simulateInnTournamentAIMatches global preference
+        // (default off) that EventScene.startRound() already reads. Label forced black (2026-08-17
+        // follow-up report) - Controls.newCheckBox() uses the skin's default (light) font color,
+        // unreadable against this panel's tan/parchment background that every other label here
+        // already fixes via a leading "[BLACK]" TypingLabel tag.
+        CheckBox simulateAiMatches = Controls.newCheckBox("Simulate AI vs AI matches (slower, more accurate than a coin flip)");
+        simulateAiMatches.getLabel().setColor(Color.BLACK);
+        simulateAiMatches.setChecked(Config.instance().getSettingData().simulateInnTournamentAIMatches);
+        simulateAiMatches.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Config.instance().getSettingData().simulateInnTournamentAIMatches = simulateAiMatches.isChecked();
+                Config.instance().saveSettings();
+            }
+        });
 
         ui.onButtonPress("return", EventScene.this::back);
         ui.onButtonPress("advance", EventScene.this::advance);
@@ -191,8 +238,17 @@ public class EventScene extends MenuScene implements IAfterMatch {
         header.add(headerTable).expand();
 
         ScrollPane blessing = ui.findActor("blessingInfo");
-        blessing.setActor(blessingScroll);
-        blessingScroll.setWidth(blessing.getWidth() - 5);
+        Table blessingContainer = new Table(Controls.getSkin());
+        blessingScrollTop.setWidth(blessing.getWidth() - 5);
+        blessingScrollBottom.setWidth(blessing.getWidth() - 5);
+        blessingContainer.add(blessingScrollTop).growX().top();
+        blessingContainer.row();
+        blessingContainer.add(simulateAiMatches).left().padTop(5).padBottom(10);
+        blessingContainer.row();
+        if (!bottomDescription.isEmpty()) {
+            blessingContainer.add(blessingScrollBottom).growX().top();
+        }
+        blessing.setActor(blessingContainer);
         blessing.layout();
         window.add(root);
 
@@ -486,6 +542,14 @@ public class EventScene extends MenuScene implements IAfterMatch {
     }
 
     public void startRound() {
+        // AI Match Simulation (2026-08-17 user spec, default off - SettingData.
+        // simulateInnTournamentAIMatches): AI-vs-AI pairings are collected here instead of
+        // resolved inline, since DeckTesterSimulator.runBatch() is asynchronous (its own
+        // background thread + a callback) - the coin-flip path below is entirely synchronous and
+        // stays byte-for-byte unchanged when the setting is off, so nothing about default
+        // behavior changes.
+        boolean simulate = Config.instance().getSettingData().simulateInnTournamentAIMatches;
+        List<AdventureEventData.AdventureEventMatch> aiMatchesToSimulate = new ArrayList<>();
         for (AdventureEventData.AdventureEventMatch match : currentEvent.getMatches(currentEvent.currentRound)) {
             match.round = currentEvent.currentRound;
             if (match.winner != null) continue;
@@ -503,6 +567,8 @@ public class EventScene extends MenuScene implements IAfterMatch {
                 match.p1 = match.p2;
                 match.p2 = placeholder;
                 humanMatch = match;
+            } else if (simulate) {
+                aiMatchesToSimulate.add(match);
             } else {
                 //Todo: Actually run match simulation here
                 if (MyRandom.percentTrue(50)) {
@@ -519,6 +585,56 @@ public class EventScene extends MenuScene implements IAfterMatch {
 
         if (humanMatch != null && humanMatch.round != currentEvent.currentRound)
             humanMatch = null;
+
+        if (aiMatchesToSimulate.isEmpty()) {
+            proceedAfterAiResolution();
+            return;
+        }
+
+        // Each pairing runs gamesPerMatch (this event's own bo-N rules) independent single games
+        // via the same real Match/Game engine the Arena's Deck Tester uses - not a proper
+        // best-of-N with sideboarding (DeckTesterSimulator has no concept of that, by its own
+        // design - see its class doc), just "whichever deck won more of the N games" as a
+        // reasonable stand-in. Every pairing launches its own background batch concurrently; a
+        // shared counter gates the SAME post-loop logic (launch the human's duel, or
+        // finishRound()) until every batch has reported back - this exactly reproduces the
+        // synchronous code's own control flow once all AI results are actually in, it just takes
+        // longer to get there.
+        System.out.println("[TFR-InnAISim] round " + currentEvent.currentRound + ": simulating "
+                + aiMatchesToSimulate.size() + " AI-vs-AI match(es)");
+        int gamesPerMatch = Math.max(1, currentEvent.eventRules.gamesPerMatch);
+        AtomicInteger pending = new AtomicInteger(aiMatchesToSimulate.size());
+        for (AdventureEventData.AdventureEventMatch match : aiMatchesToSimulate) {
+            DeckTesterSimulator.runBatch(match.p1.getName(), match.p1.getDeck(), match.p2.getName(), match.p2.getDeck(),
+                    gamesPerMatch, null, result -> {
+                        boolean p1Wins;
+                        if (result.deckAWins != result.deckBWins)
+                            p1Wins = result.deckAWins > result.deckBWins;
+                        else
+                            p1Wins = MyRandom.percentTrue(50); // tied simulation result - same 50/50 the old coin flip used
+                        if (p1Wins) {
+                            match.p1.wins++;
+                            match.p2.losses++;
+                            match.winner = match.p1;
+                        } else {
+                            match.p1.losses++;
+                            match.p2.wins++;
+                            match.winner = match.p2;
+                        }
+                        System.out.println("[TFR-InnAISim] " + match.p1.getName() + " vs " + match.p2.getName()
+                                + " -> " + match.p1.getName() + " " + result.deckAWins + ", " + match.p2.getName()
+                                + " " + result.deckBWins + " (" + result.draws + " draws) - winner: " + match.winner.getName());
+                        if (pending.decrementAndGet() == 0)
+                            proceedAfterAiResolution();
+                    });
+        }
+    }
+
+    /** The tail end of the old startRound() (launch the human's duel, or advance the round
+     *  immediately) - factored out 2026-08-17 so both the synchronous coin-flip path and the
+     *  async AI-simulation path converge on identical behavior once every AI-vs-AI match in the
+     *  round actually has a winner. */
+    private void proceedAfterAiResolution() {
         if (humanMatch != null) {
             DuelScene duelScene = DuelScene.instance();
             EnemySprite enemy = humanMatch.p2.getSprite();

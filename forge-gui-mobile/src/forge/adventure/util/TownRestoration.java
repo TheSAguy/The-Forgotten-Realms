@@ -305,9 +305,15 @@ public class TownRestoration {
         yes.isDisabled = !EconomyBuildings.canAffordCost(RESTORE_COST_GOLD, RESTORE_COST_WOOD, 0, 0);
         DialogData.ActionData refreshShops = new DialogData.ActionData();
         refreshShops.refreshShopRewardsTrigger = "town-restore";
+        // Town Reputation (user spec 2026-08-17): restoring a town is worth +1 reputation there -
+        // the first BUILDINGS_PER_REPUTATION build slots become available immediately, before the
+        // player has done anything else to earn standing with this specific town.
+        DialogData.ActionData addRep = new DialogData.ActionData();
+        addRep.addMapReputation = 1;
         yes.action = new DialogData.ActionData[]{
                 EconomyBuildings.spendCostAction(RESTORE_COST_GOLD, RESTORE_COST_WOOD, 0, 0),
                 setFlagAction(TOWN_RESTORED_FLAG),
+                addRep,
                 refreshShops};
 
         DialogData no = new DialogData();
@@ -328,7 +334,12 @@ public class TownRestoration {
             int gold, int wood, int stone, int shards, String verb) {
         String label = EconomyBuildings.costLabel(gold, wood, stone, shards);
         DialogData root = new DialogData();
-        root.text = "This building is buried in rubble. Rebuilding it will cost " + label + ".";
+        // Cost dropped from this line (user request 2026-08-14: the button right below already
+        // shows "<verb> (<cost>)" - repeating the figure here just made the body text wrap badly
+        // for longer costs, e.g. the Arena's "Rebuilding it will cost 313 [+Gold]."). Shared by
+        // every OnCollide-gated building (Arena, Spellsmith, Shard Trader today), so kept generic
+        // rather than naming a specific building.
+        root.text = "This building is buried in rubble. Want to repair it?";
 
         DialogData yes = new DialogData();
         yes.name = verb + " (" + label + ")";
@@ -350,6 +361,62 @@ public class TownRestoration {
     public static MapDialog buildShopLockedDialog(MapStage stage, int objectId) {
         DialogData root = new DialogData();
         root.text = "This shop can't be rebuilt until the town's Job Board has been restored.";
+
+        DialogData ok = new DialogData();
+        ok.name = "OK";
+
+        root.options = new DialogData[]{ok};
+        return new MapDialog(root, stage, objectId, null);
+    }
+
+    // Town Reputation building gate (user spec 2026-08-17): reputation with a town caps how many
+    // of its buildings can be built/restored at once, reusing the existing PointOfInterestChanges
+    // "map reputation" (id-0) slot rather than adding a new field - that slot already grants
+    // shop/town price discounts, this just gives it real teeth. Sources: +1 on restoring the
+    // town (buildRestoreTownDialog), +1 on upgrading to a Capitol (upgradeToCapitol, migrated
+    // forward across the id change), +1 on defeating an attacking mage (DuelScene.afterGameEnd).
+    // Losing the town resets this to 0 for free - transformInto() re-keys the POI id on capture,
+    // same as the guard/building state above, so the new owner's PointOfInterestChanges is a
+    // fresh entry with no reputation carried over (see TerritoryControl.onMageArrived()).
+    // Reputation loss (e.g. a quest's negative addMapReputation) never tears down an
+    // already-built building - it only blocks NEW ones until reputation climbs back above the
+    // threshold, since this gate is checked only at build time, never retroactively. Destroying
+    // a building immediately frees its slot back up (destroyBuilding() removes its shopRebuilt_
+    // flag), independent of reputation - the two mechanics don't interact.
+    public static final int BUILDINGS_PER_REPUTATION = 3;
+
+    /** How many of this town's shop/building slots are currently built/restored - every one of
+     *  them, plain shop or gated building or economy building alike, sets a "shopRebuilt_&lt;id&gt;"
+     *  flag on completion (see setFlagAction() calls throughout this file and EconomyBuildings'
+     *  own registerMigratedBuilding()/build dialogs), so counting that flag prefix covers every
+     *  building type uniformly with no separate bookkeeping. */
+    public static int countBuiltBuildings(PointOfInterestChanges changes) {
+        int count = 0;
+        for (String flagKey : changes.getMapFlags().keySet()) {
+            if (flagKey.startsWith("shopRebuilt_"))
+                count++;
+        }
+        return count;
+    }
+
+    /** Negative reputation (a quest can take it away) never REDUCES the slot count below what's
+     *  already built - see hasReputationForAnotherBuilding()'s own doc. */
+    public static int maxBuildableBuildings(PointOfInterestChanges changes) {
+        return Math.max(0, changes.getMapReputation()) * BUILDINGS_PER_REPUTATION;
+    }
+
+    public static boolean hasReputationForAnotherBuilding(PointOfInterestChanges changes) {
+        return countBuiltBuildings(changes) < maxBuildableBuildings(changes);
+    }
+
+    public static MapDialog buildReputationLockedDialog(MapStage stage, int objectId) {
+        PointOfInterestChanges changes = stage.getChanges();
+        DialogData root = new DialogData();
+        root.text = String.format(
+                "This town doesn't have enough reputation to support another building yet "
+                + "(%d/%d built, %d reputation with this town). Help it prosper - completing "
+                + "its quests raises your standing here.",
+                countBuiltBuildings(changes), maxBuildableBuildings(changes), changes.getMapReputation());
 
         DialogData ok = new DialogData();
         ok.name = "OK";
@@ -560,6 +627,13 @@ public class TownRestoration {
 
         PointOfInterestChanges newChanges = WorldSave.getCurrentSave().getPointOfInterestChanges(point.getID());
         newChanges.getMapFlags().put(TOWN_RESTORED_FLAG, (byte) 1);
+        // Reputation migration (user spec 2026-08-17, bumped 2026-08-18: "if you upgrade a town
+        // to a capitol you also get +2 reputation", raised from the original +1) - same id-remap
+        // problem transformInto() creates for the guards/buildings migrated below: oldChanges is
+        // keyed by the OLD id and would otherwise be silently orphaned, wiping the town's
+        // accumulated reputation on its own upgrade. Carries the old total across, then adds the
+        // Capitol's own +2 on top.
+        newChanges.addMapReputation(oldChanges.getMapReputation() + 2);
         java.util.List<Integer> capitolShopSlots = readCapitolShopObjectIds(capitolData.map);
         int slotIndex = 0;
         for (int economyType : economyTypes) {

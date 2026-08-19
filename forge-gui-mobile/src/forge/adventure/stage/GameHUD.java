@@ -199,7 +199,7 @@ public class GameHUD extends Stage {
         // space for data that only changes every few in-game days, per feedback). Built in code,
         // not hud.json, same "don't fork the shared layout file" reasoning as resourceDisplayActor
         // - chains off bookmarkActor's own hud.json-driven position the same way.
-        worldStandingsActor = Controls.newTextButton("World", this::openWorldStandings);
+        worldStandingsActor = Controls.newTextButton("[%80]Info", this::openWorldStandings);
         //create touchpad
         touchpad = new Touchpad(10, Controls.getSkin());
         touchpad.setBounds(15, 15, TOUCHPAD_SCALE, TOUCHPAD_SCALE);
@@ -246,11 +246,17 @@ public class GameHUD extends Stage {
         // against it so its own bordered panel reads as a continuation of the same column
         // instead of a separate floating box.
         resourceDisplayActor.setPosition(money.getX(), money.getY() - resourceDisplayActor.getHeight());
-        // In line with the top menu bar, immediately LEFT of the ESC/menu button (2026-08-08
-        // tighten-up - was floating below the bar chained off bookmarkActor). Matches the bar
-        // buttons' own height/row so it reads as part of the bar.
-        worldStandingsActor.setSize(bookmarkActor.getWidth(), menuActor.getHeight());
-        worldStandingsActor.setPosition(menuActor.getX() - worldStandingsActor.getWidth() - 4, menuActor.getY());
+        // In line with the top menu bar (2026-08-08 tighten-up - was floating below the bar
+        // chained off bookmarkActor). Matches the bar buttons' own height/row so it reads as part
+        // of the bar. Renamed "World" -> "Info" and moved/narrowed 2026-08-15 (user screenshot:
+        // anchoring off menuActor's left edge at the old "World" width visually overlapped the
+        // minimap, since menuActor.getX()=108 minus a ~45px-wide button undercuts miniMap's own
+        // right edge at x=80) - now sized to actually fit the real gap between the minimap and
+        // the menu button, and anchored off the minimap's own right edge instead of the menu
+        // button's left edge, so it can never overlap either neighbor regardless of hud.json
+        // values changing later.
+        worldStandingsActor.setSize(Math.max(1, menuActor.getX() - miniMap.getX() - miniMap.getWidth() - 2), menuActor.getHeight());
+        worldStandingsActor.setPosition(miniMap.getX() + miniMap.getWidth() + 1, menuActor.getY());
         // Territory Control OR Color Reputation: the standings page is also the ONLY place the
         // Reputation/Status columns render, and reputation is documented as working with
         // territory control off (separate opt-in flags, MOD_SCOPE.md #1) - gating the sole way

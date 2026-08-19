@@ -88,7 +88,18 @@ public class WorldBackground extends Actor {
         }
 
         GridPoint2 pos = translateFromWorldToChunk(playerX, playerY);
-        for (PointOfInterest poi : world.getPointsOfInterest(pos.x, pos.y)) {
+        // 3x3 chunk neighborhood, not just the player's own chunk (2026-08-15 bug fix, user
+        // report: "able to enter the town without it revealing"). A POI registers under the chunk
+        // containing its bottom-left corner, but its SPRITE (and therefore its collision box) is
+        // loaded from the whole 3x3 loaded-chunk neighborhood - so a town whose footprint crossed
+        // a chunk boundary could be physically entered from the neighboring chunk while this
+        // reveal loop, which only iterated the player's own chunk, never saw it. Same 3x3
+        // coverage the collision path effectively has.
+        java.util.List<PointOfInterest> nearbyPois = new ArrayList<>();
+        for (int cdx = -1; cdx <= 1; cdx++)
+            for (int cdy = -1; cdy <= 1; cdy++)
+                nearbyPois.addAll(world.getPointsOfInterest(pos.x + cdx, pos.y + cdy));
+        for (PointOfInterest poi : nearbyPois) {
             // Dungeon rotation (MOD_SCOPE.md #15) overprovisions rotatable dungeons/caves 5x and
             // holds most of them inactive as a reserve pool with nothing actually there yet (see
             // DungeonRotation.java) - user report 2026-08-11: fog was lifting near those empty

@@ -150,6 +150,9 @@ public class RewardScene extends UIScene {
             return;
         if (!shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()))
             return;
+        // Flat cost, no cooldown, no weekly surcharge (2026-08-15 user correction - the weekly-
+        // escalating surcharge belongs on the button that re-rolls a shop's CARD CONTENTS, not the
+        // one that changes what TYPE of shop this is; see restockShop() instead).
         int cost = EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST);
         if (AdventurePlayer.current().getShards() < cost)
             return;
@@ -179,6 +182,7 @@ public class RewardScene extends UIScene {
                             new Array.ArrayIterator<>(newData.rewards), changes, newData.name, "shop-reroll")) {
                         ret.addAll(rdata.generate(false, false));
                     }
+                    EconomyBuildings.injectGuaranteedTorchIfOwed(ret, newData, changes);
                     shopActor.setRewardData(ret);
                     loadRewards(ret, RewardScene.Type.Shop, shopActor);
                 }, this::removeDialog));
@@ -259,17 +263,19 @@ public class RewardScene extends UIScene {
                             new Array.ArrayIterator<>(l2Data.rewards), changes, l2Data.name, "armory-upgrade")) {
                         ret.addAll(rdata.generate(false, false));
                     }
+                    EconomyBuildings.injectGuaranteedTorchIfOwed(ret, l2Data, changes);
                     shopActor.setRewardData(ret);
                     loadRewards(ret, RewardScene.Type.Shop, shopActor);
                 }, this::removeDialog));
     }
 
-    /** Re-roll Inventory (2026-08-11, round 7) - deliberately does NOT go through shopActor.
-     *  canRestock()/getRestockPrice() (the ordinary paid-restock path Armory is blocked from as a
-     *  noRestock shop) - its own separate cooldown (PointOfInterestChanges.
-     *  canManuallyRerollShop()/manuallyRerollShop(), independent of the automatic weekly refresh
-     *  per user spec) and its own fixed shard cost gate this instead. Rebuilds the displayed
-     *  inventory the same way restockShop() does once the reroll is paid for. */
+    /** Re-roll Inventory (2026-08-11, round 7; briefly an escalating-cost redesign on 2026-08-14,
+     *  reverted 2026-08-15 back to a flat cost + hard once-per-7-days cooldown - see the cooldown
+     *  check's own comment below) - deliberately does NOT go through shopActor.canRestock()/
+     *  getRestockPrice() (the ordinary paid-restock path Armory is blocked from as a noRestock
+     *  shop); PointOfInterestChanges.canManuallyRerollShop()/manuallyRerollShop() gate this
+     *  instead, independent of the automatic weekly refresh. Rebuilds the displayed inventory the
+     *  same way restockShop() does once the reroll is paid for. */
     private void promptRerollArmory() {
         if (shopActor == null || changes == null)
             return;
@@ -280,6 +286,10 @@ public class RewardScene extends UIScene {
         if (!TownRestoration.isCurrentTownPlayerOwned(changes))
             return;
         int day = WorldSave.getCurrentSave().getWorld().getCurrentDay();
+        // Flat cost, hard once-per-7-days cooldown (2026-08-15 user correction, reverting the
+        // 2026-08-14 escalating-surcharge/no-cooldown redesign back to the original #33 spec -
+        // "The Armory can only have it's inventory re-set once a week... Back to what it was
+        // before"). See PointOfInterestChanges.canManuallyRerollShop().
         if (!changes.canManuallyRerollShop(shopActor.getObjectId(), day))
             return;
         int cost = EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST);
@@ -304,22 +314,26 @@ public class RewardScene extends UIScene {
                             new Array.ArrayIterator<>(data.rewards), changes, data.name, "armory-reroll")) {
                         ret.addAll(rdata.generate(false, false));
                     }
+                    EconomyBuildings.injectGuaranteedTorchIfOwed(ret, data, changes);
                     shopActor.setRewardData(ret);
                     loadRewards(ret, RewardScene.Type.Shop, shopActor);
                     refreshRerollButton();
                 }, this::removeDialog));
     }
 
-    /** Refreshes rerollButton's disabled state (cooldown and/or affordability) without touching
-     *  visibility - called after load and after a successful reroll (the cooldown just changed). */
+    /** Refreshes rerollButton's text and disabled state - flat cost, gated on BOTH affordability
+     *  AND the once-per-7-days cooldown (2026-08-15, reverted back from the brief 2026-08-14
+     *  escalating-surcharge/no-cooldown redesign) - called after load and after a successful
+     *  reroll. */
     private void refreshRerollButton() {
         if (shopActor == null || changes == null || !rerollButton.isVisible())
             return;
         int day = WorldSave.getCurrentSave().getWorld().getCurrentDay();
-        boolean onCooldown = !changes.canManuallyRerollShop(shopActor.getObjectId(), day);
         int cost = EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST);
+        rerollButton.setText("[%80]Re-roll Inventory (" + cost + " [+Shards])");
         boolean canAfford = AdventurePlayer.current().getShards() >= cost;
-        rerollButton.setDisabled(onCooldown || !canAfford);
+        boolean offCooldown = changes.canManuallyRerollShop(shopActor.getObjectId(), day);
+        rerollButton.setDisabled(!canAfford || !offCooldown);
     }
 
     private void promptDestroyShop() {
@@ -343,8 +357,12 @@ public class RewardScene extends UIScene {
     private String armoryRestockNote() {
         if (shopActor == null)
             return "";
-        ShopData data = shopActor.getShopData();
-        if (!EconomyBuildings.isArmoryShop(data) && !EconomyBuildings.isLandShop(data))
+        // Keys off the actor's own weekly-refresh flag (2026-08-15, set by MapStage from the
+        // tmx's noRestock property) - the earlier !canRestock() inference broke once the widened
+        // ordinary card shops got their restock button back while KEEPING the weekly auto-reseed
+        // (both facts true at once), and the original name-pattern check (isArmoryShop()||
+        // isLandShop()) never covered the widened shops at all.
+        if (!shopActor.isWeeklyRefresh())
             return "";
         return "\n[%50]Inventory will refresh weekly"; // user's exact wording, 2026-08-11
     }
@@ -526,10 +544,22 @@ public class RewardScene extends UIScene {
         }
     }
 
+    /** Weekly-escalating surcharge added on top of a restock's flat rarity-tier price (2026-08-15
+     *  user spec, moved here from the Card Shop Type/Armory reroll buttons - "the One below that,
+     *  that re-rolls the cards available in the shop" is what should carry the +1/week cost, same
+     *  schedule as Guard pay: day 7/14/21). 0 when changes is null (a shop with no persisted
+     *  PointOfInterestChanges can't track a surcharge). */
+    private int restockSurcharge() {
+        if (changes == null)
+            return 0;
+        int day = WorldSave.getCurrentSave().getWorld().getCurrentDay();
+        return changes.rerollSurcharge(shopActor.getObjectId(), day);
+    }
+
     void updateRestockButton() {
         if (!shopActor.canRestock())
             return;
-        int price = shopActor.getRestockPrice();
+        int price = shopActor.getRestockPrice() + restockSurcharge();
         restockButton.setText("[+Refresh][+shards]" + price);
         restockButton.setDisabled(WorldSave.getCurrentSave().getPlayer().getShards() < price);
     }
@@ -548,9 +578,12 @@ public class RewardScene extends UIScene {
                     Forge.getLocalizer().getMessage("lblOK"), null, this::removeDialog, null));
             return;
         }
-        int price = shopActor.getRestockPrice();
-        if (changes != null)
+        int price = shopActor.getRestockPrice() + restockSurcharge();
+        int day = WorldSave.getCurrentSave().getWorld().getCurrentDay();
+        if (changes != null) {
             changes.generateNewShopSeed(shopActor.getObjectId());
+            changes.recordReroll(shopActor.getObjectId(), day);
+        }
 
         Current.player().takeShards(price);
 
@@ -779,11 +812,16 @@ public class RewardScene extends UIScene {
                     upgradeButton.setDisabled(!EconomyBuildings.canAffordCost(0, 0, EconomyBuildings.ARMORY_UPGRADE_STONE, 0));
                     addToSelectable(upgradeButton);
                 }
-                // Re-roll Inventory (round 7) - Armory-only, any level, independent of the
-                // guards/upgrade level gate above.
+                // Re-roll Inventory (round 7) - Armory-only again (2026-08-15 user correction:
+                // the widened card shops get the small restock button with the weekly-escalating
+                // surcharge instead, NOT this high-cost hard-cooldown button - it was briefly
+                // extended to them earlier the same day and reverted within hours), any level,
+                // independent of the guards/upgrade level gate above.
                 rerollButton.setVisible(armoryFeatures);
                 if (rerollButton.isVisible()) {
-                    rerollButton.setText("[%80]Re-roll Inventory (" + EconomyBuildings.scaledCost(EconomyBuildings.ARMORY_REROLL_SHARD_COST) + " [+Shards])");
+                    // Text and disabled-state both come from refreshRerollButton() now - flat cost,
+                    // gated on affordability AND the once-per-7-days cooldown (no surcharge concept
+                    // for Armory; that lives only on the ordinary-shop restock button instead).
                     refreshRerollButton();
                     addToSelectable(rerollButton);
                 }
@@ -793,10 +831,13 @@ public class RewardScene extends UIScene {
                 shopTypeRerollButton.setVisible(Config.instance().getConfigData().shopTypeRerollEnabled
                         && !isArmory && playerOwnedTown && shopActor.getMapStage().isShopTypeRerollable(shopActor.getObjectId()));
                 if (shopTypeRerollButton.isVisible()) {
-                    shopTypeRerollButton.setText("[%80]Re-roll Shop Type (" + EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST) + " [+Shards])");
+                    // Flat cost (2026-08-15 user correction - reverted off the weekly-escalating
+                    // surcharge, which belongs on the card-content restock button instead).
+                    int cost = EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST);
+                    shopTypeRerollButton.setText("[%80]Re-roll Shop Type (" + cost + " [+Shards])");
                     // Greyed-out-when-unaffordable (2026-08-13 fix) - same missing-.setDisabled()
                     // bug as upgradeButton above, same fix.
-                    shopTypeRerollButton.setDisabled(AdventurePlayer.current().getShards() < EconomyBuildings.scaledCost(EconomyBuildings.SHOP_TYPE_REROLL_SHARD_COST));
+                    shopTypeRerollButton.setDisabled(AdventurePlayer.current().getShards() < cost);
                     addToSelectable(shopTypeRerollButton);
                 }
                 break;
@@ -990,6 +1031,19 @@ public class RewardScene extends UIScene {
 
                         Current.player().takeGold(price);
                         Current.player().addReward(rewardActor.getReward());
+
+                        // Guaranteed-Torch fulfillment (2026-08-14 redesign - see EconomyBuildings.
+                        // injectGuaranteedTorchIfOwed()'s own comment): the moment the player buys
+                        // ANY Torch while the guarantee is still unfulfilled, it's done - whether
+                        // this was literally the injected guaranteed slot or a separately-rolled
+                        // one doesn't matter, they now own a Torch either way. Stops the injection
+                        // from re-firing on every future stock regeneration.
+                        if (Reward.Type.Item.equals(rewardActor.getReward().getType())
+                                && "Torch".equals(rewardActor.getReward().getItem().name)
+                                && !AdventurePlayer.current().checkCharacterFlag("firstArmoryTorchGranted")) {
+                            AdventurePlayer.current().setCharacterFlag("firstArmoryTorchGranted", 1);
+                            System.out.println("[TFR-FirstArmoryTorch] guarantee fulfilled - player bought a Torch");
+                        }
 
                         HapticEngine.vibrate(FPref.UI_VIBRATE_ON_SHOP_ACTION, 5);
                         SoundSystem.instance.play(SoundEffectType.FlipCoin, false);

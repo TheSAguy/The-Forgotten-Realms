@@ -64,6 +64,17 @@ public class RewardData implements Serializable {
     public Deck cardPack;
     public String sourceDeck;
     public String minDate;
+    // Shop-only card dedup (2026-08-15): when true, CardUtil.generateCards()/the Union branch
+    // pick unique card NAMES (shuffle-then-take-front, gracefully capped at the pool's own
+    // unique-name count) instead of independent picks with replacement. NEVER set in JSON data -
+    // stamped only via EditionProgression.restrictShopRewardsForCurrentTown()'s private
+    // restrictToEditions(..., uniqueCards=true) call. Every OTHER restrictToEditions() caller
+    // (EnemySprite's monster loot, EditionProgression.restrictDungeonRewardsForCurrentPoi()) goes
+    // through the public 2-arg overload, which always passes false - both legitimately need
+    // repeats, same as deck generation (which never goes through restrictToEditions() at all).
+    // (2026-08-15 review finding: this used to be stamped unconditionally inside the shared
+    // helper, silently deduping ordinary enemy loot and unauthored dungeon chests too.)
+    public transient boolean uniqueCards;
 
     public RewardData() { }
 
@@ -99,6 +110,25 @@ public class RewardData implements Serializable {
         cardPack         = rewardData.cardPack;
         sourceDeck       = rewardData.sourceDeck;
         minDate          = rewardData.minDate;
+        uniqueCards      = rewardData.uniqueCards;
+    }
+
+    /** Union-branch per-pick finishing (2026-08-15, extracted when the shop dedup split the pick
+     *  loop in two): printing remap first (the pool pick itself can BE an out-of-list printing -
+     *  a VOW-restricted shop selling the DBL reprint, per the 2026-08-13 screenshot audit; safe
+     *  to key off the OUTER editions since EditionProgression.restrictToEditions() stamps the
+     *  outer and every nested cardUnion entry with the same list), then the all-card-variants art
+     *  re-roll, then a SECOND remap - getCardByNameAndEdition()'s fail-open fallbacks ignore
+     *  editions entirely and were silently undoing the first remap (the 2026-08-15 printing-leak
+     *  root cause, same fix as CardUtil's own finishCandidate()). */
+    private PaperCard finishUnionCard(PaperCard cardTemplate, boolean allCardVariants, java.util.Random rewardRandom) {
+        cardTemplate = CardUtil.remapToEditionList(cardTemplate, this.editions, rewardRandom);
+        if (allCardVariants) {
+            PaperCard variant = CardUtil.getCardByNameAndEdition(cardTemplate.getCardName(), cardTemplate.getEdition());
+            if (variant != null)
+                cardTemplate = CardUtil.remapToEditionList(variant, this.editions, rewardRandom);
+        }
+        return cardTemplate;
     }
 
     private static Iterable<PaperCard> allCards;
@@ -223,34 +253,26 @@ public class RewardData implements Serializable {
                     ArrayList<PaperCard> finalPool = new ArrayList<>(pool);
 
                     if (finalPool.size() > 0){
-                        for (int i = 0; i < count; i++) {
-                            if (allCardVariants) {
+                        // Shop dedup (2026-08-15, same opt-in flag/pattern as CardUtil.
+                        // generateCards() - see uniqueCards' own field comment): unique names,
+                        // shuffle-then-take-front, graceful cap at the pool's unique-name count.
+                        if (uniqueCards) {
+                            Collections.shuffle(finalPool, rewardRandom);
+                            Set<String> takenNames = new HashSet<>();
+                            int added = 0;
+                            for (PaperCard cardTemplate : finalPool) {
+                                if (added >= count)
+                                    break;
+                                if (cardTemplate == null || !takenNames.add(cardTemplate.getCardName()))
+                                    continue;
+                                ret.add(new Reward(finishUnionCard(cardTemplate, allCardVariants, rewardRandom), isNoSell));
+                                added++;
+                            }
+                        } else {
+                            for (int i = 0; i < count; i++) {
                                 PaperCard cardTemplate = finalPool.get(rewardRandom.nextInt(finalPool.size()));
-                                if (cardTemplate != null) {
-                                    // Preserve the pool pick's edition, exactly like CardUtil.
-                                    // generateCards() already does for the card/randomCard path -
-                                    // the old name-only getCardByName() re-rolled the PRINTING
-                                    // across every set the card ever appeared in, so an edition-
-                                    // restricted Union shop showed foreign set symbols/art even
-                                    // though the card pool itself was correctly restricted
-                                    // (user report 2026-08-12, "more than 4 little symbols").
-                                    // Remap first (2026-08-13, screenshot audit): the pool pick
-                                    // itself can BE an out-of-list printing - see
-                                    // CardUtil.remapToEditionList()'s own comment. Safe to key
-                                    // off the OUTER editions here: EditionProgression's
-                                    // restrictToEditions() sets the outer and every nested
-                                    // cardUnion entry to the same list.
-                                    cardTemplate = CardUtil.remapToEditionList(cardTemplate, this.editions, rewardRandom);
-                                    PaperCard finalCard = CardUtil.getCardByNameAndEdition(cardTemplate.getCardName(), cardTemplate.getEdition());
-                                    if (finalCard != null)
-                                        ret.add(new Reward(finalCard, isNoSell));
-                                }
-                            } else {
-                                PaperCard card = finalPool.get(rewardRandom.nextInt(finalPool.size()));
-                                if (card != null) {
-                                    card = CardUtil.remapToEditionList(card, this.editions, rewardRandom);
-                                    ret.add(new Reward(card, isNoSell));
-                                }
+                                if (cardTemplate != null)
+                                    ret.add(new Reward(finishUnionCard(cardTemplate, allCardVariants, rewardRandom), isNoSell));
                             }
                         }
                     }
@@ -258,6 +280,10 @@ public class RewardData implements Serializable {
                 case "card":
                 case "randomCard":
                     if (cardName != null && !cardName.isEmpty()) {
+                        // Named-card rewards get the same printing remap as random picks
+                        // (2026-08-15, printing-leak audit: this branch never consulted
+                        // this.editions at all, so a named card at an edition-restricted shop
+                        // always rendered its latest/random printing).
                         if (allCardVariants) {
                             CardDb.CardRequest request = CardDb.CardRequest.fromString(cardName);
                             PaperCard card = (request.edition != null)
@@ -266,16 +292,19 @@ public class RewardData implements Serializable {
                             if (card != null) {
                                 for (int i = 0; i < count + addedCount; i++) {
                                     PaperCard finalCard = CardUtil.getCardByNameAndEdition(request.cardName, card.getEdition());
-                                    if (finalCard != null)
+                                    if (finalCard != null) {
+                                        finalCard = CardUtil.remapToEditionList(finalCard, this.editions, rewardRandom);
                                         ret.add(new Reward(finalCard, isNoSell));
+                                    }
                                 }
                             }
                         } else {
                             for (int i = 0; i < count + addedCount; i++) {
                                 PaperCard card = StaticData.instance().getCommonCards().getCard(cardName);
-                                if (card != null)
+                                if (card != null) {
+                                    card = CardUtil.remapToEditionList(card, this.editions, rewardRandom);
                                     ret.add(new Reward(card, isNoSell));
-                                else
+                                } else
                                     System.err.println("Missing card: " + cardName);
                             }
                         }

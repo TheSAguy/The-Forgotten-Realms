@@ -30,4 +30,13 @@ public class SettingData {
     public boolean drawChevronsToHiddenEnemiesInClearQuest;
     public boolean preferEraMatchedTokenArt;
     public boolean fogOfWarEnabled;
+    // Inn tournament AI-vs-AI match simulation (2026-08-17 user spec: "I assume, currently it's
+    // just a coin flip... have the two AI's actually simulate their match, behind the science...
+    // By Default, have this unchecked"). Confirmed the assumption was correct - EventScene.
+    // startRound()'s AI-vs-AI branch was a bare MyRandom.percentTrue(50) with a "//Todo: Actually
+    // run match simulation here" comment. Off by default since DeckTesterSimulator.runBatch() -
+    // the same real Match/Game engine the Arena's Deck Tester uses - is real gameplay, not free:
+    // a full round with the human eliminated can have several AI-vs-AI pairings, each running up
+    // to gamesPerMatch independent games on its own background thread.
+    public boolean simulateInnTournamentAIMatches;
 }

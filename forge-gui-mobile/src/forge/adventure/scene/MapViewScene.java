@@ -1,6 +1,7 @@
 package forge.adventure.scene;
 
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Group;
@@ -200,20 +201,34 @@ public class MapViewScene extends UIScene {
     public void details() {
         lastOverlayMode = 1;
         setOverlayButtonStates(1);
+        // Self-cleanup (2026-08-16 review finding) - the other 3 overlay builders (events()/
+        // reputation()/names()) all clear their own previously-added labels before rebuilding;
+        // this one never did, so a double enter()/details() call (without an intervening leave())
+        // would silently stack a second full set of labels on top of the first. Matches the
+        // sibling pattern exactly.
+        for (TypingLabel detail : details) {
+            table.removeActor(detail);
+        }
+        details.clear();
         List<PointOfInterest> allPois = Current.world().getAllPointOfInterest();
+        // GLOBAL label collision avoidance (2026-08-15, replaces the earlier per-POI-only offset
+        // map - user screenshot near the Capitol showed labels from three DIFFERENT nearby POIs
+        // garbled into each other, which per-POI stacking is architecturally incapable of
+        // preventing): every placed label records its rectangle; a new label that would intersect
+        // any already-placed one shifts DOWN one label height at a time until clear. Seeded with
+        // the quest/bookmark TypingLabels enter() already placed directly on the table, so
+        // detail labels dodge those too. Same-POI stacking (name + event + under-attack) falls
+        // out of the same rule with no special casing.
+        List<Rectangle> placedLabelRects = Lists.newArrayList();
+        for (Actor existing : table.getChildren()) {
+            if (existing instanceof TypingLabel)
+                placedLabelRects.add(new Rectangle(existing.getX(), existing.getY(), existing.getWidth(), existing.getHeight()));
+        }
         for (PointOfInterest poi : allPois) {
-            // Town names on the Details overlay (user request 2026-08-08): every VISITED town/
-            // capital shows its display name - visited-only both for flavor (you learn a town's
-            // name by going there) and to keep 400+ labels from smothering the map.
-            String poiType = poi.getData().type;
-            if (("town".equalsIgnoreCase(poiType) || "capital".equalsIgnoreCase(poiType))
-                    && WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID()).isVisited()) {
-                TypingLabel nameLabel = Controls.newTypingLabel("[%?BLACKEN] " + poi.getDisplayName());
-                table.addActor(nameLabel);
-                details.add(nameLabel);
-                nameLabel.setPosition(img.getScaleX()*(getMapX(poi.getPosition().x) - nameLabel.getWidth() / 2) + img.getX(), img.getScaleY()*(getMapY(poi.getPosition().y) - nameLabel.getHeight() / 2) + img.getY());
-                nameLabel.skipToTheEnd();
-            }
+            // Town names moved to the Names overlay (user request 2026-08-17: "Town names need
+            // to be moved to the Names view and details should show the set info" - Names was
+            // previously an empty stub while Details carried both name AND event/set-info labels
+            // fused together at the same position). See names() below.
             for (AdventureEventData data : AdventurePlayer.current().getEvents()) {
                 if (data.sourceID.equals(poi.getID())) {
                     StringBuilder sb = new StringBuilder();
@@ -225,13 +240,68 @@ public class MapViewScene extends UIScene {
                     sb.append(" ").append(data.getCardBlock());
 
                     TypingLabel label = Controls.newTypingLabel(sb.toString());
-                    table.addActor(label);
-                    details.add(label);
-                    label.setPosition(img.getScaleX()*(getMapX(poi.getPosition().x) - label.getWidth() / 2) + img.getX(), img.getScaleY()*(getMapY(poi.getPosition().y) - label.getHeight() / 2) + img.getY());
-                    label.skipToTheEnd();
+                    placeDetailLabel(label, poi.getPosition().x, poi.getPosition().y, placedLabelRects);
                 }
             }
         }
+
+        // Towns under attack (2026-08-14 user request: "Details or Events could show towns under
+        // attack" - the minimap buttons audit found neither actually did). One label per in-
+        // flight Territory Control capture mage with a live target, drawn at the TARGET town's
+        // position (the mage's own current position already has its own dot via the marker loop
+        // in enter()) - colored the same as that mage's minimap dot for a consistent read. Safe
+        // on every plane, not just this one: getTerritoryMages() simply returns empty where
+        // Territory Control isn't active.
+        for (EnemySprite mage : WorldStage.getInstance().getTerritoryMages()) {
+            PointOfInterest targetPoi = mage.territoryTarget;
+            if (targetPoi == null)
+                continue;
+            // Fog-of-war gate (2026-08-15 adversarial review finding) - same check the mage-dot
+            // marker loop in enter() already applies to the mage's OWN position; without it this
+            // label leaked an unexplored town's existence/location/under-attack status through
+            // solid fog, since it draws at the TARGET's position rather than the mage's.
+            int targetTileX = (int) (targetPoi.getPosition().x / WorldSave.getCurrentSave().getWorld().getTileSize());
+            int targetTileY = (int) (targetPoi.getPosition().y / WorldSave.getCurrentSave().getWorld().getTileSize());
+            if (!WorldSave.getCurrentSave().getWorld().isCurrentlyVisible(targetTileX, targetTileY))
+                continue;
+            TypingLabel label = Controls.newTypingLabel("[%?BLACKEN] Under Attack!");
+            label.setColor(GameHUD.getMageMarkerColor(mage.territoryColor));
+            placeDetailLabel(label, targetPoi.getPosition().x, targetPoi.getPosition().y, placedLabelRects);
+        }
+    }
+
+    /** Places one Details-overlay label centered at the given WORLD position (converted through
+     *  the current img scale/offset, same math the old inline placement used), shifting it DOWN
+     *  one label height at a time while its rectangle would intersect any already-placed label's,
+     *  then records the final rectangle. libGDX is y-up, so "down" = subtract - the same
+     *  direction the old per-POI eventLabelYOffset already shifted. */
+    private void placeDetailLabel(TypingLabel label, float worldX, float worldY, List<Rectangle> placedLabelRects) {
+        table.addActor(label);
+        details.add(label);
+        // Root cause of labels rendering fused/overlapping (user report, 4th time raised)
+        // 2026-08-17: TypingLabel/TextraLabel (textratypist 0.8.2) never call setSize()/pack()
+        // internally, so immediately after addActor() getWidth()/getHeight() both read 0 - every
+        // collision rectangle below is 0x0, Rectangle.overlaps() can never return true, and the
+        // "shift down until clear" loop never fires no matter how many labels share a position.
+        // pack() sizes the label from its own preferred size without touching position.
+        label.pack();
+        float x = img.getScaleX() * (getMapX(worldX) - label.getWidth() / 2) + img.getX();
+        float y = img.getScaleY() * (getMapY(worldY) - label.getHeight() / 2) + img.getY();
+        Rectangle rect = new Rectangle(x, y, label.getWidth(), label.getHeight());
+        boolean moved = true;
+        while (moved) {
+            moved = false;
+            for (Rectangle placed : placedLabelRects) {
+                if (rect.overlaps(placed)) {
+                    rect.y -= label.getHeight();
+                    moved = true;
+                    break;
+                }
+            }
+        }
+        placedLabelRects.add(rect);
+        label.setPosition(rect.x, rect.y);
+        label.skipToTheEnd();
     }
 
     public void events() {
@@ -240,16 +310,20 @@ public class MapViewScene extends UIScene {
         for (TypingLabel detail : details) {
             table.removeActor(detail);
         }
-        List<PointOfInterest> allPois = Current.world().getAllPointOfInterest();
         details.clear();
+        // Routed through placeDetailLabel()'s collision avoidance (2026-08-17) - previously
+        // placed directly with no overlap protection at all, unlike details()/names().
+        List<Rectangle> placedLabelRects = Lists.newArrayList();
+        for (Actor existing : table.getChildren()) {
+            if (existing instanceof TypingLabel)
+                placedLabelRects.add(new Rectangle(existing.getX(), existing.getY(), existing.getWidth(), existing.getHeight()));
+        }
+        List<PointOfInterest> allPois = Current.world().getAllPointOfInterest();
         for (PointOfInterest poi : allPois) {
             int rep = WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID()).getMapReputation();
             if (rep != 0) {
                 TypingLabel label = Controls.newTypingLabel("[%?BLACKEN] " + rep);
-                table.addActor(label);
-                details.add(label);
-                label.setPosition(img.getScaleX()*(getMapX(poi.getPosition().x) - label.getWidth() / 2) + img.getX(), img.getScaleY()*(getMapY(poi.getPosition().y) - label.getHeight() / 2) + img.getY());
-                label.skipToTheEnd();
+                placeDetailLabel(label, poi.getPosition().x, poi.getPosition().y, placedLabelRects);
             }
         }
     }
@@ -261,15 +335,19 @@ public class MapViewScene extends UIScene {
             table.removeActor(detail);
         }
         details.clear();
+        // Routed through placeDetailLabel()'s collision avoidance (2026-08-17) - same reasoning
+        // as events() above.
+        List<Rectangle> placedLabelRects = Lists.newArrayList();
+        for (Actor existing : table.getChildren()) {
+            if (existing instanceof TypingLabel)
+                placedLabelRects.add(new Rectangle(existing.getX(), existing.getY(), existing.getWidth(), existing.getHeight()));
+        }
         List<PointOfInterest> allPois = Current.world().getAllPointOfInterest();
         for (PointOfInterest poi : allPois) {
             if (WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID()).isVisited()) {
                 if ("cave".equalsIgnoreCase(poi.getData().type) || "dungeon".equalsIgnoreCase(poi.getData().type) || "castle".equalsIgnoreCase(poi.getData().type)) {
                     TypingLabel label = Controls.newTypingLabel("[%?BLACKEN] " + poi.getDisplayName());
-                    table.addActor(label);
-                    details.add(label);
-                    label.setPosition(img.getScaleX()*(getMapX(poi.getPosition().x) - label.getWidth() / 2) + img.getX(), img.getScaleY()*(getMapY(poi.getPosition().y) - label.getHeight() / 2) + img.getY());
-                    label.skipToTheEnd();
+                    placeDetailLabel(label, poi.getPosition().x, poi.getPosition().y, placedLabelRects);
                 }
             }
         }
@@ -283,6 +361,24 @@ public class MapViewScene extends UIScene {
         }
         details.clear();
 
+        // Town/capital names (moved here from details() - user request 2026-08-17: "Town names
+        // need to be moved to the Names view and details should show the set info"). Visited-only,
+        // same reasoning details() always used this text under: you learn a town's name by going
+        // there, and it keeps hundreds of wilderness POIs from smothering the map.
+        List<Rectangle> placedLabelRects = Lists.newArrayList();
+        for (Actor existing : table.getChildren()) {
+            if (existing instanceof TypingLabel)
+                placedLabelRects.add(new Rectangle(existing.getX(), existing.getY(), existing.getWidth(), existing.getHeight()));
+        }
+        List<PointOfInterest> allPois = Current.world().getAllPointOfInterest();
+        for (PointOfInterest poi : allPois) {
+            String poiType = poi.getData().type;
+            if (("town".equalsIgnoreCase(poiType) || "capital".equalsIgnoreCase(poiType))
+                    && WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID()).isVisited()) {
+                TypingLabel nameLabel = Controls.newTypingLabel("[%?BLACKEN] " + poi.getDisplayName());
+                placeDetailLabel(nameLabel, poi.getPosition().x, poi.getPosition().y, placedLabelRects);
+            }
+        }
     }
 
     public void zoomOut() {
@@ -298,6 +394,7 @@ public class MapViewScene extends UIScene {
                     actor.setPosition((scroll.getScrollX() + scroll.getWidth()/2) * 0.1f + 0.9f * actor.getX(), (scroll.getMaxY() - scroll.getScrollY() + scroll.getHeight()/2) * 0.1f + 0.9f * actor.getY());
                 }
             }
+            resolveLabelOverlaps();
         }
     }
     public void zoomIn() {
@@ -312,6 +409,42 @@ public class MapViewScene extends UIScene {
                     actor.setPosition(-(scroll.getScrollX() + scroll.getWidth()/2) * 0.1f + 1.1f * actor.getX(), -(scroll.getMaxY() - scroll.getScrollY() + scroll.getHeight()/2) * 0.1f + 1.1f * actor.getY());
                 }
             }
+            resolveLabelOverlaps();
+        }
+    }
+
+    /** Re-establishes the label collision-avoidance placeDetailLabel() enforces at BUILD time,
+     *  after a zoom step's uniform scale+translate transform has moved every label (2026-08-16
+     *  user report: garbled overlapping map labels, reproducible by zooming out). Root cause:
+     *  the zoom transform shrinks the pixel GAP between two labels' anchors by the same factor
+     *  it moves them, but each label's own on-screen SIZE never changes - so a pair that
+     *  placeDetailLabel() positioned edge-to-edge (its minimum possible clearance, zero margin)
+     *  collapses into an overlap the moment the view zooms out. Re-runs the identical shift-down-
+     *  until-clear algorithm placeDetailLabel() uses, but against the labels' ALREADY-transformed
+     *  positions instead of a fresh candidate - so it fixes up whatever the zoom step just broke
+     *  rather than rebuilding from world coordinates (which would restart every label's typing
+     *  animation and is unnecessary just to re-separate them). Operates on every TypingLabel
+     *  currently on the table, so it covers all 3 overlay modes that can show labels
+     *  (details/events/reputation), not just the one placeDetailLabel() originally targeted. */
+    private void resolveLabelOverlaps() {
+        List<Rectangle> placedLabelRects = Lists.newArrayList();
+        for (Actor actor : table.getChildren()) {
+            if (!(actor instanceof TypingLabel))
+                continue;
+            Rectangle rect = new Rectangle(actor.getX(), actor.getY(), actor.getWidth(), actor.getHeight());
+            boolean moved = true;
+            while (moved) {
+                moved = false;
+                for (Rectangle placed : placedLabelRects) {
+                    if (rect.overlaps(placed)) {
+                        rect.y -= actor.getHeight();
+                        moved = true;
+                        break;
+                    }
+                }
+            }
+            actor.setPosition(rect.x, rect.y);
+            placedLabelRects.add(rect);
         }
     }
 

@@ -28,10 +28,10 @@
     "enemies":  [
                     "Adept Blue Wizard",
                     "Aether Channeler",
-                    "Angelic Overseer",
+                    "Angel Overseer",
                     "Apprentice Blue Wizard",
                     "Bird",
-                    "Blue Sliver",
+                    "Sliver_Blue",
                     "Challenger 20",
                     "Challenger 21",
                     "Challenger 22",
@@ -49,7 +49,7 @@
                     "Hermit Crab",
                     "Horror",
                     "Ibis",
-                    "Ibis-headed Aven Initiate",
+                    "Ibis-headed Aven Warrior",
                     "Illusionist",
                     "Jellyfish",
                     "Master Blue Wizard",
@@ -520,7 +520,8 @@
                              "Dream Halls",
                              "Crawlspace",
                              "Quest_LibraryOfVarsil",
-                             "DragonsLairBlue"
+                             "DragonsLairBlue",
+                             "Idyllic Beachfront"
                          ],
     "structures":  [
                        {

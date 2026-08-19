@@ -25,6 +25,9 @@ public enum FSkinTexture implements FImage {
     BG_CHAOS_WHEEL(ForgeConstants.CHAOS_WHEEL_IMG_FILE, false, false),
     //Adventure textures
     ADV_BG_TEXTURE(ForgeConstants.ADV_TEXTURE_BG_FILE, true, false),
+    // World Generation loading screen background (user-supplied "Main_Image.png", 2026-08-17) -
+    // full-bleed, not tiled (unlike ADV_BG_TEXTURE) - see TransitionScreen's isloading branch.
+    ADV_WORLDGEN_BG(ForgeConstants.ADV_WORLDGEN_BG_FILE, false, false),
     ADV_BG_MATCH(ForgeConstants.ADV_MATCH_BG_FILE, false, false),
     ADV_BG_MATCH_DAY(ForgeConstants.ADV_MATCH_BG_DAY_FILE, false, false),
     ADV_BG_MATCH_NIGHT(ForgeConstants.ADV_MATCH_BG_NIGHT_FILE, false, false),

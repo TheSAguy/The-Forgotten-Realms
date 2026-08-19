@@ -193,9 +193,17 @@ public class MapStage extends GameStage {
         Array<String> candidates = shopCandidatePools.get(objectId);
         if (candidates == null || candidates.size == 0)
             return null;
+        // Booster shops kept separate from ordinary card shops (2026-08-14 user request - found
+        // mixed together in the 5 AI-capital towns' commonShopList property, e.g. "...,Instant6Green,
+        // GreenBoosterPackShop,Elf,..." - meaning a plain card shop could reroll INTO a Booster shop
+        // and vice versa). currentShopName.contains("Booster") mirrors EconomyBuildings.
+        // isBoosterShop(ShopData)'s own check (name-based) without needing to resolve currentShopName
+        // to a ShopData first - only the name is available here.
+        boolean currentIsBooster = currentShopName != null && currentShopName.contains("Booster");
         Array<ShopData> matches = new Array<>();
         for (ShopData candidateData : new Array.ArrayIterator<>(WorldData.getShopList())) {
-            if (candidates.contains(candidateData.name, false) && !candidateData.name.equals(currentShopName))
+            if (candidates.contains(candidateData.name, false) && !candidateData.name.equals(currentShopName)
+                    && EconomyBuildings.isBoosterShop(candidateData) == currentIsBooster)
                 matches.add(candidateData);
         }
         if (matches.size == 0)
@@ -323,6 +331,7 @@ public class MapStage extends GameStage {
                     new Array.ArrayIterator<>(data.rewards), changes, data.name, trigger)) {
                 ret.addAll(rdata.generate(false, false));
             }
+            EconomyBuildings.injectGuaranteedTorchIfOwed(ret, data, changes);
             shopActor.setRewardData(ret);
         }
     }
@@ -808,7 +817,7 @@ public class MapStage extends GameStage {
                                 return;
                             }
                             Forge.switchScene(SpellSmithScene.instance());
-                        }, id, this).withRebuiltIcon(EconomyBuildings.getSpellsmithSprite()));
+                        }, id, this).withRebuiltIcon(EconomyBuildings::getSpellsmithSprite));
                         break;
                     case "shardtrader":
                         MapActor shardTraderActor = new OnCollide(() -> Forge.switchScene(ShardTraderScene.instance()), id, this);
@@ -837,7 +846,7 @@ public class MapStage extends GameStage {
                             String challengeJson = prop.containsKey("arenaChallenge") ? prop.get("arenaChallenge").toString() : null;
                             ArenaScene.instance().enterArenaBuilding(this, id, prop.get("arena").toString(), challengeJson);
                             Forge.switchScene(ArenaScene.instance());
-                        }, id, this).withRebuiltIcon(EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id)))
+                        }, id, this).withRebuiltIcon(() -> EconomyBuildings.getArenaSprite(changes.getBuildingLevel(id)))
                                 // 2026-08-12 cost table: Arena rebuild is 250 gold (vs the plain
                                 // shop default this gate would otherwise charge).
                                 .withRebuildCost(250, 0, 0, 0, "Rebuild Arena"));
@@ -955,12 +964,19 @@ public class MapStage extends GameStage {
                             }
                         }
 
-                        // Item economy (2026-08-10): a noRestock shop (Armory, land shops) has no
-                        // player-paid restock button, so without its own refresh mechanism it
-                        // would roll its stock exactly once, ever - see the weekly-seed branch at
-                        // this method's shop-seed selection below.
+                        // Item economy (2026-08-10): a noRestock shop reseeds automatically once a
+                        // week - see the weekly-seed branch at this method's shop-seed selection
+                        // below. Whether it ALSO keeps a player-paid restock button now depends on
+                        // what kind of shop it is (2026-08-15 user correction): the Armory family
+                        // and the fixed land shops stay button-less (their weekly refresh is the
+                        // only refresh, restockPrice forced to 0 as before), but the widened
+                        // ordinary card shops keep their tier-based restock price so the small
+                        // "[+Refresh]" button (base price + weekly-escalating surcharge, exactly
+                        // what the old Rotating shops showed) is available as a manual override on
+                        // top of the automatic weekly reseed.
                         boolean noRestock = prop.containsKey("noRestock") && (boolean) prop.get("noRestock");
-                        if (noRestock) {
+                        boolean fixedShopProp = prop.containsKey("fixedShop") && Boolean.parseBoolean(prop.get("fixedShop").toString());
+                        if (noRestock && (EconomyBuildings.isArmoryShopName(shopList) || fixedShopProp)) {
                             restockPrice = 0;
                         }
 
@@ -1009,6 +1025,13 @@ public class MapStage extends GameStage {
                                 }
                             }
                         }
+                        // Stale-price fix (2026-08-15 review finding): a pinned name (Capitol
+                        // migration, MapStage.rerollShopType()) can resolve to a ShopData outside
+                        // THIS slot's own filteredPossibleShops - the only place restockPrice gets
+                        // written above (line ~1007) - leaving the shared/cached instance holding
+                        // whatever price some unrelated slot last wrote (or JSON's default 0).
+                        // Apply this slot's own computed price unconditionally so it's never stale.
+                        data.restockPrice = restockPrice;
                         shopsAlreadyPresent.add(data.name);
                         Array<Reward> ret = new Array<>();
                         // noRestock shops (Armory, land shops) reseed automatically once a week
@@ -1030,11 +1053,17 @@ public class MapStage extends GameStage {
                         for (RewardData rdata : shopRewardSource) {
                             ret.addAll(rdata.generate(false, false));
                         }
+                        EconomyBuildings.injectGuaranteedTorchIfOwed(ret, data, changes);
                         ShopActor actor = new ShopActor(this, id, ret, data);
                         // Capitol land shops: fixed identity, simple repair, no overlay icon once
                         // rebuilt (hut art baked into the map) - see ShopActor.fixedShop.
                         if (prop.containsKey("fixedShop") && (boolean) prop.get("fixedShop"))
                             actor.setFixedShop(true);
+                        // RewardScene's "Inventory will refresh weekly" note keys off this flag
+                        // (2026-08-15) - it used to infer weekly refresh from !canRestock(), which
+                        // broke the moment noRestock ordinary card shops got their restock button
+                        // back (both facts are now true at once for those shops).
+                        actor.setWeeklyRefresh(noRestock);
                         addMapActor(obj, actor);
                         // Locate the real building art baked above this shop's own footprint (see
                         // findOverheadTiles()'s own doc comment) once, right after the actor's
@@ -1577,6 +1606,12 @@ public class MapStage extends GameStage {
 
         AdventureQuestController.instance().updateQuestsMapFlag(key,value);
         AdventureQuestController.instance().showQuestDialogs(this);
+        // Color Defeat's real trigger hook does NOT live here (adversarial review 2026-08-14
+        // caught this - a real, blocking bug): this method backs the JSON dialog-action key
+        // "setMapFlag", but each castle's boss-defeat dialog action uses the DIFFERENTLY-NAMED
+        // "setQuestFlag" key (confusingly similar name, completely different code path -
+        // MapDialog.java routes "setQuestFlag" to Current.player().setQuestFlag(), i.e.
+        // AdventurePlayer.setQuestFlag(), never through here). See that method for the real hook.
     }
 
     public void advanceQuestFlag(String key) {

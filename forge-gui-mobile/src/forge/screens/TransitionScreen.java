@@ -136,17 +136,30 @@ public class TransitionScreen extends FContainer {
                     g.drawPortalFade(textureRegion, 0, 0, Forge.getScreenWidth(), Forge.getScreenHeight(), Math.min(percentage, 1f), true);
                 }
             } else if (isloading) {
+                // World Generation screen gets its own full-bleed background (user-supplied
+                // "Main_Image.png", 2026-08-17) instead of the tiled ADV_BG_TEXTURE pattern -
+                // scoped to exactly the two call sites that pass the "Generating World..."
+                // message (NewGameScene's initial world-gen, SaveLoadScene's New Game Plus),
+                // NOT "Loading World..." (Continue/Load) or the captionless mode-switch fade.
+                boolean isWorldGen = Forge.isMobileAdventureMode && message != null
+                        && message.equals(Forge.getLocalizer().getMessage("lblGeneratingWorld"));
                 g.fillRect(Color.BLACK, 0, 0, Forge.getScreenWidth(), Forge.getScreenHeight());
-                FSkinTexture bgTexture = Forge.isMobileAdventureMode ? FSkinTexture.ADV_BG_TEXTURE : FSkinTexture.BG_TEXTURE;
+                FSkinTexture bgTexture = isWorldGen ? FSkinTexture.ADV_WORLDGEN_BG
+                        : (Forge.isMobileAdventureMode ? FSkinTexture.ADV_BG_TEXTURE : FSkinTexture.BG_TEXTURE);
                 if (bgTexture != null) {
                     g.setAlphaComposite(percentage);
                     g.drawImage(bgTexture, 0, 0, Forge.getScreenWidth(), Forge.getScreenHeight());
                     g.setAlphaComposite(oldAlpha);
                 }
                 float xmod = Forge.getScreenHeight() > 2000 ? 1.5f : 1f;
-                xmod *= 1f;//static logo only
-                float ymod;
-                if (FSkin.getLogo() != null) {
+                // Loading-icon size (user request 2026-08-17: "make it like 4x bigger" - the
+                // small circular icon on non-worldgen loading screens, e.g. "Loading World...").
+                xmod *= 4f;//static logo only
+                float ymod = 0f;
+                if (isWorldGen) {
+                    // Main_Image.png is already a complete painted scene - skip the small
+                    // circular loading icon on top of it, it would just look cluttered.
+                } else if (FSkin.getLogo() != null) {
                     ymod = Forge.getScreenHeight() / 2f + (FSkin.getLogo().getHeight() * xmod) / 2;
                     g.drawImage(FSkin.getLogo(), Forge.getScreenWidth() / 2f - (FSkin.getLogo().getWidth() * xmod) / 2, Forge.getScreenHeight() / 2f - (FSkin.getLogo().getHeight() * xmod) / 2, FSkin.getLogo().getWidth() * xmod, FSkin.getLogo().getHeight() * xmod);
                 } else {

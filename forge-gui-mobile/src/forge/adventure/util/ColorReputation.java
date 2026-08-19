@@ -187,6 +187,20 @@ public class ColorReputation {
         return status == Status.UNHAPPY || status == Status.WAR;
     }
 
+    // Color Defeat penalty (MOD_SCOPE.md #61, user request 2026-08-14): -50 flat to the defeated
+    // color, DELIBERATELY NOT zero-sum - this class's whole net-zero invariant (see the class doc
+    // comment) exists to model duel events as a redistribution across the wheel, and a color being
+    // wiped off the map by the player isn't a duel. Applied once, directly, with no compensating
+    // shift to the other 4 (which are otherwise untouched and keep working normally - the wheel
+    // just permanently loses its balance by 50 half-points x2 from this point on, same as real
+    // geopolitics doesn't rebalance itself when a power collapses). Called from
+    // TerritoryControl.defeatColor(), guarded there on isEnabled() already.
+    private static final int DEFEAT_PENALTY_HALF_POINTS = -100; // displayed -50
+
+    public static void applyColorDefeatPenalty(String color) {
+        AdventurePlayer.current().addColorReputationHalfPoints(color, DEFEAT_PENALTY_HALF_POINTS);
+    }
+
     /**
      * Debug/console support (`give rep <color> <amount>`): shifts one color by a display-value
      * amount while PRESERVING the net-zero invariant - the negation is spread evenly across the

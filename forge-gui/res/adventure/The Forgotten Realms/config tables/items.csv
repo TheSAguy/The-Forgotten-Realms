@@ -627,4 +627,5 @@ Immortal Anklet,Rare,1000,Boots,N,Pay 3 and tap to counter a spell targeting a p
 Marble Mace,Rare,1000,Right,N,A 3/3 artifact creature that lures walls. -5 Max Life. Slot: Right [+Life] -5 Battlefield:Marble Priest|LEG,Y,
 Life Matrix,Rare,1000,Neck,N,Pay 4 to give a creature regeneration. Slot: Neck Battlefield:Life Matrix|LEG,Y,
 Gauntlets of Chaos,Rare,12000,Right,N,"Pay 5 to swap an artifact, creature, or land. Slot: Right Battlefield:Gauntlets of Chaos|LEG",Y,
-Torch,Common,100,Ability2,N,"Lights the way, tripling your visible range in the fog of war. Slot: Ability2 Vision radius: x3.0",Y,
+Torch,Common,100,Ability2,N,"Lights the way, doubling your visible range in the fog of war. Slot: Ability2 Vision radius: x2.0",Y,
+Grand Torch,Rare,1000,Ability2,N,"A brilliant flame, quadrupling your visible range in the fog of war. Slot: Ability2 Vision radius: x4.0",Y,

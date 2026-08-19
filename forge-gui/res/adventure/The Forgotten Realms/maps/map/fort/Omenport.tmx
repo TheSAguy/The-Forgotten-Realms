@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="44" height="23" tilewidth="16" tileheight="16" infinite="0" nextlayerid="33" nextobjectid="349">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="44" height="23" tilewidth="16" tileheight="16" infinite="0" nextlayerid="33" nextobjectid="351">
  <editorsettings>
   <export format="tmx"/>
  </editorsettings>
@@ -554,6 +554,28 @@
     <property name="enemy" value="Vadmir"/>
     <property name="threatRange" type="int" value="0"/>
     <property name="waypoints" value=""/>
+   </properties>
+  </object>
+  <object id="349" template="../../obj/wood.tx" x="542.766" y="198.213">
+   <properties>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;wood&quot;,
+    &quot;count&quot;: 20,
+    &quot;addMaxCount&quot;: 10
+ }
+]</property>
+   </properties>
+  </object>
+  <object id="350" template="../../obj/wood.tx" x="58.0108" y="88.2889">
+   <properties>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;wood&quot;,
+    &quot;count&quot;: 20,
+    &quot;addMaxCount&quot;: 10
+ }
+]</property>
    </properties>
   </object>
  </objectgroup>

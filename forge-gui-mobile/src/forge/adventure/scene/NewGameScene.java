@@ -15,6 +15,7 @@ import forge.Forge;
 import forge.adventure.data.DialogData;
 import forge.adventure.data.DifficultyData;
 import forge.adventure.data.HeroListData;
+import forge.adventure.data.RaceEditionData;
 import forge.adventure.player.AdventurePlayer;
 import forge.adventure.stage.WorldStage;
 import forge.adventure.util.*;
@@ -54,6 +55,8 @@ public class NewGameScene extends MenuScene {
     private DialogData difficultySummary;
     private final ImageButton modeHelp;
     private DialogData modeSummary;
+    private final ImageButton raceHelp;
+    private DialogData raceSummary;
     private final Random rand = new Random();
     private String originalEditionLabelText;
     private Array<String> originalEditionNames;
@@ -200,6 +203,7 @@ public class NewGameScene extends MenuScene {
         });
         race.addListener(event -> NewGameScene.this.updateAvatar());
         race.setTextList(HeroListData.instance().getRaces());
+        raceHelp = ui.findActor("raceHelp");
         difficulty = ui.findActor("difficulty");
         difficultyHelp = ui.findActor("difficultyHelp");
 
@@ -226,6 +230,11 @@ public class NewGameScene extends MenuScene {
         difficultyHelp.addListener(new ClickListener() {
             public void clicked(InputEvent e, float x, float y) {
                 showDifficultyHelp();
+            }
+        });
+        raceHelp.addListener(new ClickListener() {
+            public void clicked(InputEvent e, float x, float y) {
+                showRaceHelp();
             }
         });
         modeHelp.addListener(new ClickListener() {
@@ -397,6 +406,57 @@ public class NewGameScene extends MenuScene {
         super.enter();
     }
 
+    // Race Help (2026-08-15 user request, mirroring the existing difficultyHelp/modeHelp "?"
+    // pattern): reads race/difficulty selection live at click time, same as showDifficultyHelp()
+    // does below - no separate change-listener needed. Race->set lookup and the difficulty->count
+    // formula are copied straight from AdventurePlayer.create()'s actual starting-unlock logic
+    // (Config.getConfigData().raceEditions, the {4,3,2,1} array keyed by difficulty index) rather
+    // than reimplemented, so this help text can't drift from what a new game will actually do -
+    // it just can't show WHICH of the 4 sets you'll get, since that pick is genuinely randomized
+    // at creation time.
+    private void showRaceHelp() {
+        DialogData dismiss = new DialogData();
+        dismiss.name = "OK";
+
+        raceSummary = new DialogData();
+        raceSummary.name = "Summary";
+
+        if (!Config.instance().getConfigData().editionProgressionEnabled) {
+            raceSummary.text = "Progressive Set Unlocks aren't enabled for this world - every "
+                    + "card set is available from the start, regardless of race.";
+        } else {
+            String rawRaceName = HeroListData.getRawRaceName(race.getCurrentIndex());
+            String[] pool = null;
+            RaceEditionData[] raceEditions = Config.instance().getConfigData().raceEditions;
+            if (rawRaceName != null && raceEditions != null) {
+                for (RaceEditionData entry : raceEditions) {
+                    if (entry != null && rawRaceName.equalsIgnoreCase(entry.race)
+                            && entry.editions != null && entry.editions.length > 0) {
+                        pool = entry.editions;
+                        break;
+                    }
+                }
+            }
+            if (pool == null)
+                pool = Config.instance().getConfigData().starterEditions;
+
+            String setList = pool == null || pool.length == 0 ? "None" : String.join(", ", pool);
+            int poolSize = pool == null ? 0 : pool.length;
+            DifficultyData selectedDifficulty = Config.instance().getConfigData().difficulties[difficulty.getCurrentIndex()];
+            int[] startingUnlockCountByDifficultyIndex = {4, 3, 2, 1};
+            int cappedIndex = Math.min(difficulty.getCurrentIndex(), startingUnlockCountByDifficultyIndex.length - 1);
+            int startingUnlockCount = Math.min(poolSize, startingUnlockCountByDifficultyIndex[cappedIndex]);
+
+            raceSummary.text = String.format(
+                    "Race: %s\nAssociated Sets: %s\n\nAt %s difficulty, you'll start with %d of these %d sets unlocked (chosen at random) - the rest unlock later at the Research Lab.",
+                    race.getText(), setList, selectedDifficulty.name, startingUnlockCount, poolSize);
+        }
+
+        raceSummary.options = new DialogData[1];
+        raceSummary.options[0] = dismiss;
+        loadDialog(raceSummary);
+    }
+
     private void showDifficultyHelp() {
         DifficultyData selectedDifficulty = Config.instance().getConfigData().difficulties[difficulty.getCurrentIndex()];
         boolean enableGeneticAI = Config.instance().getConfigData().enableGeneticAI;
@@ -441,18 +501,39 @@ public class NewGameScene extends MenuScene {
         economyImpacts.text = String.format("Difficulty: %s\nStarting Gold: %d\nStarting Mana Shards: %d\nCard Sale Price: %d%%\nMana Shard Sale Price: %d%%\nRandom loot rate: %d%%", selectedDifficulty.name, selectedDifficulty.startingMoney, selectedDifficulty.startingShards, (int) (selectedDifficulty.sellFactor * 100), (int) (selectedDifficulty.shardSellRatio * 100), (int) (selectedDifficulty.rewardMaxFactor * 100));
         economyImpacts.name = "Economy";
 
-        difficultySummary.options = new DialogData[3];
+        // Territory tab (2026-08-15, onboarding review finding: Mod Details' own "Difficulty"
+        // section already claims difficulty "scales how many mages a color can field against you
+        // at once... and how many towns you need to hold before earning each bonus attacking mage"
+        // - but Mod Details can only be opened from a LIVE game (WorldStandingsScene needs
+        // Current.world()), so a brand-new player choosing difficulty here had no way to see those
+        // numbers before committing. Mirrors TerritoryControl.maxActiveMagesPerColor()'s own
+        // formula exactly (base cap = 2 + difficultyIndex, one bonus mage per (11 - difficultyIndex)
+        // towns held) rather than a separate hardcoded table, so the two can't drift apart.
+        DialogData territoryImpacts = new DialogData();
+        territoryImpacts.text = String.format("Difficulty: %s\nBase Mage Cap (vs you): %d\nTowns per Bonus Mage: %d\n(Full Territory Control details in World Standings > Mod Details, once your game has started.)",
+                selectedDifficulty.name, 2 + difficulty.getCurrentIndex(), 11 - difficulty.getCurrentIndex());
+        territoryImpacts.name = "Territory";
+
+        difficultySummary.options = new DialogData[4];
         difficultySummary.options[0] = matchImpacts;
         difficultySummary.options[1] = economyImpacts;
-        difficultySummary.options[2] = dismiss;
-        matchImpacts.options = new DialogData[3];
+        difficultySummary.options[2] = territoryImpacts;
+        difficultySummary.options[3] = dismiss;
+        matchImpacts.options = new DialogData[4];
         matchImpacts.options[0] = difficultySummary;
         matchImpacts.options[1] = economyImpacts;
-        matchImpacts.options[2] = dismiss;
-        economyImpacts.options = new DialogData[3];
+        matchImpacts.options[2] = territoryImpacts;
+        matchImpacts.options[3] = dismiss;
+        economyImpacts.options = new DialogData[4];
         economyImpacts.options[0] = difficultySummary;
         economyImpacts.options[1] = matchImpacts;
-        economyImpacts.options[2] = dismiss;
+        economyImpacts.options[2] = territoryImpacts;
+        economyImpacts.options[3] = dismiss;
+        territoryImpacts.options = new DialogData[4];
+        territoryImpacts.options[0] = difficultySummary;
+        territoryImpacts.options[1] = matchImpacts;
+        territoryImpacts.options[2] = economyImpacts;
+        territoryImpacts.options[3] = dismiss;
 
         loadDialog(difficultySummary);
     }

@@ -17,7 +17,7 @@ import forge.sound.SoundSystem;
 import java.util.Iterator;
 
 /**
- * Random resource spawns (user request 2026-08-08): up to MAX_SPAWNS walk-over pickups scattered
+ * Random resource spawns (user request 2026-08-08): up to maxSpawns() walk-over pickups scattered
  * across the OVERWORLD only (they exist solely as WorldStage actors, so towns/dungeons - separate
  * MapStage scenes - can never contain one by construction). The world starts seeded with a full
  * pool; each spawn carries its own lifetime (2-10 in-game days) and is replaced by a fresh random
@@ -28,11 +28,17 @@ import java.util.Iterator;
  * <p>
  * State (the spawn list + the seeded flag) is persisted on World; this class is the logic plus a
  * per-frame tick driven by WorldStage.onActing(). The tick is cheap when nothing changed: one
- * enabled check, one day comparison, and a <=MAX_SPAWNS pickup distance scan while the player is
+ * enabled check, one day comparison, and a <=maxSpawns() pickup distance scan while the player is
  * actually moving.
  */
 public class ResourceSpawns {
-    public static final int MAX_SPAWNS = 20;
+    // Was a flat constant (20) until 2026-08-17 (user request: "let's make that 30") - moved into
+    // TuningData like every other world-balance number in this mod, so it's re-tunable without a
+    // code change. maxSpawns() is the read; nothing else in the codebase referenced the old
+    // constant except doc comments (World.java, WorldStage.java - narrated in prose only).
+    public static int maxSpawns() {
+        return Config.instance().getTuningData().maxResourceSpawns;
+    }
     private static final int MIN_LIFETIME_DAYS = 2;
     private static final int MAX_LIFETIME_DAYS = 10;
     private static final int GOLD_MIN = 5, GOLD_MAX = 100;
@@ -86,7 +92,7 @@ public class ResourceSpawns {
             // on the whole map, a fresh game had no findable example to verify the mechanic by).
             // Seeding runs on the first tick, so the player is still at/near the start position.
             changed |= spawnOneNearPlayer(world, currentDay, NEAR_START_RADIUS_TILES);
-            for (int i = world.getResourceSpawns().size(); i < MAX_SPAWNS; i++)
+            for (int i = world.getResourceSpawns().size(); i < maxSpawns(); i++)
                 changed |= spawnOne(world, currentDay);
             world.setResourceSpawnsSeeded(true);
             System.out.println("[ResourceSpawns] seeded " + world.getResourceSpawns().size() + " initial resource spawn(s)");
@@ -102,7 +108,7 @@ public class ResourceSpawns {
         }
     }
 
-    // Expired spawns vanish and the pool tops back up to MAX_SPAWNS with fresh random ones -
+    // Expired spawns vanish and the pool tops back up to maxSpawns() with fresh random ones -
     // "each will have its own timer and disappear after 2-10 days and a new random resource will
     // appear." Pickups (removed elsewhere) are also replenished here, on the day tick.
     private static boolean processExpiry(World world, int currentDay) {
@@ -114,7 +120,7 @@ public class ResourceSpawns {
                 changed = true;
             }
         }
-        for (int i = world.getResourceSpawns().size(); i < MAX_SPAWNS; i++)
+        for (int i = world.getResourceSpawns().size(); i < maxSpawns(); i++)
             changed |= spawnOne(world, currentDay);
         return changed;
     }
@@ -196,7 +202,7 @@ public class ResourceSpawns {
     /**
      * Console command hook ("spawn resource"): places one spawn right around the player so the
      * mechanic (icon, twinkle, walk-over pickup) can be tested on demand without hunting the map.
-     * Allowed to exceed MAX_SPAWNS - the overflow corrects itself at the next day tick.
+     * Allowed to exceed maxSpawns() - the overflow corrects itself at the next day tick.
      */
     public static String debugSpawnNearPlayer() {
         if (!isEnabled())

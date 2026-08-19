@@ -9,8 +9,11 @@ import java.util.Set;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.StringUtils;
 
+import forge.adventure.data.TuningData;
+import forge.adventure.player.AdventurePlayer;
 import forge.adventure.scene.DuelScene;
 import forge.adventure.util.Config;
+import forge.adventure.util.EconomyBuildings;
 import forge.game.GameState;
 import forge.deck.Deck;
 import forge.game.player.Player;
@@ -661,6 +664,61 @@ public class MatchController extends NetworkGuiGame {
     @Override
     public String showInputDialog(final String message, final String title, final FSkinProp icon, final String initialInput, final List<String> inputOptions, boolean isNumeric) {
         return SOptionPane.showInputDialog(message, title, icon, initialInput, inputOptions, isNumeric);
+    }
+
+    // Ante Re-roll (2026-08-16 user request, Adventure mode only). Deliberately reuses reveal()
+    // UNCHANGED for the actual "these cards were chosen to ante" display - that card-art
+    // rendering is shared with network play and every other Forge client, zero reason to touch
+    // it. Layers a simple blocking Yes/No loop on top via this class's own showConfirmDialog()
+    // override two methods above (same SOptionPane-backed blocking dialog every other in-match
+    // confirm in this class already uses), rather than building new dialog/threading machinery.
+    // Every non-Adventure IGuiGame implementation (network play, any future one) never reaches
+    // this override at all - IGuiGame.revealAnteCards()'s default just calls reveal() directly.
+    @Override
+    public void revealAnteCards(final String title, final List<CardView> items, final java.util.function.Supplier<List<CardView>> reroll) {
+        if (!Forge.isMobileAdventureMode) {
+            reveal(title, items);
+            return;
+        }
+        List<CardView> currentItems = items;
+        // Escalating cost (2026-08-16, user spec: "add +50% shards, per re-roll, starting at the
+        // 50 shards we currently have") - rerollCount tracks how many times THIS ante reveal has
+        // already been re-rolled; cost = scaledCost(base) * rate^rerollCount, so reroll 1 is the
+        // plain base cost, reroll 2 is 1.5x that, reroll 3 is 1.5x again, etc. Resets to the base
+        // cost fresh the next time a duel's ante is rolled (a new call to this method entirely).
+        int rerollCount = 0;
+        while (true) {
+            reveal(title, currentItems);
+            AdventurePlayer player = AdventurePlayer.current();
+            if (player == null) {
+                System.out.println("[TFR-AnteReroll] AdventurePlayer.current() is null - skipping offer entirely");
+                break;
+            }
+            TuningData tuning = Config.instance().getTuningData();
+            int baseCost = EconomyBuildings.scaledCost(tuning.anteRerollBaseShardCost);
+            int cost = Math.round(baseCost * (float) Math.pow(tuning.anteRerollEscalationRate, rerollCount));
+            // ALWAYS offer the confirm (2026-08-17 user report: "I did not see the Ante Re-roll
+            // option") - the previous version pre-checked affordability and silently skipped the
+            // whole dialog when the player couldn't afford it, which reads identically to "the
+            // feature doesn't exist" from the player's side. Now the player always sees the cost
+            // and gets a clear "not enough Shards" message if they pick Re-roll anyway, instead of
+            // the option just never appearing with no explanation.
+            System.out.println("[TFR-AnteReroll] offering reroll " + (rerollCount + 1) + " - cost=" + cost
+                    + " shards, player has " + player.getShards());
+            boolean wantsReroll = showConfirmDialog(
+                    "Re-roll this ante for " + cost + " Shards?", "Re-roll Ante", "Re-roll", "Keep", false);
+            if (!wantsReroll)
+                break;
+            if (player.getShards() < cost) {
+                System.out.println("[TFR-AnteReroll] declined - insufficient shards");
+                message("You don't have enough Shards for this Re-roll (need " + cost + ", have "
+                        + player.getShards() + ").", "Not Enough Shards");
+                break;
+            }
+            player.takeShards(cost);
+            currentItems = reroll.get();
+            rerollCount++;
+        }
     }
 
     @Override

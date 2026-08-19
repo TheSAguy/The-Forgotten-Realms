@@ -992,27 +992,7 @@
   "rewards": [
    {
     "type": "item",
-    "count": 1,
-    "itemName": "Manasight Stone"
-   },
-   {
-    "type": "item",
-    "count": 1,
-    "itemName": "Staff of Flight"
-   },
-   {
-    "type": "item",
-    "count": 1,
-    "itemName": "Staff of Healing"
-   },
-   {
-    "type": "item",
-    "count": 1,
-    "itemName": "Staff of Speed"
-   },
-   {
-    "type": "item",
-    "count": 2,
+    "count": 6,
     "itemRarity": "Weighted"
    }
   ]
@@ -1024,27 +1004,7 @@
   "rewards": [
    {
     "type": "item",
-    "count": 1,
-    "itemName": "Manasight Stone"
-   },
-   {
-    "type": "item",
-    "count": 1,
-    "itemName": "Staff of Flight"
-   },
-   {
-    "type": "item",
-    "count": 1,
-    "itemName": "Staff of Healing"
-   },
-   {
-    "type": "item",
-    "count": 1,
-    "itemName": "Staff of Speed"
-   },
-   {
-    "type": "item",
-    "count": 4,
+    "count": 8,
     "itemRarity": "Weighted"
    }
   ]
@@ -1442,6 +1402,372 @@
     ],
     "colors": [
      "white"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Instant6Black",
+  "description": "Sudden Death",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "InstantShop",
+  "overlaySprite": "Overlay6Black",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ],
+    "colors": [
+     "black"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Instant6Blue",
+  "description": "Mind Games",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "InstantShop",
+  "overlaySprite": "Overlay6Blue",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ],
+    "colors": [
+     "blue"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Instant6Green",
+  "description": "Primal Commands",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "InstantShop",
+  "overlaySprite": "Overlay6Green",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ],
+    "colors": [
+     "green"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Instant6Red",
+  "description": "Furnace of Rath",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "InstantShop",
+  "overlaySprite": "Overlay6Red",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ],
+    "colors": [
+     "red"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Instant6White",
+  "description": "Gerrard's Wisdom",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "InstantShop",
+  "overlaySprite": "Overlay6White",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Instant",
+     "Sorcery"
+    ],
+    "colors": [
+     "white"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "GenerousShop",
+  "description": "The Generous Trader",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "ItemShop",
+  "overlaySprite": "Overlay6Green",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Creature",
+     "Enchantment",
+     "Instant",
+     "Sorcery"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Creature",
+     "Enchantment",
+     "Instant",
+     "Sorcery"
+    ],
+    "colors": [
+     "green"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "MedalShop",
+  "description": "Arena Trophy Case",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "ItemShop",
+  "rewards": [
+   {
+    "type": "item",
+    "count": 1,
+    "itemName": "Medal of the Outnumbered"
+   },
+   {
+    "type": "item",
+    "count": 1,
+    "itemName": "Medal of the Outgunned"
+   },
+   {
+    "type": "item",
+    "count": 1,
+    "itemName": "Medal of the Outmaneuvered"
+   },
+   {
+    "type": "item",
+    "count": 1,
+    "itemName": "Medal of the Outmatched"
+   },
+   {
+    "type": "item",
+    "count": 1,
+    "itemName": "Medal of the Overpowered Opponent"
+   },
+   {
+    "type": "item",
+    "count": 1,
+    "itemName": "Medal of the Overwhelmed Champion"
+   }
+  ]
+ },
+ {
+  "name": "BloomburrowBoosters",
+  "description": "Bloomburrow Boosters",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "BoosterShop",
+  "overlaySprite": "Overlay4Green",
+  "rewards": [
+   {
+    "type": "cardPackShop",
+    "count": 4,
+    "editions": [
+     "BLB"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "EldraineBoosters",
+  "description": "Eldraine Boosters",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "BoosterShop",
+  "overlaySprite": "Overlay4White",
+  "rewards": [
+   {
+    "type": "cardPackShop",
+    "count": 4,
+    "editions": [
+     "ELD"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "OutlawBoosters",
+  "description": "Thunder Junction Boosters",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "BoosterShop",
+  "overlaySprite": "Overlay4White",
+  "rewards": [
+   {
+    "type": "cardPackShop",
+    "count": 4,
+    "editions": [
+     "OTJ"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "WanderingMerchantBlack",
+  "description": "Wandering Merchant",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "CreatureShop",
+  "overlaySprite": "Overlay6Black",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Creature",
+     "Instant",
+     "Sorcery",
+     "Enchantment"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Creature",
+     "Instant",
+     "Sorcery",
+     "Enchantment"
+    ],
+    "colors": [
+     "black"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "WanderingMerchantBlue",
+  "description": "Wandering Merchant",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "CreatureShop",
+  "overlaySprite": "Overlay6Blue",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Creature",
+     "Instant",
+     "Sorcery",
+     "Enchantment"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Creature",
+     "Instant",
+     "Sorcery",
+     "Enchantment"
+    ],
+    "colors": [
+     "blue"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "WanderingMerchantGreen",
+  "description": "Wandering Merchant",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "CreatureShop",
+  "overlaySprite": "Overlay6Green",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Creature",
+     "Instant",
+     "Sorcery",
+     "Enchantment"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Creature",
+     "Instant",
+     "Sorcery",
+     "Enchantment"
+    ],
+    "colors": [
+     "green"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "WanderingMerchantRed",
+  "description": "Wandering Merchant",
+  "spriteAtlas": "maps/tileset/buildings.atlas",
+  "sprite": "CreatureShop",
+  "overlaySprite": "Overlay6Red",
+  "rewards": [
+   {
+    "count": 2,
+    "cardTypes": [
+     "Creature",
+     "Instant",
+     "Sorcery",
+     "Enchantment"
+    ]
+   },
+   {
+    "count": 6,
+    "cardTypes": [
+     "Creature",
+     "Instant",
+     "Sorcery",
+     "Enchantment"
+    ],
+    "colors": [
+     "red"
     ]
    }
   ]

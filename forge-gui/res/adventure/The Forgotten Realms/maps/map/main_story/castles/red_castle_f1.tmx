@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="6" nextobjectid="58">
+ <editorsettings>
+  <export target="wastetown..tmx" format="tmx"/>
+ </editorsettings>
+ <properties>
+  <property name="dungeonEffect">{&quot;startBattleWithCardInCommandZone&quot;: [ &quot;Lathliss' Presence&quot; ]
+}</property>
+ </properties>
+ <tileset firstgid="1" source="../../../../../common/maps/tileset/main.tsx"/>
+ <tileset firstgid="10113" source="../../../../../common/maps/tileset/buildings.tsx"/>
+ <tileset firstgid="11905" source="../../../../../Innistrad/maps/tileset/INN_dungen_crawler_tileset.tsx"/>
+ <layer id="1" name="Background" width="30" height="30">
+  <data encoding="base64" compression="zlib">
+   eJw7bc3AcHoUY2B8YCDsHLV36McvLruJ1UNtu2ntz1E8ikfxKB7Fo3gUj+JRPPgxAPu6ajI=
+  </data>
+ </layer>
+ <layer id="2" name="Ground" width="30" height="30">
+  <data encoding="base64" compression="zlib">
+   eJwz4WNgMBnFo3gUj2IKsTkQXwXiK1hodIxNnRmZ9poCMTr4zI4phkvcmEJ7G/kZGJpIwM381LFXXoCBQYEErCgwau+ovaP2jto7MPbuBZqzDwtWxSG+n0r24gJKAvjlR+0lDs/kZWCYhgNP54XYOxWPmhm85NlLKCxA9pLrp5FqLwAXi+WN
+  </data>
+ </layer>
+ <layer id="3" name="Foreground" width="30" height="30">
+  <properties>
+   <property name="spriteLayer" type="bool" value="true"/>
+  </properties>
+  <data encoding="base64" compression="zlib">
+   eJzt0jERACAMBMFUIAH/GjGAhXyRhtktr74qgL+clXXouDvr0OErJviKxANqBgYX
+  </data>
+ </layer>
+ <layer id="5" name="AboveSprites" width="30" height="30">
+  <data encoding="base64" compression="zlib">
+   eJztwQEBAAAAgiD/r25IQAEAAPBoDhAAAQ==
+  </data>
+ </layer>
+ <objectgroup id="4" name="Objects">
+  <object id="51" template="../../../../../common/maps/obj/entry_up.tx" x="209" y="480">
+   <properties>
+    <property name="teleport" value=""/>
+   </properties>
+  </object>
+  <object id="52" template="../../../../../common/maps/obj/enemy.tx" x="195.509" y="264.061" width="32" height="32">
+   <properties>
+    <property name="defeatDialog">[{
+   &quot;condition&quot;: [{&quot;checkQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;, &quot;not&quot;:true}],
+   &quot;text&quot;: &quot;As you land your final blow against Lathliss, you feel a significant pulse of mana.&quot;,
+   &quot;options&quot;: [{
+      &quot;name&quot;: &quot;(Continue)&quot;, 
+      &quot;action&quot;: [{&quot;setQuestFlag&quot;: {&quot;key&quot;:&quot;Ch1RedCastleComplete&quot;, &quot;val&quot;: 1} }, {&quot;deleteMapObject&quot;: -1}, {&quot;advanceQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}]
+   }]
+},
+{
+   &quot;condition&quot;: [{&quot;checkQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}],
+   &quot;text&quot;: &quot;As you land your final blow against Lathliss, you feel another pulse of mana.&quot;,
+   &quot;options&quot;: [{
+      &quot;name&quot;: &quot;(Continue)&quot;, 
+      &quot;action&quot;: [{&quot;setQuestFlag&quot;: {&quot;key&quot;:&quot;Ch1RedCastleComplete&quot;, &quot;val&quot;: 1} }, {&quot;deleteMapObject&quot;: -1}, {&quot;advanceQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}]
+   }]
+}]</property>
+    <property name="effect">{
+ &quot;startBattleWithCard&quot;: [ &quot;Mox Ruby&quot; ]
+}</property>
+    <property name="enemy" value="Lathliss"/>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;item&quot;,
+    &quot;probability&quot;: 0.05,
+    &quot;count&quot;: 1,
+    &quot;itemName&quot;: &quot;Warren Tender's Baton&quot;
+  },
+  {
+    &quot;type&quot;: &quot;item&quot;,
+    &quot;probability&quot;: 0.02,
+    &quot;count&quot;: 1,
+    &quot;itemName&quot;: &quot;Prayerbook of Ire&quot;
+  },
+  {
+    &quot;type&quot;: &quot;item&quot;,
+    &quot;probability&quot;: 0.40,
+    &quot;count&quot;: 1,
+    &quot;itemName&quot;: &quot;Robes of Omniscience&quot;
+
+  },
+  {
+    &quot;type&quot;: &quot;gold&quot;,
+    &quot;count&quot;: 200,
+    &quot;addMaxCount&quot;: 100
+ }
+]</property>
+    <property name="spawn.Hard" type="bool" value="false"/>
+    <property name="spawn.Insane" type="bool" value="false"/>
+    <property name="threatRange" type="int" value="50"/>
+   </properties>
+  </object>
+  <object id="57" template="../../../obj/stone.tx" x="200.509" y="269.061"/>
+  <object id="56" template="../../../../../common/maps/obj/enemy.tx" x="195.103" y="271.379" width="32" height="32">
+   <properties>
+    <property name="defeatDialog">[{
+     &quot;condition&quot;: [{&quot;checkQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;, &quot;not&quot;:true}],
+     &quot;text&quot;: &quot;As you land your final blow against Lathliss, you feel a significant pulse of mana.&quot;,
+     &quot;options&quot;: [{
+        &quot;name&quot;: &quot;(Continue)&quot;,
+        &quot;action&quot;: [{&quot;setQuestFlag&quot;: {&quot;key&quot;:&quot;Ch1RedCastleComplete&quot;, &quot;val&quot;: 1} }, {&quot;deleteMapObject&quot;: -1}, {&quot;advanceQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}]
+     }]
+  },
+  {
+     &quot;condition&quot;: [{&quot;checkQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}],
+     &quot;text&quot;: &quot;As you land your final blow against Lathliss, you feel another pulse of mana.&quot;,
+     &quot;options&quot;: [{
+        &quot;name&quot;: &quot;(Continue)&quot;,
+        &quot;action&quot;: [{&quot;setQuestFlag&quot;: {&quot;key&quot;:&quot;Ch1RedCastleComplete&quot;, &quot;val&quot;: 1} }, {&quot;deleteMapObject&quot;: -1}, {&quot;advanceQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}]
+     }]
+  }]</property>
+    <property name="effect" value="{ &quot;startBattleWithCardInCommandZone&quot;: [ &quot;Lathliss' Presence (Hard Mode)&quot;]}"/>
+    <property name="enemy" value="Lathliss"/>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;item&quot;,
+    &quot;probability&quot;: 0.05,
+    &quot;count&quot;: 1,
+    &quot;itemName&quot;: &quot;Warren Tender's Baton&quot;
+  },
+  {
+    &quot;type&quot;: &quot;item&quot;,
+    &quot;probability&quot;: 0.02,
+    &quot;count&quot;: 1,
+    &quot;itemName&quot;: &quot;Prayerbook of Ire&quot;
+  },
+  {
+    &quot;type&quot;: &quot;item&quot;,
+    &quot;probability&quot;: 0.40,
+    &quot;count&quot;: 1,
+    &quot;itemName&quot;: &quot;Robes of Omniscience&quot;
+
+  },
+  {
+    &quot;type&quot;: &quot;gold&quot;,
+    &quot;count&quot;: 200,
+    &quot;addMaxCount&quot;: 100
+ }
+]</property>
+    <property name="spawn.Easy" type="bool" value="false"/>
+    <property name="spawn.Hard" type="bool" value="true"/>
+    <property name="spawn.Normal" type="bool" value="false"/>
+    <property name="threatRange" type="int" value="50"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

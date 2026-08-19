@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template>
+ <tileset firstgid="1" source="../../../common/maps/tileset/buildings.tsx"/>
+ <object name="Wood" type="reward" gid="509" width="16" height="16">
+  <properties>
+   <property name="reward">[
+  {
+    "type": "wood",
+    "count": 10,
+    "addMaxCount": 5
+ }
+]</property>
+   <property name="spawn.Easy" type="bool" value="true"/>
+   <property name="spawn.Hard" type="bool" value="true"/>
+   <property name="spawn.Normal" type="bool" value="true"/>
+   <property name="spawn.Insane" type="bool" value="true"/>
+   <property name="sprite" value="sprites/wood.atlas"/>
+  </properties>
+ </object>
+</template>

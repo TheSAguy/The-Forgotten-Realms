@@ -12,6 +12,12 @@ public class DifficultyData {
     public int startingLife=10;
     public int startingShards=1;
     public int startingMoney=10;
+    // Starting Wood/Stone (2026-08-15 user spec: "give Easy 100 Wood and Stone to start with,
+    // and Normal 50 Wood and Stone") - 0 default for any difficulty tier that doesn't set these,
+    // same "unset means the base default" convention every other DifficultyData field already
+    // follows.
+    public int startingWood=0;
+    public int startingStone=0;
     public float enemyLifeFactor=1;
     public boolean startingDifficulty;
     public int spawnRank = 1; //0 for "easy", 1 for "normal", 2 for "hard". To filter map spawns based on this.

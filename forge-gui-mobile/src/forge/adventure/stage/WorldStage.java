@@ -58,6 +58,14 @@ public class WorldStage extends GameStage implements SaveFileContent {
     // ColorReputation.getSpawnIntrusionMultiplier() scales it by relationship) - user request
     // 2026-08-10, MOD_SCOPE.md #7 follow-up.
     private static final float SPAWN_INTRUSION_BASE_CHANCE = 0.25f;
+    // Colorless/Wasteland mix-in for player territory (user request 2026-08-14): player.json's own
+    // roster is a fraction of the size of any color biome's (72 vs 440+, MOD_SCOPE.md #19's own
+    // "player territory feels dead" gap only partially closed), so a small, unconditional chance
+    // pulls from the Wasteland roster instead - deliberately independent of the foreign-color
+    // intrusion mechanism above (no proximity/reputation gating, no diplomatic meaning, just more
+    // spawn variety on the player's own land) and much smaller than that mechanism's 25% base, per
+    // the user's own framing. Tune here if it feels off in either direction.
+    private static final float PLAYER_COLORLESS_MIX_CHANCE = 0.08f;
     private PointOfInterestMapSprite collidingPoint;
     protected ArrayList<Pair<Float, EnemySprite>> enemies = new ArrayList<>();
     private final static Float dieTimer = 20f;//todo config
@@ -74,11 +82,15 @@ public class WorldStage extends GameStage implements SaveFileContent {
     private boolean waitingForTime = false;
     // Debug "100x Speed" toggle (see GameHUD's speed checkbox) - fast-forwards the day/night
     // clock for testing. Multiplies only the delta passed to advanceTime(), nothing else runs
-    // faster (spawns, movement, etc. are unaffected). Raised from 50x per explicit request to
-    // speed up Territory Control playtesting (MOD_SCOPE.md #7) - each in-game day now passes
-    // roughly twice as fast in real time.
+    // faster (spawns, movement, etc. are unaffected). Was raised from 50x to speed up Territory
+    // Control playtesting (MOD_SCOPE.md #7); moved to the new tuning.json 2026-08-14 (user
+    // request) and its default put back to 50 there - see TuningData.java. HUD checkbox label
+    // renamed the same round from "100x Speed" to "Speed-Up" (en-US.properties lblFastTimeToggle)
+    // since the actual multiplier is no longer a fixed, nameable number.
     private boolean fastTimeEnabled = false;
-    private static final float FAST_TIME_MULTIPLIER = 100f;
+    private static float fastTimeMultiplier() {
+        return Config.instance().getTuningData().speedUpMultiplier;
+    }
 
     public WorldStage() {
         super();
@@ -258,7 +270,7 @@ public class WorldStage extends GameStage implements SaveFileContent {
         if (player.isMoving() || waitingForTime) {
             World world = WorldSave.getCurrentSave().getWorld();
             int dayBefore = world.getCurrentDay();
-            world.advanceTime(fastTimeEnabled ? delta * FAST_TIME_MULTIPLIER : delta);
+            world.advanceTime(fastTimeEnabled ? delta * fastTimeMultiplier() : delta);
             int dayAfter = world.getCurrentDay();
             if (dayAfter != dayBefore) {
                 EconomyBuildings.processDaysPassed(dayAfter - dayBefore, dayAfter);
@@ -266,6 +278,12 @@ public class WorldStage extends GameStage implements SaveFileContent {
                 DungeonRotation.processDaysPassed(dayAfter);
                 QuestExpiry.processDaysPassed(dayAfter);
                 world.checkFogOfWarStage2(this::refreshBackgroundTile);
+                // World Standings line-chart history (2026-08-15) - checked on every real day
+                // advance, but recordStandingsHistoryIfNewWeek() itself no-ops unless the week
+                // number actually changed, so this doesn't spam a snapshot every single day.
+                java.util.Map<String, Integer> standingsCounts = TerritoryControl.getTownCounts(world);
+                standingsCounts.remove("Colorless"); // chart is 5 AI colors + Player only
+                world.recordStandingsHistoryIfNewWeek(standingsCounts);
             }
             // Per frame while moving, not just on day change - pickups are walk-over, so the
             // collection check has to track the player's live position (cheap; see its comment).
@@ -555,13 +573,21 @@ public class WorldStage extends GameStage implements SaveFileContent {
     // uses for an ordinary menu exit. If this turns out too harsh (or not harsh enough), the save
     // itself is untouched either way.
     private void triggerCapitolDefeat() {
+        triggerGameLost("[RED]Your Capitol has fallen![]\nWithout it, your hold on this realm is lost.");
+    }
+
+    /** Generalized run-over dialog (2026-08-15) - the message-agnostic body of what was
+     *  triggerCapitolDefeat(), split out so the new "no towns left anywhere" lose condition
+     *  (TerritoryControl.onMageArrived()'s post-capture check) can end the run through the exact
+     *  same mechanism with its own explanation. Public: TerritoryControl lives in another package. */
+    public void triggerGameLost(String message) {
         Forge.advFreezePlayerControls = true;
         Dialog dialog = getDialog();
         dialog.getContentTable().clear();
         dialog.getButtonTable().clear();
         dialog.clearListeners();
 
-        TypingLabel label = Controls.newTypingLabel("[RED]Your Capitol has fallen![]\nWithout it, your hold on this realm is lost.");
+        TypingLabel label = Controls.newTypingLabel(message);
         label.setWrap(true);
         label.skipToTheEnd();
         dialog.getContentTable().add(label).width(250f).row();
@@ -670,6 +696,70 @@ public class WorldStage extends GameStage implements SaveFileContent {
         return spawn(WorldData.getEnemy(enemy));
     }
 
+    // Territory Effects (MOD_SCOPE.md #17, user spec 2026-08-14 - the first concrete numbers ever
+    // given for this item; before this round it was only a "candidate effect, none committed" in
+    // the doc, confirmed via a direct code search that nothing implemented it yet). Multiplicative
+    // with the existing road/sprint modifiers in handleMonsterSpawn() below - a road through
+    // hostile land still gets its own flat 1.5x, unaffected (this only applies to the off-road
+    // case, the only one with a well-defined "whose biome is this" lookup already on hand without
+    // unmasking the road bit from a road tile's own highestBiome() result). All 5 percentages are
+    // user-tunable via tuning.json (TuningData.java) rather than hardcoded here.
+    // Diagnostic logging state (standing practice, CLAUDE.md) - this modifier recomputes every
+    // frame from handleMonsterSpawn(), so logging every call would flood forge.log; only log when
+    // the biome name OR the computed modifier actually changed (a reputation-tier crossing can
+    // change the modifier while the player stays on one continuously-named biome, e.g. standing
+    // still during a fight that shifts that color's reputation - biome-name-only tracking missed
+    // that case, adversarial review finding 2026-08-15). Reset in clearCache() (called by load())
+    // so a stale value from a previous session's last-logged biome can't suppress the first real
+    // entry after loading a save; a brand new game doesn't route through clearCache() at all, so
+    // this reset doesn't cover that path - narrow, cosmetic-only residual gap, not worth new
+    // new-game-init plumbing to close.
+    private String lastLoggedSpeedBiome = null;
+    private float lastLoggedSpeedModifier = Float.NaN;
+
+    // Floor (2026-08-15 adversarial review finding): tuning.json's penalty percentages are
+    // user-editable with no validation anywhere in the load path. An edited value >= 1.0 would
+    // drive this to zero or negative, and libGDX's Vector2.setLength() squares its argument
+    // (discarding sign) while also being unable to un-zero an already-zeroed vector via a later
+    // call - either outcome silently breaks player movement rather than just being "extra harsh."
+    // Ships safe today (max shipped penalty is 0.10), but the accessor itself should never be able
+    // to produce an unusable result regardless of what a modder puts in the config.
+    private static final float MIN_TERRITORY_SPEED_MODIFIER = 0.1f;
+
+    private float territorySpeedModifier(BiomeData data) {
+        if (data == null || data.name == null)
+            return 1f;
+        TuningData tuning = Config.instance().getTuningData();
+        float modifier;
+        if ("player".equals(data.name)) {
+            modifier = 1f + tuning.playerTerritorySpeedBonus;
+        } else if (!ColorReputation.isEnabled()) {
+            modifier = 1f;
+        } else {
+            boolean isAiColor = false;
+            for (String c : ColorReputation.COLORS)
+                if (c.equals(data.name)) { isAiColor = true; break; }
+            if (!isAiColor) {
+                modifier = 1f; // colorless/wasteland/ocean/base - no effect
+            } else {
+                switch (ColorReputation.getStatus(data.name)) {
+                    case PARTNER: modifier = 1f + tuning.aiTerritoryPartnerSpeedBonus; break;
+                    case HAPPY: modifier = 1f + tuning.aiTerritoryHappySpeedBonus; break;
+                    case UNHAPPY: modifier = 1f - tuning.aiTerritoryUnhappySpeedPenalty; break;
+                    case WAR: modifier = 1f - tuning.aiTerritoryWarSpeedPenalty; break;
+                    default: modifier = 1f; break; // Neutral
+                }
+            }
+        }
+        modifier = Math.max(MIN_TERRITORY_SPEED_MODIFIER, modifier);
+        if (!data.name.equals(lastLoggedSpeedBiome) || modifier != lastLoggedSpeedModifier) {
+            lastLoggedSpeedBiome = data.name;
+            lastLoggedSpeedModifier = modifier;
+            System.out.println("[TFR-TerritorySpeed] entered '" + data.name + "' terrain, move modifier now " + modifier + "x");
+        }
+        return modifier;
+    }
+
     private void handleMonsterSpawn(float delta) {
         for (EnemySprite questSprite : AdventureQuestController.instance().getQuestSprites()) {
             if (!foregroundSprites.getChildren().contains(questSprite, true)) {
@@ -685,9 +775,9 @@ public class WorldStage extends GameStage implements SaveFileContent {
             player.setMoveModifier(1.5f * sprintingMod);
             return;
         }
-        player.setMoveModifier(1.0f * sprintingMod);
         BiomeData data = biomeData.get(currentBiome);
         if (data == null) return;
+        player.setMoveModifier(1.0f * sprintingMod * territorySpeedModifier(data));
 
         spawnDelay -= delta;
         if (spawnDelay >= 0) return;
@@ -720,6 +810,18 @@ public class WorldStage extends GameStage implements SaveFileContent {
                         data = intruding;
                     }
                 }
+            }
+        }
+
+        // Colorless/Wasteland mix-in (user request 2026-08-14, see PLAYER_COLORLESS_MIX_CHANCE's
+        // own comment) - only when this roll is still genuinely on the player's own biome (an
+        // intrusion substitution above already picked a different roster for this roll, and
+        // shouldn't be double-overridden by an unrelated mechanic).
+        if ("player".equals(data.name) && rand.nextFloat() < PLAYER_COLORLESS_MIX_CHANCE) {
+            BiomeData colorless = findBiomeByName(biomeData, "colorless");
+            if (colorless != null) {
+                System.out.println("[TFR-ColorlessMix] player territory -> colorless mix-in fired (chance=" + PLAYER_COLORLESS_MIX_CHANCE + ")");
+                data = colorless;
             }
         }
 
@@ -985,6 +1087,12 @@ public class WorldStage extends GameStage implements SaveFileContent {
         ResourceSpawns.forceResync();
         background.clear();
         player = null;
+        // A loaded save's first tile should always get its own log line, not get silently
+        // suppressed by matching whatever biome name/modifier happened to be logged last in a
+        // previous session on this same long-lived singleton (see territorySpeedModifier()'s own
+        // comment).
+        lastLoggedSpeedBiome = null;
+        lastLoggedSpeedModifier = Float.NaN;
     }
 
     @Override

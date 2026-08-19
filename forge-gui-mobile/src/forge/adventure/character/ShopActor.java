@@ -5,14 +5,13 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
 import forge.Forge;
 import forge.adventure.data.ShopData;
-import forge.adventure.player.AdventurePlayer;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.scene.RewardScene;
 import forge.adventure.scene.TileMapScene;
-import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.MapStage;
 import forge.adventure.util.ColorReputation;
+import forge.adventure.util.Config;
 import forge.adventure.util.EconomyBuildings;
 import forge.adventure.util.MapDialog;
 import forge.adventure.util.Reward;
@@ -60,7 +59,26 @@ public class ShopActor extends MapActor {
         PointOfInterestChanges changes = stage.getChanges();
         float townPricemodifier = changes == null ? 1f : changes.getTownPriceModifier();
         float shopPriceModifier = changes == null ? 1f : changes.getShopPriceModifier(objectId);
-        return shopPriceModifier * townPricemodifier * colorReputationModifier();
+        return shopPriceModifier * townPricemodifier * colorReputationModifier() * ownershipBaseModifier(changes);
+    }
+
+    // Ownership base price adjustment (2026-08-17 user spec: "cards bought at AI shops 25% more
+    // expensive... 25% cheaper at player shops... before any other discounts/increases like
+    // reputation, relations, etc" - to push the player toward building their own shops and
+    // researching set unlocks instead of just buying everywhere). A fourth multiplicative factor
+    // alongside the three above - composes on top, doesn't replace any of them. Player-owned
+    // covers a restored town OR the Capitol (isCurrentTownPlayerOwned(), not the narrower
+    // isTownRestored() colorReputationModifier() uses above - that one gets away with skipping
+    // the Capitol case only because colorOfTown() already returns null for it too, which would
+    // have silently left the Capitol's own shops out of the player discount here). Neutral towns
+    // (Spawn) get neither adjustment, same as colorReputationModifier()'s own neutral case.
+    private float ownershipBaseModifier(PointOfInterestChanges changes) {
+        if (TownRestoration.isCurrentTownPlayerOwned(changes))
+            return Config.instance().getTuningData().playerShopPriceMultiplier;
+        PointOfInterest point = TileMapScene.instance().rootPoint;
+        if (point != null && ColorReputation.colorOfTown(point.getData()) != null)
+            return Config.instance().getTuningData().aiShopPriceMultiplier;
+        return 1f;
     }
 
     // Color reputation (MOD_SCOPE.md #1) consequence: card prices in a color's town scale with
@@ -89,6 +107,8 @@ public class ShopActor extends MapActor {
             MapDialog dialog;
             if (!TownRestoration.isTownRestored(stage)) {
                 dialog = TownRestoration.buildShopLockedDialog(stage, objectId);
+            } else if (!TownRestoration.hasReputationForAnotherBuilding(stage.getChanges())) {
+                dialog = TownRestoration.buildReputationLockedDialog(stage, objectId);
             } else if (fixedShop || EconomyBuildings.isSpecialShop(shopData)) {
                 // Booster/Armory shops skip the Bank/Exchange/Industry conversion choice
                 // entirely - see EconomyBuildings.buildSimpleRepairDialog().
@@ -126,30 +146,11 @@ public class ShopActor extends MapActor {
                 EconomyBuildings.openArchaeologistDialog(stage, objectId);
                 return;
             default:
-                // Guaranteed first-Armory Torch (user spec, 2026-08-13): the very first time the
-                // player opens ANY Armory-family shop they actually own (isCurrentTownPlayerOwned
-                // - never an AI capital's own colored Equipment/Items shops, matching the gate
-                // those buttons already use), grant a Torch directly to inventory instead of
-                // forcing it into the shop's FOR-SALE stock - characterFlags-gated, resets each
-                // new playthrough. A first draft tried forcing it into a Weighted reward slot at
-                // generation time, but adversarial review found that BLOCKING: every one of the
-                // shop's own OTHER regeneration paths (MapStage.loadMap()'s weekly auto-reseed,
-                // promptRerollArmory()/promptUpgradeArmory()/promptRerollShopType() in
-                // RewardScene.java) calls the plain, non-forced generate() overload, so the
-                // guaranteed Torch could get silently rerolled away before the player ever bought
-                // it - with the one-shot flag already burned granting nothing. A direct grant has
-                // no such staleness window: nothing else can un-grant an item already sitting in
-                // inventoryItems.
-                if (EconomyBuildings.isArmoryShop(shopData) && TownRestoration.isCurrentTownPlayerOwned(changes)
-                        && !AdventurePlayer.current().checkCharacterFlag("firstArmoryTorchGranted")) {
-                    AdventurePlayer.current().setCharacterFlag("firstArmoryTorchGranted", 1);
-                    if (AdventurePlayer.current().addItem("Torch")) {
-                        GameHUD.getInstance().addNotification("A Torch was tucked away in the Armory - it's yours!");
-                        System.out.println("[TFR-FirstArmoryTorch] granted at objectId=" + objectId + " shop=" + shopData.name);
-                    } else {
-                        System.err.println("[TFR-FirstArmoryTorch] \"Torch\" item not found in catalog - flag set, nothing granted");
-                    }
-                }
+                // Guaranteed first-Armory Torch (user spec, 2026-08-13, redesigned 2026-08-14 -
+                // see EconomyBuildings.injectGuaranteedTorchIfOwed()'s own comment for the full
+                // history): now injected directly into the shop's for-sale stock at every
+                // regeneration site instead of granted to inventory here on open - nothing to do
+                // at collision time any more.
                 // Straight into the shop - a destroyable shop's Destroy Building button lives on
                 // the RewardScene page itself (user revision 2026-08-09; a first version's
                 // Enter/Destroy/Leave pre-dialog cost an extra click on every visit).
@@ -247,6 +248,20 @@ public class ShopActor extends MapActor {
 
     public void setFixedShop(boolean fixedShop) {
         this.fixedShop = fixedShop;
+    }
+
+    // Weekly auto-refresh flag (2026-08-15) - set by MapStage from the tmx's own noRestock
+    // property, since RewardScene can no longer infer it from !canRestock(): the widened ordinary
+    // card shops now have BOTH a weekly auto-reseed and a paid restock button at once. Same
+    // "MapStage tells the actor at construction" pattern as setFixedShop() above.
+    private boolean weeklyRefresh;
+
+    public void setWeeklyRefresh(boolean weeklyRefresh) {
+        this.weeklyRefresh = weeklyRefresh;
+    }
+
+    public boolean isWeeklyRefresh() {
+        return weeklyRefresh;
     }
 
     public boolean isUnlimited() {

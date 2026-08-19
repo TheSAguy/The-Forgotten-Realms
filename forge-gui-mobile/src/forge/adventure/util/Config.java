@@ -41,6 +41,7 @@ public class Config {
     private final String commonPrefix;
     private final HashMap<String, FileHandle> Cache = new HashMap<>();
     private ConfigData configData;
+    private TuningData tuningData;
     private final String[] adventures;
     private SettingData settingsData;
     private String Lang = "en-us";
@@ -118,6 +119,31 @@ public class Config {
             e.printStackTrace();
             configData = new ConfigData();
         }
+
+        // Tuning file (2026-08-14 user request): same plane-local/fallback-to-common load pattern
+        // as config.json above, but for numeric game-balance tunables rather than boolean feature
+        // flags. Stock planes (Shandalar etc.) have no settings.json at all, so `file.exists()` is
+        // false for both the plane-local AND common paths - the try/catch below then falls back
+        // to a plain `new TuningData()`, i.e. TuningData's own hardcoded defaults, silently. No
+        // stack trace printed for that expected case (only a genuinely malformed settings.json
+        // should print one) - checked via file.exists() first, same as configData intentionally
+        // does NOT do (a missing config.json IS unexpected there, since every plane has one).
+        // Relocated 2026-08-16 (user request): was "tuning.json" directly under the plane folder,
+        // now "config tables/settings.json" alongside items.csv/enemies.csv - same subfolder,
+        // same class (TuningData), just a moved/renamed backing file.
+        FileHandle tuningFile = new FileHandle(prefix + "config tables/settings.json");
+        if (!tuningFile.exists())
+            tuningFile = new FileHandle(commonPrefix + "config tables/settings.json");
+        if (tuningFile.exists()) {
+            try {
+                tuningData = new Json().fromJson(TuningData.class, tuningFile);
+            } catch (Exception e) {
+                e.printStackTrace();
+                tuningData = new TuningData();
+            }
+        } else {
+            tuningData = new TuningData();
+        }
     }
 
     private String resPath() {
@@ -139,6 +165,10 @@ public class Config {
 
     public ConfigData getConfigData() {
         return configData;
+    }
+
+    public TuningData getTuningData() {
+        return tuningData;
     }
 
     // Push the plane's allowed/restricted editions and restricted token pairs into TokenDb.

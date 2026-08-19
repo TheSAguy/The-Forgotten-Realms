@@ -107,6 +107,11 @@ public class WorldSave {
                     // requirement as the Capitol repair above (reads pointOfInterestChanges flags).
                     forge.adventure.util.TownRestoration.repairAllTownVisionReveal(currentSave.world);
                     forge.adventure.util.TownRestoration.updateTownLifeBonus(false);
+                    // Player/AI edition-shard exclusivity (2026-08-16) - idempotent migration for
+                    // saves whose shards were seeded before the race-edition reservation existed
+                    // (same pattern as the two repair calls above): strips the player's race
+                    // editions from the AI color shards on every load, no-op once clean.
+                    forge.adventure.util.EditionProgression.reservePlayerEditions(currentSave.world, currentSave.player);
                     // Re-derive the minimap fog overlay now that the vision cache is real -
                     // World.load()'s own rebuild ran before pointOfInterestChanges loaded, so its
                     // Revealed tier (owned-town vision circles) was computed against an empty
@@ -197,6 +202,11 @@ public class WorldSave {
 
         Deck starterDeck = Config.instance().starterDeck(startingColorIdentity, diff, mode, customDeckIndex, starterEdition);
         currentSave.player.create(name, starterDeck, male, race, avatarIndex, chaos, custom, diff, mode);
+        // Player/AI edition exclusivity (2026-08-16 user spec) - the shard seeding inside
+        // world.generateNew() above ran before this player existed, so the player's race
+        // editions are pulled back OUT of the AI color shards here, right after create()
+        // establishes who the player is.
+        forge.adventure.util.EditionProgression.reservePlayerEditions(currentSave.world, currentSave.player);
 
         currentSave.player.setWorldPosY((int) (currentSave.world.getData().playerStartPosY * currentSave.world.getData().height * currentSave.world.getTileSize()));
         currentSave.player.setWorldPosX((int) (currentSave.world.getData().playerStartPosX * currentSave.world.getData().width * currentSave.world.getTileSize()));

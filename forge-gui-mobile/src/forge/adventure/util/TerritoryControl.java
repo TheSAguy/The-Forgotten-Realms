@@ -187,25 +187,39 @@ public class TerritoryControl {
     //   is load-bearing for world-gen placement/neutralize sweeps and must stay 20.
     private static final float AI_CASTLE_PULL_WEIGHT = 0.85f;
     private static final int AI_CASTLE_EXCLUSION_RADIUS_TILES = 32;
-    // 3 -> 9 per user (2026-08-08): TEMPORARY testing pace so the full spread is watchable in a
-    // session or two - AI castles only now (2026-08-14: Capitol and ordinary towns split off their
-    // own, much slower real-pacing rates below, per the user's original intent noted here).
-    private static final int EXPANSION_TILES_PER_DAY = 9;
-    // Capitol growth pacing (2026-08-14 user spec): down from the shared 9-tiles/day testing pace
-    // to the real slow-burn value - "just like the AI's" castle mechanism, but its own rate.
-    private static final int CAPITOL_EXPANSION_TILES_PER_DAY = 1;
-    private static final int MAX_TERRITORY_RADIUS = 450; // raised 300 -> 450 per user request 2026-08-08
+    // Territory pacing (2026-08-14, moved to the new tuning.json - see TuningData.java): all 5 of
+    // these used to be hardcoded static final constants (3 -> 9 tiles/day per user 2026-08-08,
+    // later split into separate Capitol/town/AI-castle rates 2026-08-14, with AI castles left at
+    // the flat 9/day testing pace "not requested to change" at the time). The user has since
+    // confirmed via real playtest log data that 9/day was still active for AI castles and asked
+    // for 1/day max - now user-tunable via Config.instance().getTuningData() instead of requiring
+    // a code change for every future rebalance. Each accessor is a thin wrapper so every existing
+    // call site below reads exactly like it did as a constant.
+    private static int expansionTilesPerDay() {
+        return Config.instance().getTuningData().aiCastleExpansionTilesPerDay;
+    }
+    private static int capitolExpansionTilesPerDay() {
+        return Config.instance().getTuningData().capitolExpansionTilesPerDay;
+    }
+    public static int maxTerritoryRadius() {
+        return Config.instance().getTuningData().maxTerritoryRadius;
+    }
     // Captured towns grow their own small territory too (user request 2026-08-08: "for captured
-    // towns, let's have them expand to 15") - from RECOLOR_RADIUS at capture up to this. Per-town
-    // current radius lives in World.townTerritoryRadius, seeded at capture (onMageArrived() for
-    // AI, TownRestoration's restore path for the player). A planned "outlook" building will later
-    // raise this further per town.
-    public static final int TOWN_MAX_TERRITORY_RADIUS = 15;
-    // Town growth pacing (2026-08-14 user spec): 1 tile per 7 days, down from the 9-tiles/day rate
-    // towns previously shared with AI castles/the Capitol. A per-day rate can't express "1 tile
-    // per week" as a whole number, so town growth tracks each town's own last-grew day
-    // (World.townLastGrowthDay) instead of a flat per-tick multiply - see its use below.
-    private static final int TOWN_EXPANSION_DAYS_PER_TILE = 7;
+    // towns, let's have them expand to 15", raised +5 to 20 per user request 2026-08-14) - from
+    // RECOLOR_RADIUS at capture up to this. Per-town current radius lives in
+    // World.townTerritoryRadius, seeded at capture (onMageArrived() for AI, TownRestoration's
+    // restore path for the player). A planned "outlook" building will later raise this further
+    // per town.
+    public static int townMaxTerritoryRadius() {
+        return Config.instance().getTuningData().townMaxTerritoryRadius;
+    }
+    // Town growth pacing: 1 tile per N days (N tunable, was a hardcoded 7), down from the
+    // 9-tiles/day rate towns previously shared with AI castles/the Capitol. A per-day rate can't
+    // express "1 tile per week" as a whole number, so town growth tracks each town's own last-grew
+    // day (World.townLastGrowthDay) instead of a flat per-tick multiply - see its use below.
+    private static int townExpansionDaysPerTile() {
+        return Config.instance().getTuningData().townExpansionDaysPerTile;
+    }
 
     // Roaming-spawn intrusion radius (user request 2026-08-10: "if a colored city is in the area,
     // that color might spawn in a certain radius"). Deliberately larger than CASTLE_KEEP_RADIUS_TILES
@@ -305,6 +319,14 @@ public class TerritoryControl {
             return;
         float keepRadiusWorld = CASTLE_KEEP_RADIUS_TILES * (float) world.getTileSize();
         for (String color : COLORS) {
+            // Color Defeat (2026-08-14): a real, blocking bug caught by adversarial review - this
+            // method runs unconditionally on EVERY load, so without this skip it would resurrect a
+            // fresh capital next to a defeated color's still-standing castle every single time the
+            // player reloads their save, directly undoing defeatColor()'s terrain sweep (which
+            // deliberately leaves the castle itself in place as the sweep's own anchor tile,
+            // meaning findCastle() below keeps succeeding for a defeated color forever).
+            if (world.isColorDefeated(color))
+                continue;
             PointOfInterest castle = findCastle(world, color);
             if (castle == null)
                 continue; // no castle at all - nothing sane to anchor a capital to
@@ -382,6 +404,11 @@ public class TerritoryControl {
             return;
         World world = WorldSave.getCurrentSave().getWorld();
         for (String color : COLORS) {
+            // Color Defeat (2026-08-14): a defeated color never attacks again - no timer upkeep,
+            // no dispatch, nothing. buildPullSources() below has its own equivalent skip so a
+            // defeated color's castle also stops contesting territory expansion.
+            if (world.isColorDefeated(color))
+                continue;
             Integer next = world.getColorNextAttackDay(color);
             if (next == null) {
                 // First time this color's timer is touched (fresh world, or a save predating this
@@ -432,6 +459,16 @@ public class TerritoryControl {
         Map<String, List<float[]>> sources = new LinkedHashMap<>();
         for (String color : COLORS) {
             List<float[]> list = new ArrayList<>();
+            // Color Defeat (2026-08-14): a defeated color contests no territory at all - its
+            // terrain was already fully swept to colorless by defeatColor(), and any towns/
+            // capitals it still nominally "owns" per isColorTownOrCapital() (shouldn't exist post-
+            // sweep, but defensive) shouldn't re-project a pull source either. Empty list, not a
+            // missing key - keeps `sources` structurally consistent for every caller that assumes
+            // every COLORS entry is present.
+            if (world.isColorDefeated(color)) {
+                sources.put(color, list);
+                continue;
+            }
             Vector2 castle = castlePositions.get(color);
             // AI castles get the buffed pull weight and the wider exclusion ring (2026-08-13,
             // see the constants' own comment) - the player Capitol below stays castle-grade.
@@ -525,7 +562,7 @@ public class TerritoryControl {
                 townRadius = RECOLOR_RADIUS; // restored before per-town radius state existed - seed now
                 world.setTownTerritoryRadius(poi.getID(), townRadius);
             }
-            if (townRadius >= TOWN_MAX_TERRITORY_RADIUS)
+            if (townRadius >= townMaxTerritoryRadius())
                 continue;
             String ownerColor = null;
             if (playerOwned) {
@@ -549,10 +586,10 @@ public class TerritoryControl {
                 lastGrowthDay = currentDay;
                 world.setTownLastGrowthDay(poi.getID(), lastGrowthDay);
             }
-            int tilesEarned = (currentDay - lastGrowthDay) / TOWN_EXPANSION_DAYS_PER_TILE;
+            int tilesEarned = (currentDay - lastGrowthDay) / townExpansionDaysPerTile();
             if (tilesEarned <= 0)
                 continue; // hasn't been a full week since this town's last growth tick
-            int newTownRadius = Math.min(townRadius + tilesEarned, TOWN_MAX_TERRITORY_RADIUS);
+            int newTownRadius = Math.min(townRadius + tilesEarned, townMaxTerritoryRadius());
             // Radius + fog-of-war Revealed cache advance BEFORE the claim, so the claim's own
             // per-tile chunk re-bakes see the grown vision area (order-bug finding)...
             world.setTownTerritoryRadius(poi.getID(), newTownRadius);
@@ -566,7 +603,7 @@ public class TerritoryControl {
                 // Only spend the earned week(s) on an actual successful claim - a blocked attempt
                 // (below) keeps its earned tile(s) banked and retries next tick, same spirit as
                 // the per-day mechanism never permanently losing progress to a temporary block.
-                world.setTownLastGrowthDay(poi.getID(), lastGrowthDay + tilesEarned * TOWN_EXPANSION_DAYS_PER_TILE);
+                world.setTownLastGrowthDay(poi.getID(), lastGrowthDay + tilesEarned * townExpansionDaysPerTile());
             } else {
                 // REVERTED when the ring took no ground at all (fully blocked by an AI
                 // color / rivals): advancing anyway would grow the town's protection cap and its
@@ -611,13 +648,20 @@ public class TerritoryControl {
         lastPullSourcesFingerprint = fingerprint;
 
         for (String color : COLORS) {
+            // Color Defeat (2026-08-14, adversarial review finding): without this skip, a defeated
+            // color's radius (explicitly zeroed by defeatColor()) silently regrows every day toward
+            // MAX_TERRITORY_RADIUS again - buildPullSources() already leaves it an empty pull-source
+            // list so claimWastelandRing() correctly claims 0 tiles regardless, but the radius
+            // bookkeeping and its diagnostic log line would otherwise run forever for no reason.
+            if (world.isColorDefeated(color))
+                continue;
             Integer currentRadius = world.getColorTerritoryRadius(color);
             if (currentRadius == null)
                 continue;
             Vector2 castlePosition = castlePositions.get(color);
             if (castlePosition == null)
                 continue;
-            int newRadius = Math.min(currentRadius + EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
+            int newRadius = Math.min(currentRadius + expansionTilesPerDay() * daysPassed, maxTerritoryRadius());
             int innerRadius;
             if (sourcesChanged) {
                 // Full-disc re-contest, KEEP outward (2026-08-08 pentagon-stall fix): tiles
@@ -637,7 +681,7 @@ public class TerritoryControl {
                 world.setColorTerritoryRadius(color, newRadius);
             // Radius AND claimed-count in the log - "radius grows but the map never changes" is
             // exactly how the pentagon stall stayed invisible; a claimed-tile count can't hide.
-            System.out.println("[TerritoryControl] " + color + ": territory radius now " + newRadius + "/" + MAX_TERRITORY_RADIUS
+            System.out.println("[TerritoryControl] " + color + ": territory radius now " + newRadius + "/" + maxTerritoryRadius()
                     + ", claimed " + claimed + " tile(s) this tick" + (sourcesChanged ? " (full re-contest)" : ""));
         }
 
@@ -677,7 +721,7 @@ public class TerritoryControl {
                 currentRadius = CASTLE_KEEP_RADIUS_TILES; // first tick after the upgrade
                 world.setColorTerritoryRadius("player", currentRadius);
             }
-            int newRadius = Math.min(currentRadius + CAPITOL_EXPANSION_TILES_PER_DAY * daysPassed, MAX_TERRITORY_RADIUS);
+            int newRadius = Math.min(currentRadius + capitolExpansionTilesPerDay() * daysPassed, maxTerritoryRadius());
             int innerRadius;
             if (sourcesChanged) {
                 // Inner radius 1, not the keep: unlike an AI castle (whose keep was generated as
@@ -725,7 +769,7 @@ public class TerritoryControl {
                     world.revealArea(tx, ty, 1, WorldStage.getInstance()::refreshBackgroundTile);
                 }
                 System.out.println("[TerritoryControl] player: Capitol territory radius now "
-                        + (advanced ? newRadius : currentRadius) + "/" + MAX_TERRITORY_RADIUS
+                        + (advanced ? newRadius : currentRadius) + "/" + maxTerritoryRadius()
                         + ", claimed " + claimed + " tile(s) this tick"
                         + (grew && !advanced ? " (growth blocked, radius held)" : "")
                         + (sourcesChanged ? " (full re-contest)" : ""));
@@ -741,11 +785,39 @@ public class TerritoryControl {
     // EnemyData.tier - display names are Apprentice/Adept/Master/Grandmaster (#58's rename).
     private static final String[] DISPATCH_TIERS = {"Common", "Uncommon", "Rare", "Mythic"};
     private static final float[] DISPATCH_TIER_CUMULATIVE = {30f, 80f, 95f, 100f};
+    // Color Defeat tier-shift (2026-08-14 user spec, stacking per additional defeat): per
+    // defeated color, Adept -10 / Master +5 / Grandmaster +5, Apprentice untouched. Clamped so
+    // Adept can't go negative - at 5 defeats (the max possible) it lands exactly on 0, so the
+    // clamp is defensive, not load-bearing for the intended range.
+    private static final float DISPATCH_TIER_SHIFT_PER_DEFEAT_ADEPT = 10f;
+    private static final float DISPATCH_TIER_SHIFT_PER_DEFEAT_MASTER = 5f;
+    private static final float DISPATCH_TIER_SHIFT_PER_DEFEAT_GRANDMASTER = 5f;
 
-    private static String rollDispatchMageTier(Random random) {
+    private static float[] dispatchTierCumulative(World world) {
+        int defeats = world == null ? 0 : world.getDefeatedColorCount();
+        if (defeats <= 0)
+            return DISPATCH_TIER_CUMULATIVE;
+        float apprentice = DISPATCH_TIER_CUMULATIVE[0]; // 30, unshifted
+        float adeptShare = Math.max(0f, (DISPATCH_TIER_CUMULATIVE[1] - DISPATCH_TIER_CUMULATIVE[0])
+                - DISPATCH_TIER_SHIFT_PER_DEFEAT_ADEPT * defeats); // baseline 50
+        float masterShare = (DISPATCH_TIER_CUMULATIVE[2] - DISPATCH_TIER_CUMULATIVE[1])
+                + DISPATCH_TIER_SHIFT_PER_DEFEAT_MASTER * defeats; // baseline 15
+        float grandmasterShare = (DISPATCH_TIER_CUMULATIVE[3] - DISPATCH_TIER_CUMULATIVE[2])
+                + DISPATCH_TIER_SHIFT_PER_DEFEAT_GRANDMASTER * defeats; // baseline 5
+        // Sums grandmasterShare in rather than hardcoding the final boundary to 100f (adversarial
+        // review 2026-08-14: with the shipped constants these are numerically identical today -
+        // ADEPT_SHIFT(10) == MASTER_SHIFT(5)+GRANDMASTER_SHIFT(5), so the three shares always summed
+        // back to 100 anyway - but a hardcoded 100f made DISPATCH_TIER_SHIFT_PER_DEFEAT_GRANDMASTER
+        // completely inert: tuning it alone would have silently changed nothing).
+        return new float[]{apprentice, apprentice + adeptShare, apprentice + adeptShare + masterShare,
+                apprentice + adeptShare + masterShare + grandmasterShare};
+    }
+
+    private static String rollDispatchMageTier(Random random, World world) {
+        float[] cumulative = dispatchTierCumulative(world);
         float roll = random.nextFloat() * 100f;
-        for (int i = 0; i < DISPATCH_TIER_CUMULATIVE.length; i++)
-            if (roll < DISPATCH_TIER_CUMULATIVE[i])
+        for (int i = 0; i < cumulative.length; i++)
+            if (roll < cumulative[i])
                 return DISPATCH_TIERS[i];
         return "Mythic"; // unreachable (last boundary is 100), kept as a safe fallback
     }
@@ -801,7 +873,7 @@ public class TerritoryControl {
         for (EnemySprite mage : WorldStage.getInstance().getTerritoryMages())
             if (color.equals(mage.territoryColor))
                 activeMages++;
-        int cap = maxActiveMagesPerColor();
+        int cap = maxActiveMagesPerColor(world);
         if (activeMages >= cap) {
             System.out.println("[TerritoryControl] " + color + ": " + activeMages + " mage(s) already in flight (cap " + cap + "), skipping dispatch");
             return;
@@ -816,59 +888,99 @@ public class TerritoryControl {
         if (attackable.isEmpty())
             return; // nothing left to capture - the natural "done" state, quietly no-op forever
 
-        attackable.sort(Comparator.comparingDouble(t -> distToNearestSource(t, ownedSources)));
-        int candidateCount = Math.min(NEAREST_CANDIDATES, attackable.size());
-        // Color reputation (MOD_SCOPE.md #1) consequence, the user's chosen meaning of "less/
-        // more likely to be attacked": among the nearest candidates, a PLAYER-OWNED town's odds
-        // of being picked scale with the player's standing with the dispatching color (Partner
-        // x0.75 ... severe tier x1.25). Non-player towns keep weight 1.0, so with no player
-        // towns in the candidate set this is exactly the old uniform pick. (This is the
-        // reputation gate the original targeting design deferred - "eventually meant to be
-        // gated by a reputation scale once #1 exists".)
-        List<PointOfInterest> candidates = new ArrayList<>(attackable.subList(0, candidateCount));
-        List<Float> weights = new ArrayList<>();
-        float totalWeight = 0f;
-        for (PointOfInterest candidate : candidates) {
-            boolean playerOwned = TownRestoration.isTownRestored(
-                    WorldSave.getCurrentSave().peekPointOfInterestChanges(candidate.getID()));
-            float weight = playerOwned ? ColorReputation.getPlayerTownAttackWeight(color) : 1f;
-            weights.add(weight);
-            totalWeight += weight;
-        }
-        // Color reputation (MOD_SCOPE.md #1) Capitol targeting (user request 2026-08-10): the
-        // player's Capitol is never a normal candidate (it's neither neutral nor an enemy-color
-        // town), and is fully exempt from this color's attacks at Partner/Happy. At War it becomes
-        // attackable via a flat weight bonus equal to 5% of the pool's total - stacking with the
-        // ordinary reputation multiplier above (user decision) - added as a 6th candidate, or ON
-        // TOP of its existing weight if it already landed among the 5 nearest by distance (defensive;
-        // in practice it never does, since "Player Capitol" matches neither isWastelandTown() nor
-        // an enemy-color town check). Neutral/Unhappy leave the Capitol untouched - only War and
-        // Partner/Happy have user-specified rules.
-        PointOfInterest capitol = TownRestoration.findCapitol();
-        if (capitol != null && ColorReputation.getStatus(color) == ColorReputation.Status.WAR) {
-            float bonus = totalWeight / 19f; // solves bonus / (totalWeight + bonus) == 0.05
-            int existingIndex = candidates.indexOf(capitol);
-            if (existingIndex >= 0)
-                weights.set(existingIndex, weights.get(existingIndex) + bonus);
-            else {
-                candidates.add(capitol);
-                weights.add(bonus);
+        PointOfInterest target = null;
+        // Color Defeat forced-targeting (2026-08-14 user spec): a one-shot flag armed when a
+        // neighboring color falls (see defeatColor()) forces this color's NEXT dispatch to hit a
+        // player-owned target with 100% probability, bypassing the weighted pick below entirely.
+        // Searches the FULL attackable list (not just the nearest NEAREST_CANDIDATES) plus the
+        // Capitol - "the next attack WILL be a player town" shouldn't depend on whether a player
+        // town happens to be nearby right now. If the player owns nothing yet, the flag stays
+        // ARMED (not consumed) and this dispatch falls through to the ordinary pick below -
+        // there's nothing to force yet, but the guarantee still applies to a later dispatch once
+        // the player does own something.
+        if (world.hasForcedPlayerTarget(color)) {
+            List<PointOfInterest> playerTargets = new ArrayList<>();
+            for (PointOfInterest candidate : attackable) {
+                if (TownRestoration.isTownRestored(WorldSave.getCurrentSave().peekPointOfInterestChanges(candidate.getID())))
+                    playerTargets.add(candidate);
             }
-            totalWeight += bonus;
-        }
-        float originalRoll = world.getRandom().nextFloat() * totalWeight;
-        float roll = originalRoll;
-        int pick = candidates.size() - 1;
-        for (int i = 0; i < candidates.size(); i++) {
-            roll -= weights.get(i);
-            if (roll <= 0f) {
-                pick = i;
-                break;
+            // The Capitol satisfies TownRestoration.isWastelandTown()/isTownRestored() the same as
+            // any restored town (upgradeToCapitol() stamps the same TOWN_RESTORED_FLAG), so the
+            // loop above may have already added it - guard against adding it twice (adversarial
+            // review 2026-08-14 caught a real bug here: an unconditional add gave the Capitol ~2x
+            // the intended uniform selection odds). Same dedup shape the pre-existing weighted-pick
+            // Capitol handling below already uses via candidates.indexOf().
+            PointOfInterest playerCapitol = TownRestoration.findCapitol();
+            if (playerCapitol != null && !playerTargets.contains(playerCapitol))
+                playerTargets.add(playerCapitol);
+            if (!playerTargets.isEmpty()) {
+                target = playerTargets.get(world.getRandom().nextInt(playerTargets.size()));
+                world.clearForcedPlayerTarget(color);
+                System.out.println("[TFR-ColorDefeat] " + color + ": forced-next-attack consumed, targeting " + target.getDisplayName());
             }
         }
-        PointOfInterest target = candidates.get(pick);
 
-        String dispatchTier = rollDispatchMageTier(world.getRandom());
+        // Hoisted above the forced-targeting/ordinary-pick branch below (2026-08-14) - the
+        // [TFR-Targeting] diagnostic dump further down reads these unconditionally, and a
+        // forced-target dispatch legitimately leaves them at empty/0 (there was no weighted pick
+        // to show) rather than undefined.
+        List<PointOfInterest> candidates = new ArrayList<>();
+        List<Float> weights = new ArrayList<>();
+        float originalRoll = 0f;
+        float totalWeight = 0f;
+        if (target == null) {
+            attackable.sort(Comparator.comparingDouble(t -> distToNearestSource(t, ownedSources)));
+            int candidateCount = Math.min(NEAREST_CANDIDATES, attackable.size());
+            // Color reputation (MOD_SCOPE.md #1) consequence, the user's chosen meaning of "less/
+            // more likely to be attacked": among the nearest candidates, a PLAYER-OWNED town's odds
+            // of being picked scale with the player's standing with the dispatching color (Partner
+            // x0.75 ... severe tier x1.25). Non-player towns keep weight 1.0, so with no player
+            // towns in the candidate set this is exactly the old uniform pick. (This is the
+            // reputation gate the original targeting design deferred - "eventually meant to be
+            // gated by a reputation scale once #1 exists".)
+            candidates.addAll(attackable.subList(0, candidateCount));
+            for (PointOfInterest candidate : candidates) {
+                boolean playerOwned = TownRestoration.isTownRestored(
+                        WorldSave.getCurrentSave().peekPointOfInterestChanges(candidate.getID()));
+                float weight = playerOwned ? ColorReputation.getPlayerTownAttackWeight(color) : 1f;
+                weights.add(weight);
+                totalWeight += weight;
+            }
+            // Color reputation (MOD_SCOPE.md #1) Capitol targeting (user request 2026-08-10): the
+            // player's Capitol is never a normal candidate (it's neither neutral nor an enemy-color
+            // town), and is fully exempt from this color's attacks at Partner/Happy. At War it becomes
+            // attackable via a flat weight bonus equal to 5% of the pool's total - stacking with the
+            // ordinary reputation multiplier above (user decision) - added as a 6th candidate, or ON
+            // TOP of its existing weight if it already landed among the 5 nearest by distance (defensive;
+            // in practice it never does, since "Player Capitol" matches neither isWastelandTown() nor
+            // an enemy-color town check). Neutral/Unhappy leave the Capitol untouched - only War and
+            // Partner/Happy have user-specified rules.
+            PointOfInterest capitol = TownRestoration.findCapitol();
+            if (capitol != null && ColorReputation.getStatus(color) == ColorReputation.Status.WAR) {
+                float bonus = totalWeight / 19f; // solves bonus / (totalWeight + bonus) == 0.05
+                int existingIndex = candidates.indexOf(capitol);
+                if (existingIndex >= 0)
+                    weights.set(existingIndex, weights.get(existingIndex) + bonus);
+                else {
+                    candidates.add(capitol);
+                    weights.add(bonus);
+                }
+                totalWeight += bonus;
+            }
+            originalRoll = world.getRandom().nextFloat() * totalWeight;
+            float roll = originalRoll;
+            int pick = candidates.size() - 1;
+            for (int i = 0; i < candidates.size(); i++) {
+                roll -= weights.get(i);
+                if (roll <= 0f) {
+                    pick = i;
+                    break;
+                }
+            }
+            target = candidates.get(pick);
+        }
+
+        String dispatchTier = rollDispatchMageTier(world.getRandom(), world);
         EnemyData enemyData;
         String enemyName;
         if ("Mythic".equals(dispatchTier)) {
@@ -920,7 +1032,7 @@ public class TerritoryControl {
     // 2 simultaneous mages per color on Easy, +1 per difficulty step up (Easy/Normal/Hard/Insane
     // -> 2/3/4/5, matching the user's spec exactly for the shipped 4-difficulty list). Unknown or
     // missing difficulty falls back to the Easy cap rather than guessing high.
-    private static int maxActiveMagesPerColor() {
+    private static int maxActiveMagesPerColor(World world) {
         DifficultyData playerDifficulty = Current.player().getDifficulty();
         DifficultyData[] allDifficulties = Config.instance().getConfigData().difficulties;
         int index = 0;
@@ -944,12 +1056,19 @@ public class TerritoryControl {
         // "count Capitol as a town" spec.
         int playerTowns = TownRestoration.countPlayerTowns() + (TownRestoration.capitolExists() ? 1 : 0);
         int townBonus = playerTowns / (11 - index);
-        int cap = 2 + index + townBonus;
+        // Color Defeat (2026-08-14 user spec, stacking): "+1 to the number of attacking mages
+        // [every remaining AI] can field" per additional color defeated - a shared/global cap
+        // (this method takes no per-color input even before this change), so it applies equally
+        // to every surviving color's dispatch() call, same as the difficulty/town-count terms
+        // already do. Defeated colors never call dispatch() at all (see processDaysPassed()'s own
+        // skip), so this term is simply moot for them.
+        int defeatBonus = world != null ? world.getDefeatedColorCount() : 0;
+        int cap = 2 + index + townBonus + defeatBonus;
         // Diagnostic logging standard (user request 2026-08-13) - the town-count scaling term is
         // otherwise invisible: the caller only ever sees the final cap, with no way to tell how
         // much of it came from the flat difficulty base vs. this rubber-band bonus.
         System.out.println("[TFR-MageCap] difficultyIndex=" + index + " playerTowns=" + playerTowns
-                + " divisor=" + (11 - index) + " townBonus=" + townBonus + " -> cap=" + cap);
+                + " divisor=" + (11 - index) + " townBonus=" + townBonus + " defeatBonus=" + defeatBonus + " -> cap=" + cap);
         return cap;
     }
 
@@ -1111,7 +1230,14 @@ public class TerritoryControl {
             if (!"town".equals(type) && !"capital".equals(type) && !"castle".equals(type))
                 continue;
             String color = colorOfPoiName(data.name, type);
-            if (color == null || color.equals(excludeColor))
+            // Color Defeat (2026-08-14, adversarial review finding): a defeated color's castle is
+            // deliberately left standing (it's defeatColor()'s own sweep anchor), so without this
+            // check it would keep matching here forever - triggering hostile roaming-spawn
+            // intrusion near its own ruins indefinitely, compounded by the flat -50 reputation
+            // penalty that same defeat applies (likely pushing straight into War-tier's 2.5x
+            // intrusion multiplier, the most hostile rate in the game, for a color that's supposed
+            // to be permanently gone).
+            if (color == null || color.equals(excludeColor) || world.isColorDefeated(color))
                 continue;
             float dist = poi.getPosition().dst(pos);
             if (dist < nearestDist) {
@@ -1413,6 +1539,19 @@ public class TerritoryControl {
         if (target == null || mage.territoryColor == null)
             return;
 
+        // Color Defeat (2026-08-14, found in real playtest log review - not caught by the earlier
+        // adversarial code review): a mage dispatched BEFORE its color was defeated is already in
+        // flight and keeps traveling toward its target regardless - without this check it still
+        // successfully captured towns (or worse, could still trigger the Capitol's run-ending
+        // forced duel below) for a color that's supposedly been wiped off the map. Confirmed from
+        // forge.log: White captured 2 more towns and Black captured 1 more, ALL after their own
+        // "[TFR-ColorDefeat] ... DEFEATED" log line, from mages dispatched earlier the same day.
+        // Silent fizzle (mirrors the existing "ally already took it" fizzle a few lines below) -
+        // the mage sprite itself is unconditionally removed by the caller (WorldStage.java) right
+        // after this returns, regardless of what happens here, so nothing further is needed.
+        if (WorldSave.getCurrentSave().getWorld().isColorDefeated(mage.territoryColor))
+            return;
+
         // Capitol defense (see field comment above): a mage reaching the player's own Capitol
         // never goes through the ordinary capture flow below - it queues a forced last-chance
         // duel instead. Checked by canonical data.name (immune to the Capitol's "Orazca"
@@ -1576,6 +1715,27 @@ public class TerritoryControl {
             message = displayName + " has fallen to " + capitalize(mage.territoryColor) + "!";
         System.out.println("[TerritoryControl] " + message);
         GameHUD.getInstance().addNotification(message);
+
+        // New lose condition (2026-08-15 user request): "if there are no neutral towns left and
+        // the player does not own any towns, they also lose" - covers a player who never built up
+        // any territory while the 5 colors absorbed every neutral town. Checked ONLY here, after a
+        // completed ownership change - every path that could make it true is an AI capture ending
+        // in this common tail (towns never despawn via dungeon rotation, capital repair never
+        // consumes neutrals, sacks/reverts CREATE neutrals, and the Capitol's own fall already
+        // ends the run via the forced-duel path before ever reaching this tail). Count semantics
+        // (see getTownCounts()'s own doc): a player-restored town counts in BOTH "Player" and
+        // "Colorless" (restoration is a flag, the "Waste Town" name stays), so Colorless==0 &&
+        // Player==0 is exactly "no neutrals AND player owns nothing" with no double-count risk;
+        // the capitolExists() term is redundant with Player==0 but self-documenting.
+        Map<String, Integer> loseCheckCounts = getTownCounts(world);
+        if (loseCheckCounts.getOrDefault("Colorless", 0) == 0
+                && loseCheckCounts.getOrDefault("Player", 0) == 0
+                && !TownRestoration.capitolExists()) {
+            System.out.println("[TFR-GameLost] no neutral towns remain and player owns nothing - run over");
+            WorldStage.getInstance().triggerGameLost("[RED]The last free town has fallen![]\n"
+                    + "Every town in the realm now flies an enemy banner, and none fly yours. "
+                    + "With nothing left to liberate and nowhere to build, your cause is lost.");
+        }
     }
 
     // "Waste Town Identity" + "green" -> "Forest Town Identity" - keeps the same Generic/Identity/
@@ -1621,5 +1781,169 @@ public class TerritoryControl {
             return PointOfInterestData.getPointOfInterest("Waste Town " + suffix);
         }
         return null;
+    }
+
+    // ==================== Color Defeat (MOD_SCOPE.md #61, user request 2026-08-14) ====================
+    // Endgame consequence for beating one of the 5 colored castles: that color's whole holding -
+    // every town, its capital, and all owned terrain, anywhere on the map - reverts to neutral
+    // wasteland, and 4 escalating consequences fire for the survivors. See MOD_CHANGELOG.md for
+    // the full design writeup; this block is the entire implementation.
+
+    // Boss-defeat dialog action ({"setQuestFlag": {"key":"Ch1BlackCastleComplete", "val": 1}} in
+    // each castle's own .tmx, confirmed by reading black_castle_f1.tmx directly) is the ONE real
+    // call site that ever sets these 5 flags - AdventurePlayer.setQuestFlag() is hooked below (via
+    // onCastleQuestFlagSet()) to catch it the moment it fires, regardless of whether the "Rescue
+    // the Captive" quest STAGE that also reads this flag completes correctly (a separate, pre-
+    // existing concern this feature doesn't depend on - only the flag write itself matters here).
+    // (2026-08-15 review finding: this comment previously said "MapStage.setQuestFlag()" - that
+    // method backs the differently-named "setMapFlag" JSON action and was the wrong hook point,
+    // caught by the 2026-08-14 adversarial review; AdventurePlayer.setQuestFlag() is the real one.)
+    private static final Map<String, String> CASTLE_COMPLETE_FLAG_TO_COLOR = new HashMap<>();
+    static {
+        CASTLE_COMPLETE_FLAG_TO_COLOR.put("Ch1BlackCastleComplete", "black");
+        CASTLE_COMPLETE_FLAG_TO_COLOR.put("Ch1BlueCastleComplete", "blue");
+        CASTLE_COMPLETE_FLAG_TO_COLOR.put("Ch1GreenCastleComplete", "green");
+        CASTLE_COMPLETE_FLAG_TO_COLOR.put("Ch1RedCastleComplete", "red");
+        CASTLE_COMPLETE_FLAG_TO_COLOR.put("Ch1WhiteCastleComplete", "white");
+    }
+
+    /** Called from MapStage.setQuestFlag() (real in-game trigger) and the "defeat castle" test
+     *  console command (same call, just fired from outside the castle map) - public so both call
+     *  sites, in different packages, can reach it. No-ops for any flag name that isn't one of the
+     *  5 above, or a value < 1 (a flag being cleared, not set - shouldn't happen for these in
+     *  practice, but defeat should never un-fire on a stray write). */
+    public static void onCastleQuestFlagSet(String flagName, int value) {
+        String color = CASTLE_COMPLETE_FLAG_TO_COLOR.get(flagName);
+        if (color == null || value < 1)
+            return;
+        defeatColor(WorldSave.getCurrentSave().getWorld(), color);
+    }
+
+    /** Reverse of CASTLE_COMPLETE_FLAG_TO_COLOR's lookup direction, for the "defeat castle" test
+     *  console command (ConsoleCommandInterpreter, a different package) to set the real flag on a
+     *  castle's own POI before triggering the same consequence a real boss kill would. Reconstructs
+     *  via the same capitalize() this file already uses everywhere else, rather than a second map
+     *  to keep in sync with CASTLE_COMPLETE_FLAG_TO_COLOR's own values. */
+    public static String castleCompleteFlagName(String color) {
+        if (COLOR_TOWN_NOUN.get(color) == null)
+            return null;
+        return "Ch1" + capitalize(color) + "CastleComplete";
+    }
+
+    /**
+     * The whole endgame consequence, idempotent (safe to call more than once - only the first call
+     * per color does anything). Order: terrain/town revert first (so the notification/log below
+     * can't ever fire without the actual world state change already applied), then the 4
+     * consequences, per user spec:
+     * <ul>
+     * <li>Reputation: flat -50 to the defeated color, deliberately NOT zero-sum (ColorReputation's
+     * net-zero invariant is for duel events - a color being wiped off the map isn't one, and
+     * redistributing the negation to the 4 survivors would be inventing a rule never asked for).
+     * The other 4 colors' reputation tracks are otherwise untouched and keep working normally
+     * (user: "we will still keep the reputation system work of all 5 colors").</li>
+     * <li>+1 simultaneous attacking-mage slot for every surviving color, stacking per additional
+     * defeat (maxActiveMagesPerColor() reads World.getDefeatedColorCount() directly - nothing
+     * further needed here beyond marking the color defeated).</li>
+     * <li>Attacker tier distribution shifts toward Master/Grandmaster for every surviving color's
+     * FUTURE dispatches, also stacking per defeat (rollDispatchMageTier() likewise reads
+     * getDefeatedColorCount() directly).</li>
+     * <li>The defeated color's 2 surviving allies each get a one-shot "next dispatch must target a
+     * player town" flag (dispatch() consumes it - see that method's own comment for what happens
+     * if the player owns nothing yet).</li>
+     * </ul>
+     */
+    public static void defeatColor(World world, String color) {
+        if (!isEnabled() || world == null || world.isColorDefeated(color))
+            return;
+
+        PointOfInterest castle = findCastle(world, color);
+        if (castle == null) {
+            // No sane anchor to sweep terrain from (a save predating this color ever placing a
+            // castle, or a stale test call) - still apply every consequence below, just skip the
+            // terrain/town revert since there's nothing to anchor it to.
+            System.out.println("[TFR-ColorDefeat] " + color + ": no castle found, applying consequences without a terrain sweep");
+        } else {
+            // Full sweep, not neutralizeAfterGeneration()'s "outside a keep radius" version -
+            // radius 0 means only the exact castle tile itself is close enough to "stay this
+            // color" (dx*dx+dy*dy <= 0), so every OTHER tile this color currently owns anywhere on
+            // the map (including ground far beyond any single town's radius, grown over many days
+            // by processTerritoryExpansion()) flips to colorless. Reuses the exact primitive
+            // world-gen already trusts for "revert everything a color owns" - see that method's
+            // own doc comment for why a full-map scan is acceptable here (one-time, not per-frame).
+            world.neutralizeTerritoryOutsideRadius(color, castle.getPosition(), 0,
+                    WorldStage.getInstance()::refreshBackgroundTile,
+                    WorldStage.getInstance()::reloadBackgroundChunkObjects);
+
+            // Town/Capital POIs: the biomeMap flip above changes what the GROUND looks like, but
+            // the town/capital POI objects themselves (their shops, their "this is a functioning
+            // town" state) are separate game objects that need their own transformInto() - same
+            // two-part pattern neutralizeAfterGeneration() uses at world-gen. isColorTownOrCapital()
+            // matches on CURRENT data.name, which transformInto() keeps up to date on every
+            // capture/recapture, so this correctly catches every town this color holds RIGHT NOW,
+            // whether it's an original world-gen town or one captured from a rival color earlier
+            // in this game.
+            int converted = 0;
+            for (PointOfInterest poi : new ArrayList<>(world.getAllPointOfInterest())) {
+                if (!isColorTownOrCapital(poi.getData(), color))
+                    continue;
+                PointOfInterestData wasteData = matchingWasteData(poi.getData(), color);
+                if (wasteData == null)
+                    continue;
+                poi.transformInto(wasteData, world.getRandom(), true); // keep the town's given name
+                converted++;
+            }
+            world.setColorTerritoryRadius(color, 0);
+            // Deliberately NOT calling world.regenerateDoodadsForBiome("waste") here (adversarial
+            // review 2026-08-14 caught a real bug in an earlier version that did): unlike
+            // neutralizeAfterGeneration()'s ONE-TIME world-gen call (after all 5 colors' sweeps are
+            // already done), this fires per-defeat, mid-game - a full-map scan/re-placement over
+            // EVERY tile currently classified "waste", not just this defeat's newly-converted ones,
+            // using World's live shared Random. A 2nd/3rd/etc. defeat would silently strip and
+            // re-randomize rocks/trees on ground an EARLIER defeat already settled (and the player
+            // may have already explored), as an unrelated side effect - plus a real perf cost,
+            // repeated per defeat instead of once. Trade-off accepted: this color's original
+            // doodads linger cosmetically on the newly-neutral ground (rocks/trees, not buildings -
+            // those already reskin correctly via neutralizeTerritoryOutsideRadius()) rather than
+            // risk visibly rewriting ground the player has already seen.
+            System.out.println("[TFR-ColorDefeat] " + color + ": terrain swept to neutral, " + converted + " town/capital POI(s) reverted");
+        }
+
+        world.setColorDefeated(color);
+        // Discoverability (2026-08-15 review finding): WorldStandingsScene reads this to tag the
+        // defeated color's row instead of showing a bare, indistinguishable-from-"hasn't expanded
+        // yet" 0.
+        world.setColorDefeatDay(color, world.getCurrentDay());
+        // A forced-target flag armed FOR this color by an earlier defeat (it was one of that
+        // color's surviving allies at the time) can never be consumed now - dispatch() is never
+        // called again for a defeated color (adversarial review 2026-08-14: without this, the flag
+        // is orphaned in the persisted Set forever, harmlessly but permanently).
+        world.clearForcedPlayerTarget(color);
+
+        if (ColorReputation.isEnabled())
+            ColorReputation.applyColorDefeatPenalty(color);
+
+        // Forced-next-attack (user spec): only the 2 colors ADJACENT to the defeated one on the
+        // wheel (its allies, per the same ALLIES table reputation/targeting already share), and
+        // only if that ally is itself still alive - a dead color never dispatches again, so arming
+        // it would just be a flag nobody ever consumes. Worked example (corrected 2026-08-14 -
+        // adversarial review caught the original text misreading its own ALLIES table): White's
+        // allies are Green and Blue (ALLIES.put("white", {"green","blue"}), not Red - Red is
+        // White's ENEMY). So if Green is already dead and White then falls, this arms only Blue
+        // (Green's other neighbor is already gone) - no widening to White's enemies.
+        List<String> armedAllies = new ArrayList<>();
+        for (String ally : ALLIES.getOrDefault(color, new String[0])) {
+            if (world.isColorDefeated(ally))
+                continue;
+            world.armForcedPlayerTarget(ally);
+            armedAllies.add(ally);
+        }
+
+        int defeats = world.getDefeatedColorCount();
+        System.out.println("[TFR-ColorDefeat] " + color + " DEFEATED (total defeated: " + defeats
+                + ") - rep penalty applied=" + ColorReputation.isEnabled()
+                + ", survivors' mage cap +" + defeats + ", forced-next-attack armed for " + armedAllies);
+
+        String message = capitalize(color) + " has fallen! Its lands crumble to ruin.";
+        GameHUD.getInstance().addNotification("[RED]" + message, true);
     }
 }

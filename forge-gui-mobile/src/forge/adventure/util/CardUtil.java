@@ -312,26 +312,59 @@ public class CardUtil {
 
     public static List<PaperCard> generateCards(Iterable<PaperCard> cards, final RewardData data, final int count,
             Random r) {
-        boolean allCardVariants = Config.instance().getSettingData().useAllCardVariants;
-
         final List<PaperCard> result = new ArrayList<>();
         List<PaperCard> pool = getPredicateResult(cards, data);
-        if (!pool.isEmpty()) {
+        if (pool.isEmpty())
+            return result;
+        if (data.uniqueCards) {
+            // Shop dedup (2026-08-15, screenshot audit: one shop showed 8/8 slots all the same
+            // card once the edition restriction shrank its legal pool to a single name; others
+            // showed birthday-paradox 2-of-8 repeats). Shuffle-a-copy-then-take-the-front, the
+            // exact pattern the ITEM reward path already established (RewardData's shuffledNames
+            // dedup) - gracefully caps at the pool's own unique-name count, so a sparse legal
+            // pool now shows FEWER cards instead of duplicates (sparse/empty shops under a tight
+            // edition restriction are explicitly intended per user). Name-keyed, not
+            // object-keyed - a sourceDeck-fed pool legitimately contains 4-ofs. OPT-IN via
+            // RewardData.uniqueCards (stamped only by EditionProgression.restrictToEditions()'s
+            // shop clones) - this method is shared with deck generation, which needs repeats and
+            // full counts.
+            List<PaperCard> shuffled = new ArrayList<>(pool);
+            java.util.Collections.shuffle(shuffled, r);
+            java.util.Set<String> takenNames = new java.util.HashSet<>();
+            for (PaperCard candidate : shuffled) {
+                if (result.size() >= count)
+                    break;
+                if (candidate == null || !takenNames.add(candidate.getCardName()))
+                    continue;
+                result.add(finishCandidate(candidate, data, r));
+            }
+        } else {
             for (int i = 0; i < count; i++) {
                 PaperCard candidate = pool.get(r.nextInt(pool.size()));
-                if (candidate != null) {
-                    candidate = remapToEditionList(candidate, data.editions, r);
-                    if (allCardVariants) {
-                        // Get a random variant, preserving edition when specified
-                        PaperCard finalCandidate = CardUtil.getCardByNameAndEdition(candidate.getCardName(), candidate.getEdition());
-                        result.add(finalCandidate);
-                    } else {
-                        result.add(candidate);
-                    }
-                }
+                if (candidate != null)
+                    result.add(finishCandidate(candidate, data, r));
             }
         }
         return result;
+    }
+
+    /** Shared per-pick finishing: printing remap, then the all-card-variants art re-roll, then a
+     *  SECOND remap (2026-08-15, printing-leak root cause): with useAllCardVariants on,
+     *  getCardByNameAndEdition() re-resolves the already-remapped card and its two fail-open
+     *  fallbacks return a printing from ANY edition (getCardByName() ignores RewardData.editions
+     *  entirely) - which silently undid the first remap and put SOI/DMR/VMA/ZNC printings of
+     *  legal cards on shop shelves (user screenshots, 2026-08-15). Re-remapping the variant
+     *  result guarantees the FINAL card is an in-list printing whenever one exists, regardless of
+     *  which fallback fired. */
+    private static PaperCard finishCandidate(PaperCard candidate, RewardData data, Random r) {
+        candidate = remapToEditionList(candidate, data.editions, r);
+        if (Config.instance().getSettingData().useAllCardVariants) {
+            // Get a random variant, preserving edition when specified
+            PaperCard variant = CardUtil.getCardByNameAndEdition(candidate.getCardName(), candidate.getEdition());
+            if (variant != null)
+                candidate = remapToEditionList(variant, data.editions, r);
+        }
+        return candidate;
     }
 
     /**

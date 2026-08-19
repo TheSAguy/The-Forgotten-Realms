@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="6" nextobjectid="58">
+ <editorsettings>
+  <export target="wastetown..tmx" format="tmx"/>
+ </editorsettings>
+ <properties>
+  <property name="dungeonEffect">{&quot;startBattleWithCardInCommandZone&quot;: [ &quot;Lorthos' Presence&quot; ]
+}</property>
+ </properties>
+ <tileset firstgid="1" source="../../../../../common/maps/tileset/main.tsx"/>
+ <tileset firstgid="10113" source="../../../../../common/maps/tileset/buildings.tsx"/>
+ <tileset firstgid="11905" source="../../../../../Innistrad/maps/tileset/Inn_Dungeon.tsx"/>
+ <tileset firstgid="16385" source="../../../../../Innistrad/maps/tileset/inn_main.tsx"/>
+ <tileset firstgid="26497" source="../../../../../common/maps/tileset/dungeon/dungeon_bis.tsx"/>
+ <layer id="1" name="Background" width="30" height="30">
+  <data encoding="base64" compression="zlib">
+   eJybxsnAMG0QYxAYKHtxgVF7h6e99Exv9PQrIT9TC98xoxwPhJ3kuoHe9mGzl1w3Uhq/1NSHLx1S4m5qpqvhbi8t43cw2jvS4pfcMmmwlM8jzd6R5mdS7US3G11sijxUXB67+ZTYic8thOylBaamvQBgsX2q
+  </data>
+ </layer>
+ <layer id="2" name="Ground" width="30" height="30">
+  <data encoding="base64" compression="zlib">
+   eJzt0NENQDAUheGzAGWBMgMGE1bBGGyH8KLiRUqDVuLBucmfPtwmX1o/AHzGGHMsVHWq1nDq6fvA0hUql/Ec3V4Cw4NG+Y5bRUD9oCaiS5cu3W/cJAZSrVluxiSPuyx+xz2bSnvb2dC9VymA3NDeNd0phJ179Rera/umv7oLGqrVjw==
+  </data>
+ </layer>
+ <layer id="3" name="Foreground" width="30" height="30">
+  <data encoding="base64" compression="zlib">
+   eJxjYBgFo2AUjIKhDXzKUPkibNjV4RKnFFzMY2C4lEe8eice6tgbmM/AEJRPHbMGM6BWeFEKtkHTT0QmA0MkEEdloorTGtwA2ncTiG9lYpdHzwfUAhFZQP8CcVQWhD9Y4mO4AFzph17pitaAVulysAJy6hla1E0DHe6F/hA6339g3TEKiAMAx90VHg==
+  </data>
+ </layer>
+ <layer id="5" name="AboveSprites" width="30" height="30">
+  <properties>
+   <property name="spriteLayer" type="bool" value="true"/>
+  </properties>
+  <data encoding="base64" compression="zlib">
+   eJztwQEBAAAAgiD/r25IQAEAAPBoDhAAAQ==
+  </data>
+ </layer>
+ <objectgroup id="4" name="Objects">
+  <object id="50" template="../../../../../common/maps/obj/enemy.tx" x="194.663" y="282.618" width="32" height="32">
+   <properties>
+    <property name="defeatDialog">[{
+   &quot;condition&quot;: [{&quot;checkQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;, &quot;not&quot;:true}],
+   &quot;text&quot;: &quot;As you land your final blow against Lorthos, you feel a significant pulse of mana. But with the immediate threat removed, you can now see clearly that the locked room at the north end of the chamber does not hold any prisoners.&quot;,
+   &quot;options&quot;: [{
+      &quot;name&quot;: &quot;(Continue)&quot;, 
+      &quot;action&quot;: [{&quot;setQuestFlag&quot;: {&quot;key&quot;:&quot;Ch1BlueCastleComplete&quot;, &quot;val&quot;: 1} }, {&quot;deleteMapObject&quot;: -1}, {&quot;advanceQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}]
+   }]
+},
+{
+   &quot;condition&quot;: [{&quot;checkQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}],
+   &quot;text&quot;: &quot;As you land your final blow against Lorthos, you feel another pulse of mana. But just as before, the locked room behind your fallen foe does not hold any prisoners.&quot;,
+   &quot;options&quot;: [{
+      &quot;name&quot;: &quot;(Continue)&quot;, 
+      &quot;action&quot;: [{&quot;setQuestFlag&quot;: {&quot;key&quot;:&quot;Ch1BlueCastleComplete&quot;, &quot;val&quot;: 1} }, {&quot;deleteMapObject&quot;: -1}, {&quot;advanceQuestFlag&quot;: &quot;Ch1CastlesComplete&quot;}]
+   }]
+}]</property>
+    <property name="effect">{
+ &quot;startBattleWithCard&quot;: [ &quot;Mox Sapphire&quot; ]
+}</property>
+    <property name="enemy" value="Lorthos"/>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;item&quot;,
+    &quot;probability&quot;: 0.10,
+    &quot;count&quot;: 1,
+    &quot;itemName&quot;: &quot;Amulet of Telepathy&quot;
+  },
+  {
+    &quot;type&quot;: &quot;item&quot;,
+    &quot;probability&quot;: 0.10,
+    &quot;count&quot;: 1,
+    &quot;itemName&quot;: &quot;Mantel of Denial&quot;
+  },
+  {
+    &quot;type&quot;: &quot;cardPackShop&quot;,
+    &quot;probability&quot;: 1,
+    &quot;count&quot;: 1,
+    &quot;editions&quot;: [&quot;CNS&quot;]
+  },
+  {
+    &quot;type&quot;: &quot;cardPackShop&quot;,
+    &quot;probability&quot;: 0.10,
+    &quot;count&quot;: 1,
+    &quot;editions&quot;: [&quot;CNS&quot;]
+  }
+]
+</property>
+    <property name="threatRange" type="int" value="50"/>
+   </properties>
+  </object>
+  <object id="57" template="../../../obj/stone.tx" x="199.663" y="287.618"/>
+  <object id="51" template="../../../../../common/maps/obj/entry_up.tx" x="209" y="480">
+   <properties>
+    <property name="teleport" value=""/>
+   </properties>
+  </object>
+  <object id="56" template="../../../../../common/maps/obj/collision.tx" x="132.193" y="177.883" width="24.4521" height="25.3043"/>
+ </objectgroup>
+</map>

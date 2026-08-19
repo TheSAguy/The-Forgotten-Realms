@@ -39,7 +39,7 @@
                     "Minor Demon",
                     "Ancient Demon",
                     "Big Zombie",
-                    "Black Sliver",
+                    "Sliver_Black",
                     "Challenger 20",
                     "Challenger 21",
                     "Challenger 22",
@@ -542,7 +542,9 @@
                              "DemonTower",
                              "CaveZombie",
                              "CaveBA",
-                             "DragonsLairBlack"
+                             "DragonsLairBlack",
+                             "Eclipsed Elven Court",
+                             "Isolated Hut"
                          ],
     "structures":  [
                        {

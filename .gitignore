@@ -103,3 +103,6 @@ __pycache__
 # EDHREC commander matrix tool intermediates
 forge-gui/tools/build
 forge-gui-ios/robovm.properties
+
+# Deploy-time backup files (never commit)
+*.round16bak

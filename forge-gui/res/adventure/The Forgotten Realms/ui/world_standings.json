@@ -21,11 +21,11 @@
     {
       "type": "Label",
       "name": "title",
-      "text": "World Standings",
+      "text": "[%55]The Forgotten Realms Standings",
       "fontColor": "black",
       "x": 25,
       "y": 25,
-      "width": 250,
+      "width": 247,
       "height": 20
     },
     {
@@ -54,6 +54,33 @@
       "height": 18,
       "x": 340,
       "y": 26
+    },
+    {
+      "type": "TextButton",
+      "name": "modDetailsInfo",
+      "text": "[%80]Mod Details",
+      "width": 133,
+      "height": 18,
+      "x": 272,
+      "y": 46
+    },
+    {
+      "type": "Label",
+      "name": "chartTitle",
+      "text": "[%75]Towns by Week",
+      "fontColor": "black",
+      "x": 225,
+      "y": 68,
+      "width": 143,
+      "height": 14
+    },
+    {
+      "type": "Table",
+      "name": "chartArea",
+      "x": 225,
+      "y": 84,
+      "width": 143,
+      "height": 124
     },
     {
       "type": "TextButton",

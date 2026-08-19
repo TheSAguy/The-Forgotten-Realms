@@ -119,20 +119,65 @@ public class DungeonRotation {
 
     private static final int QUEST_NONE = 0, QUEST_SIDE = 1, QUEST_STORY = 2;
 
-    // Whether an ACTIVE quest in the player's log currently targets this POI instance - the
+    // Whether a live quest in the player's log currently targets this POI instance - the
     // static "Sidequest" tag on POI data only marks quest-pool ELIGIBILITY and is deliberately
     // ignored here; what protects a dungeon is a live quest actually pointing at it.
+    // Checks EVERY still-pending stage's target, not just the currently-active stage's
+    // (2026-08-16 review finding: initialize() binds all stages' targets at quest generation,
+    // so a Clear stage behind an unmet prerequisite already holds a bound dungeon - the old
+    // getTargetPOI()-based check ignored it, and that dungeon could despawn before the player
+    // ever advanced far enough to need it).
     private static int activeQuestStatus(PointOfInterest poi) {
         int status = QUEST_NONE;
         for (AdventureQuestData quest : Current.player().getQuests()) {
-            PointOfInterest target = quest.getTargetPOI();
-            if (target == null || !target.getID().equals(poi.getID()))
-                continue;
-            if (quest.storyQuest)
-                return QUEST_STORY; // strongest protection wins
-            status = QUEST_SIDE;
+            for (PointOfInterest target : quest.getAllPendingTargetPOIs()) {
+                if (target == null || !target.getID().equals(poi.getID()))
+                    continue;
+                if (quest.storyQuest)
+                    return QUEST_STORY; // strongest protection wins
+                status = QUEST_SIDE;
+            }
         }
         return status;
+    }
+
+    /**
+     * Called by AdventureQuestStage the moment a quest stage binds this POI as its target
+     * (2026-08-16 user request: "confirm the dungeon actually exists... if not, we need to
+     * spawn that into existence. Also, when given we need to add 30 days to that location's
+     * despawn timer"). Two jobs: (1) if the chosen POI is currently a hidden reserve slot,
+     * force-spawn it - setActive(true), clear its cooldown/attempt bookkeeping, refresh the
+     * minimap - so a quest never points at a location the player can't see or enter; (2) either
+     * way, push its despawn day out by SIDEQUEST_EXTENSION_DAYS so the freshly-given quest has
+     * a guaranteed runway regardless of how far through its natural lifetime the dungeon
+     * already was. Harmless no-op for non-rotatable targets (towns, story dungeons, bosses) and
+     * on planes without rotation. May briefly leave one more dungeon active than
+     * poiActiveTarget - activateFromReserve() only ever fills UP to the target, never culls,
+     * so the density self-corrects at the next natural despawn.
+     */
+    public static void onQuestTargetBound(PointOfInterest poi) {
+        if (!isEnabled() || !isRotatable(poi))
+            return;
+        World world = WorldSave.getCurrentSave().getWorld();
+        int currentDay = world.getCurrentDay();
+        String id = poi.getID();
+        if (!poi.getActive()) {
+            poi.setActive(true);
+            world.getPoiRespawnDay().remove(id);
+            world.getPoiFailedAttempts().remove(id);
+            world.getPoiDespawnDay().put(id,
+                    currentDay + rollDays(world, DESPAWN_MIN_DAYS, DESPAWN_MAX_DAYS) + SIDEQUEST_EXTENSION_DAYS);
+            world.refreshWorldMapMarkers();
+            System.out.println("[DungeonRotation] " + poi.getDisplayName()
+                    + " force-spawned from reserve as a new quest target, despawns day " + world.getPoiDespawnDay().get(id));
+        } else {
+            Integer despawnDay = world.getPoiDespawnDay().get(id);
+            int base = despawnDay != null ? despawnDay
+                    : currentDay + rollDays(world, DESPAWN_MIN_DAYS, DESPAWN_MAX_DAYS);
+            world.getPoiDespawnDay().put(id, base + SIDEQUEST_EXTENSION_DAYS);
+            System.out.println("[DungeonRotation] quest target " + poi.getDisplayName()
+                    + " timer extended " + SIDEQUEST_EXTENSION_DAYS + " days, despawns day " + world.getPoiDespawnDay().get(id));
+        }
     }
 
     /** Called from WorldStage's day-change block, alongside the other daily systems. */
@@ -243,13 +288,52 @@ public class DungeonRotation {
             }
             hidePoi(world, poi, currentDay, "Your final attempt at " + poi.getDisplayName() + " has failed - it is lost!");
         } else {
-            hidePoi(world, poi, currentDay, poi.getDisplayName() + " has fallen - it fades from your maps.");
+            // 2026-08-19 user request: routine, non-quest despawns fire constantly over a normal
+            // playthrough - no popup for this case (the "N attempts remaining" side-quest warning
+            // above and the final-loss message stay, since those carry real quest-risk info).
+            hidePoi(world, poi, currentDay, null);
         }
         activateFromReserve(world, currentDay); // a replacement appears elsewhere - density stays level
         world.refreshWorldMapMarkers();
     }
 
+    /**
+     * Called from AdventureQuestController.updateQuestsWin() the moment the player has CLEARED
+     * a rotatable dungeon/cave - killed every enemy inside, not merely won one fight in it
+     * (2026-08-18 user request: "Does the dungeon also disappear if you 'complete' it... Silly
+     * to have an empty dungeon on the map... we should have it de-spawn, to make room for new
+     * dungeons"). Unlike onDungeonDefeat(), a clear is unconditional success - there's no
+     * attempts/grace system here, it despawns immediately, same as a rotatable dungeon's final
+     * loss does. A dungeon currently targeted by a STORY quest is still exempt (identical
+     * exemption to onDungeonDefeat() - "story targets never vanish"); a side-quest target
+     * despawns on clear too, since its own Clear objective is already satisfied by this same
+     * event (see AdventureQuestStage's Clear case) - there's nothing left to come back for.
+     * Non-rotatable POIs (story dungeons, bosses, towns...) are untouched, same as
+     * onDungeonDefeat().
+     */
+    public static void onDungeonClear(PointOfInterest poi) {
+        if (!isEnabled() || !isRotatable(poi))
+            return;
+        if (activeQuestStatus(poi) == QUEST_STORY)
+            return; // story targets never vanish
+        World world = WorldSave.getCurrentSave().getWorld();
+        int currentDay = world.getCurrentDay();
+        // 2026-08-19 user request: same as onDungeonDefeat()'s routine case - no popup, this fires
+        // too often over a normal playthrough to be worth a notification every time.
+        hidePoi(world, poi, currentDay, null);
+        activateFromReserve(world, currentDay); // a replacement appears elsewhere - density stays level
+        world.refreshWorldMapMarkers();
+    }
+
     private static void hidePoi(World world, PointOfInterest poi, int currentDay, String notification) {
+        // 2026-08-19 fix (user log review): guard against a double-roll - a combat-triggered
+        // despawn (onDungeonDefeat/onDungeonClear) and processDaysPassed()'s own natural-expiry
+        // check can both fire for the same POI on the same day (no prior coordination between
+        // them), each re-rolling a fresh random respawn day and overwriting the other's. Once
+        // inactive, a second call is a no-op - re-rolling an already-despawned POI's cooldown
+        // serves no purpose and was silently discarding the first roll every time it happened.
+        if (!poi.getActive())
+            return;
         poi.setActive(false);
         world.getPoiDespawnDay().remove(poi.getID());
         world.getPoiFailedAttempts().remove(poi.getID());

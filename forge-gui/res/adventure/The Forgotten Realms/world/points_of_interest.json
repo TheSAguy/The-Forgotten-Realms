@@ -6,7 +6,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Aerie",
-		"map": "../common/maps/map/aerie/aerie_0.tmx",
+		"map": "../The Forgotten Realms/maps/map/aerie/aerie_0.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -23,7 +23,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "BarbarianCamp",
-		"map": "../common/maps/map/barbariancamp/barbariancamp_goblin.tmx",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/barbariancamp_goblin.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -39,7 +39,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "BarbarianCamp",
-		"map": "../common/maps/map/barbariancamp/barbariancamp_kobold.tmx",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/barbariancamp_kobold.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -55,7 +55,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "BarbarianCamp",
-		"map": "../common/maps/map/barbariancamp/kor_encampment.tmx",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/kor_encampment.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -72,7 +72,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "BarbarianCamp",
-		"map": "../common/maps/map/barbariancamp/barbariancamp_orc.tmx",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/barbariancamp_orc.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -88,7 +88,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "BarbarianCamp",
-		"map": "../common/maps/map/barbariancamp/barbariancamp_bandit.tmx",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/barbariancamp_bandit.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -104,7 +104,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "BarbarianCamp",
-		"map": "../common/maps/map/barbariancamp/barbariancamp_goblin_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/barbariancamp_goblin_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -120,7 +120,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "BarbarianCamp",
-		"map": "../common/maps/map/barbariancamp/barbariancamp_goblin_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/barbariancamp_goblin_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -136,7 +136,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "black_castle",
-		"map": "../common/maps/map/main_story/castles/black_castle.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/castles/black_castle.tmx",
 		"radiusFactor": 0.01,
 		"offsetX": 0.1,
 		"offsetY": -0.1,
@@ -157,7 +157,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "blue_castle",
-		"map": "../common/maps/map/main_story/castles/blue_castle.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/castles/blue_castle.tmx",
 		"radiusFactor": 0.01,
 		"offsetX": 0.1,
 		"offsetY": 0.1,
@@ -178,7 +178,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "FortBlue",
-		"map": "../common/maps/map/fort/fort_blue_1_pirate.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_blue_1_pirate.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -194,7 +194,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "FortBlue",
-		"map": "../common/maps/map/fort/fort_blue_2_canyon.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_blue_2_canyon.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -210,7 +210,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "FortBlue",
-		"map": "../common/maps/map/fort/fort_blue_3_factory.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_blue_3_factory.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -226,7 +226,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlack",
-		"map": "../common/maps/map/demontower/portal_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/demontower/portal_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -241,7 +241,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "FortBlue",
-		"map": "../common/maps/map/fort/fort_blue_4_clouds.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_blue_4_clouds.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -257,7 +257,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "FortBlue",
-		"map": "../common/maps/map/fort/fort_blue_5_temple.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_blue_5_temple.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -273,7 +273,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "WhiteCastle",
-		"map": "../common/maps/map/fort/fort_white_1_celestial.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_white_1_celestial.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -290,7 +290,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "WhiteCastle",
-		"map": "../common/maps/map/fort/fort_white_2_humans.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_white_2_humans.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -307,7 +307,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "WhiteCastle",
-		"map": "../common/maps/map/fort/fort_white_3_pharaoh.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_white_3_pharaoh.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -324,7 +324,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "farm",
-		"map": "../common/maps/map/fort/fort_white_4_farm.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_white_4_farm.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -341,7 +341,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "CatLair",
-		"map": "../common/maps/map/catlair/catlair_green_1_leonincamp.tmx",
+		"map": "../The Forgotten Realms/maps/map/catlair/catlair_green_1_leonincamp.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"CatLair",
@@ -357,7 +357,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "CatLair",
-		"map": "../common/maps/map/catlair/catlair_green_2_tigerforest.tmx",
+		"map": "../The Forgotten Realms/maps/map/catlair/catlair_green_2_tigerforest.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"CatLair",
@@ -373,7 +373,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "CatLair",
-		"map": "../common/maps/map/catlair/catlair_green_3_chimera.tmx",
+		"map": "../The Forgotten Realms/maps/map/catlair/catlair_green_3_chimera.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"CatLair",
@@ -389,7 +389,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "CatLair",
-		"map": "../common/maps/map/catlair/catlair_white_1_lionden.tmx",
+		"map": "../The Forgotten Realms/maps/map/catlair/catlair_white_1_lionden.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -406,7 +406,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "CatLair",
-		"map": "../common/maps/map/catlair/catlair_white_2_leonincamp.tmx",
+		"map": "../The Forgotten Realms/maps/map/catlair/catlair_white_2_leonincamp.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -423,7 +423,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "CatLair",
-		"map": "../common/maps/map/catlair/catlair_white_3_temple.tmx",
+		"map": "../The Forgotten Realms/maps/map/catlair/catlair_white_3_temple.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -440,7 +440,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_snake.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_snake.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -456,7 +456,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_zombie.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_zombie.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -471,7 +471,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_kobold.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_kobold.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -486,7 +486,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_multilevel_2/cave_18.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_multilevel_2/cave_18.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -501,7 +501,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_multilevel_3/cave_21.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_multilevel_3/cave_21.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -516,7 +516,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_multilevel/cave_16.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_multilevel/cave_16.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -531,9 +531,10 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_treasure.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_treasure.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
+			"Hostile",
 			"Cave",
 			"BiomeBlack"
 		]
@@ -545,7 +546,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_devil.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_devil.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -561,7 +562,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_skeleton.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_skeleton.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -577,7 +578,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bigzombie.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bigzombie.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -593,7 +594,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_merfolk.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_merfolk.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -609,7 +610,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bluewiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bluewiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -625,7 +626,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_mimic.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_mimic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -641,7 +642,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_huge.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_huge.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -657,7 +658,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_snake.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_snake.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -673,9 +674,10 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_treasure.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_treasure.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
+			"Hostile",
 			"Cave",
 			"BiomeColorless"
 		]
@@ -687,7 +689,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_devil.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_devil.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -703,7 +705,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bear.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bear.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -719,7 +721,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_minotaur.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_minotaur.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -735,7 +737,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_skeleton.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_skeleton.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -751,7 +753,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_spider.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_spider.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -767,7 +769,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bandit.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bandit.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -783,7 +785,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_merfolk.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_merfolk.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -799,7 +801,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bluewiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bluewiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -815,7 +817,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_goblin.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_goblin.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -831,7 +833,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_mimic.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_mimic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -847,7 +849,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_huge.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_huge.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -863,7 +865,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_fog.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_fog.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -879,7 +881,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_snake.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_snake.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -895,9 +897,10 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_treasure.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_treasure.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
+			"Hostile",
 			"Cave",
 			"BiomeGreen"
 		]
@@ -909,7 +912,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_devil.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_devil.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -925,7 +928,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bear.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bear.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -941,7 +944,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_spider.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_spider.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -957,7 +960,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_merfolk.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_merfolk.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -973,7 +976,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_dino.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_dino.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -989,12 +992,75 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_mimic.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_mimic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
 			"Hostile",
 			"BiomeGreen",
+			"Sidequest"
+		]
+	},
+	{
+		"name": "CaveG8",
+		"displayName": "Cave",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_mimic.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Cave",
+			"Hostile",
+			"BiomeGreen",
+			"Sidequest"
+		]
+	},
+	{
+		"name": "CaveR1",
+		"displayName": "Cave",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_treasure.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Hostile",
+			"Cave",
+			"BiomeRed"
+		]
+	},
+	{
+		"name": "CaveDragon",
+		"displayName": "Cave",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
+		"sprite": "Cave",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_multilevel_3/cave_21.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Cave",
+			"Hostile",
+			"BiomeRed"
+		]
+	},
+	{
+		"name": "MageTower White",
+		"displayName": "White Tower",
+		"type": "dungeon",
+		"count": 1,
+		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
+		"sprite": "MageTowerWhite",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_4_monastery.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"MageTower",
+			"Hostile",
+			"Dungeon",
+			"BiomeWhite",
 			"Sidequest"
 		]
 	},
@@ -1005,7 +1071,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_huge.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_huge.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -1021,7 +1087,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_cerodon.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_cerodon.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -1038,7 +1104,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_eldrazi.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_eldrazi.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -1054,7 +1120,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_amphin.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_amphin.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -1071,7 +1137,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_rat.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_rat.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -1088,9 +1154,10 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_treasure.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_treasure.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
+			"Hostile",
 			"Cave",
 			"BiomeBlue"
 		]
@@ -1102,7 +1169,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_merfolk.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_merfolk.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1118,7 +1185,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bluewiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bluewiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1134,7 +1201,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_djinn.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_djinn.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1150,7 +1217,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_mimic.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_mimic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1166,7 +1233,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_snake.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_snake.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1182,9 +1249,10 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_treasure.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_treasure.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
+			"Hostile",
 			"Cave",
 			"BiomeRed"
 		]
@@ -1196,7 +1264,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_devil.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_devil.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1212,7 +1280,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_orc.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_orc.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1228,7 +1296,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bear.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bear.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1244,7 +1312,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_minotaur.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_minotaur.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1260,7 +1328,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bigzombie.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bigzombie.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1276,7 +1344,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_spider.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_spider.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1292,7 +1360,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bandit.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bandit.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1308,7 +1376,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bluewiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bluewiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1324,7 +1392,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_goblin.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_goblin.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1340,7 +1408,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_dino.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_dino.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1356,7 +1424,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_barbarian.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_barbarian.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1372,7 +1440,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_dwarf.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_dwarf.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1388,7 +1456,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_mimic.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_mimic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1404,7 +1472,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_huge.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_huge.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1420,7 +1488,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_snake.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_snake.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1436,9 +1504,10 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_treasure.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_treasure.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
+			"Hostile",
 			"Cave",
 			"BiomeWhite"
 		]
@@ -1450,7 +1519,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bear.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bear.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1466,7 +1535,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_bluewiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_bluewiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1482,7 +1551,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_dino.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_dino.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1498,7 +1567,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_dwarf.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_dwarf.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1514,7 +1583,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_mimic.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_mimic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1530,7 +1599,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "colorless_castle",
-		"map": "../common/maps/map/emrakul/emrakul.tmx",
+		"map": "../The Forgotten Realms/maps/map/emrakul/emrakul.tmx",
 		"radiusFactor": 0.4,
 		"questTags": [
 			"Castle",
@@ -1550,8 +1619,11 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/phyrexia/Phyrexian_Buildings.atlas",
 		"sprite": "CopperhostForest",
-		"map": "../common/maps/map/phyrexia/phyrexian_g1.tmx",
-		"radiusFactor": 0.8
+		"map": "../The Forgotten Realms/maps/map/phyrexia/phyrexian_g1.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Hostile"
+		]
 	},
 	{
 		"name": "Crawlspace",
@@ -1560,7 +1632,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlue",
-		"map": "../common/maps/map/magetower/magetower_10_crawlspace.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_10_crawlspace.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"DungeonEffect",
@@ -1573,8 +1645,11 @@
 		"type": "dungeon",
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "WurmPond",
-		"map": "../common/maps/map/debug_map.tmx",
-		"radiusFactor": 5
+		"map": "../The Forgotten Realms/maps/map/debug_map.tmx",
+		"radiusFactor": 5,
+		"questTags": [
+			"Hostile"
+		]
 	},
 	{
 		"name": "DjinnPalace",
@@ -1583,7 +1658,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "DjinnPalace",
-		"map": "../common/maps/map/djinnpalace/djinpalace_entrance.tmx",
+		"map": "../The Forgotten Realms/maps/map/djinnpalace/djinpalace_entrance.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"DjinnPalace",
@@ -1597,7 +1672,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "DjinnPalace",
-		"map": "../common/maps/map/djinnpalace/djinpalace_entrance.tmx",
+		"map": "../The Forgotten Realms/maps/map/djinnpalace/djinpalace_entrance.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"DjinnPalace",
@@ -1611,7 +1686,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlue",
-		"map": "../common/maps/map/magetower/magetower_11_dreamhalls.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_11_dreamhalls.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"DungeonEffect",
@@ -1626,7 +1701,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/phyrexia/Phyrexian_Buildings.atlas",
 		"sprite": "DrossOutpost",
-		"map": "../common/maps/map/phyrexia/phyrexian_black1.tmx",
+		"map": "../The Forgotten Realms/maps/map/phyrexia/phyrexian_black1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1642,7 +1717,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "ForestTown",
-		"map": "../common/maps/map/hostiletown/elftown.tmx",
+		"map": "../The Forgotten Realms/maps/map/hostiletown/elftown.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"OccupiedTown",
@@ -1658,7 +1733,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "EvilGrove",
-		"map": "../common/maps/map/evilgrove/evilgrove_1_zombie.tmx",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/evilgrove_1_zombie.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"EvilGrove",
@@ -1674,7 +1749,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "EvilGrove",
-		"map": "../common/maps/map/evilgrove/evilgrove_2_blackgolem.tmx",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/evilgrove_2_blackgolem.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"EvilGrove",
@@ -1690,7 +1765,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "EvilGrove",
-		"map": "../common/maps/map/evilgrove/evilgrove_3_gravetitan.tmx",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/evilgrove_3_gravetitan.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"EvilGrove",
@@ -1706,7 +1781,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "EvilGrove",
-		"map": "../common/maps/map/evilgrove/evilgrove_4_cursedforest.tmx",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/evilgrove_4_cursedforest.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"EvilGrove",
@@ -1722,7 +1797,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "EvilGrove",
-		"map": "../common/maps/map/evilgrove/evilgrove_5_swamp.tmx",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/evilgrove_5_swamp.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"EvilGrove",
@@ -1738,7 +1813,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "EvilGrove",
-		"map": "../common/maps/map/evilgrove/evilgrove_7_dragon.tmx",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/evilgrove_7_dragon.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"EvilGrove",
@@ -1754,7 +1829,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "EvilGrove",
-		"map": "../common/maps/map/evilgrove/evilgrove_6_shade.tmx",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/evilgrove_6_shade.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"EvilGrove",
@@ -1770,7 +1845,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Factory",
-		"map": "../common/maps/map/factory/factory_1_golems.tmx",
+		"map": "../The Forgotten Realms/maps/map/factory/factory_1_golems.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1786,7 +1861,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Factory",
-		"map": "../common/maps/map/factory/factory_2_ooze.tmx",
+		"map": "../The Forgotten Realms/maps/map/factory/factory_2_ooze.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1802,7 +1877,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Factory",
-		"map": "../common/maps/map/factory/factory_3_wizard.tmx",
+		"map": "../The Forgotten Realms/maps/map/factory/factory_3_wizard.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1818,7 +1893,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Factory",
-		"map": "../common/maps/map/factory/factory_4_large.tmx",
+		"map": "../The Forgotten Realms/maps/map/factory/factory_4_large.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1848,7 +1923,7 @@
 		"count": 15,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "ForestTown",
-		"map": "../common/maps/map/towns/forest_town_generic.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/forest_town_generic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -1864,7 +1939,7 @@
 		"count": 25,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "ForestTown",
-		"map": "../common/maps/map/towns/forest_town_identity.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/forest_town_identity.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -1880,7 +1955,7 @@
 		"count": 25,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "ForestTown",
-		"map": "../common/maps/map/towns/forest_town_tribal.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/forest_town_tribal.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -1896,7 +1971,7 @@
 		"count": 50,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "ForestTown",
-		"map": "../common/maps/map/towns/forest_town.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/forest_town.tmx",
 		"radiusFactor": 0.8
 	},
 	{
@@ -1906,7 +1981,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
-		"map": "../common/maps/map/fort/fort_colorless_1_snow.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_colorless_1_snow.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1922,7 +1997,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
-		"map": "../common/maps/map/fort/fort_colorless_1_snow.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_colorless_1_snow.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1938,7 +2013,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
-		"map": "../common/maps/map/fort/fort_colorless_2_wizards.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_colorless_2_wizards.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1954,7 +2029,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
-		"map": "../common/maps/map/fort/fort_colorless_7_multilevel.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_colorless_7_multilevel.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1970,7 +2045,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
-		"map": "../common/maps/map/fort/fort_colorless_3_human.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_colorless_3_human.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -1986,7 +2061,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
-		"map": "../common/maps/map/fort/fort_colorless_4_ooze.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_colorless_4_ooze.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2002,7 +2077,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
-		"map": "../common/maps/map/fort/fort_colorless_5_evil.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_colorless_5_evil.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2018,7 +2093,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Fort",
-		"map": "../common/maps/map/fort/fort_colorless_6_study.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_colorless_6_study.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2034,7 +2109,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "FortGreen",
-		"map": "../common/maps/map/fort/fort_green_1_logcamp.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_green_1_logcamp.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2050,7 +2125,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "FortGreen",
-		"map": "../common/maps/map/fort/fort_green_2_grove.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_green_2_grove.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2066,7 +2141,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "FortGreen",
-		"map": "../common/maps/map/fort/fort_green_3_forestcastle.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_green_3_forestcastle.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2082,7 +2157,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/phyrexia/Phyrexian_Buildings.atlas",
 		"sprite": "FurnaceBase",
-		"map": "../common/maps/map/phyrexia/phyrexian_r1.tmx",
+		"map": "../The Forgotten Realms/maps/map/phyrexia/phyrexian_r1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2098,7 +2173,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Garruk",
-		"map": "../common/maps/map/garruk/garruk.tmx",
+		"map": "../The Forgotten Realms/maps/map/garruk/garruk.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Boss",
@@ -2113,7 +2188,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/phyrexia/Phyrexian_Buildings.atlas",
 		"sprite": "GitLabSmall",
-		"map": "../common/maps/map/phyrexia/phyrexian_b1.tmx",
+		"map": "../The Forgotten Realms/maps/map/phyrexia/phyrexian_b1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2129,7 +2204,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "green_castle",
-		"map": "../common/maps/map/main_story/castles/green_castle.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/castles/green_castle.tmx",
 		"radiusFactor": 0.01,
 		"offsetX": -0.1,
 		"offsetY": 0.1,
@@ -2150,7 +2225,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Graveyard",
-		"map": "../common/maps/map/graveyard_crypt/graveyard.tmx",
+		"map": "../The Forgotten Realms/maps/map/graveyard_crypt/graveyard.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Graveyard",
@@ -2165,7 +2240,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Graveyard",
-		"map": "../common/maps/map/graveyard_crypt/graveyard_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/graveyard_crypt/graveyard_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Graveyard",
@@ -2180,7 +2255,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Graveyard",
-		"map": "../common/maps/map/graveyard_crypt/graveyard_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/graveyard_crypt/graveyard_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Graveyard",
@@ -2195,7 +2270,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Graveyard",
-		"map": "../common/maps/map/graveyard_crypt/graveyard_4.tmx",
+		"map": "../The Forgotten Realms/maps/map/graveyard_crypt/graveyard_4.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Graveyard",
@@ -2210,7 +2285,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Graveyard",
-		"map": "../common/maps/map/graveyard_crypt/graveyard_5.tmx",
+		"map": "../The Forgotten Realms/maps/map/graveyard_crypt/graveyard_5.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Graveyard",
@@ -2225,7 +2300,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Grolnok",
-		"map": "../common/maps/map/grolnok/grolnok.tmx",
+		"map": "../The Forgotten Realms/maps/map/grolnok/grolnok.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Boss",
@@ -2240,7 +2315,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_1_bears.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_1_bears.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2256,7 +2331,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_2_wolf.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_2_wolf.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2272,7 +2347,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_3_dinosaur.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_3_dinosaur.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2288,7 +2363,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_4_gorilla.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_4_gorilla.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2304,7 +2379,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_5_foresttitan.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_5_foresttitan.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2320,7 +2395,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_6_wizards.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_6_wizards.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2336,7 +2411,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_7_snake.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_7_snake.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2352,7 +2427,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_8_hydra.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_8_hydra.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2368,7 +2443,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_9_eldrazi.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_9_eldrazi.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2384,7 +2459,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_10_bamboo.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_10_bamboo.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2400,7 +2475,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_11_greendragon.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_11_greendragon.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2416,7 +2491,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Grove",
-		"map": "../common/maps/map/grove/grove_12_faeriedragon.tmx",
+		"map": "../The Forgotten Realms/maps/map/grove/grove_12_faeriedragon.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeGreen",
@@ -2446,7 +2521,7 @@
 		"count": 20,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "IslandTown",
-		"map": "../common/maps/map/towns/island_town_generic.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/island_town_generic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -2462,7 +2537,7 @@
 		"count": 20,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "IslandTown",
-		"map": "../common/maps/map/towns/island_town_identity.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/island_town_identity.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -2478,7 +2553,7 @@
 		"count": 20,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "IslandTown",
-		"map": "../common/maps/map/towns/island_town_tribal.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/island_town_tribal.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -2494,7 +2569,7 @@
 		"count": 50,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "IslandTown",
-		"map": "../common/maps/map/towns/island_town.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/island_town.tmx",
 		"radiusFactor": 0.8
 	},
 	{
@@ -2504,7 +2579,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Jace",
-		"map": "../common/maps/map/jacetower/jacehold.tmx",
+		"map": "../The Forgotten Realms/maps/map/jacetower/jacehold.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Boss",
@@ -2519,7 +2594,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Cave",
-		"map": "../common/maps/map/cave/cave_kavu.tmx",
+		"map": "../The Forgotten Realms/maps/map/cave/cave_kavu.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2534,7 +2609,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Kiora",
-		"map": "../common/maps/map/minibosses/kiora_island.tmx",
+		"map": "../The Forgotten Realms/maps/map/minibosses/kiora_island.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Boss",
@@ -2550,7 +2625,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "LavaForge",
-		"map": "../common/maps/map/lavaforge/lavaforge_3_vulcanodragon.tmx",
+		"map": "../The Forgotten Realms/maps/map/lavaforge/lavaforge_3_vulcanodragon.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2565,7 +2640,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "LavaForge",
-		"map": "../common/maps/map/lavaforge/lavaforge_1_sulfuricvortex.tmx",
+		"map": "../The Forgotten Realms/maps/map/lavaforge/lavaforge_1_sulfuricvortex.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"DungeonEffect",
@@ -2582,7 +2657,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "LavaForge",
-		"map": "../common/maps/map/lavaforge/lavaforge_2_burningsands.tmx",
+		"map": "../The Forgotten Realms/maps/map/lavaforge/lavaforge_2_burningsands.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"DungeonEffect",
@@ -2599,7 +2674,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlack",
-		"map": "../common/maps/map/magetower/magetower_12_lichsmirror.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_12_lichsmirror.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2614,7 +2689,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerRed",
-		"map": "../common/maps/map/magetower/magetower_1_djinn.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_1_djinn.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeColorless",
@@ -2631,7 +2706,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlack",
-		"map": "../common/maps/map/magetower/magetower_2_blackwiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_2_blackwiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeColorless",
@@ -2648,7 +2723,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerRed",
-		"map": "../common/maps/map/magetower/magetower_3_redwiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_3_redwiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeColorless",
@@ -2665,7 +2740,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerWhite",
-		"map": "../common/maps/map/magetower/magetower_4_monastery.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_4_monastery.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeColorless",
@@ -2682,7 +2757,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerGreen",
-		"map": "../common/maps/map/magetower/magetower_5_greenhouse.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_5_greenhouse.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeColorless",
@@ -2699,7 +2774,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlack",
-		"map": "../common/maps/map/magetower/magetower_6_infernalgenesis.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_6_infernalgenesis.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2715,7 +2790,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerWhite",
-		"map": "../common/maps/map/magetower/magetower_7_church.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_7_church.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2730,7 +2805,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlue",
-		"map": "../common/maps/map/magetower/magetower_8_illusion.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_8_illusion.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeColorless",
@@ -2747,7 +2822,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlue",
-		"map": "../common/maps/map/magetower/magetower_13_doppelganger.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_13_doppelganger.tmx",
 		"radiusFactor": 0.2,
 		"questTags": [
 			"BiomeColorless",
@@ -2763,7 +2838,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlue",
-		"map": "../common/maps/map/magetower/magetower_14_horrors.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_14_horrors.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeColorless",
@@ -2780,7 +2855,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlue",
-		"map": "../common/maps/map/magetower/magetower_1_djinn.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_1_djinn.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2797,7 +2872,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlack",
-		"map": "../common/maps/map/magetower/magetower_2_blackwiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_2_blackwiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2814,7 +2889,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerRed",
-		"map": "../common/maps/map/magetower/magetower_3_redwiz.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_3_redwiz.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2831,7 +2906,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerWhite",
-		"map": "../common/maps/map/magetower/magetower_4_monastery.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_4_monastery.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2848,7 +2923,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerGreen",
-		"map": "../common/maps/map/magetower/magetower_5_greenhouse.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_5_greenhouse.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2865,7 +2940,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlack",
-		"map": "../common/maps/map/magetower/magetower_6_infernalgenesis.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_6_infernalgenesis.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2880,7 +2955,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlue",
-		"map": "../common/maps/map/magetower/magetower_8_illusion.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_8_illusion.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2897,7 +2972,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlack",
-		"map": "../common/maps/map/magetower/magetower_14_horrors.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_14_horrors.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2914,7 +2989,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "MageTowerBlack",
-		"map": "../common/maps/map/magetower/magetower_9_ninjarats.tmx",
+		"map": "../The Forgotten Realms/maps/map/magetower/magetower_9_ninjarats.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MageTower",
@@ -2931,7 +3006,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Maze",
-		"map": "../common/maps/map/maze/maze_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/maze/maze_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2947,7 +3022,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Maze",
-		"map": "../common/maps/map/maze/maze_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/maze/maze_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2963,7 +3038,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Maze",
-		"map": "../common/maps/map/maze/maze_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/maze/maze_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2979,7 +3054,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Maze",
-		"map": "../common/maps/map/maze/maze_4.tmx",
+		"map": "../The Forgotten Realms/maps/map/maze/maze_4.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -2995,7 +3070,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MerfolkPool",
-		"map": "../common/maps/map/merfolkpool/merfolkpool_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/merfolkpool_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MerfolkPool",
@@ -3010,7 +3085,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MerfolkPool",
-		"map": "../common/maps/map/merfolkpool/merfolkpool_6.tmx",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/merfolkpool_6.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MerfolkPool",
@@ -3024,7 +3099,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MerfolkPool",
-		"map": "../common/maps/map/merfolkpool/merfolkpool_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/merfolkpool_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MerfolkPool",
@@ -3039,7 +3114,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MerfolkPool",
-		"map": "../common/maps/map/merfolkpool/merfolkpool_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/merfolkpool_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MerfolkPool",
@@ -3054,7 +3129,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MerfolkPool",
-		"map": "../common/maps/map/merfolkpool/merfolkpool_4.tmx",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/merfolkpool_4.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MerfolkPool",
@@ -3069,7 +3144,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MerfolkPool",
-		"map": "../common/maps/map/merfolkpool/merfolkpool_5.tmx",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/merfolkpool_5.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"MerfolkPool",
@@ -3084,7 +3159,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Monastery",
-		"map": "../common/maps/map/monastery/monastery_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/monastery/monastery_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3100,7 +3175,7 @@
 		"count": 5,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Monastery",
-		"map": "../common/maps/map/monastery/monastery_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/monastery/monastery_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3116,7 +3191,7 @@
 		"count": 5,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Monastery",
-		"map": "../common/maps/map/monastery/monastery_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/monastery/monastery_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3132,7 +3207,7 @@
 		"count": 5,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Monastery",
-		"map": "../common/maps/map/monastery/monastery_4.tmx",
+		"map": "../The Forgotten Realms/maps/map/monastery/monastery_4.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3148,7 +3223,7 @@
 		"count": 5,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Monastery",
-		"map": "../common/maps/map/monastery/monastery_5.tmx",
+		"map": "../The Forgotten Realms/maps/map/monastery/monastery_5.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3163,7 +3238,7 @@
 		"count": 20,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MountainTown",
-		"map": "../common/maps/map/towns/mountain_town_generic.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/mountain_town_generic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3179,7 +3254,7 @@
 		"count": 25,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MountainTown",
-		"map": "../common/maps/map/towns/mountain_town_identity.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/mountain_town_identity.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3195,7 +3270,7 @@
 		"count": 25,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MountainTown",
-		"map": "../common/maps/map/towns/mountain_town_tribal.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/mountain_town_tribal.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3211,7 +3286,7 @@
 		"count": 50,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MountainTown",
-		"map": "../common/maps/map/towns/mountain_town.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/mountain_town.tmx",
 		"radiusFactor": 0.8
 	},
 	{
@@ -3236,7 +3311,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Nahiri",
-		"map": "../common/maps/map/nahiri/nahiri.tmx",
+		"map": "../The Forgotten Realms/maps/map/nahiri/nahiri.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Boss",
@@ -3251,7 +3326,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "final_castle",
-		"map": "../common/maps/map/naktamun.tmx",
+		"map": "../The Forgotten Realms/maps/map/naktamun/naktamun.tmx",
 		"questTags": [
 			"Capital"
 		]
@@ -3263,7 +3338,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Nest",
-		"map": "../common/maps/map/nest/nest_white_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/nest/nest_white_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3278,7 +3353,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Nest",
-		"map": "../common/maps/map/nest/nest_blue_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/nest/nest_blue_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeBlue",
@@ -3293,8 +3368,11 @@
 		"count": 10,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "MerfolkPool",
-		"map": "../common/maps/map/oasis.tmx",
-		"radiusFactor": 0.8
+		"map": "../The Forgotten Realms/maps/map/naktamun/oasis.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Hostile"
+		]
 	},
 	{
 		"name": "OrthodoxyBasilica",
@@ -3303,7 +3381,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/phyrexia/Phyrexian_Buildings.atlas",
 		"sprite": "BasilicaSmall",
-		"map": "../common/maps/map/phyrexia/phyrexian_w1.tmx",
+		"map": "../The Forgotten Realms/maps/map/phyrexia/phyrexian_w1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3333,7 +3411,7 @@
 		"count": 15,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "PlainsTown",
-		"map": "../common/maps/map/towns/plains_town_generic.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/plains_town_generic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3349,7 +3427,7 @@
 		"count": 25,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "PlainsTown",
-		"map": "../common/maps/map/towns/plains_town_identity.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/plains_town_identity.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3365,7 +3443,7 @@
 		"count": 25,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "PlainsTown",
-		"map": "../common/maps/map/towns/plains_town_tribal.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/plains_town_tribal.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3381,7 +3459,7 @@
 		"count": 50,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "PlainsTown",
-		"map": "../common/maps/map/towns/plains_town.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/plains_town.tmx",
 		"radiusFactor": 0.8
 	},
 	{
@@ -3391,7 +3469,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "WasteTown",
-		"map": "../common/maps/map/main_story_defend/waste_town_abandoned.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story_defend/waste_town_abandoned.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Quest_APortalToNowhere"
@@ -3410,7 +3488,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "banditcave",
-		"map": "../common/maps/map/main_story_explore/bandit_cave.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story_explore/bandit_cave.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Quest_BanditCave"
@@ -3429,7 +3507,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "digsite",
-		"map": "../common/maps/map/main_story_explore/dig_site_0.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story_explore/dig_site_0.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Quest_DigSite"
@@ -3448,7 +3526,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "frostbittencavern",
-		"map": "../common/maps/map/main_story_explore/frostbitten_cavern_0.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story_explore/frostbitten_cavern_0.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Quest_FrostbittenCavern"
@@ -3467,7 +3545,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "libraryofvarsil",
-		"map": "../common/maps/map/main_story_explore/library_of_varsil_0.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story_explore/library_of_varsil_0.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Quest_LibraryOfVarsil"
@@ -3486,7 +3564,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "primaljungle",
-		"map": "../common/maps/map/main_story_explore/primal_jungle.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story_explore/primal_jungle.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Quest_PrimalJungle"
@@ -3505,7 +3583,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "abandonedshardmine",
-		"map": "../common/maps/map/main_story_explore/shard_mines.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story_explore/shard_mines.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Quest_ShardMines"
@@ -3524,7 +3602,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "red_castle",
-		"map": "../common/maps/map/main_story/castles/red_castle.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/castles/red_castle.tmx",
 		"radiusFactor": 0.01,
 		"offsetX": -0.1,
 		"offsetY": -0.1,
@@ -3545,7 +3623,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SkullCave",
-		"map": "../common/maps/map/skullcave/skullcave_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/skullcave/skullcave_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3562,7 +3640,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SkullCave",
-		"map": "../common/maps/map/skullcave/skullcave_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/skullcave/skullcave_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3579,7 +3657,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SkullCave",
-		"map": "../common/maps/map/skullcave/skullcave_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/skullcave/skullcave_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3596,7 +3674,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SnowAbbey",
-		"map": "../common/maps/map/snowabbey/snowabbey_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/snowabbey/snowabbey_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeRed",
@@ -3613,7 +3691,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SnowAbbey",
-		"map": "../common/maps/map/snowabbey/snowabbey_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/snowabbey/snowabbey_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeRed",
@@ -3630,7 +3708,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SnowAbbey",
-		"map": "../common/maps/map/snowabbey/snowabbey_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/snowabbey/snowabbey_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeRed",
@@ -3661,7 +3739,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Slimefoot",
-		"map": "../common/maps/map/minibosses/slimefoot_boss.tmx",
+		"map": "../The Forgotten Realms/maps/map/minibosses/slimefoot_boss.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3677,7 +3755,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "SlimeCave",
-		"map": "../common/maps/map/minibosses/slime_hive.tmx",
+		"map": "../The Forgotten Realms/maps/map/minibosses/slime_hive.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -3692,7 +3770,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "SlimeCave",
-		"map": "../common/maps/map/minibosses/camelboss/entrance.tmx",
+		"map": "../The Forgotten Realms/maps/map/minibosses/camelboss/entrance.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -3707,7 +3785,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "farm",
-		"map": "../common/maps/map/fort/fort_green_4_scarecrowfarm.tmx",
+		"map": "../The Forgotten Realms/maps/map/fort/fort_green_4_scarecrowfarm.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Boss",
@@ -3722,7 +3800,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Slobad",
-		"map": "../common/maps/map/minibosses/slobad_factory.tmx",
+		"map": "../The Forgotten Realms/maps/map/minibosses/slobad_factory.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Boss",
@@ -3738,7 +3816,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Skep",
-		"map": "../common/maps/map/skep/skep_outer.tmx",
+		"map": "../The Forgotten Realms/maps/map/skep/skep_outer.tmx",
 		"radiusFactor": 0.5,
 		"questTags": [
 			"Boss",
@@ -3753,7 +3831,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SkullCave",
-		"map": "../common/maps/map/skullcave/skullcave_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/skullcave/skullcave_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -3770,7 +3848,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SkullCave",
-		"map": "../common/maps/map/skullcave/skullcave_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/skullcave/skullcave_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -3787,7 +3865,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SkullCave",
-		"map": "../common/maps/map/skullcave/skullcave_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/skullcave/skullcave_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Cave",
@@ -3818,7 +3896,7 @@
 		"count": 20,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SwampTown",
-		"map": "../common/maps/map/towns/swamp_town_generic.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/swamp_town_generic.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3834,7 +3912,7 @@
 		"count": 20,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SwampTown",
-		"map": "../common/maps/map/towns/swamp_town_identity.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/swamp_town_identity.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3850,7 +3928,7 @@
 		"count": 20,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SwampTown",
-		"map": "../common/maps/map/towns/swamp_town_tribal.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/swamp_town_tribal.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Town",
@@ -3866,7 +3944,7 @@
 		"count": 50,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SwampTown",
-		"map": "../common/maps/map/towns/swamp_town.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/swamp_town.tmx",
 		"radiusFactor": 0.8
 	},
 	{
@@ -3875,7 +3953,7 @@
 		"count": 3,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SwampTown",
-		"map": "../common/maps/map/towns/swamp_town_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/towns/swamp_town_2.tmx",
 		"radiusFactor": 0.8
 	},
 	{
@@ -3885,7 +3963,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Jace",
-		"map": "../common/maps/map/minibosses/teferi.tmx",
+		"map": "../The Forgotten Realms/maps/map/minibosses/teferi.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3901,7 +3979,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "hall_of_flame",
-		"map": "../common/maps/map/main_story/templeofchandra.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/templeofchandra.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Story",
@@ -3925,7 +4003,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "hall_of_fear",
-		"map": "../common/maps/map/main_story/temple_of_liliana/keep.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/temple_of_liliana/keep.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Story",
@@ -3947,7 +4025,7 @@
 		"count": 100,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "Test",
-		"map": "../common/maps/map/vampirecastle_4.tmx",
+		"map": "../The Forgotten Realms/maps/map/vampirecastle/vampirecastle_4.tmx",
 		"radiusFactor": 0.8
 	},
 	{
@@ -3957,7 +4035,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Tibalt",
-		"map": "../common/maps/map/tibalt/tibalt.tmx",
+		"map": "../The Forgotten Realms/maps/map/tibalt/tibalt.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -3972,7 +4050,7 @@
 		"count": 1,
 		"spriteAtlas": "maps/tileset/buildings.atlas",
 		"sprite": "Monastery",
-		"map": "../common/maps/map/monastery/unhallowed_abbey_1F.tmx",
+		"map": "../The Forgotten Realms/maps/map/monastery/unhallowed_abbey_1F.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"UnhallowedAbbey"
@@ -3985,7 +4063,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "VampireCastle",
-		"map": "../common/maps/map/vampirecastle/vampirecastle_1.tmx",
+		"map": "../The Forgotten Realms/maps/map/vampirecastle/vampirecastle_1.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"VampireCastle",
@@ -4002,7 +4080,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "VampireCastle",
-		"map": "../common/maps/map/vampirecastle/vampirecastle_2.tmx",
+		"map": "../The Forgotten Realms/maps/map/vampirecastle/vampirecastle_2.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"VampireCastle",
@@ -4019,7 +4097,7 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "VampireCastle",
-		"map": "../common/maps/map/vampirecastle/vampirecastle_3.tmx",
+		"map": "../The Forgotten Realms/maps/map/vampirecastle/vampirecastle_3.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"VampireCastle",
@@ -4036,7 +4114,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "VampireCastle",
-		"map": "../common/maps/map/vampirecastle/vampirecastle_4.tmx",
+		"map": "../The Forgotten Realms/maps/map/vampirecastle/vampirecastle_4.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"VampireCastle",
@@ -4117,7 +4195,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "white_castle",
-		"map": "../common/maps/map/main_story/castles/white_castle.tmx",
+		"map": "../The Forgotten Realms/maps/map/main_story/castles/white_castle.tmx",
 		"radiusFactor": 0.01,
 		"offsetY": 0.1,
 		"questTags": [
@@ -4137,7 +4215,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "WurmPond",
-		"map": "../common/maps/map/evilgrove/evilgrove_8_troll.tmx",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/evilgrove_8_troll.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"DungeonEffect",
@@ -4151,7 +4229,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Xira",
-		"map": "../common/maps/map/minibosses/xira.tmx",
+		"map": "../The Forgotten Realms/maps/map/minibosses/xira.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -4166,9 +4244,10 @@
 		"count": 2,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "YuleTown",
-		"map": "../common/maps/map/hostiletown/yule_town.tmx",
+		"map": "../The Forgotten Realms/maps/map/hostiletown/yule_town.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
+			"Hostile",
 			"BiomeRed",
 			"Snow"
 		]
@@ -4180,7 +4259,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildingsbosses.atlas",
 		"sprite": "Zedruu",
-		"map": "../common/maps/map/zedruu/zedruu.tmx",
+		"map": "../The Forgotten Realms/maps/map/zedruu/zedruu.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"BiomeRed",
@@ -4197,7 +4276,7 @@
 		"count": 1,
 		"spriteAtlas": "../common/maps/tileset/buildings.atlas",
 		"sprite": "SwampTown",
-		"map": "../common/maps/map/hostiletown/zombietown.tmx",
+		"map": "../The Forgotten Realms/maps/map/hostiletown/zombietown.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
 			"Hostile",
@@ -4570,6 +4649,111 @@
 		"questTags": [
 			"Hostile",
 			"BiomeGreen"
+		]
+	}
+,
+	{
+		"name": "Isolated Hut",
+		"displayName": "Isolated Hut",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../Realm of Legends/sprites/buildings.atlas",
+		"sprite": "Building198",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/Isolated_Hut.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"
+		]
+	},
+	{
+		"name": "An-Havva Inn",
+		"displayName": "An-Havva Inn",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../Realm of Legends/sprites/buildings.atlas",
+		"sprite": "Building41",
+		"map": "../The Forgotten Realms/maps/map/grove/An-Havva_Inn.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"
+		]
+	},
+	{
+		"name": "Ancient Opal Cavern",
+		"displayName": "Ancient Opal Cavern",
+		"type": "dungeon",
+		"count": 1,
+		"spriteAtlas": "../Realm of Legends/sprites/buildings.atlas",
+		"sprite": "ForgottenCave",
+		"map": "../The Forgotten Realms/maps/map/cave/Ancient_Opal_Cavern.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"
+		]
+	},
+	{
+		"name": "Eclipsed Elven Court",
+		"displayName": "Eclipsed Elven Court",
+		"type": "dungeon",
+		"count": 1,
+		"spriteAtlas": "../Realm of Legends/sprites/buildingsbosses.atlas",
+		"sprite": "Great Aurora",
+		"map": "../The Forgotten Realms/maps/map/evilgrove/Eclipsed_Elven_Court.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"
+		]
+	},
+	{
+		"name": "Ashling's Domain",
+		"displayName": "Ashling's Domain",
+		"type": "dungeon",
+		"count": 1,
+		"spriteAtlas": "../Realm of Legends/sprites/buildingsbosses.atlas",
+		"sprite": "Ashling Domain",
+		"map": "../The Forgotten Realms/maps/map/barbariancamp/Ashlings_Domain.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"
+		]
+	},
+	{
+		"name": "Idyllic Beachfront",
+		"displayName": "Idyllic Beachfront",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../Realm of Legends/sprites/buildingsbosses.atlas",
+		"sprite": "Idyllic Beachfront",
+		"map": "../The Forgotten Realms/maps/map/merfolkpool/Idyllic_Beachfront.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"
+		]
+	},
+	{
+		"name": "Peaceful Clearing",
+		"displayName": "Peaceful Clearing",
+		"type": "cave",
+		"count": 1,
+		"spriteAtlas": "../Realm of Legends/sprites/buildingsbosses.atlas",
+		"sprite": "Tranquil Clearing",
+		"map": "../The Forgotten Realms/maps/map/fort/Peaceful_Clearing.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"
+		]
+	},
+	{
+		"name": "Planeswalker Dueling Club",
+		"displayName": "Planeswalker Dueling Club",
+		"type": "dungeon",
+		"count": 1,
+		"spriteAtlas": "../Realm of Legends/sprites/buildings.atlas",
+		"sprite": "Building56",
+		"map": "../The Forgotten Realms/maps/map/cave/Planeswalker_Dueling_Club.tmx",
+		"radiusFactor": 0.8,
+		"questTags": [
+			"Story"
 		]
 	}
 ]

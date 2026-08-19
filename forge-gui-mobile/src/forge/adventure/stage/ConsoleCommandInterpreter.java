@@ -17,7 +17,9 @@ import forge.adventure.util.Config;
 import forge.adventure.util.Current;
 import forge.adventure.util.Paths;
 import forge.adventure.util.ResourceSpawns;
+import forge.adventure.util.TerritoryControl;
 import forge.adventure.util.TownRestoration;
+import forge.adventure.world.World;
 import forge.adventure.world.WorldSave;
 import forge.card.CardEdition;
 import forge.card.ColorSet;
@@ -685,6 +687,36 @@ public class ConsoleCommandInterpreter {
         // and re-arms the 80% full-reveal trigger. Opt-in because it also forgets walked ground.
         registerCommand(new String[]{"fog", "reset"}, s ->
                 WorldSave.getCurrentSave().getWorld().resetFogOfWarToOwnership());
+        // TESTING ONLY (user request 2026-08-14) - REMOVE once the Color Defeat mechanic
+        // (MOD_SCOPE.md #61) has been playtested and confirmed working. The real trigger is
+        // clearing one of the 5 castle boss fights, which is deliberately very difficult - this
+        // fires the exact same consequence without needing to actually beat one first. Best-effort
+        // "completes the quest" too: writes the real Ch1<Color>CastleComplete flag onto the
+        // castle's own POI and fires the same notification the boss-defeat dialog action fires,
+        // not just the downstream territory/reputation/mage-cap side effects.
+        registerCommand(new String[]{"defeat", "castle"}, s -> {
+            if (s.length < 1) return "Command needs 1 parameter: Color (white/blue/black/red/green).";
+            String color = s[0].toLowerCase();
+            boolean known = false;
+            for (String c : TerritoryControl.COLORS)
+                if (c.equals(color)) { known = true; break; }
+            if (!known) return "Unknown color \"" + s[0] + "\" - use white, blue, black, red or green.";
+            World world = WorldSave.getCurrentSave().getWorld();
+            if (world.isColorDefeated(color))
+                return "\"" + color + "\" is already defeated.";
+            String flagName = TerritoryControl.castleCompleteFlagName(color);
+            if (flagName == null)
+                return "Could not resolve a castle-complete flag for \"" + color + "\".";
+            // Calls the EXACT same method the real boss-defeat dialog action calls (Current.player().
+            // setQuestFlag(), confirmed via MapDialog.java's "setQuestFlag" action-key dispatcher) -
+            // fixed 2026-08-14 after adversarial review caught the original version manually
+            // replicating a DIFFERENT, wrong code path (MapStage.setQuestFlag(), which backs the
+            // unrelated "setMapFlag" action key and was never what the real dialog actually fires).
+            // This one call now exercises the real trigger hook end to end, not a parallel bypass.
+            Current.player().setQuestFlag(flagName, 1);
+            String capitalized = Character.toUpperCase(color.charAt(0)) + color.substring(1);
+            return capitalized + "'s castle marked defeated - terrain reverted, consequences applied. Check forge.log for [TFR-ColorDefeat].";
+        });
         registerCommand(new String[]{"reset", "map"}, s -> {
             if(!MapStage.getInstance().isInMap()) {
                 return "Can only be used in maps.";

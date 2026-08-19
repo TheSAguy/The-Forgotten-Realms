@@ -21,7 +21,16 @@ public class OnCollide extends MapActor {
     // (the wasteland town/capital templates) - without it a rebuilt Arena/Spellsmith was simply
     // invisible (user-reported 2026-08-09). Null = draw nothing (all ungated uses, and gated
     // buildings whose map has real baked art).
-    private com.badlogic.gdx.graphics.g2d.TextureRegion rebuiltIcon;
+    // A SUPPLIER, not a plain TextureRegion (2026-08-15 bug fix) - the old plain-TextureRegion
+    // version was evaluated exactly once, at map-load time, then cached forever; that's correct
+    // for Spellsmith (its icon never changes) but silently froze the Arena's icon at whatever
+    // building level it was at load time, since Level 2's own icon exists and the sprite-picking
+    // logic is correct but never gets re-evaluated after an in-place level-up (user report:
+    // "Arena Level 2 art icon did not update... still showing level 1"). A supplier re-queries
+    // live state (e.g. current building level) on every draw() instead, mirroring how
+    // ShopActor.draw() already re-reads the Armory's level fresh every frame. Spellsmith's own
+    // call site just wraps its unchanging icon in a constant lambda - no behavior change there.
+    private java.util.function.Supplier<com.badlogic.gdx.graphics.g2d.TextureRegion> rebuiltIcon;
 
     public OnCollide(Runnable func) {
         super(0);
@@ -35,8 +44,8 @@ public class OnCollide extends MapActor {
         gatedStage = stage;
     }
 
-    public OnCollide withRebuiltIcon(com.badlogic.gdx.graphics.g2d.TextureRegion icon) {
-        rebuiltIcon = icon;
+    public OnCollide withRebuiltIcon(java.util.function.Supplier<com.badlogic.gdx.graphics.g2d.TextureRegion> iconSupplier) {
+        rebuiltIcon = iconSupplier;
         return this;
     }
 
@@ -62,6 +71,8 @@ public class OnCollide extends MapActor {
             MapDialog dialog;
             if (!TownRestoration.isTownRestored(gatedStage))
                 dialog = TownRestoration.buildShopLockedDialog(gatedStage, objectId);
+            else if (!TownRestoration.hasReputationForAnotherBuilding(gatedStage.getChanges()))
+                dialog = TownRestoration.buildReputationLockedDialog(gatedStage, objectId);
             else if (rebuildVerb != null)
                 dialog = TownRestoration.buildRebuildShopDialog(gatedStage, objectId,
                         rebuildCost[0], rebuildCost[1], rebuildCost[2], rebuildCost[3], rebuildVerb);
@@ -85,8 +96,11 @@ public class OnCollide extends MapActor {
             // Rebuilt gated building in a template with no baked art: draw its icon (user report
             // 2026-08-09 - a restored Arena/Spellsmith showed nothing at all). Same
             // over-footprint placement as ShopActor's icons.
-            if (rebuiltIcon != null && gatedStage != null && TownRestoration.isWastelandTown())
-                drawOverFootprint(batch, rebuiltIcon);
+            if (rebuiltIcon != null && gatedStage != null && TownRestoration.isWastelandTown()) {
+                com.badlogic.gdx.graphics.g2d.TextureRegion icon = rebuiltIcon.get();
+                if (icon != null)
+                    drawOverFootprint(batch, icon);
+            }
             return;
         }
         // In the Capitol, a destroyed gated building (Arena, Spellsmith) shows the real

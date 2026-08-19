@@ -62,7 +62,7 @@
                     "Kavu",
                     "Bloodgift Demon",
                     "Khan",
-                    "Kobold",
+                    "Kobold Warrior",
                     "Master Red Wizard",
                     "Mindclaw Shaman",
                     "Minotaur",
@@ -70,7 +70,7 @@
                     "Naked Mole Rat",
                     "Raptor",
                     "Red Beast",
-                    "Red Sliver",
+                    "Sliver_Red",
                     "Scorpion",
                     "Shaman",
                     "Troll",
@@ -547,7 +547,8 @@
                              "Quest_ShardMines",
                              "CaveRJ",
                              "Maze3",
-                             "DragonsLairRed"
+                             "DragonsLairRed",
+                             "Ashling's Domain"
                          ],
     "structures":  [
                        {

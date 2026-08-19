@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="40" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="134">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="40" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="136">
  <editorsettings>
   <export target="wastetown..tmx" format="tmx"/>
  </editorsettings>
@@ -485,6 +485,28 @@ Though uprooted from our home in Valley, still we stand together.&quot;,
     <property name="mythicShopList" value="Planeswalker,WUBRG,RWG,RWU,RWB,UWG,UWB,GWB,PhyrexianWhite"/>
     <property name="rareShopList" value="Land4White,Azorius,Boros,Selesnya,Orzhov,Vehicle,Colorless"/>
     <property name="uncommonShopList" value="Artifact,Knight4White,Bird4White,Soldier4White,Angel,Sliver2White,Spirit4White,Wand,Equip,Multicolor"/>
+   </properties>
+  </object>
+  <object id="134" template="../../obj/wood.tx" x="583.169" y="81.6521">
+   <properties>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;wood&quot;,
+    &quot;count&quot;: 20,
+    &quot;addMaxCount&quot;: 10
+ }
+]</property>
+   </properties>
+  </object>
+  <object id="135" template="../../obj/wood.tx" x="24.6494" y="172.91">
+   <properties>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;wood&quot;,
+    &quot;count&quot;: 20,
+    &quot;addMaxCount&quot;: 10
+ }
+]</property>
    </properties>
   </object>
  </objectgroup>

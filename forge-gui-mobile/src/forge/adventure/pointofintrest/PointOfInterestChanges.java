@@ -22,12 +22,25 @@ public class PointOfInterestChanges implements SaveFileContent  {
     // ordinary (non-noRestock) shop, which never calls getWeeklyShopSeed(), never gets an entry
     // here at all.
     private final java.util.Map<Integer, Integer> shopLastRefreshDay = new HashMap<>();
-    // Manual "Re-roll" button (2026-08-11) - deliberately a SEPARATE cooldown clock from
+    // Manual "Re-roll" (2026-08-11) - deliberately a SEPARATE cooldown clock from
     // shopLastRefreshDay above, not a shared one (user spec: "The re-roll button in independent
     // from the weekly re-fresh"). A player who manually re-rolls on day 3 doesn't push the
     // automatic weekly refresh out to day 10 - that one still fires on its own schedule from
-    // whenever it last did, and vice versa. See canManuallyRerollShop()/manuallyRerollShop().
+    // whenever it last did, and vice versa.
+    // NOW DUAL-PURPOSE across two mutually-exclusive callers, briefly unified 2026-08-14 then
+    // split back apart 2026-08-15 per user correction:
+    //  - Armory "Re-roll Inventory" (canManuallyRerollShop()/manuallyRerollShop()): back to the
+    //    ORIGINAL hard "wait 7 days" rolling-window gate, flat cost, no escalation. Only this
+    //    field is used; shopRerollCountThisWeek below stays untouched for Armory objects.
+    //  - The generic per-shop card-content restock button (rerollSurcharge()/recordReroll(),
+    //    RewardScene.restockShop()): a WEEKLY-ESCALATING surcharge instead - +1 shard per restock
+    //    already used since the last fixed calendar-week boundary (day a multiple of 7, same
+    //    "which week" math Guard pay's processDaysPassed() uses), resetting each boundary.
+    // Safe to share one pair of maps: a shop object is exclusively noRestock (Armory/land, uses
+    // the cooldown gate) or restockable (ordinary card shop, uses the surcharge) - never both -
+    // so the two call patterns never collide on the same objectID.
     private final java.util.Map<Integer, Integer> shopManualRerollLastDay = new HashMap<>();
+    private final java.util.Map<Integer, Integer> shopRerollCountThisWeek = new HashMap<>();
     //private final java.util.Map<Integer, Float> shopModifiers = new HashMap<>();
     private final java.util.Map<Integer, Integer> reputation = new HashMap<>();
     private Boolean isBookmarked;
@@ -38,6 +51,16 @@ public class PointOfInterestChanges implements SaveFileContent  {
     // can't be a single int the way it was originally. Kept as a real int->int map (not mapFlags
     // bytes) since Tiled object ids can exceed mapFlags' byte range.
     private final java.util.Map<Integer, Integer> economyBuildingObjectIds = new HashMap<>();
+    // Mine weekly payouts (2026-08-16, user spec) - the in-game day each producing building type
+    // (Gold/Shard Mine, Lumber Mill, Stone Mine) last paid out, keyed by TYPE same as
+    // economyBuildingObjectIds (a town has at most one of each). Seeded to the construction/
+    // migration day when a mine is built (EconomyBuildings.java), then advanced in fixed 7-day
+    // steps by processDaysPassed() - the exact same "shared payday" pattern guardLastPaidDay
+    // already uses below, not a per-building rolling timer. Missing entry (old saves predating
+    // this field) is treated as "never paid" (day 0) by the getter, so an existing mine's first
+    // weekly payout under the new system lands on the very next day-7-multiple - no save
+    // migration needed, same as guardLastPaidDay's own graceful-default handling.
+    private final java.util.Map<Integer, Integer> economyBuildingLastPayoutDay = new HashMap<>();
     private int bankBalance = 0;
     // Pinned shop identity per Tiled shop object id (shop's ShopData name). Normally a shop
     // object's type is re-rolled from its tmx lists at every map load - the Capitol migration
@@ -124,6 +147,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
             if (legacyId != -1 && legacyType != null)
                 economyBuildingObjectIds.put((int) legacyType, legacyId);
         }
+        economyBuildingLastPayoutDay.clear();
+        if (data.containsKey("economyBuildingLastPayoutDay")) {
+            Object obj = data.readObject("economyBuildingLastPayoutDay");
+            if (obj instanceof java.util.Map)
+                economyBuildingLastPayoutDay.putAll((java.util.Map<Integer, Integer>) obj);
+        }
         bankBalance = data.containsKey("bankBalance") ? data.readInt("bankBalance") : 0;
         archaeologistExpeditionSentDay = data.containsKey("archaeologistExpeditionSentDay")
                 ? data.readInt("archaeologistExpeditionSentDay") : -1;
@@ -163,6 +192,12 @@ public class PointOfInterestChanges implements SaveFileContent  {
             if (obj instanceof java.util.Map)
                 shopManualRerollLastDay.putAll((java.util.Map<Integer, Integer>) obj);
         }
+        shopRerollCountThisWeek.clear();
+        if (data.containsKey("shopRerollCountThisWeek")) {
+            Object obj = data.readObject("shopRerollCountThisWeek");
+            if (obj instanceof java.util.Map)
+                shopRerollCountThisWeek.putAll((java.util.Map<Integer, Integer>) obj);
+        }
     }
 
     @Override
@@ -176,6 +211,7 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("isBookmarked", isBookmarked);
         data.storeObject("isVisited", isVisited);
         data.storeObject("economyBuildingObjectIds", economyBuildingObjectIds);
+        data.storeObject("economyBuildingLastPayoutDay", economyBuildingLastPayoutDay);
         data.store("bankBalance", bankBalance);
         data.store("archaeologistExpeditionSentDay", archaeologistExpeditionSentDay);
         data.storeObject("pinnedShopNames", new HashMap<>(pinnedShopNames));
@@ -184,6 +220,7 @@ public class PointOfInterestChanges implements SaveFileContent  {
         data.storeObject("guardTiers", new ArrayList<>(guardTiers));
         data.storeObject("guardLastPaidDay", new ArrayList<>(guardLastPaidDay));
         data.storeObject("shopManualRerollLastDay", new HashMap<>(shopManualRerollLastDay));
+        data.storeObject("shopRerollCountThisWeek", new HashMap<>(shopRerollCountThisWeek));
         return data;
     }
 
@@ -303,13 +340,41 @@ public class PointOfInterestChanges implements SaveFileContent  {
         return getShopSeed(objectID);
     }
 
-    /** Manual "Re-roll" button gate (2026-08-11, Armory) - independent of getWeeklyShopSeed()'s own
-     *  automatic timer, see shopManualRerollLastDay's own comment. */
-    public boolean canManuallyRerollShop(int objectID, int currentDay) {
-        Integer last = shopManualRerollLastDay.get(objectID);
-        return last == null || currentDay - last >= 7;
+    /** Weekly-escalating restock surcharge (2026-08-15, moved here from the Card Shop Type/Armory
+     *  reroll buttons per user correction - this belongs on the button that re-rolls a shop's CARD
+     *  CONTENTS, i.e. RewardScene.restockShop(), not the ones that change a shop's type/identity)
+     *  - the shard SURCHARGE to add on top of a restock's base (rarity-tier) cost for the NEXT
+     *  restock of this object. 0 for the first restock since the last fixed calendar-week boundary
+     *  (day a multiple of 7); +1 per restock already used since then. See recordReroll(). */
+    public int rerollSurcharge(int objectID, int currentDay) {
+        Integer lastDay = shopManualRerollLastDay.get(objectID);
+        if (lastDay == null || lastDay / 7 != currentDay / 7)
+            return 0; // never restocked, or a weekly boundary has passed since - fresh start
+        Integer count = shopRerollCountThisWeek.get(objectID);
+        return count == null ? 0 : count;
     }
 
+    /** Records that a paid restock just happened, for the NEXT call to rerollSurcharge() on this
+     *  object. Does not touch the shop's own seed/stock - restockShop() regenerates that itself. */
+    public void recordReroll(int objectID, int currentDay) {
+        int surcharge = rerollSurcharge(objectID, currentDay); // resets to 0 if a week boundary passed
+        shopRerollCountThisWeek.put(objectID, surcharge + 1);
+        shopManualRerollLastDay.put(objectID, currentDay);
+    }
+
+    /** Armory "Re-roll Inventory" cooldown gate (original #33 spec, restored 2026-08-15 - briefly
+     *  replaced 2026-08-14 by the escalating-surcharge/no-cooldown model above, which the user
+     *  asked to revert for the Armory specifically: "can only have it's inventory re-set once a
+     *  week... Back to what it was before"). A rolling 7-day window, same shape as
+     *  getWeeklyShopSeed()'s own day-diff check - true if this object has never been manually
+     *  rerolled, or at least 7 in-game days have passed since it last was. */
+    public boolean canManuallyRerollShop(int objectID, int currentDay) {
+        Integer lastDay = shopManualRerollLastDay.get(objectID);
+        return lastDay == null || currentDay - lastDay >= 7;
+    }
+
+    /** Armory-only manual reroll (2026-08-15: simplified back to just stamping the cooldown clock
+     *  - no longer feeds the weekly-surcharge counter above, since the Armory no longer uses it). */
     public void manuallyRerollShop(int objectID, int currentDay) {
         generateNewShopSeed(objectID);
         shopManualRerollLastDay.put(objectID, currentDay);
@@ -401,6 +466,15 @@ public class PointOfInterestChanges implements SaveFileContent  {
     }
     public java.util.Map<Integer, Integer> getEconomyBuildingObjectIds() {
         return economyBuildingObjectIds;
+    }
+    /** Day this type's mine last paid out - 0 (never-paid default) for a type with no recorded
+     *  entry, same graceful handling old saves need as guardLastPaidDay. */
+    public int getEconomyBuildingLastPayoutDay(int type) {
+        Integer day = economyBuildingLastPayoutDay.get(type);
+        return day == null ? 0 : day;
+    }
+    public void setEconomyBuildingLastPayoutDay(int type, int day) {
+        economyBuildingLastPayoutDay.put(type, day);
     }
     public int getBankBalance() {
         return bankBalance;

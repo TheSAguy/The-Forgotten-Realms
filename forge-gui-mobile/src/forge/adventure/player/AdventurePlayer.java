@@ -248,6 +248,8 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
 
         life = maxLife = difficultyData.startingLife;
         shards = difficultyData.startingShards;
+        wood = difficultyData.startingWood;
+        stone = difficultyData.startingStone;
 
         // Progressive Set Unlocks (MOD_SCOPE.md #4): difficulty-scaled starting unlocked
         // editions - Easy 4, Normal 3, Hard 2, Insane 1. Race-driven (user spec 2026-08-12,
@@ -308,6 +310,14 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         onGoldChangeList.emit();
         onLifeTotalChangeList.emit();
         onShardsChangeList.emit();
+        // Missing since Wood/Stone starting grants were added (2026-08-15 bug report: "did NOT
+        // get the starting resources") - ResourceDisplayActor seeds its labels once from
+        // GameHUD's own process-lifetime singleton construction, then only ever updates via these
+        // signals; without them a fresh character's real (correctly-granted) wood/stone value
+        // never reaches the HUD if that singleton was already built (e.g. testing a 2nd
+        // character in the same session).
+        onWoodChangeList.emit();
+        onStoneChangeList.emit();
     }
 
     public void setSelectedDeckSlot(int slot) {
@@ -923,6 +933,15 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         onLifeTotalChangeList.emit();
         onShardsChangeList.emit();
         onGoldChangeList.emit();
+        // Missing since Wood/Stone were introduced (2026-08-16 user report: "grabbed the stone in
+        // the starting area... I have 0 stone"): the loaded value was read correctly above, but
+        // GameHUD's ResourceDisplayActor is a process-lifetime singleton that only updates via
+        // these signals - loading a save never refreshed its labels, so the display kept showing
+        // whatever the PREVIOUS game state's wood/stone was (usually 0) while the real loaded
+        // value sat invisible underneath. Same bug class create() was given emits for on
+        // 2026-08-15; the load path was missed then.
+        onWoodChangeList.emit();
+        onStoneChangeList.emit();
         onBlessing.emit();
     }
 
@@ -1517,6 +1536,10 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
 
     public static final int RESEARCH_DAYS = 7;
 
+    public int getHeroRace() {
+        return heroRace;
+    }
+
     public Set<String> getUnlockedEditions() {
         return unlockedEditions;
     }
@@ -1774,6 +1797,14 @@ public class AdventurePlayer implements Serializable, SaveFileContent {
         else
             questFlags.remove(key);
         AdventureQuestController.instance().updateQuestsQuestFlag(key, value);
+        // Color Defeat (MOD_SCOPE.md #61) real trigger hook - THIS is the actual call site every
+        // castle's boss-defeat dialog action fires (JSON action key "setQuestFlag" routes here via
+        // MapDialog.java's Current.player().setQuestFlag(...), confirmed by reading the .tmx and
+        // MapDialog's dispatcher directly - MapStage.setQuestFlag(), a differently-named method
+        // backing the DIFFERENT "setMapFlag" action key, was the wrong hook point originally, caught
+        // by adversarial review 2026-08-14). No-ops for every other quest flag in the game -
+        // TerritoryControl.onCastleQuestFlagSet() checks the name against exactly the 5 known ones.
+        TerritoryControl.onCastleQuestFlagSet(key, value);
     }
 
     public void advanceQuestFlag(String key) {

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="36" height="24" tilewidth="16" tileheight="16" infinite="0" nextlayerid="6" nextobjectid="45">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="36" height="24" tilewidth="16" tileheight="16" infinite="0" nextlayerid="6" nextobjectid="47">
  <tileset firstgid="1" source="../../tileset/inn_main.tsx"/>
  <tileset firstgid="10113" source="../../tileset/Inn_Dungeon.tsx"/>
  <layer id="1" name="Ground" width="36" height="24">
@@ -353,5 +353,7 @@
   <object id="42" template="../../../../common/maps/obj/waypoint.tx" x="487" y="272.333"/>
   <object id="43" template="../../../../common/maps/obj/waypoint.tx" x="417" y="288.667"/>
   <object id="44" template="../../../../common/maps/obj/waypoint.tx" x="478.333" y="313.333"/>
+  <object id="45" template="../../obj/stone.tx" x="121.455" y="68.3636"/>
+  <object id="46" template="../../obj/stone.tx" x="499.455" y="63.8182"/>
  </objectgroup>
 </map>

@@ -169,7 +169,7 @@ Helping a color angers its two enemies, not its allies.
 - Still to do: gradual leveling as a town is rebuilt (more shops unlocked per level), roads
   built between towns, +1 life at max reconstruction level.
 
-### 3. Fog of War — `In Progress`
+### 3. Fog of War — `Done (playtest-confirmed 2026-08-18)`
 **The 3 FoW stages (reference numbering, so we can talk about these by number - `World.java`):**
 | Stage | Name | Look | How a tile gets there |
 |---|---|---|---|
@@ -246,7 +246,7 @@ just another OR branch alongside live-vision and persistently-revealed inside `i
   (won't re-notify once already triggered). Deliberately skips the discovery-flash cosmetic layer
   above - a whole-map flash would read as noise.
 
-### 4. Progressive Set Unlocks — `In Progress` (built 2026-08-12; first playtest same day found a capitol-entry crash + several restriction bypasses — all fixed, see MOD_CHANGELOG's 2026-08-12 entry; Research Lab UI reworked per feedback)
+### 4. Progressive Set Unlocks — `Done (playtest-confirmed 2026-08-18)` (built 2026-08-12; first playtest same day found a capitol-entry crash + several restriction bypasses — all fixed, see MOD_CHANGELOG's 2026-08-12 entry; Research Lab UI reworked per feedback)
 Original idea (~100+ MTG expansions exist; player starts with access to a small subset, collect N
 cards from a set to research it at a lab) combined with the user's own fuller design (2026-08-12):
 color-sharded editions as the discovery mechanic, a real Research Lab screen, AI-color towns
@@ -325,7 +325,7 @@ never empty at start).
 | Green Dragon | DTK, TDM, IKO, KHM | Tarkir plus Ikoria/Kaldheim's primal beasts |
 | Black Dragon | DTK, TDM, AFR, VOW | Tarkir, D&D's shadow dragons, Innistrad's night terrors |
 
-### 4c. Inn Tournament Edition Lock — `Done (2026-08-12), not yet playtested`
+### 4c. Inn Tournament Edition Lock — `Done (playtest-confirmed 2026-08-14)`
 Inn tournaments (Draft/Sealed/Jumpstart events) only build from expansions the player has
 researched/started with PLUS the neutral shard (the unaligned slice of the 6-way split). Gated on
 `editionProgressionEnabled`; pre-feature saves are unrestricted (fail-open, consistent with the
@@ -927,7 +927,7 @@ needs its own design pass before any of this gets built:**
   Outlook's capture-chance reduction (#10/#17) shipped what this item was really for; the
   2026-08-06 AI-vs-AI simulation research that lived here moved to #27, which still needs it.
 
-### 9. Expanded Resources — `In Progress`
+### 9. Expanded Resources — `Done (playtest-confirmed 2026-08-14)`
 - Wood and Stone added alongside Gold/Shards (`AdventurePlayer.java`, same field/signal/save
   pattern as Gold/Shards). Called **"Lumber"** in every player-facing string now (per feedback)
   - the internal field/method/save-key names (`getWood()`, `addWood()`, `onWoodChange()`, save
@@ -1152,7 +1152,7 @@ needs its own design pass before any of this gets built:**
   entry, since the description matches exactly. Still needs its own design pass: what kinds of
   events (economic, combat, weather/terrain, quest-triggering?), how often, opt-in or automatic.
 
-### 13. Capitol City — `In Progress` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7; Armory + dedicated Booster shop made permanent fixed slots same day; 2026-08-11: Armory UI polish, see below)
+### 13. Capitol City — `Done (playtest-confirmed 2026-08-18)` (2026-08-08: upgrade flow + layout swap + building migration shipped; 2026-08-09: 6 fixed land shops, Arena/Spellsmith broken-shop rubble art, Inn starts repaired, Outlook + Teleporter + universal Destroy building added (see #10) - Teleporter is the Capitol-gated building this section long speculated about; 2026-08-10: game-over-on-loss built, see #7; Armory + dedicated Booster shop made permanent fixed slots same day; 2026-08-11: Armory UI polish, see below)
 - **Armory UI polish (2026-08-11, two small user requests):** the restore dialog's label changed
   from "Repair Armory" to the user's exact requested wording, "Restore Armory". The Armory's own
   shop screen now shows a small "Restocks weekly" note (new `RewardScene.armoryRestockNote()`,
@@ -1213,7 +1213,7 @@ needs its own design pass before any of this gets built:**
   getGoldSparkleAnimation()`) instead of the twinkle. Shards/Wood/Stone/Mystery keep the twinkle -
   no equivalent multi-frame sheet exists for them.
 
-### 15. Dungeon Rotation — `Built (2026-08-08), not yet playtested`
+### 15. Dungeon Rotation — `Done (playtest-confirmed 2026-08-14)`
 - Generic hostile dungeons/caves appear and disappear across the map over time (hide/show in
   place via the persisted `PointOfInterest.active` flag - despawned ones return after a cooldown).
   Visible 20-60 days, hidden 10-30 (first-guess tunables). Opt-in `dungeonRotationEnabled`.
@@ -1221,7 +1221,13 @@ needs its own design pass before any of this gets built:**
   rotation-eligible = type `dungeon`/`cave` + `Hostile` tag ONLY. Never rotated: the 5 color
   castles + Emrakul, capitals (incl. Naktamun), all towns + Spawn, every `sideboss*` type
   (Planeswalker/unique bosses), anything tagged `Story` (Temples of Chandra/Liliana), the 7
-  `Quest_*` quest-line dungeons, DEBUGZONE/Test, and friendly non-Hostile caves (Oasis, YuleTown).
+  `Quest_*` quest-line dungeons, and DEBUGZONE/Test (excluded by name regardless of tags).
+  **Update (2026-08-18)**: 11 dungeon/cave POIs were found missing the `Hostile` tag entirely -
+  not deliberately "friendly," just never tagged, so they silently never despawned on loss or
+  clear (user caught this by testing `Oasis` specifically - lost a fight there, it stayed put,
+  unlike every other dungeon tested). All 11 (`Oasis`, 7 named `CaveX1` treasure-room spots,
+  `CopperhostForest`, `YuleTown`, plus `DEBUGZONE` for consistency though it's excluded by name
+  either way) now carry `Hostile` and rotate/despawn normally.
 - **Active-quest protection**: a live story quest's target never despawns; a live side quest's
   target gets +30 days whenever its timer comes due (user spec).
 - **Loss-despawn**: losing inside a rotatable dungeon despawns it immediately; an active
@@ -1346,25 +1352,24 @@ pattern/assets, not literal copy-paste, unless noted otherwise.
   Items are loadable/obtainable via the `give item <name>` cheat console command now; wiring
   them into actual shop inventories or reward tables is a separate follow-up, not done yet.
 
-### 17. Territory Effects — `In Progress` (idea logged 2026-08-08; first effect shipped 2026-08-09)
+### 17. Territory Effects — `Done (playtest-confirmed 2026-08-18)` (idea logged 2026-08-08; first effect shipped 2026-08-09; movement-speed effect built 2026-08-15, see #63)
 - **SHIPPED (2026-08-09): town-count life bonus** - +1 max life per 5 owned towns, +1 more for
   the Capitol, recomputed on restore/upgrade/capture-loss and at load
   (`TownRestoration.updateTownLifeBonus()` / `AdventurePlayer.applyTownLifeBonus()`).
-- **There needs to be a REASON for the player to want to spread their territory** - right now the
-  Capitol's castle-style expansion (#13) paints the map but changes nothing about how the game
-  plays. Owned land should be mechanically meaningful.
-- Direction (user's framing): the player's own land should be **"friendlier"** to travel/exist
-  in, and **AI land harsher - scaling with how bad the relationship is** (Color Reputation, #1,
-  is the natural input: Neutral tier ≈ mild, War tier ≈ most hostile).
-- Candidate effects to design from (none committed): movement speed on own land vs slowed in
-  hostile land; enemy spawn rate/difficulty lower on own land, higher in hostile territory;
-  regeneration/healing only on friendly ground; resource pickups richer on own land; vision
-  penalties in hostile land; toll/ambush risk crossing War-tier borders (extends the existing
-  entry-bar/toll mechanics from towns out to the terrain itself).
+- **SHIPPED (2026-08-15, see #63): movement speed effect**, the "friendlier own land, harsher
+  hostile land" candidate below - player's own territory is +15% move speed always; AI-color
+  territory scales with `ColorReputation` status with that specific color (Partner +10%, Happy
+  +5%, Unhappy -5%, War -10%, Neutral no effect), all 5 percentages tunable via `tuning.json`. Not
+  yet playtested.
+- **Still open, none of these committed**: enemy spawn rate/difficulty lower on own land, higher in
+  hostile territory; regeneration/healing only on friendly ground; resource pickups richer on own
+  land; vision penalties in hostile land; toll/ambush risk crossing War-tier borders (extends the
+  existing entry-bar/toll mechanics from towns out to the terrain itself) - the movement-speed
+  effect above was the first of this candidate list actually built, not the whole item.
 - Depends on: #7 (territory ownership per tile - exists), #1 (reputation tiers - exists),
   #13 (player territory - exists). This item is the payoff layer on top of all three.
 
-### 18. Item Economy — `Built (2026-08-10), not yet playtested`
+### 18. Item Economy — `Done (playtest-confirmed 2026-08-14)`
 Started from a full item-catalog audit (spreadsheet export, user annotated it) covering
 obtainability, a proposed Common/Uncommon/Rare/Mythic tier system, and a weekly-refresh Armory
 concept. Built out over one long round:
@@ -1470,7 +1475,7 @@ concept. Built out over one long round:
   don't make sense as something to buy - removed from the 2 `shops.json` pools that had them
   (the generic player-town "Equipment" shop, "ArmoryCommon"). No other Armory-family pool had them.
 
-### 19. Roaming-Enemy Bestiary + Mage Difficulty Tiers — `Built (2026-08-10), not yet playtested`
+### 19. Roaming-Enemy Bestiary + Mage Difficulty Tiers — `Done (playtest-confirmed 2026-08-18)`
 User-driven: player territory's roaming spawns felt dead once Wasteland is fully replaced by
 player-owned land, the bundled non-Shandalar planes have a huge unused bestiary, and there was no
 real difficulty/tier system to gate any of it by. All three tackled together since they turned out
@@ -1707,7 +1712,7 @@ to depend on each other.
   bracket-tree view per a user screenshot) - now shares a row with the mode toggle, immediately to
   its right.
 
-### 21. Speed Up All Monsters — `Built (2026-08-13), not yet playtested` (tier speed rebalance only)
+### 21. Speed Up All Monsters — `Done (playtest-confirmed 2026-08-14)` (tier speed rebalance only)
 - User idea, refined over two rounds into "Increase the speed of enemies by tier" - a tier-scaled
   rebalance rather than a flat blanket speed-up (tougher enemies move faster, not every roaming
   enemy uniformly). Ties into the existing `EnemyData.tier`/mage-difficulty-tier system (#19).
@@ -1996,7 +2001,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   probably wait until #39 (easy deployment/sharing) is further along, so there's something concrete
   to point people at.
 
-### 29. Extra Attacking Mage per 10 Player Cities — `Built (2026-08-11, round 8)`
+### 29. Extra Attacking Mage per 10 Player Cities — `Done (playtest-confirmed 2026-08-18)`
 - User spec (2026-08-11, wishlist batch): "Add 1 extra attacking mage per 10 players cities." Ties
   into #7 (Dynamic Territory Control)'s existing per-color simultaneous-mage cap
   (`TerritoryControl.maxActiveMagesPerColor()`, currently scales 2/3/4/5 with difficulty tier only).
@@ -2033,7 +2038,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   dedicated art yet), or something else entirely (e.g. ruins that visually reflect the building type
   that stood there, not just a generic broken-shop look). Needs clarification.
 
-### 32. Shop Type Re-Roll — `Built (2026-08-11, round 8)`
+### 32. Shop Type Re-Roll — `Done (playtest-confirmed 2026-08-18)`
 - User idea (2026-08-11, wishlist batch): "Shop type re-roll." Ties to #10 (Economy Buildings) - a
   way to change which shop type occupies an already-built slot (e.g. swap a built Gold Mine for a
   Bank) rather than the current one-shot choice made at build time. Needs scoping: paid or free,
@@ -2095,7 +2100,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
 
 ### 36. More Terrain Customization — `Merged into #11 (2026-08-12, user decision - same ask)`
 
-### 37. Graph on Info Screen — `Not Started`
+### 37. Graph on Info Screen — `Done (playtest-confirmed 2026-08-18)` (see #63)
 - User idea (2026-08-11, wishlist batch): "Graph on Info Screen." Which "Info Screen" and which
   data isn't yet specified - candidates already in the mod: `WorldStandingsScene` (#7, per-color
   town count/reputation/status table) or `PlayerStatisticScene` (existing stock stats screen). A
@@ -2106,8 +2111,12 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
 - **"Info Screen" confirmed to mean `WorldStandingsScene`** (round 8, via #38's own build - see
   that entry) - one half of this item's ambiguity resolved. Still needs the metric clarified
   before this can be scoped/built; the new time-series-buffer requirement is unchanged.
+- **Built, round 2026-08-15, per #63**: a per-color town-count bar chart, filling the blank spot
+  the user flagged directly ("maybe a graph"). Deliberately a CURRENT-state snapshot rather than a
+  time-series trend - the history-buffer prerequisite flagged above is still real and unbuilt, so a
+  true trend line (reputation/territory-over-time) remains its own future item if wanted.
 
-### 38. Reputation Tier Explanation on Info Screen — `Built (2026-08-11, round 8)`
+### 38. Reputation Tier Explanation on Info Screen — `Done (playtest-confirmed 2026-08-14)`
 - User idea (2026-08-11, wishlist batch): "Explanation of Reputation tiers on Info Screen." Likely
   `WorldStandingsScene` (#7), which already shows each color's live Reputation number/tier color
   but never explains what the 5 tiers (Partner/Happy/Neutral/Unhappy/War, #1) actually DO -
@@ -2180,7 +2189,7 @@ between fights, before it can proceed to the town's/Capitol's own capture resolu
   skip path), and specifically to confirm the item grants/teleport all land correctly and that
   walking up to the Spawn wizard afterward doesn't re-offer the same conversation.
 
-### 41. Content Filter Tables — `Built (2026-08-12), not yet playtested`
+### 41. Content Filter Tables — `Done (playtest-confirmed 2026-08-18)`
 Three auto-generated, user-editable CSVs in the plane's "config tables/" folder (expansions /
 items / enemies), each row full entity details + Include Y/N - flip to N to remove that content
 from the game. Quest content protected; user edits survive updates; see MOD_CHANGELOG.
@@ -2264,7 +2273,7 @@ date to actually see the bank-vs-inventory split happen.
   TRIGGER timing changed. Not yet playtested - needs a couple of hired guards at staggered hire
   days, then a 100x-Speed fast-forward past day 7/14 to confirm they all get charged together.
 
-### 45. Capitol Land-Shop Ruins, Torch Item, Resource-Pickup Sparkle — `Built (2026-08-13), not yet playtested`
+### 45. Capitol Land-Shop Ruins, Torch Item, Resource-Pickup Sparkle — `Done (playtest-confirmed 2026-08-14)`
 Three pieces of art/content polish from one user round, all user-provided art reviewed before use:
 
 - **Capitol land-shop ruins**: the 6 fixed land shops in the Capitol (id 55 White/Plains, 77
@@ -2298,7 +2307,7 @@ Three pieces of art/content polish from one user round, all user-provided art re
 
 Not yet playtested - none of these three have been seen rendered in-game.
 
-### 46. FoW Stage-3 Reveal Gap on Owned Town Land — `Fixed (2026-08-13), not yet playtested`
+### 46. FoW Stage-3 Reveal Gap on Owned Town Land — `Done (playtest-confirmed 2026-08-18)`
 User report + screenshot: standing on owned land, fog-of-war still rendered fully dark (Stage 1)
 instead of the expected full reveal (Stage 3) - a variant of a bug class fixed once already today
 for the Capitol specifically (see #45's sibling fix, `fb1da89593a`), but this report was about an
@@ -2337,7 +2346,7 @@ load rather than needing the bug to never have happened.
   grown that specific day. Not yet playtested - needs the user to load their save and confirm the
   large black band around the Capitol is now revealed.
 
-### 47. Armory Level 2 Not Showing 8 Items Immediately — `Fixed (2026-08-13), not yet playtested`
+### 47. Armory Level 2 Not Showing 8 Items Immediately — `Fixed (playtest-confirmed 2026-08-14)`
 User report: Armory L1 correctly sells 6 items, L2 should sell 8 (per #9's dynamic item-pool
 rework) but still showed only 6 right after upgrading. Root cause: `RewardScene.promptUpgradeArmory()`
 only flipped the persisted Level-2 flag and toggled two buttons - it never re-resolved the shop to
@@ -2358,7 +2367,7 @@ this file for an analogous case). The missing shops.json L2 entries for the 5 co
 armories are a separate, still-open data gap - not fixed here, since it needs a design decision
 (what should THOSE upgrades even cost/stock) rather than a mechanical copy-paste.
 
-### 48. Trophy Items Leaking Into the Armory Sell Pool — `Fixed (2026-08-13), not yet playtested`
+### 48. Trophy Items Leaking Into the Armory Sell Pool — `Fixed (playtest-confirmed 2026-08-14)`
 User report + screenshots: found "Chandra's Stone" and "Medal of Ultimate Victory" for sale in the
 Armory for 1000 gold, and independently found "Liliana's Stone" too - all three are boss-fight
 mementos (Chandra's/Liliana's Stone drop from beating those two planeswalkers; Medal of Ultimate
@@ -2383,7 +2392,7 @@ leak in `EconomyBuildings.NON_MYTHIC_ITEM_POOL` (a hardcoded name list backing t
 - needs a few Armory/Archaeologist rolls to confirm the 3 items no longer appear (probabilistic,
 may take several tries either way given how the pool is weighted).
 
-### 49. AI Towns Can't Build/Upgrade Anything + Diagnostic Logging — `Fixed (2026-08-13), not yet playtested`
+### 49. AI Towns Can't Build/Upgrade Anything + Diagnostic Logging — `Fixed (playtest-confirmed 2026-08-14)`
 User spec: "The 5 AI-capital colored armory shops should not be able to upgrade, since they are
 all AI controlled. Only the player can build/upgrade stuff... no AI towns/cities should be
 touched, besides the Card Expansion limitations to card shops and Inn tournaments." An audit
@@ -2416,7 +2425,7 @@ Games, that one-time window has almost certainly already been spent, long ago, p
 near Spawn. Use the debug console `spawn resource` command (radius 4 tiles) to verify the sparkle
 art works right now without waiting/relocating.
 
-### 50. Buttons Not Greyed Out When Unaffordable — `Fixed (2026-08-13), not yet playtested`
+### 50. Buttons Not Greyed Out When Unaffordable — `Fixed (playtest-confirmed 2026-08-14)`
 User report: "Upgrade Armory" button stayed fully lit (not greyed out) when the player couldn't
 afford it, unlike most other cost-gated buttons - asked for a full audit. Found two instances of
 the same bug in `RewardScene.java`: `upgradeButton` ("Upgrade Armory") and `shopTypeRerollButton`
@@ -2429,24 +2438,24 @@ both files was confirmed already correct. Fixed by adding the missing `.setDisab
 each, reusing the exact affordability check their own click handlers already use. Not yet
 playtested - needs the user to confirm both buttons now grey out correctly when unaffordable.
 
-### 51. Guaranteed Torch on First-Ever Armory Visit — `Fixed (2026-08-13), not yet playtested`
-User spec: the Torch item (#45's vision-radius item) should always show up on the first Armory a
-player builds, then normal randomness after that. First implementation attempt forced Torch into
-one of the shop's Weighted-rarity FOR-SALE slots at generation time, gated by a one-shot player
-flag. **Caught by adversarial review before deploy as a real (blocking-severity) bug**: every
-OTHER path that regenerates that same shop's stock (the weekly auto-refresh, "Re-roll Inventory",
-"Re-roll Shop Type", the Level 2 upgrade refresh) calls the plain, non-forced generation - so the
-guaranteed Torch could get silently rerolled away before the player ever bought it, with the
-one-shot flag already burned and nothing to show for it. Redesigned to grant the Torch DIRECTLY to
-the player's inventory (via the same `AdventurePlayer.addItem()` used elsewhere) the moment the
-player first opens an Armory-family shop they actually own, instead of trying to force it into
-sale stock - immune to the staleness problem by construction, since nothing can un-grant an item
-already sitting in inventory. Gated on `TownRestoration.isCurrentTownPlayerOwned()` (never fires
-at an AI capital's own colored armory-type shops) and a one-shot `characterFlags` entry (resets
-each new playthrough). Not yet playtested - needs the user to build their first Armory and confirm
-a Torch appears in inventory with a HUD notification.
+### 51. Guaranteed Torch on First-Ever Armory Visit — `Done (playtest-confirmed 2026-08-18)`
+User spec: the Torch item (#45's vision-radius item) should always be PURCHASABLE from the first
+Armory a player builds - normal randomness after that. **Two redesigns now.** First attempt forced
+Torch into a Weighted-rarity FOR-SALE slot at generation time only - caught by adversarial review
+as a real bug (every other regeneration path could silently reroll it away before purchase). Second
+attempt (2026-08-13) swung too far the other way: granted the Torch DIRECTLY to the player's
+inventory for free on first Armory visit - immune to staleness, but not what the user actually
+asked for (confirmed 2026-08-14 after they found an unbought Torch in their inventory: "I wanted to
+guarantee that it would be in the inventory of the Armory... Not add it to player's inventory").
+**Third attempt, the one that actually delivers "guaranteed purchasable, not free" without the
+original staleness bug**: `EconomyBuildings.injectGuaranteedTorchIfOwed()` is now called from ALL 5
+stock-regeneration sites (not just generation time) - a PERSISTENT injection, re-firing on every
+weekly refresh/reroll/upgrade for as long as the guarantee is unfulfilled, so it can no longer be
+silently rerolled away. Fulfillment now means "the player actually bought a Torch" (hooked into the
+Buy button), not "the shop was merely opened." Not yet playtested - needs the user to build their
+first Armory and confirm a Torch is in the FOR-SALE stock (not their inventory) until purchased.
 
-### 52. Arena Deck Tester "Simulated" (AI vs AI) Mode — `Built (2026-08-13), not yet playtested`
+### 52. Arena Deck Tester "Simulated" (AI vs AI) Mode — `Done (playtest-confirmed 2026-08-14)`
 User request: today's Deck Tester has the player pilot one of two chosen decks against an AI
 piloting the other ("Coin Flip" in this write-up, matching the user's own framing - there's no
 actual coin flip in the code, the player explicitly picks both sides via two dialogs). Add an
@@ -2485,7 +2494,7 @@ and reports a winner correctly with no stack trace in the log.
   two callers, `AdventureWinLose.actionOnQuit()` and `MatchController.finishGame()`) and refuted
   this - not a live bug.
 
-### 53. Minimap "Temple" Icon Collision on Story Landmarks — `Fixed (2026-08-13), not yet playtested`
+### 53. Minimap "Temple" Icon Collision on Story Landmarks — `Fixed (playtest-confirmed 2026-08-14)`
 User report + screenshots: 4 (later found to be more) locations on the minimap all show the same
 "Temple"-looking icon, but each is a genuinely different location - one looked like a cave on the
 overworld but had a real temple interior; the other 3 had different overworld exteriors (fort,
@@ -2542,7 +2551,7 @@ decision. Not yet playtested - needs a fresh visit to one of the 4 locations to 
 Mage" now appears instead of a random substitute, and that the "not found" warning no longer
 appears in forge.log.
 
-### 55. Progressive Set Unlocks: Colored-Booster Bypass + Stale Shop Restriction — `Fixed (2026-08-13), not yet playtested`
+### 55. Progressive Set Unlocks: Colored-Booster Bypass + Stale Shop Restriction — `Done (playtest-confirmed 2026-08-18)`
 User report: "I can definitely tell you that my own shops were not gated. I should only have 'New
 Phyrexia' playing on Insane, yet my card-shop had a lot of expansions" - plus a design recap the
 user asked to have verified ("my own shops sell only researched expansions; Inns get
@@ -2630,7 +2639,7 @@ reference once, guarded, and reusing it consistently through the whole method. N
 these are diagnostic-only additions with no gameplay effect; "testing" here just means confirming
 the new log lines appear correctly formatted in forge.log during normal play.
 
-### 57. Deck Tester: 50x Speed, "AI vs. AI - No Watch" Batch Mode, Mode Rename — `Built (2026-08-13), not yet playtested`
+### 57. Deck Tester: 50x Speed, "AI vs. AI - No Watch" Batch Mode, Mode Rename — `Done (playtest-confirmed 2026-08-14)`
 User request, after trying the AI-vs-AI "Watch" mode from #52 ("worked great"): (1) add a 50x
 option next to the existing "10x speed" spectator button; (2) rename "Coin Flip" to "Player vs.
 AI"; (3) split the AI-vs-AI mode into two - "AI vs. AI - Watch" (today's mode, just renamed) and a
@@ -2698,7 +2707,7 @@ cancellation lands within half a second even mid-game). See `MOD_CHANGELOG.md`'s
 Tester freeze fix..." entry for the full writeup. Still not yet playtested against a live freeze
 repro.
 
-### 58. Grandmaster Tier Rename + Tiered Enemy Display Names — `Built (2026-08-13), not yet playtested`
+### 58. Grandmaster Tier Rename + Tiered Enemy Display Names — `Done (playtest-confirmed 2026-08-14)`
 User spec: the enemy tier ladder's display convention is now Apprentice → Adept → Master →
 **Grandmaster** (top tier renamed from "Challenger"), and every enemy shows its tier appended to
 its displayed name, e.g. **"Red Wizard (Adept)"**. Display-only throughout: internal tier strings
@@ -2719,7 +2728,7 @@ Tester End-Test tally/thread-leak/statistics-pollution, a latent Commander-remov
 "edition status" stale-POI readout, a pre-existing roaming-champion save/load collision, a stale
 enemies.csv, and date-label corrections).
 
-### 59. Playtest Round: FoW Threshold Fix, Castle Strength, Printing Remap, Renames, Icons, Shops — `Built (2026-08-13), not yet playtested`
+### 59. Playtest Round: FoW Threshold Fix, Castle Strength, Printing Remap, Renames, Icons, Shops — `Done (playtest-confirmed 2026-08-18)`
 Ten-workstream round from a single extended playtest session, covering a log review, a
 user-diagnosed fog-of-war bug, a feature request, a design-verification screenshot audit, and
 several smaller reports. Full detail in MOD_CHANGELOG.md's "2026-08-13 (late night 3)" entry - this
@@ -2755,7 +2764,7 @@ is a summary index:
 Not yet playtested - the user's current save needs `fog reset` run to clear its existing
 over-revealed fog; everything else needs a fresh look in-game.
 
-### 60. Territory Pacing, Guard Info, Dialog Text Wrap, Spellsmith Editions, AI Mage Tier Variety — `Built (2026-08-14), not yet playtested`
+### 60. Territory Pacing, Guard Info, Dialog Text Wrap, Spellsmith Editions, AI Mage Tier Variety — `Done (playtest-confirmed 2026-08-18)`
 Six items from one round - the 6th (AI mage tier variety) was held for a user clarification before
 building (no matching "Grandmaster"-tier wizard enemy exists per color, so a literal reading of the
 requested odds couldn't always resolve to something), then built once the user confirmed a direction.
@@ -2814,3 +2823,1447 @@ several in-game days/weeks, read the new Guard Info dialog, check a low-reputati
 Spellsmith (blocked entry) against a Happy/Partner one (right edition pool, not the player's own),
 and watch enough mage dispatches to confirm the tier mix (`[TFR-...]` isn't tagged for this yet -
 plain `[TerritoryControl]` log lines show "dispatch rolled tier X (Y) -> Z" per dispatch).
+
+### 61. Color Defeat Endgame, Player-Biome Spawn Variety, Dead Enemy-Reference Fixes — `Done (playtest-confirmed 2026-08-18)`
+Three items from one round, the third an audit finding from the previous conversation.
+
+- **Color Defeat (the big one, user's "next big, endgame update").** Beating one of the 5 colored
+  castles now genuinely defeats that color, not just clears a quest checkbox:
+  - **Full terrain revert**: every tile that color owns ANYWHERE on the map (not just near its
+    castle) reverts to neutral wasteland - reuses the exact primitive world-gen already trusts for
+    "sweep everything a color owns" (`World.neutralizeTerritoryOutsideRadius()`, called with radius
+    0 instead of the world-gen keep-circle radius). Every town and its capital converts to the
+    normal broken-town ruin state (`TownRestoration`'s existing mechanic), the same way a captured
+    town reverting to neutral already looks. In effect this stops all of that color's roaming
+    spawns (biome ownership is what `WorldStage` roams from) and re-opens any of its
+    terrain-specific dungeons to reappear as neutral/wasteland content once they next time out -
+    both fall out naturally from the terrain flip, no separate code needed (confirmed both
+    mechanisms already key off live biome ownership).
+  - **Reputation: flat -50** to the defeated color, deliberately breaking the reputation system's
+    usual net-zero invariant (a color being wiped isn't a duel event) - the other 4 colors' tracks
+    are untouched and the whole system keeps working normally per the user's explicit request to
+    keep reputation live for all 5 colors regardless of defeat status.
+  - **+1 attacking-mage slot for every surviving color, per additional color defeated** (user's
+    pick: stacks, not a flat one-time bonus - "consistent with... escalating pressure as the world
+    shrinks").
+  - **Attacker tier distribution shifts, also stacking per defeat.** Real finding from this round:
+    the "AI-dispatched mage tier variety" feature (pulled in from the other machine this same
+    session, previously believed by the user to already include this) is a flat Apprentice 30% /
+    Adept 50% / Master 15% / Grandmaster 5% roll with NO scaling by anything - the endgame shift
+    IS the first thing that ever varies it. Per defeated color: Adept -10 / Master +5 / Grandmaster
+    +5 (Apprentice untouched), clamped so Adept can't go negative - lands exactly on 0 at 5 defeats.
+  - **The 2 colors adjacent to the defeated one on the color wheel** (its allies, per the existing
+    ally table - confirmed matches the user's own Green-defeated -> White/Red worked example
+    exactly) each get a ONE-SHOT "next attack is guaranteed to target a player town" flag, consumed
+    on that color's next dispatch. If the player owns nothing yet when that dispatch would fire,
+    the flag stays armed for a later one instead of being wasted on an impossible forced pick.
+  - **Real trigger**: hooked at `AdventurePlayer.setQuestFlag()` (corrected mid-round - see the
+    adversarial-review note below; originally miswired to the similarly-named but unrelated
+    `MapStage.setQuestFlag()`), the actual call site every castle's boss-defeat dialog action fires
+    (`{"setQuestFlag":{"key":"Ch1BlackCastleComplete","val":1}}`, confirmed by reading the .tmx
+    directly) - independent of whether the "Rescue the Captive" quest STAGE that also reads this
+    flag completes correctly (a separate, pre-existing quest-system detail this feature doesn't
+    depend on).
+  - **Testing tool, TEMPORARY - remove once playtested**: new console command
+    `defeat castle <color>` fires the exact same consequence without needing to clear one of the 5
+    (very difficult) castle bosses first - writes the real quest flag too, as close to "complete
+    the quest" as a console command gets.
+- **Player-biome spawn variety** (user request, same conversation as the audit below): player
+  territory's roaming roster (72 enemies, #19's own "feels dead" gap only partially closed) now has
+  a small 8% chance per spawn roll to pull from the colorless/Wasteland roster instead - independent
+  of the existing foreign-color-intrusion mechanism (no proximity/reputation gating, just more
+  variety on the player's own land). Tunable constant, flagged for the user to adjust if it feels
+  off in either direction.
+- **8 dead enemy-name references fixed**, found while answering a user question about enemy tier
+  counts: `Kobold` (no bare entry exists, only `Kobold Warrior` etc. - fixed to that), `Angelic
+  Overseer` in white.json/blue.json (real entry is `Angel Overseer`), `Ibis-headed Aven Initiate`
+  in blue.json (real entry is `Ibis-headed Aven Warrior`), and 5 `<Color> Sliver` entries across
+  blue/black/white/green/red.json (real per-color entries use the `Sliver_<Color>` naming
+  convention already established elsewhere in the same files). All 8 were silently unresolvable
+  spawns before this fix.
+
+**Adversarial review found and fixed 9 real issues (2026-08-14), including one BLOCKING one**: the
+feature's real in-game trigger was wired to the wrong method (`MapStage.setQuestFlag()` instead of
+`AdventurePlayer.setQuestFlag()`, two confusingly-similarly-named methods backing two different
+dialog-action JSON keys) - an actual castle boss kill would never have fired any of this. Also fixed:
+a defeated color's capital silently resurrecting on every save reload, a doodad-placement call that
+re-randomized unrelated already-settled ground on each additional defeat, the player's Capitol being
+double-weighted in the forced-target pick, plus 3 minor lifecycle/log-spam gaps and 2 nitpicks. Full
+list in MOD_CHANGELOG.md's "Adversarial review" entry. All fixed, recompiled, redeployed.
+
+**Real 2-color playtest since confirmed the consequence logic works** (terrain sweeps, mage-cap
++1/+2 stacking, forced-ally-targeting all firing correctly with clean logs) - but surfaced ONE more
+real bug the code review missed: mages dispatched BEFORE their color's defeat stayed in flight and
+could still capture towns (or worse, trigger the Capitol's run-ending duel) AFTER the defeat -
+`[TerritoryControl] ... has fallen to White!`/`...to Black!` both appeared in `forge.log` AFTER
+their color's own `DEFEATED` line. User independently caught the same bug live ("I killed black,
+then a black mage that was still on-route captured a town"). **Fixed**: `onMageArrived()` now
+checks `isColorDefeated()` first and fizzles silently if true - full writeup in MOD_CHANGELOG.md's
+"10th finding" entry. Recompiled, redeployed.
+
+### 62. Playtest Round: SpellSmith Editions, Arena Text, Torch Redesign #2, Armory Odds, Guard Dialog, Shop-Reroll Booster Split, Grand Torch — `Done (playtest-confirmed 2026-08-18)`
+Six playtest reports plus four scope-confirmation asks from the same session as #61, investigated
+via 6 parallel read-only Explore agents before any code changed. Full technical detail in
+MOD_CHANGELOG.md's "Second-half round" entry - summary here:
+
+- **SpellSmith editions bug, real root cause found**: two independent, never-synced filter code
+  paths in `SpellSmithScene.java` - the underlying card pool was correctly branched to the
+  town-color's shard, but the dropdown the player actually sees/picks from was a separate method
+  that never got the same fix. Consolidated into one shared helper so they can't drift apart again.
+- **Arena rebuild-dialog text wrap**: the cost figure is dropped from the shared `TownRestoration.
+  buildRebuildShopDialog()` body text (used by Arena/Spellsmith/Shard Trader alike) since the
+  button right below it already shows the cost.
+- **Guaranteed-Torch redesigned a 2nd time** (see #51) - now genuinely "guaranteed purchasable,"
+  not free-to-inventory, without reintroducing the staleness bug the 1st stock-seeding attempt hit.
+- **3 (really 4) Armory items were hardcoded-guaranteed** ("Staff of Healing/Flight/Speed",
+  "Manasight Stone") instead of rolling normal rarity odds - root cause was a `questItem` flag that
+  incidentally also hid them from the normal weighted pool, forcing the hardcoding in the first
+  place. Fixed at the data level; total Armory stock size (6 at L1, 8 at L2, per #47) preserved.
+- **Guards dialog UI**: Info/Close buttons shrunk and placed side-by-side; the Info popup's
+  overflowing text wrapped in a scrollable pane.
+- **Shop-type re-roll (#32) audited and a real gap fixed**: Booster shops were mixed into the same
+  reroll pool as ordinary card shops in the 5 AI-capital towns - now kept strictly separate.
+  (Also confirmed: 280 total shop templates, 51 structurally unreachable via reroll regardless -
+  all pre-existing unused/placeholder content, not a reroll bug.)
+- **New item, Grand Torch** (Rare, 1000g, same slot as Torch, `visionRadiusMultiplier: 4.0`) -
+  user-supplied art, processed the same way the original Torch's was. Original Torch's own
+  multiplier reduced 3.0x -> 2.0x so Grand Torch is a genuine upgrade, not a sidegrade.
+- **#17 Territory Effects confirmed NOT built** - the "faster on own land, slower in hostile land"
+  speed effect the user believed was already done isn't in the code anywhere (direct search of
+  every movement-speed call site in the repo). `MOD_SCOPE.md`'s own "candidate, none committed"
+  status for that bullet was accurate, not stale - would need real scoping/building if still wanted.
+- **#29 (Extra Attacking Mage per 10 Player Cities) already has adequate logging** - `[TFR-MageCap]`
+  prints `playerTowns`/`divisor`/`townBonus`/`cap` on every dispatch cap-check; no new logging added.
+
+Not yet playtested - needs the user to see each fix in-game (SpellSmith edition list at an AI town,
+Arena repair text, Guards dialog layout/scroll, a fresh Armory's item variety, a shop reroll staying
+within its own booster/non-booster category) and confirm the Grand Torch's art/stats read correctly.
+
+**Still not fully playtested end-to-end** - the corrected real trigger (`AdventurePlayer.
+setQuestFlag()`) and a genuine castle boss kill specifically have not yet been tried against the
+now-doubly-fixed build (hook + in-flight-mage fizzle both landed after the only real playtest so
+far). Everything else - terrain/town revert, reputation -50, mage-cap/tier-shift stacking,
+forced-ally-targeting - has real playtest confirmation.
+
+### 63. Territory Speed Numbers, Reroll Pricing Redesign, New Tuning Config, Info-Page/Minimap Overhaul — `Done (playtest-confirmed 2026-08-18)`
+Fourteen items from one large round: concrete numbers for #17's speed effect, a town-radius bump,
+a Capitol shop-coverage audit, a reroll-pricing redesign, a new numeric-tuning config file (plus an
+AI-castle-speed regression fix), a UI label rename, a Capitol minimap name-collision fix, a World
+Standings coloring swap, the Armory/Guard Info page's scrolling finally fixed for real, a new "Mod
+Details" overview page, a town-count bar chart, and a minimap-button caption/behavior fix with a new
+"towns under attack" overlay.
+
+- **#17 Territory Effects, first real numbers** (`WorldStage.territorySpeedModifier()`): player's
+  own land is always +15% move speed. AI-color land scales with `ColorReputation` status with that
+  specific color - Partner +10%, Happy +5%, Unhappy -5%, War -10%, Neutral no effect. Multiplicative
+  with the existing sprint modifier; deliberately does NOT apply on roads (the road branch has no
+  cheap "whose biome is this" lookup without unmasking the road bit, judged out of scope). All 5
+  percentages are tunable (see the new config file below), not hardcoded. Change-triggered diagnostic
+  logging (`[TFR-TerritorySpeed]`) logs once per biome-name change, not every frame.
+- **Town max territory radius: 15 -> 20** (`TuningData.townMaxTerritoryRadius`).
+- **Capitol shop-type coverage audited, a real design gap found (not fixed, needs a decision)**: all
+  12 of the Capitol's ordinary card shops share byte-for-byte IDENTICAL commonShopList/uncommonShopList/
+  rareShopList/mythicShopList `.tmx` properties - rerolling any of them draws from the same pool, so
+  reroll produces no real per-shop variety at the Capitol specifically (works fine at ordinary towns).
+  The much larger AI-capital-flavored shop-type roster (~150+ tribal/color-specific names) is
+  structurally unreachable there regardless of rerolling. Fixing this would mean hand-authoring 12
+  `.tmx` object properties with distinct candidate pools - a real content task, not a code fix, and
+  not done this round pending a decision on whether it's worth it.
+- **Reroll pricing redesigned for both reroll systems** (card-shop type reroll AND Armory inventory
+  reroll): the old hard "once per 7 days" cooldown is gone, replaced with an escalating shard
+  surcharge - +1 shard per reroll already used since the last CALENDAR-WEEK boundary (`day / 7`
+  integer division, the exact same "which week" math the pre-existing Guard weekly-pay formula
+  already used), resetting to the base cost at each week boundary. Example: base cost +4, three
+  rerolls this week makes the next one +7; a new week resets back to +4. New `PointOfInterestChanges.
+  rerollSurcharge()`/`recordReroll()`, `shopRerollCountThisWeek` field (persisted - see below).
+- **New tunable-numbers config file**: `tuning.json` (`TuningData.java`, loaded via
+  `Config.getTuningData()`, same plane-local-with-common-fallback resolution as every other
+  plane-scoped file) holds day length, Capitol/town/AI-castle expansion rates, max territory radii,
+  the Speed-Up multiplier, and all 5 territory speed percentages above - previously a mix of
+  hardcoded constants scattered across `World.java`/`WorldStage.java`/`TerritoryControl.java`.
+  **Found and fixed in the same pass**: AI castle expansion was still hardcoded at 9 tiles/day (the
+  "TEMPORARY testing pace" #60 explicitly left unchanged at the time) - now 1 tile/day like the
+  Capitol, via `TuningData.aiCastleExpansionTilesPerDay`, confirmed against the user's own log-derived
+  observation ("day 40 and they were already in the middle of the map... should expand 1 tile a day
+  max") rather than assumed. **Speed-Up's real default also changed 100x -> 50x** per explicit
+  request, now living in `tuning.json` instead of a hardcoded constant.
+- **"100x Speed" UI checkbox renamed to "Speed-Up"** (`lblFastTimeToggle`, shared `en-US.properties` -
+  the number no longer belongs on the label now that the multiplier is a tunable, not a fixed value).
+- **Capitol minimap name-collision fixed**: a POI's own name label and any `AdventureEventData`
+  (Inn tournament) label sourced from that same POI were both centered on the identical map
+  coordinate with no offset, colliding whenever both existed for one POI (user screenshot: "Bloomburrow
+  (set)" overlapping "Orazca"). Fixed in `MapViewScene.details()` - event label(s) now stack
+  progressively lower, one row per label already placed at that POI.
+- **World Standings reputation coloring swapped**: the tier color (Partner green / Happy cyan /
+  Unhappy orange / War red) now rides the STATUS WORD ("Happy"/"War"/etc.) instead of the numeric
+  reputation value, which stays plain black like every other numeric column in the table - per user
+  follow-up request on #1's original coloring choice.
+- **Armory/Guard Info page scrolling, fixed for real this time** (see #18/#32's earlier attempt,
+  which looked fixed but wasn't - see MOD_CHANGELOG for the root-cause writeup). New reusable
+  `InfoTextScene` (a full `Scene` with a JSON-authored fixed-size scroll region, no `Dialog.pack()`
+  anywhere in the loop - the actual bug in the earlier attempt) replaces the old broken Dialog-based
+  Guard Info popup, mirroring the Inn's own working tournament-info scroll pattern per user request.
+- **New "Mod Details" page** (World Standings screen, `InfoTextScene`-based, replaces nothing existing
+  since no literal "Explanations" button was ever found in code - added alongside the existing
+  Reputation/Expansion wiki popups instead): a comprehensive, promotional-but-technical overview for
+  a player who's never touched this mod - how it differs from stock Shandalar, how sets unlock, how to
+  defend territory, terrain speed bonuses/penalties, race-based starting sets, and what difficulty
+  actually changes beyond monster strength.
+- **World Standings blank-spot bar chart**: a live per-color town-count snapshot chart fills the
+  previously-empty space on the Info page, reusing `GameHUD.getMageMarkerColor()` for the same
+  per-color palette as every other map marker in the mod. Deliberately a CURRENT-state snapshot, not
+  a trend line - this mod persists no town-count history anywhere, so a real trend graph would need a
+  new time-series buffer first; flagged as a real prerequisite gap, not silently faked.
+- **Minimap button audit**: the "Events"/"Reputation" cycling buttons were mislabeled relative to
+  their own behavior (the "Events" button actually showed per-POI reputation numbers; "Reputation"
+  actually showed visited dungeon/cave/castle names) - captions swapped to match ("Reputation" /
+  "Landmarks") via a new plane-local `ui/map.json`/`map_portrait.json` override, leaving the shared
+  `common/ui/map.json` these mislabels came from untouched for every other plane. Also added a new
+  "towns under attack" overlay to the Details button per user suggestion - one label per in-flight
+  Territory Control capture mage with a live target, drawn at the TARGET town's position and colored
+  to match that mage's own minimap dot, reusing the same per-POI stacking-offset fix built for the
+  Capitol name-collision bug above so it can't collide with existing name/event labels.
+- **Persistence gap found and fixed in the same pass**: the new `shopRerollCountThisWeek` field (the
+  escalating-reroll-cost counter above) had no `save()`/`load()` entries when first added - would have
+  silently reset to base cost every time the game reloaded. Fixed alongside the pre-existing
+  `shopManualRerollLastDay` field's own load/save entries.
+
+**Adversarial review (4-dimension workflow, 2026-08-15) - 6/6 findings confirmed real, all fixed**:
+before any playtesting, ran a workflow of independent finder agents over reroll pricing, territory
+speed, the tuning config system, and the new UI additions, each finding adversarially re-verified by
+a second agent trying to refute it. All 6 raised findings survived verification:
+  1. `shopTypeRerollButton`'s affordability check compared shards against only the flat base cost,
+     not base+surcharge - a player could see an enabled button that silently did nothing on click
+     once any reroll had been used that week. Fixed, and while in there also fixed both reroll
+     buttons' displayed TEXT to show the true escalated cost (previously always showed base cost).
+  2. The `[TFR-TerritorySpeed]` diagnostic log only fired on a biome-NAME change, missing the case
+     where a reputation-tier crossing changes the real modifier while the player stays on one
+     continuously-named biome (e.g. a duel outcome shifts reputation while standing still). Fixed to
+     also log on a modifier-value change.
+  3. `territorySpeedModifier()` had no floor - a modder setting a penalty tunable >= 1.0 in
+     `tuning.json` would drive the modifier to zero or negative, and libGDX's `Vector2.setLength()`
+     both discards sign on a negative input and can't un-zero an already-zeroed vector, silently
+     breaking player movement. Ships safe today (max shipped penalty 0.10), but added a 0.1x floor
+     regardless so a future tuning edit can't produce an unusable result.
+  4. `lastLoggedSpeedBiome` was never reset across a save load, so the first territory entered in a
+     freshly loaded session could go unlogged if it happened to share a name with whatever was last
+     logged before quitting. Reset added to `clearCache()` (covers save loads; a brand new game
+     doesn't route through that method, left as a narrow, cosmetic-only residual gap).
+  5. The new "Mod Details" button and the "Back" button overlapped in a real 55x3px hit-area region,
+     with "Back" winning the overlap since it's declared later in the JSON (libGDX hit-tests last-
+     added-first) - could steal clicks meant for "Mod Details". Fixed by repositioning.
+  6. The new "towns under attack" overlay drew unconditionally, with no fog-of-war visibility check
+     - unlike the pre-existing mage-marker loop it was modeled on, which does check. Leaked an
+     unexplored town's existence/location/under-attack status through solid fog. Fixed with the same
+     `isCurrentlyVisible()` gate.
+
+Not yet playtested - needs the user to feel the territory speed changes in motion, confirm the
+reroll-pricing math across a real week boundary (and after a save/reload), watch the AI castle
+expansion pace over several days, read the new Mod Details page and bar chart, and try the fixed
+minimap buttons and Guard Info scroll.
+
+### 64. Playtest Round: Mod Details Crash, Reroll Pricing Correction, Info Button Move, Day/Week Tracker, Starting Resources — `Built (2026-08-15), playtest-confirmed the crash is real and fixed`
+Five items from the very first real playtest of round #63's work.
+
+- **Real crash, root-caused and fixed**: clicking "Mod Details" (or the Guards dialog's own "Info"
+  button - same underlying bug, hit first, 5 times, before the reported crash) threw
+  `ClassCastException: Controls$LabelFix cannot be cast to ... Label` and took the whole app down.
+  Root cause: `InfoTextScene`'s `title` field was typed as libGDX's raw `Label`, but a JSON
+  `"type": "Label"` element actually instantiates `Controls.newTextraLabel()` under the hood
+  (`UIActor.java`'s own "Label" case) - a `TextraLabel`, never the raw `Label` class. This line had
+  never actually executed in a real playtest before now (every prior round's own status line said
+  "not yet playtested"). Fixed by retyping the field as `TextraLabel`.
+- **Reroll pricing swapped to the right button**: the escalating weekly surcharge from #63 had
+  landed on "Re-roll Shop Type" - user correction: it belongs on the button that re-rolls a shop's
+  CARD CONTENTS instead. "Re-roll Shop Type" reverted to a flat cost, no surcharge. The Armory's own
+  "Re-roll Inventory" reverted entirely back to its original hard once-per-7-days cooldown (the
+  #63 redesign for Armory specifically is undone). Not yet re-targeted onto the generic restock
+  button at this point in the round - see #65.
+- **"World" HUD button moved and renamed to "Info"**: was visually overlapping the minimap's own
+  corner (anchored `menuActor.getX() - width - 4` at its old ~45px width, which undercuts the
+  minimap's own right edge). Renamed, narrowed, and re-anchored off the minimap's own right edge
+  instead of the menu button's left edge, so it can't overlap either neighbor regardless of
+  `hud.json` values changing later.
+- **Day/Week tracker**: `TimeOfDayActor`'s HUD panel gained a third row. "Day" now shows DAY-OF-WEEK
+  (cycles 1-7) instead of the raw ever-incrementing absolute day count, with a separate "Week"
+  counter alongside it - `Day 1, Week 0` through `Day 7, Week 0`, then `Day 1, Week 1`, per user
+  spec. Purely a display re-derivation - `World.getCurrentDay()`'s own absolute semantics (what
+  every other week-boundary calculation in the mod, e.g. Guard pay and the reroll surcharge, keys
+  off) are untouched.
+- **Starting Wood/Stone**: Easy now grants 100/100, Normal 50/50 (`DifficultyData.startingWood`/
+  `startingStone`, new `config.json` fields, difficulty-scaled like every other starting resource).
+
+Compiled clean after 2 real issues caught and fixed mid-round (an unused `Table` import left over
+from an earlier round's Guard Info dialog removal, and one stale `FAST_TIME_MULTIPLIER` reference
+in `WorldStage.java` a prior tuning-config conversion had missed). Deployed - both jars spliced,
+resource folder mirrored, `en-US.properties`' Speed-Up label unaffected this round. **The crash fix
+specifically is playtest-confirmed real** (the user's own log showed 6 occurrences of the same
+exception, the last one fatal) - the rest of this round's fixes were not yet re-tested before the
+next playtest round (#65) landed.
+
+### 65. Playtest Round: Capitol Collision Fix, Arena L2 Art, Two Real Persistence Bugs, Shop-Pool Widening, Line-Chart History — `Done (playtest-confirmed 2026-08-18)`
+A large round: 4 parallel investigations into fresh playtest reports, followed by fixes for all of
+them plus the previously-deferred Capitol shop-coverage content task (see #26).
+
+- **Two real, confirmed root causes for "didn't get starting resources" + "received the starting
+  items twice"** (found via a dedicated investigation, not guessed):
+  - Wood/Stone genuinely were granted correctly by `AdventurePlayer.create()` (confirmed by reading
+    the method in full, in order) - the bug was that `onWoodChangeList.emit()`/`onStoneChangeList
+    .emit()` were never called alongside the pre-existing `onGoldChangeList.emit()`/etc., so
+    `ResourceDisplayActor`'s HUD label (seeded once at `GameHUD`'s own process-lifetime-singleton
+    construction) never learned the real, correctly-granted value. Fixed by adding the two missing
+    `emit()` calls.
+  - The doubled starting "coins"/teleport rune traced to `AdventureQuestData.prologueDisplayed`/
+    `epilogueDisplayed` being declared `transient` - Java serialization silently drops `transient`
+    fields on every save/load round-trip, resetting them to `false` each time, which re-queued quest
+    28's ("Entering The Forgotten Realms") intro dialog and its one-time "Skip tutorial" item grant
+    (a teleport rune + starting Challenge Coins) on the next `showQuestDialogs()` call after any
+    reload - triggered from over a dozen ordinary places (entering a town, opening inventory, etc.).
+    Fixed by removing `transient` from those two fields specifically (`completed`/`failed`, also
+    `transient` on the same class, were flagged as worth a separate look but NOT touched this round -
+    not confirmed to have the same bug, and a much bigger blast radius if wrong).
+- **Arena Level 2 art fixed** - a real, previously-undiscovered stale-cache bug, not a missing asset
+  or wrong condition: the Arena's rebuilt-town icon was evaluated ONCE at map-load time and cached
+  into `OnCollide`'s `rebuiltIcon` field forever, unlike the Armory's own icon (re-read fresh every
+  `draw()` call in `ShopActor.java`). `OnCollide.withRebuiltIcon(TextureRegion)` changed to
+  `withRebuiltIcon(Supplier<TextureRegion>)`, re-evaluated on every `draw()` - Spellsmith's own call
+  site (whose icon never changes) just wraps its icon in a constant lambda, no behavior change there.
+- **Capitol fountain/statue collision fixed** - user-reported "1087" turned out to be a *tile* id
+  (not a Tiled object), painted twice on the `Ground2` layer flanking the Capitol's south gate. Tile
+  collision in this engine is baked per-tile-id into the tileset itself (`MapStage.loadCollision()`
+  reads every `TiledMapTileLayer` uniformly, no layer-name exemption for "decorative" layers) - fixed
+  by repainting both cells with the same graphic's tile id from the pre-existing `main-nocollide`
+  tileset (already in active use one row over, for the gate's other decorative flanking tiles)
+  instead of the collidable `main` tileset, via a small Python script decoding/patching the tmx's
+  compressed tile-layer data directly (verified round-trip + XML well-formedness before and after).
+- **Capitol shop-type coverage (#26) finally addressed** - the Capitol's 12 ordinary card shops and
+  the player-town template's 8 (down from 9 - see below) now draw from the full catalog instead of a
+  narrow 28-name generic pool: ~219 additional templates (tribal/guild-flavored names previously
+  exclusive to AI-owned towns, e.g. Elf/Wolf/Golgari/Dimir) appended across all 4 rarity tiers,
+  tiered using the same heuristic the AI capitals' own shops already follow (bare mono-color tribal
+  names -> common, off-color-tinted "TypeNColor" shops -> uncommon, 2-color guild names -> rare,
+  3-5 color wedge/big-payoff names -> mythic). 3 confirmed test/joke entries (`UnionTest`,
+  `goblinKingShop2`, `ubwarhammer40K`) deliberately excluded. Per explicit user requirement, the
+  existing edition-progression gate (`EditionProgression.restrictShopRewardsForCurrentTown()`)
+  needed no code change - confirmed already applied unconditionally to every shop-reward-generation
+  path regardless of which of the ~250 templates resolved, so a shop drawing a type the player hasn't
+  researched sets for correctly renders empty rather than bypassing the gate (intended per user).
+  **Also given automatic weekly content refresh, matching the Armory's own cadence**: all 20 widened
+  shop objects gained `noRestock=true`, routing them through the same generic, already-existing
+  `PointOfInterestChanges.getWeeklyShopSeed()` mechanism the Armory/land shops use (day-multiple-of-7
+  reseed) instead of the old one-time-ever roll. This also removes their ordinary paid restock button
+  (a `noRestock` side effect) - `RewardScene.armoryRestockNote()`'s "Inventory will refresh weekly"
+  note generalized from a name-pattern check (`isArmoryShop()||isLandShop()`) to `!canRestock()` so
+  it now shows correctly for these shops too.
+- **Player-town template edit acknowledged as the new baseline**: the user directly edited
+  `player_town.tmx` in Tiled, removing shop object id 58 (one fewer shop slot, "to make choosing
+  what to build a little more challenging"). Verified clean by investigation before treating it as
+  canonical: no dangling code references to id 58 anywhere, and ruin/rubble rendering is driven
+  entirely by "does a `ShopActor` exist for this object" with no separate expected-shop-count
+  anywhere - deleting the object correctly means nothing spawns or renders there, no companion code
+  fix needed.
+- **World Standings title** changed to "The Forgotten Realms Standings" (scaled down via `[%55]`
+  to fit the available width without colliding with the Reputation/Expansion buttons).
+- **Line chart replaces the round-#63 snapshot bar chart** (user supplied a mockup): town count by
+  week, 5 AI colors + Player (Colorless excluded per spec), rolling 10-week window. This needed real
+  new persisted state that didn't exist before - `World.java` gained
+  `standingsHistoryWeeks`/`standingsHistoryCounts` (one snapshot per real week boundary actually
+  crossed, not backfilled if multiple weeks are skipped by fast-forwarding, trimmed to the newest 10
+  entries), recorded via a new `recordStandingsHistoryIfNewWeek()` hooked into the same
+  `WorldStage.onActing()` day-tick spot `EconomyBuildings`/`TerritoryControl`'s own
+  `processDaysPassed()` already runs from, PLUS self-seeded on `WorldStandingsScene.refresh()` itself
+  so the chart is never stuck empty for the first several minutes of a new game before the first
+  real day-tick fires. Rendered as positioned `Image`/`TypingLabel` actors added directly to
+  `chartArea` (a `Table` used purely as a free-positioning canvas, not for cell layout - no row/
+  column flow can express arbitrary line-chart coordinates) - uniform small square point markers per
+  series rather than the distinct per-series shapes in the user's own mockup reference (color alone
+  already distinguishes all 6 lines; 6 unique marker shapes would need new art for comparatively
+  little added legibility). `modDetailsInfo` moved up to free vertical room for the bigger chart area
+  the line chart needs (spans both button columns at y=46 instead of floating below the old, smaller
+  chart).
+- **Mod Details page**: added the full 16-race starting-expansion table and an explicit explanation
+  of how difficulty scales how many of a race's 4 sets you actually start with (Easy all 4, Normal a
+  random 3, Hard a random 2, Insane just 1), cross-checked against #4b's own table rather than
+  recalled from memory.
+- **Exchange dialog**: the "Gold: X  Shards: Y  Wood: Z  Stone: W" resource-summary line replaced
+  with real icons (per the standing "resource symbols, not text-word suffixes" convention) - Gold/
+  Shards via the standard `[+Name]` inline markup (registered on the shared font), Wood/Stone via
+  real `Image` actors from `resource_icons.atlas` (that inline markup technique doesn't actually
+  resolve to a picture for a second atlas - see `ResourceDisplayActor`'s own class comment for the
+  same gotcha already documented there).
+- **Bank dialog**: "Destroy Building"/"Close" converted from two stacked full-width rows to a
+  side-by-side half-width pair via the same `addHalfButton()` pairing already used for Deposit/
+  Withdraw above them and for the Guards dialog's own Info/Close.
+
+Not yet playtested - needs the user to confirm the Mod Details/Guard Info pages no longer crash, try
+the corrected reroll pricing, walk into the Capitol's fountain area, upgrade an Arena to Level 2 and
+watch its icon actually change, browse the widened Capitol/town card shops over a real week boundary,
+and watch the new line chart accumulate real data points over several in-game days.
+
+### 66. First Real Playtest of #65: Line-Chart Bug, Minimap Fog/Marker Desync, Shop-Widening Follow-ups — `Done (playtest-confirmed 2026-08-18)`
+Seven items from the first real playtest of round #65's work, including a real bug found in that
+round's own line chart before it was even confirmed by the user.
+
+- **Day length 600s -> 400s** (`tuning.json`).
+- **Line chart legend/axis-label collision, self-inflicted bug fixed**: `plotY`/`plotH` had been
+  computed as if the legend's space was reserved at the BOTTOM of `chartArea`, while the legend-
+  drawing loop itself was actually top-anchored (`ly = h - (row+1)*12`) - the two were never
+  consistent, so the Y-axis max-value label landed almost exactly on the legend's first row (the
+  user's own screenshot showed a stray "16" above the Green swatch). Layout math redone so both
+  agree: legend reserved at the top, x-axis labels at the bottom, plot in between. Also moved the
+  whole chart left (`x: 272 -> 225` in `world_standings.json`) per user request, clear of
+  `standingsList`'s real visible content.
+- **Research Lab edition names now show the 3-letter code**, matching SpellSmith's own format
+  (which gets it for free from `CardEdition.toString()`'s `name + " (" + code + ")"` - Research
+  Lab builds its own label text instead, so the code needed adding explicitly in two places:
+  the per-edition list row and `editionDisplayName()`, used by the "Researching: X" header).
+- **Manual reroll parity restored for the widened noRestock shops** (user decision, asked directly
+  after the plain restock button "went missing" - it was removed as a `noRestock` side effect from
+  round #65's own weekly-refresh change): the Armory's own manual "Re-roll Inventory" mechanism
+  (flat cost, hard 7-day cooldown) extended to any non-Armory `noRestock` ordinary card shop too
+  (land/booster shops excluded - nothing meaningful to reroll on those). Confirmation dialog text
+  and the edition-restriction trigger tag both generalized from Armory-specific wording.
+- **Real minimap bug found and fixed - town markers vanishing/getting "cut off" by terrain growth**,
+  confirmed via investigation to be the SAME underlying mechanism already root-caused and fixed
+  once before (`MOD_CHANGELOG.md`, 2026-08-09 - "fog overlay holds tile COPIES, not a live view of
+  biomeImage") but only patched at ONE of its actual call sites (`World.refreshWorldMapMarkers()`).
+  `redrawAllPoiMarkers()` (used by both town-capture repaints and daily territory-growth repaints)
+  paints markers onto `biomeImage` only - never onto `fogOfWarPixmap`, which is what
+  `World.getBiomeImage()` actually returns (and every on-screen minimap reads) whenever fog of war
+  is enabled, which it is for this plane. A captured town's marker could go missing entirely (fog
+  copied the marker-less tile moments before the marker was drawn), and a nearby town's marker
+  could look partially erased (only the tiles inside that day's newly-claimed growth ring got
+  re-synced, stranding the rest of a marker spanning multiple tiles). Fixed with a new
+  `refreshFogForMarkerRect()` helper, called right after each of the two marker `drawPixmap()`
+  calls inside `redrawAllPoiMarkers()` itself - covers every current and future caller in one
+  place, cheap (a handful of tiles per marker, not a full-map rebuild - deliberately avoided given
+  a documented perf regression earlier this session from full fog rebuilds on the daily-growth
+  hot path).
+- **Confirmed, not a gap: `[TFR-ShopEditions]` diagnostic logging** (built 2026-08-13) already
+  covers the widened shops with zero code change needed - traced every shop-reward-generation call
+  site and confirmed the edition-restriction gate applies unconditionally regardless of which
+  `ShopData` name resolved, with the log line already reporting the resolved shop name, town,
+  owner classification, and full restriction list for every generation (`init`/`restock`/
+  `shop-reroll`/`armory-reroll`/`shop-manual-reroll`/`town-restore`/`shop-rebuild`/`shop-repair`).
+- **Found in passing, not fixed, flagged for awareness**: the widened Capitol/town `commonShopList`
+  pools include `DnD` (a hand-authored AFR/HBG-only crossover shop template) at all 12/8 widened
+  slots. Since the edition-restriction gate unconditionally overwrites `.editions` on every shop
+  (by design, confirmed no bypass), rolling `DnD` at a player-owned location silently replaces its
+  intended D&D theme with the town-owner's real edition shard/unlocked list - correct restriction
+  behavior, but clobbers that one template's flavor. Not fixed this round pending a decision (e.g.
+  excluding hand-`editions`-authored templates from the widened pools specifically).
+- **Lag report (day 23, "week 3 day 2" under the new Day/Week display) - investigated, inconclusive**.
+  Checked the session's own log for volume/burst patterns; found periodic 30-50-line bursts of
+  `[TFR-PrintRemap]`/`[TFR-ShopEditions]` logging throughout normal play (town visits/restores), not
+  uniquely clustered near day 23 - no definitive smoking gun. Best working hypothesis, not confirmed:
+  the widened shops' `noRestock` weekly reseed is lazy (only triggered on actually entering/loading
+  a town, not a background per-tick cost), but if the player returned to the Capitol around a 7-day
+  reseed boundary with many of its 12 shops all crossing it at once, generating full reward lists
+  against the now much-larger candidate pools (up to 117 names for the common tier alone) in the
+  same frame could plausibly cause a one-time stutter. Not acted on without more evidence - flagged
+  for the user to help narrow down if it recurs (what they were doing at the moment it happened).
+
+Not yet playtested.
+
+### 67. 37-Week Playtest Round: New Lose Condition, Shop Unification, FoW Road Fix, Printing Leak, Label Collisions — `Done (playtest-confirmed 2026-08-18)`
+Ten items from a 37-week playtest session, root-caused via 7 parallel investigations before any fix.
+Full technical detail in MOD_CHANGELOG.md's own entry - summary:
+
+- **New lose condition (user request)**: zero neutral towns left AND player owns nothing (no towns,
+  no Capitol) = run over. Checked after every completed AI capture in `TerritoryControl.
+  onMageArrived()`'s common tail (the only event that can make it true); ends the run through the
+  same generalized dialog machinery as Capitol defeat (`WorldStage.triggerGameLost(message)`, the
+  message-agnostic split of `triggerCapitolDefeat()`), save untouched. `[TFR-GameLost]` logged.
+- **Card-shop reroll pricing, corrected to the Rotating-shop model** (user correction with
+  screenshot): the widened noRestock card shops keep their tier-based restock price (2-5 shards +
+  the weekly-escalating surcharge - the small "[+Refresh]" button) as a manual override ON TOP of
+  the automatic weekly reseed; only the Armory family and fixed land shops stay button-less. The
+  briefly-added Armory-style 150-shard button on card shops is gone. New `ShopActor.
+  isWeeklyRefresh()` flag (set from the tmx's noRestock at load) drives the "Inventory will refresh
+  weekly" note, since !canRestock() can no longer infer it.
+- **The 4 "Rotating" shops unified into regular card shops** (user request: "should all shops not
+  just be Regular shops...?"): `player_capital.tmx` objects 89-92 converted from `RotatingShop.tx`
+  (a real-world-calendar daily type rotation, restock 7, excluded from type-reroll) to ordinary
+  `shop.tx` objects byte-identical to the other 12 - all 16 Capitol card shops now behave the same.
+  The engine's Rotating branch stays (9 other maps still use it, including the 5 AI capitals).
+- **6 theme-locked shop templates pulled from the widened player pools** (`DnD`, `PowerNine`,
+  `SpaceMarine`, `Necron`, `Chaos`, `Tyranid`): their hand-authored edition themes (AFR/HBG, LEA,
+  40K) are always overwritten by the player-shop edition gate, so at player-owned locations they
+  produced pure noise - confirmed live by the user's own "Like-New Necrons" shop selling random
+  Torment commons.
+- **FoW: roads inside player territory stuck at stage 2, root-caused and fixed**: daily expansion
+  (`World.claimWastelandRing()`) classified tile ownership via `highestBiome()`, which the road
+  pseudo-bit masks - road tiles were never claimable, so they never received the player bit and
+  `isPersistentlyRevealed()` kept them hazed forever (including every neutral town's own world-gen
+  3x3 road stamp - the "hazed ring around ruined towns" symptom). Roads now claim ownership BITS
+  only (terrainMap/structures/minimap pixel untouched - the road stays a road everywhere else it
+  matters). Old saves heal naturally as the daily re-contest sweeps run.
+- **Town reveal not firing on some approaches, root-caused and fixed**: the reveal loop only
+  checked the player's own chunk while collision sees the whole 3x3 loaded neighborhood - a town
+  whose footprint crosses a chunk boundary could be physically entered from the neighboring chunk
+  without the reveal loop ever seeing it. Reveal loop now iterates the same 3x3 neighborhood.
+- **Zoomed-map label overlap, fixed globally**: labels from DIFFERENT nearby POIs (Capitol name +
+  neighbor town name + event label) garbled into each other - the earlier per-POI stacking was
+  architecturally incapable of helping across POIs. `MapViewScene.details()` now records every
+  placed label's rectangle and shifts any would-overlap label down one row at a time until clear,
+  seeded with the quest/bookmark labels already on the table.
+- **Ruined/neutral town minimap icons ~15% bigger** (16 -> 18px, scaled draw of the same region,
+  restored towns/every other POI unchanged, fog-sync covers the larger rect, no ghosting risk -
+  restore repaints the whole ground disc first).
+- **Destroy+rebuild now rolls a NEW shop type**: destroying never touched the pinned name, and the
+  load-time type roll is deliberately deterministic per POI - the same type always came back.
+  `destroyShopFromRewardScene()` now immediately rolls a different type from the object's own
+  candidate pool via the existing `rerollShopType()` machinery (pinned, so it survives re-entry;
+  sign stays hidden while rubble; fresh inventory seed). `[TFR-ShopRebuild]` logged.
+- **Card printing leak, root-caused and fixed** (screenshot audit: legal TOR cards rendering with
+  SOI/DMR/VMA/ZNC printings): with the all-card-variants setting on, the art-variant re-roll that
+  runs AFTER the printing remap has fail-open fallbacks that ignore the edition restriction
+  entirely - silently undoing the remap. Every card-pick path now re-remaps the final variant
+  (`CardUtil.finishCandidate()`, the Union branch's `finishUnionCard()`, the previously-unremapped
+  named-card branch, and SpellSmith's own `pullCard()`).
+- **Shop duplicate cards fixed** (screenshot audit: one shop showed 8/8 slots of the same card once
+  the edition restriction shrank its legal pool to one name): card slots now dedup by name
+  (shuffle-then-take-front, the item path's established pattern), gracefully showing FEWER cards
+  when the legal pool is small - sparse shops under a tight restriction are intended per user.
+  Opt-in via a new `RewardData.uniqueCards` flag stamped only on shop-reward clones, because the
+  picker is shared with deck generation (which needs 4-ofs and full counts).
+
+**Log sweep of the 37-week session (user request): healthy.** Zero exceptions; the edition gate
+held perfectly (914/914 player-shop generations restricted to exactly [TOR], across 134 distinct
+widened shop types); standings history recorded weeks 0-37 sequentially with the 10-week window
+capping correctly; no perf-signature bursts (the prior "day 23 lag" pattern did not recur); the
+only oddity was one benign, self-recovered navigation-waypoint warning burst. The one prior-session
+crash in the logs was the already-fixed InfoTextScene ClassCastException.
+
+Not yet playtested.
+
+### 68. Full-Mod Review Fixes: Printing-Leak Overreach, Color-Defeat Roads, Stale Prices, Broken/Dangling Data — `Done (playtest-confirmed 2026-08-18)`
+A 6-dimension review workflow (32 agents: discover, 6 parallel find dimensions, adversarial
+verify-every-finding) audited the entire uncommitted diff, the main questline, and the mod's full
+content registries. 25 findings, 20 independently re-confirmed against live source before any fix
+landed. Questline verdict: **clean** - the 5-castle chain and its flag routing are intact and
+correctly wired end-to-end, no break introduced by any prior round. Fixes:
+
+- **Card-drop dedup was leaking into enemy loot and dungeon chests (HIGH, live bug)**: the
+  `uniqueCards` opt-in from #67's printing-leak fix was meant to be shop-exclusive, but
+  `EditionProgression.restrictToEditions()` stamped it unconditionally - both `EnemySprite`'s
+  ordinary monster-loot path and unauthored dungeon chests (`restrictDungeonRewardsForCurrentPoi()`)
+  share that same helper, so both were silently deduping to unique card names instead of dropping
+  normal duplicates. Fixed by adding a private 3-arg overload gated by an explicit `uniqueCards`
+  boolean; only `restrictShopRewardsForCurrentTown()` (the shop path) passes `true`. This was
+  already deployed and live - now corrected.
+- **`Plaguelord` enemy had a broken deck reference (HIGH)**: pointed at
+  `decks/standard/zombiepoisoner.dck`, which doesn't exist anywhere in the repo (only its sprite
+  did). Currently unreachable (not in any biome spawn list) so it couldn't have crashed a real
+  encounter, but broken content nonetheless. Repointed at `decks/standard/zombie_black_easy.dck` -
+  matches both the zombie sprite and the enemy's very low difficulty/life stats.
+- **Color Defeat wouldn't fully clear a defeated color's roads (MEDIUM)**: `World.
+  neutralizeTerritoryOutsideRadius()` had the identical unmasked-road-bit bug #67 fixed in
+  `claimWastelandRing()`, just never carried over to this sibling method - a defeated color's road
+  tiles would have kept its ownership bit forever. Same fix: mask the road bit for classification
+  only, the existing write logic already preserves it correctly.
+- **Capitol-migrated shops could keep a stale restock price (MEDIUM)**: when a migrated shop's
+  pinned name resolves outside its destination slot's own tier list, `MapStage.java`'s price-write
+  loop never touched it, leaving a shared/cached `ShopData` holding a leftover or default-0 price.
+  Now applied unconditionally after resolution, regardless of pin/tier-list path.
+- **`Shapeshifters` → `Shapeshifter`**: a 9-occurrence typo in `forest_capital.tmx`'s rare-tier
+  shop list referenced a shop name that doesn't exist (`shops.json` has the singular). Fixed.
+- **14 more dangling shop-list/POI references confirmed, left for deliberate authoring, not
+  guessed at**: 5 colors' worth of `Instant6{Color}` shops (a whole missing tier-6 trio leg
+  alongside the already-authored Enchantment6/Creature6), 7 bespoke unauthored shops tied to
+  specific hand-built locations (`GenerousShop`, `MedalShop`, `BloomburrowBoosters`,
+  `EldraineBoosters`, `OutlawBoosters`, 4× `WanderingMerchant{Color}`), and 5 biome-referenced POIs
+  with no defined counterpart (`GroveCentaur`, `CaveG8`, `CaveR1`, `CaveDragon`, `MageTower White`)
+  - none had a plausible rename target, so none were touched; each currently just means that one
+  shop slot or POI silently never appears rather than anything crashing.
+- **Cosmetic-only, no behavior change**: 3 stale doc comments describing designs already reverted
+  earlier this session (Color Defeat's quest-flag hook comment pointed at the wrong file; two
+  `RewardScene.java` comments described the briefly-tried Armory escalating-surcharge design) all
+  corrected to match the actual current code; dead `EconomyBuildings.isLandShop()` (orphaned by
+  #67's restock-note rework) removed.
+
+Also noted, not touched (harmless, no fix needed): 6 orphaned themed shop templates and an unused
+`ColorlessBoosterPackShop` (both from #67's own pool cleanup), 5 legacy "plain" town POI types
+superseded by the Generic/Identity/Tribal system, an unwired stock `Naktamun` capital template, a
+fully-built but never-placed `Camel Cave` miniboss dungeon, and 3 enemies with harmless stray
+`null` entries in their questTags arrays.
+
+**Log review of the play session that immediately preceded this round** (new Insane/Kor game,
+~4 real hours, 80 in-game weeks): zero exceptions/errors, only one harmless one-off
+("Can not find card/token" during world-gen, no stack trace, never recurred). All 292
+`[TFR-PrintRemap]` entries were unique cards landing in legal edition buckets - the printing-leak
+fix (#67) is holding up under real play. Player built to 6 towns and held them most of the session,
+then came under sustained multi-color siege in the final ~20%, ending at 2 towns with the Capitol's
+guard broken twice in the log's last two lines (no capture line followed, so it likely survived to
+close, but worth an in-game check). Color Defeat never fired and the new lose condition never came
+close to misfiring even at 2 towns remaining.
+
+Not yet playtested.
+
+### 69. New Content, Color Defeat Discoverability, Difficulty/Onboarding Cross-Links — `Done (playtest-confirmed 2026-08-18)`
+Drafted and authored the review-flagged content gaps from #68 (each verified against real atlas
+regions, real items/editions, and confirmed-reusable map templates before writing - none invented),
+plus the two discoverability/onboarding improvements from the earlier suggestions discussion:
+
+- **13 new shops authored, wiring 13 of #68's 14 dangling shop-list references** (the 14th,
+  `Shapeshifters`, was already fixed as a typo in #68): `Instant6{Black/Blue/Green/Red/White}` - a
+  full 5th color-shop tier matching the existing Enchantment6/Creature6 2+6-split shape, filling
+  out all 5 story capitals' commonShopList. `GenerousShop` (Three Tree City) - a broad 4-type card
+  shop. `MedalShop` (Valor's Reach Arena, noRestock) - a guaranteed trophy case for all 6 of the
+  Arena's own existing Medal items (modeled on the existing OmenStones one-of-each pattern).
+  `BloomburrowBoosters`/`EldraineBoosters`/`OutlawBoosters` (Three Tree City, Kenrith's Court,
+  Omenport) - real-edition-restricted booster shops (BLB/ELD/OTJ, each confirmed booster-capable).
+  `WanderingMerchant{Black/Blue/Green/Red}` - one per matching-color Story location (Gitrog Bog,
+  Wizard Palace, Squirrel Farm, Tarnation), a 2+6 mixed-type/color-filtered shop.
+- **3 new dungeon/cave POIs + 1 new dungeon authored, wiring 4 of #68's 5 dangling POI
+  references**: `CaveG8`/`CaveR1`/`CaveDragon` (green.json/red.json) all point at confirmed-generic,
+  already-multiply-reused cave maps (`cave_mimic.tmx`, `cave_treasure.tmx`,
+  `cave_multilevel_3/cave_21.tmx`); `MageTower White` (white.json) points at
+  `magetower_4_monastery.tmx`, already shared by the colorless- and blue-pool instances of the
+  same tower. The 5th, `GroveCentaur`, had no reusable map (the Grove family is one-map-per-entry
+  and all 12 real grove maps are already claimed) - rather than leave the dangling reference or
+  fabricate a new map, it was removed from green.json's pointsOfInterest list.
+- **Color Defeat discoverability**: new `World.colorDefeatDay` (persisted `Map<String,Integer>`,
+  same pattern as `defeatedColors`), stamped by `TerritoryControl.defeatColor()` the same moment
+  `setColorDefeated()` fires. `WorldStandingsScene` now tags a defeated color's Town Count cell
+  "0 (Defeated Day N)" in red instead of a bare, indistinguishable-from-never-expanded 0.
+- **Difficulty/onboarding cross-links**: `NewGameScene`'s difficulty-help dialog gained a 4th
+  "Territory" tab showing the exact Base Mage Cap and Towns-per-Bonus-Mage numbers for the selected
+  difficulty (computed with the identical formula `TerritoryControl.maxActiveMagesPerColor()` uses,
+  not a separate table, so they can't drift) - Mod Details already described these effects in prose
+  but can't be opened before a game exists, so a new player choosing difficulty had no way to see
+  the actual numbers. The stock intro quest's mage-in-the-cave dialogue (quest 28) gained one line
+  introducing the five-color territory premise and pointing at World Standings.
+
+Not yet playtested.
+
+### 70. Race Selection "?" Help Button — `Done (playtest-confirmed 2026-08-18)`
+User request, after liking the Difficulty tab's new Territory info (#69): the same kind of
+in-context help, on the Race row. Clicking it shows the currently-selected race's 4 associated
+card sets and, cross-referencing the currently-selected difficulty, how many of those 4 you'll
+actually start unlocked with (randomly chosen) - both values pulled from the real
+`AdventurePlayer.create()` starting-unlock logic (`Config.getConfigData().raceEditions` lookup,
+the `{4,3,2,1}`-by-difficulty-index array), not restated by hand, so it can't drift from what a
+new game actually does. New TFR-specific `ui/new_game.json` + `ui/new_game_portrait.json`
+overrides (confirmed required: Forge's resource fallback is whole-file, never per-element merged,
+so a partial diff file wouldn't work - full copies of the base files with one added button, same
+approach Innistrad's own override already uses for its background swap).
+
+Not yet playtested.
+
+### 71. Stone HUD Fix + Side-Quest Dungeon Guarantees — `Done (playtest-confirmed 2026-08-18)`
+Two items from the 2026-08-16 morning play session (new Werewolf/Insane game):
+
+- **"My stone disappeared" (user report) - root-caused as a DISPLAY bug, resources were never
+  lost**: `AdventurePlayer.load()` correctly restores wood/stone from the save but never emitted
+  the `onWoodChange`/`onStoneChange` signals - `GameHUD`'s `ResourceDisplayActor` (a
+  process-lifetime singleton that only updates via those signals) kept showing the PREVIOUS game
+  state's values (usually 0) while the real loaded amount sat invisible underneath. Identical bug
+  class to the create()-path fix from #64; the load path was missed then. Two-line fix: emit both
+  signals at the end of load(), alongside the life/shards/gold emits that were already there.
+- **Side-quest dungeon existence + timer guarantees (user request: "confirm the dungeon actually
+  exists... if not, spawn it into existence; when given, add 30 days to that location's timer;
+  main quest locations should never time out, and exist")**. A 3-agent audit first established
+  the facts: main-story locations were ALREADY fully guaranteed (all 12 required POIs are
+  essential-placement with retry at world-gen, and triple-excluded from dungeon rotation by
+  type/name-prefix/Story-tag) - nothing needed there. But side quests had two real holes, both
+  fixed:
+  1. A quest could generate while every tag-matching dungeon was rotated out (hidden in
+     reserve) - the target silently bound to null, the offer text showed a raw "$(poi_1)" token,
+     and the stage could never complete. Now the binding logic tag-filters FIRST and, when no
+     ACTIVE match exists, picks a hidden reserve dungeon and force-spawns it on the spot (new
+     `DungeonRotation.onQuestTargetBound()`: setActive(true), clear cooldown/attempts, seed
+     timer, minimap refresh, `[DungeonRotation]` log) - a quest always points at a real,
+     enterable location.
+  2. Multi-stage quests bind ALL stage targets at generation, but rotation protection only
+     covered the currently-ACTIVE stage's target - a stage-2 dungeon could despawn while the
+     player worked stage 1. New `AdventureQuestData.getAllPendingTargetPOIs()` (every
+     non-completed stage's target) now backs the protection check.
+  3. Per the user's spec, every rotatable dungeon a quest binds gets +30 days on its despawn
+     timer AT QUEST-GIVEN time (the pre-existing lazy +30-when-due extension for active
+     side-quest targets remains as a second layer).
+
+Not yet playtested.
+
+### 72. Player/AI Edition Exclusivity + "Change" Item Token Fix — `Done (playtest-confirmed 2026-08-18)`
+Two follow-ups from the #71 log review, both user-directed:
+
+- **Player race editions now exclusive from AI color shards** (user spec: "These should be
+  exclusive" - the review had spotted AFR in both the black AI shard and the player's unlocked
+  set). New `EditionProgression.reservePlayerEditions()`: strips the player's race's FULL
+  4-edition pool (not just the difficulty-scaled unlocked subset - a Hard/Insane run's locked
+  remainder is still that character's thematic set) from the 5 AI COLOR shards. The NEUTRAL
+  shard is deliberately untouched (unowned land, not a rival color; thinning it would shrink
+  every neutral town's shop pool). Runs at new-game creation (right after
+  `AdventurePlayer.create()` - the shard seeding itself happens earlier, inside
+  `World.generateNew()`, before a player exists) AND as an idempotent load-time migration (same
+  pattern as the existing Capitol/vision repair calls), so existing saves - including the
+  current White Dragon run - self-heal on next load. Logs `[TFR-EditionShard] reserved for
+  player...` only when something was actually removed. Note: research can still unlock
+  shard-assigned editions later (research draws from the full master list by design) - this fix
+  covers the STARTING configuration the user flagged.
+- **"Change" item fixed** (the 1x-per-launch "Can not find card/token c_a_gold_draw" log line):
+  the Rare 5000-gold "Change" trinket referenced a token script that doesn't exist -
+  `c_a_gold_draw` was a copy-paste of the Charm item's `c_a_clue_draw` suffix onto the gold
+  token's name. The real script is `c_a_gold_sac` (standard Gold artifact token, "Sacrifice:
+  add one mana of any color"), matching the item's own naming pattern siblings (Snack ->
+  c_a_food_sac, Treasure -> c_a_treasure_sac). One-word data fix in TFR's items.json. The same
+  typo exists in stock Forge's common/ and Innistrad items.json - left untouched (upstream
+  files, not this mod's).
+
+Not yet playtested.
+
+### 73. Minimap Zoom-Overlap Fix + Ante Re-roll + Ante Buy Back — `Done (playtest-confirmed 2026-08-18)`
+Three items from a fresh user report/request round:
+
+- **Minimap labels STILL overlapping (user follow-up on #43/#66)**: root-caused for real this time -
+  the round-7 collision-avoidance system (`MapViewScene.placeDetailLabel()`) placed labels at their
+  minimum legal clearance (zero margin, edge-to-edge), which is fine at build time, but
+  `zoomIn()`/`zoomOut()` reposition every label with a uniform scale+translate transform that
+  shrinks the pixel GAP between two labels' anchors while each label's own on-screen SIZE never
+  changes - so any pair sitting at that zero-margin clearance collapses into overlap on the very
+  first zoom-out click. New `resolveLabelOverlaps()` re-runs the identical shift-down-until-clear
+  algorithm against every TypingLabel's post-transform position at the end of each zoom step,
+  covering all 3 label-bearing overlay modes (details/events/reputation), not just the one the
+  original fix targeted. `details()` also gained the same self-cleanup its 3 sibling overlay
+  builders already had (a real, if unconfirmed-as-the-live-trigger, gap: it never cleared its own
+  previously-placed labels before rebuilding).
+- **Ante Re-roll (50 Shards, user spec)**: shown right after the existing "these cards were chosen
+  to ante" reveal, keeping the exact same selection rules (rarity-matching, etc.) - re-rollable
+  repeatedly while affordable. Touches shared, non-Adventure-specific engine/GUI code
+  (`forge-game`/`forge-gui`, used by every Forge client including network play), so implemented
+  conservatively: `Game.rerollAnte()` (new, additive-only method reusing the exact same
+  `chooseCardsForAnte()` the original roll uses, reading the match's own rules internally so a
+  reroll can never apply different selection rules than the roll it replaces) and
+  `IGuiGame.revealAnteCards()` (new interface method with a default that's byte-for-byte identical
+  to the old direct `reveal()` call, so every non-overriding `IGuiGame` implementation - network
+  play, any future client - is completely unaffected). Only `MatchController` (mobile match
+  screen, already home to other Adventure-aware branches) overrides it, gated to Adventure mode
+  only, and deliberately reuses `reveal()` UNCHANGED for the actual card display (zero risk to
+  that shared rendering) plus this class's own existing `showConfirmDialog()` for the reroll
+  Yes/No loop - no new dialog/threading code.
+- **Ante Buy Back (150% of sell value, user spec, "remember the difficulty multiplier")**: added
+  to the "Card Lost" ante-result popup (`DuelScene.showAnteCardPopup()`), reusing
+  `AdventurePlayer.cardSellPrice()` as the base - the SAME difficulty-scaled (`sellFactor`)
+  calculation the sibling "Auto-Sell" button on the "Card Gained" side already uses, rather than
+  introducing a second multiplier (`EconomyBuildings.scaledCost()` is documented as deliberately
+  NOT applied to card values). Only offered when currently affordable, matching Auto-Sell's own
+  "only offer when it makes sense" gating style.
+- **Cosmetic limitation on both new ante buttons, confirmed not assumed**: `FOptionPane`/
+  `SOptionPane` (the in-duel dialog family both buttons live in) render text through plain
+  `FLabel`/`FButton`, not the `TypingLabel` glyph pipeline - the same reason the existing
+  "Auto-Sell (150 gold)" button already spells out "gold" instead of using the glyph. Both new
+  buttons follow that same established convention (plain "50 Shards"/"225 gold" text).
+
+Deployed: all 6 touched classes spliced into both jars across all 3 modules they span
+(`forge-game`: `Game.class`; `forge-gui`: `IGuiGame.class`, `FControlGameEventHandler.class`;
+`forge-gui-mobile`: `MapViewScene.class`, `DuelScene.class`, `MatchController.class`,
+`EconomyBuildings.class` for the new `ANTE_REROLL_SHARD_COST` constant), spot-checked via `javap -p`
+in both the mobile-dev and desktop jars. Not yet playtested.
+
+### 74. Weekly Mine Payouts + Ante Cost Tuning + settings.json Relocation — `Done (playtest-confirmed 2026-08-18)`
+Seven-item user request, all delivered together:
+
+- **`tuning.json` moved and renamed to `config tables/settings.json`** (user spec) - sits alongside
+  `items.csv`/`enemies.csv` in the same subfolder now. `TuningData` class name unchanged, only the
+  backing file moved; `Config.java`'s load path updated (both the plane-local and common-fallback
+  string), old `tuning.json` deleted from the source tree and correctly purged from the install by
+  the resource mirror.
+- **Mines: daily → weekly payout, calendar-aligned** (user spec: "Same schedule 7,14,21... if you
+  build it on day 3, it will still payout day 7 the first time"). Previously a bare, unconditional
+  `5 * daysPassed` add on every calendar day with zero per-building state. New
+  `PointOfInterestChanges.economyBuildingLastPayoutDay` (per-town, per-type, seeded to the
+  construction/migration day) plus the exact same `((lastPaid/7)+1)*7` "fixed shared payday"
+  boundary-crossing loop the Guard weekly-salary pass already uses - confirmed via investigation
+  as the correct calendar-aligned pattern, NOT the shop-reseed "rolling N days since last time"
+  pattern (which would have made a day-3 mine pay day 10, not day 7). Old saves migrate for free -
+  a missing entry reads as "never paid" (day 0), so an existing mine's first payout under the new
+  system lands on the very next day-7-multiple, no explicit save migration needed.
+- **New weekly amounts** (user spec): Gold 50/week, Wood 25/week, Stone 25/week, Shards 20/week -
+  replacing the old flat 5/day-for-every-type constant. All 4 now independently tunable via
+  `settings.json`.
+- **Mine tooltip updated with icons** (user spec: "using icons"). Investigation found the atlas
+  backing Wood/Stone icons only has `Lumber`/`Stone`/`GoldPile` regions (no Shards image at all)
+  AND that `[+Wood]`/`[+Stone]` inline glyph markup is recognized but silently fails to render a
+  picture (a known, already-documented bug - `ResourceDisplayActor`'s own class comment). So Gold/
+  Shard Mine tooltips use the proven-working `[+Gold]`/`[+Shards]` markup; Lumber Mill/Stone Mine
+  use real `Image` actors instead, the same workaround `refreshExchangeDialog()` already
+  established for exactly this bug. Text also updated day→week throughout.
+- **Ante Re-roll: escalating cost** (user spec: "+50% shards per re-roll, starting at the 50 shards
+  we currently have"). `MatchController.revealAnteCards()`'s reroll loop now tracks a local
+  per-reveal counter; cost = `scaledCost(base) * rate^rerollCount` - reroll 1 is the plain base,
+  reroll 2 is 1.5x that, reroll 3 is 1.5x again. Resets to base fresh at the next duel's ante roll.
+- **Ante costs migrated into `settings.json`** (user spec: add both Ante Re-roll and Buy Back to
+  the tunable config). `EconomyBuildings.ANTE_REROLL_SHARD_COST` (hardcoded constant) removed,
+  replaced by `TuningData.anteRerollBaseShardCost`/`anteRerollEscalationRate`; `DuelScene`'s
+  hardcoded `* 1.5f` Buy Back multiplier replaced by `TuningData.anteBuyBackMultiplier` - same
+  migration pattern `dayLengthSeconds` established when `TuningData` was first created.
+- **Mod Details updated** (user spec: "update any documentation... with the new info"). New
+  paragraph covering the weekly mine schedule and both Ante additions - investigation confirmed
+  zero prior mentions of Mine buildings, payouts, or Ante mechanics anywhere in this page or any
+  other in-game info screen, so this is genuinely new coverage, not a correction.
+
+Deployed: all touched classes spliced into both jars (`TuningData`, `Config`, `EconomyBuildings`,
+`PointOfInterestChanges`, `MatchController`, `DuelScene`, `WorldStandingsScene`), plane resources
+mirrored (old `tuning.json` correctly purged from the install, new `config tables/settings.json`
+correctly copied and re-validated as parseable JSON with all 19 keys present), spot-checked via
+`javap -p` (all new fields/methods confirmed present, `ANTE_REROLL_SHARD_COST` confirmed gone).
+Not yet playtested.
+
+### 75. Buy Back Rarity Floor + Ante Re-roll Visibility Fix + Opt-In Inn Tournament AI Simulation — `Done (playtest-confirmed 2026-08-18)`
+First live-playtest feedback on round 14's Ante work, three items delivered together:
+
+- **Ante Buy Back price floor by rarity** (user report: "3 gold" for a real card on Insane,
+  "let's have minimums... Common 50g, Uncommon 100g, Rare 300g Mythic 500g"). New
+  `TuningData.anteBuyBackMinCommon/Uncommon/Rare/Mythic` (also added to `settings.json`); new
+  `DuelScene.anteBuyBackMinPrice(PaperCard)` helper switches on `card.getRarity()`, falling back
+  to the Common floor for anything not Mythic/Rare/Uncommon. `buyBackPrice` is now
+  `Math.max(150% * cardSellPrice, anteBuyBackMinPrice(card))` - the floor only ever raises the
+  price above what the existing 150%-of-sell-value formula would already charge.
+- **Ante Re-roll visibility bug fixed** (user report: "I did not see the Ante Re-roll option").
+  Root cause: `MatchController.revealAnteCards()` used to check `player.getShards() < cost`
+  BEFORE showing the reroll confirm dialog, so a player short on Shards never saw the option at
+  all - looked identical to the feature not existing. Fix: the confirm dialog (cost stated) now
+  always shows; affordability is checked only after the player picks "Re-roll", with a clear
+  insufficient-Shards message otherwise. Added `[TFR-AnteReroll]` diagnostic logging at every
+  decision point per this project's standing logging convention.
+- **Inn tournaments: opt-in real AI-vs-AI simulation** (user: "I assume currently it's just a coin
+  flip... have the two AI's actually simulate their match, behind the science... By default, have
+  this unchecked"). Investigation confirmed the assumption exactly - `EventScene.startRound()`'s
+  AI-vs-AI branch was a bare `MyRandom.percentTrue(50)` with the mod's own `//Todo: Actually run
+  match simulation here` still in place. New `SettingData.simulateInnTournamentAIMatches` global
+  toggle (default off), a new Settings-screen checkbox, and `startRound()` now routes AI-vs-AI
+  pairings through `DeckTesterSimulator.runBatch()` - the same real `Match`/`Game` engine the
+  Arena's Deck Tester already uses - for `eventRules.gamesPerMatch` games per pairing when the
+  setting is on, async via a collected-list + `AtomicInteger` pending-counter converging on a new
+  `proceedAfterAiResolution()` helper. Applies to the user's current save immediately (a global
+  setting, not new-game-gated). Added `[TFR-InnAISim]` diagnostic logging.
+
+Deployed: all 6 touched classes spliced into both jars (`SettingData`, `SettingsScene`,
+`EventScene`, `MatchController`, `TuningData`, `DuelScene`), plane resources mirrored (4 new
+`anteBuyBackMin*` keys in `settings.json` confirmed live), `en-US.properties` copied directly
+(its own separate deploy step, not jar-bundled or plane-mirrored), spot-checked via `javap -p` in
+both jars. Not yet playtested.
+
+### 76. Inn Tournament Ante Removal + AI-Sim Checkbox Relocation + World-Gen/Icon Art Overhaul + Real Launch Icon — `Done (playtest-confirmed 2026-08-18)`
+First live-playtest feedback on round 15's work, plus two new user-authored art assets, six items:
+
+- **Ante removed from Inn tournaments** (user: "Let's please remove Ante from all Inn tournaments").
+  Investigation traced Adventure's ante enablement to a single line, `DuelScene.enter()`'s
+  `rules.setPlayForAnte(...)`, which already branches on `eventData` earlier in the same method
+  (~15 other places) but never consulted it for ante specifically. One-line fix adds
+  `eventData == null &&` to that condition - a no-op for every non-event caller (dungeon fights,
+  wandering enemies, Arena) since they all pass `eventData = null`. AI-vs-AI matches needed no
+  change: the opt-in simulate path (`DeckTesterSimulator`) already forces ante off unconditionally,
+  and the default coin-flip path never constructs a `Game`/`GameRules` at all.
+- **AI-sim checkbox relocated onto the Inn Tournament screen itself** (user: didn't find round 15's
+  Settings-screen checkbox - "There should be a check-box in the Inn Tournaments"). Added directly
+  to `EventScene`'s existing description panel (the same screen showing entry fee/competition
+  style/Start Event), still backed by the same `SettingData.simulateInnTournamentAIMatches`
+  persisted preference (default off) `EventScene.startRound()` already reads - just now visible at
+  the point of decision instead of buried in a separate menu.
+- **AI road-building - confirmed already correct, no code change needed.** User asked to confirm
+  captured towns get the same auto-road-to-nearest-holding treatment for AI colors that the player
+  already gets. Investigation found `TerritoryControl.connectCapturedTownByRoad(World, POI, String
+  owner)` was built owner-parameterized from its very first version (2026-08-09) and already fires
+  identically from both call sites - `TownRestoration.java` (player restore) and
+  `TerritoryControl.onMageArrived()` (AI capture, all 5 colors + "colorless" reverts) - via the same
+  Dijkstra/`buildRoad()` machinery. Confirmed empirically diagnosable via the existing
+  `[TerritoryControl] road (<owner>): ...` log line.
+- **World Generation loading screen: new full-bleed background** (user-authored `Main_Image.png`,
+  1024x1024, fully opaque). New `FSkinTexture.ADV_WORLDGEN_BG` (non-repeating, unlike the tiled
+  `ADV_BG_TEXTURE` every other loading/UI screen still uses - deliberately NOT replaced in place,
+  since that asset is shared by 10+ other screens). `TransitionScreen`'s `isloading` branch now
+  detects this specific screen by comparing the loading message against `lblGeneratingWorld`
+  (matching exactly the two call sites that pass it - `NewGameScene`'s initial world-gen and
+  `SaveLoadScene`'s New Game Plus - and excluding "Loading World..." / the captionless mode-switch
+  fade) and skips the small circular logo on top of it, since the new artwork is already a complete
+  painted scene.
+- **Loading icon replaced everywhere else** (user-authored `Icon.png`, 1024x1024, real alpha).
+  Asset-only change - resized to 300x300 and overwrote `adv_logo.png`, plus the pixel-identical
+  duplicate baked into `sprite_adventure.png`'s `ICO_ADVLOGO` atlas region (2,2,300,300) - no Java
+  changes needed since every call site (main menu splash, save/load screens, Continue, exit/respawn
+  transitions, etc.) already reads through those two files.
+- **Real application launch icon** (user: "create a real Icon out of it and use that for the Icon to
+  launch the game"). Three independent, real touchpoints identified and fixed: (1) a proper
+  multi-resolution `.ico` (16/32/48/64/128/256) rebuilt from `Icon.png` for `forge-adventure.exe`'s
+  launch4j build config; (2) the desktop shortcut `forge-adventure.cmd - Shortcut.lnk` - the one
+  actually used to launch the game - repointed from an unrelated `Forge.ico` to the new icon; (3)
+  the actual running-window/taskbar icon, which investigation found NOTHING previously set - added
+  `Lwjgl3ApplicationConfiguration.setWindowIcon()` in `GameLauncher.java` (new module for this mod,
+  `forge-gui-mobile-dev`), using 5 new sizes (16 through 256) generated from `Icon.png`.
+- **Build tooling**: `forge-gui-mobile-dev` had never been compiled in this environment before and
+  needed `build-helper-maven-plugin` (for the `GameLauncher.java` change), which wasn't cached
+  locally and couldn't resolve in the usual offline (`-o`) build. Resolved once with a normal
+  (online) Maven run per user's request; the plugin is now cached in the local `.m2` repo, so all
+  future builds stay offline as before.
+
+Deployed: 6 touched Java classes spliced into the correct jar(s) - `DuelScene`, `EventScene`,
+`ForgeConstants` into both `forge-gui-mobile-dev` and `forge-gui-desktop`; `FSkinTexture`,
+`TransitionScreen`, and the new `GameLauncher` into `forge-gui-mobile-dev` only (confirmed via jar
+content listing that the desktop jar never contained the last two classes to begin with). Skin
+assets (`adv_logo.png`, `sprite_adventure.png`, `adv_worldgen_bg.png`, 5 `adv_icon_*.png`) mirrored
+to the live install with originals backed up (`.round16bak`) before overwriting; `.ico` rebuilt and
+the desktop shortcut's `IconLocation` updated via `WScript.Shell`. Spot-checked via `javap -p`/`-v`
+in both jars (including the `Simulate AI vs AI matches` checkbox string and the
+`Lwjgl3ApplicationConfiguration.setWindowIcon` call in the bytecode). Not yet playtested.
+
+**Same-day follow-up (2026-08-17, first live look at the relocated checkbox)**: user report - had
+to scroll to find it, and its label rendered in the skin's default light font color, unreadable
+against the panel's tan/parchment background. Fixed both: `EventScene`'s description text (built
+by `AdventureEventData.getDescription()`, identical structure across all 3 event formats) is now
+split on the literal `"Prizes\n"` marker that unconditionally starts its own paragraph right after
+the entry-fee block in every format/status combination - the checkbox now sits between Entry Fee
+and Prizes instead of at the very bottom, no scrolling needed. Its label color is forced via
+`simulateAiMatches.getLabel().setColor(Color.BLACK)`, matching the `[BLACK]`-tagged `TypingLabel`
+text surrounding it. Deployed: `EventScene` respliced into both jars, spot-checked via `javap -v`
+(confirmed the `"Prizes\n"` split constant and checkbox string both present in the recompiled
+class).
+
+### 77. Settings-Crash Deploy Fix + Inn Checkbox Reposition + Minimap Names/Details Rewrite + New Town Reputation Building Gate — `Done (playtest-confirmed 2026-08-18)`
+First live-playtest feedback on rounds 15/16 plus one new major mechanic, six items:
+
+- **Settings-menu crash (CTD), root-caused and fixed**: user report - loading a save, opening the
+  Escape menu, clicking Settings crashed to desktop every time. Live-log stack trace (`forge.log`)
+  showed `NoSuchMethodError: SettingsScene$18.<init>(SettingsScene, FPref, Runnable)`. Root cause:
+  a **round-15 deployment defect**, not a source bug - inserting the round-15 checkbox shifted
+  javac's numbering for every anonymous inner class compiled after it in `SettingsScene.java`
+  (17→18 total, then 18→19 this round), but round 15's deploy only spliced the outer
+  `SettingsScene.class`, never the shifted `SettingsScene$1..18.class` family, leaving the jar's
+  `$18` a stale pre-round-15 class with the wrong (2-arg) constructor. Fixed by respliced the
+  FULL current `SettingsScene$*.class` family into both jars. Caught and nearly repeated the same
+  mistake fixing it: the first splice attempt `cd`'d one directory too deep and passed bare
+  filenames, which added the correct classes at the jar's ROOT instead of their real package path
+  - caught by directly `javap`-ing the actual jar entry afterward rather than trusting the splice
+  command's exit code, then corrected by re-running from `target/classes` with full
+  `forge/adventure/scene/SettingsScene*.class` paths. Established going forward: always splice
+  via a `ClassName*.class` glob from the classes root, never enumerate `$1,$2...` by hand or `cd`
+  into a subpackage first - either mistake silently leaves stale bytecode live.
+- **Inn AI-sim checkbox moved again**: user report - still had to scroll even after the previous
+  fix (which split the description before "Prizes"; the Event Type/Block/Boosters/Competition
+  Style/Entry Fee text alone already exceeded the panel's visible height). Re-split before the
+  literal `"Pay 1 Entry Fee"` string instead - explicit user direction this time ("move it up,
+  above 'Pay 1 Entry Fee'"). Falls back to whole-description-then-checkbox when that string isn't
+  present (event already joined - that text is short enough alone).
+- **World-gen/loading icon, 4x bigger**: user request, `TransitionScreen`'s non-worldgen loading
+  icon draw scale multiplier `1f` → `4f`.
+- **Minimap Names/Details rewritten** (4th time this exact class of bug was reported). Investigation
+  found two independent root causes: (1) `names()` was a genuine stub - cleared labels, added none
+  - while `details()` carried town-name AND event/set-info labels fused together; town-name logic
+  moved from `details()` into `names()`, matching the button text (`map.json`'s "Names"/"Details").
+  (2) The real mechanical cause of garbled/overlapping text: `placeDetailLabel()`'s collision
+  rectangles were built from `TypingLabel.getWidth()/getHeight()` immediately after `addActor()`,
+  but textratypist 0.8.2's `TypingLabel`/`TextraLabel` never call `setSize()`/`pack()` internally -
+  every rectangle was 0x0, so `Rectangle.overlaps()` could never return true and the shift-down
+  loop never fired, regardless of how many rounds re-timed *when* it ran. Fixed once, centrally, in
+  `placeDetailLabel()`: `label.pack()` right after `addActor()`, before any width/height read. Also
+  routed `events()` ("Reputation" button) and `reputation()` ("Landmarks" button) through
+  `placeDetailLabel()` too - they had zero collision avoidance before this, now share the same fix.
+- **Town Reputation - new mechanic, reusing an existing base-game field.** User request: expand the
+  already-present-but-inert per-town "reputation" stat (`PointOfInterestChanges.reputation`, id-0
+  slot, previously only nudging shop prices) into a real gate on how fast a player's own town can
+  rebuild - distinct from the mod's own AI-color `ColorReputation` diplomacy system. Spec, delivered
+  exactly: +1 reputation on restoring a town (`TownRestoration.buildRestoreTownDialog()`, via the
+  existing `DialogData.ActionData.addMapReputation` field - no new imperative code needed there);
+  +1 on upgrading to a Capitol (`upgradeToCapitol()`, migrated forward across the id-change the same
+  way guards/buildings already are, then +1 on top - without this the town's own upgrade would have
+  silently wiped its reputation); +1 on defeating an attacking mage (`DuelScene.afterGameEnd()`,
+  same `winner && !isArena && eventData==null` guard `ColorReputation` already uses, granted to
+  `enemy.territoryTarget`'s town, gated to player-owned/restored targets only). Every reputation
+  point unlocks `BUILDINGS_PER_REPUTATION=3` more build slots (a town's 9 slots need 3 rep, a
+  Capitol's 25 need 9) via new `TownRestoration.countBuiltBuildings()` (counts existing
+  `shopRebuilt_*` map-flags - already uniformly set by every building type: shops, Inn, Arena,
+  Spellsmith, economy buildings) and `maxBuildableBuildings()`/`hasReputationForAnotherBuilding()`.
+  Gate wired into both real build-request entry points (`ShopActor.onPlayerCollide()`,
+  `OnCollide.onPlayerCollide()`), showing a new `buildReputationLockedDialog()` (progress-aware
+  message, "Help it prosper - completing its quests raises your standing here") instead of the
+  normal build dialog when blocked. Reputation loss never demolishes existing buildings (the gate
+  only runs at build time); destroying a building frees its slot immediately regardless of
+  reputation (`destroyBuilding()` already removes its `shopRebuilt_` flag - no new code needed,
+  falls out of the existing mechanism for free); losing a town to an AI color resets reputation to
+  0 for free too (capture already re-keys the POI's id via `transformInto()`, same implicit-wipe
+  mechanism guards/buildings already rely on - confirmed via investigation, not touched this
+  round). New Mod Details paragraph added (`WorldStandingsScene.java`).
+
+Deployed: `MapViewScene`, `WorldStandingsScene`, `TownRestoration`, `ShopActor`, `OnCollide`,
+`DuelScene` spliced into both jars (`SettingsScene`'s full corrected family too, see crash fix
+above); `TransitionScreen`/`EventScene` respliced for the icon-size and checkbox-position tweaks.
+Spot-checked via `javap -p`/`-v` in both jars for every new method, the corrected `SettingsScene$18`
+3-arg constructor, and the new Mod Details paragraph text. Not yet playtested.
+
+### 78. Ownership-Based Shop Price Baseline + Resource-Spawn Cap 20→30 — `Done (playtest-confirmed 2026-08-18)`
+Two balance tweaks plus a log-health check, confirmed clean via investigation before implementing:
+
+- **Shop prices now start from an ownership baseline**: cards cost 25% more at AI-owned town
+  shops and 25% less at player-owned town shops (a restored town OR the Capitol), applied as a
+  new fourth multiplicative factor in `ShopActor.getPriceModifier()` - composes with, doesn't
+  replace, the existing per-shop/per-town reputation modifier and the `ColorReputation` diplomacy
+  modifier. Neutral towns (Spawn) get neither. New `TuningData.aiShopPriceMultiplier` (1.25)/
+  `playerShopPriceMultiplier` (0.75), both re-tunable via `settings.json`. Deliberately reuses
+  `TownRestoration.isCurrentTownPlayerOwned()` rather than the narrower `isTownRestored()` the
+  existing `colorReputationModifier()` uses - the latter gets away with skipping the Capitol case
+  only because `colorOfTown()` already returns null for it too, which would have silently left the
+  Capitol's own shops out of the new player discount.
+- **Overworld resource-pickup cap 20 → 30**: `ResourceSpawns`' flat `MAX_SPAWNS` constant moved
+  into `TuningData.maxResourceSpawns` (re-tunable, matching this file's established convention) -
+  confirmed via investigation it's a single self-contained hard cap with no array/pool sizing
+  coupled to it anywhere in the codebase.
+- **Log health check**: reviewed the live session logs from right after round 17's deploy (a
+  ~45-minute session covering town restoration, a Capitol upgrade, combat, an Inn tournament, and
+  Armory purchases) - zero exceptions, zero ERROR/WARN lines. One unrelated, non-fatal Scryfall
+  404 fetching a single token's art. Confirmed round 17 (crash fix, minimap rewrite, Town
+  Reputation) held up under real play.
+
+Deployed: `ShopActor`, `ResourceSpawns`, `TuningData` spliced into both jars; `settings.json`
+mirrored with the 3 new keys. Spot-checked via `javap -p` in both jars. Not yet playtested.
+
+### 79. Wood Added to Intro Template + Dungeon-Clear Despawn + Confirmations — `Deployed (2026-08-18), not yet playtested`
+User explicitly asked for repo-only work at the time ("I'm currently playing a live game, so don't
+make any changes to the live files") - everything below was compiled to verify correctness but
+deliberately NOT spliced into the installed jars or robocopied to `E:\GAMES\FORGE` in that same
+round. **Deployed later the same day** (round 21, alongside #80 and the new #81) once the user
+gave the go-ahead ("proceed to update the game, include all the changes we made today").
+
+- **Confirmed: Fort=Wood/Cave=Stone loot (with the -25% Shard trade) was already implemented**,
+  contrary to the user's own uncertainty. `RewardData.shardsSubstituteType()` (2026-08-11,
+  `resourceLootVarietyEnabled`, on for this plane) rolls a 25% chance per Shard pickup to
+  substitute Stone (if the current dungeon's map path contains `/cave/`) or Wood (`/fort/`)
+  instead. Confirmed live and unmodified since. One known, already-documented limitation worth
+  repeating to the user: the pickup still LOOKS like a shard crystal even when it grants Stone/
+  Wood - the substitution only shows up in the reward popup text, not the sprite (a real sprite
+  swap was explicitly deferred at the time, since it would touch ~54 shared `common/` cave/fort
+  `.tmx` files).
+- **Wood added to the Intro/spawn map, mirroring Stone exactly** (`maps/map/main_story/spawn.tmx`)
+  - a testing template per user request. New `maps/obj/wood.tx` object template (copy of
+  `stone.tx` with `type=stone`→`wood`, name/sprite renamed); new object instance in `spawn.tmx`
+  (`id="86"`, `template="../../obj/wood.tx"`, positioned one tile right of the existing Stone
+  pickup; `nextobjectid` bumped 86→87 to match). New `maps/tileset/wood_pickup.atlas` - rather
+  than fabricating placeholder art, this reuses the plane's own already-shipped `resource_icons.
+  png` Lumber icon pixels directly (a second small atlas file pointing at that same PNG, exposing
+  its Lumber sub-region under the `Idle` region name `RewardSprite`'s animation system requires -
+  no new image file needed, no guessed colors).
+- **Common-vs-plane dungeon maps, investigated and advised (not yet acted on)**: confirmed all 20
+  Fort and 30 Cave `.tmx` templates this plane spawns are 100% shared via `common/maps/map/`
+  (the plane's own `fort/`/`cave/` folders hold 4 unrelated custom files each, zero overlap).
+  Path resolution traced exactly: `TileMapScene`/`MapStage` always call `Config.
+  getCommonFilePath()` for dungeon maps (unconditionally prepends `common/`), so a POI's own
+  `"map"` string using `../The Forgotten Realms/...` is the ONLY thing that already redirects a
+  few custom dungeons out of `common/` today - no separate plane-fallback mechanism like
+  `getFile()` exists for maps specifically. Recommendation given: copy-and-repoint, but scoped
+  ONLY to the specific templates about to be hand-edited (not a blanket copy of all 202 `common/`
+  `.tmx` files this plane references) - edit just that POI's `"map"` line in `points_of_interest.
+  json`, no Java changes needed either way (this entry's own advice, superseded by #80's fuller
+de-duplication below). Confirmed a real, non-hypothetical reason to avoid
+  editing `common/` in place: this repo actively merges from `upstream/master` (last synced ~2
+  weeks ago) and upstream has a real history of revising these exact fort/cave files - an in-place
+  edit risks silent clobber on the next merge, a copy in the plane's own folder doesn't. Flagged
+  one non-obvious gotcha for the user's own Tiled workflow: a copied file's tileset `source=`
+  paths need fixing (2 extra `../` levels - `common/`'s forts are one folder shallower than the
+  plane's own) after copying, or Tiled needs to re-link them on first open from the new location.
+- **Dungeon-clear despawn - confirmed missing, now implemented.** Investigation confirmed a
+  dungeon that's fully cleared (every enemy killed) and exited normally previously got ZERO
+  special treatment - it just sat on the map, unchanged, until its ordinary rotation timer
+  happened to come due (same as if the player had never entered). Only losing a fight inside a
+  rotatable dungeon triggered any despawn logic before this round. New `DungeonRotation.
+  onDungeonClear(PointOfInterest)`, called from `AdventureQuestController.updateQuestsWin()`
+  right where it already computes `allEnemiesCleared` (nested inside the `enemies != null`
+  branch specifically - NOT a bare `allEnemiesCleared` check - since the single-enemy overworld-
+  duel overload passes `enemies=null` and would otherwise trip the same flag's true-by-default
+  value for every ordinary overworld win). Despawns immediately (no attempts/grace system - a
+  clear is unconditional success, unlike a loss), exempts current STORY-quest targets exactly
+  like `onDungeonDefeat()` already does ("story targets never vanish"), and pulls a fresh
+  reserve-pool dungeon into play elsewhere afterward, same as any other despawn.
+- **Dungeon rotation timing, restated in full** (`DungeonRotation.java`, all `private static
+  final int` fields, opt-in via `dungeonRotationEnabled` - on for this plane):
+
+  | Constant | Value | Meaning |
+  |---|---|---|
+  | `POOL_MULTIPLIER` | 5 | World-gen places 5x the normal count of every rotatable dungeon/cave; only 1/5 start visible - a despawn activates a reserve slot elsewhere, dungeons genuinely relocate. |
+  | `DESPAWN_MIN_DAYS` / `DESPAWN_MAX_DAYS` | 20 / 60 | A visible dungeon's random lifetime range before it becomes eligible to despawn, re-rolled on every (re)spawn. |
+  | `RESPAWN_MIN_DAYS` / `RESPAWN_MAX_DAYS` | 10 / 30 | Cooldown range before a just-despawned location can be redrawn as a fresh reserve pick. |
+  | `SIDEQUEST_EXTENSION_DAYS` | 30 | Added to a dungeon's despawn day whenever a live side quest targets it (on binding, and again every time its timer comes due while still targeted) - re-applied indefinitely for a long-running quest. |
+  | `MAX_QUEST_ATTEMPTS` | 3 | Failed-attempt threshold for a side-quest-linked dungeon - losses 1-2 show an "N attempts remaining" warning and leave it in place; the 3rd despawns it immediately. |
+
+  Story-quest targets never despawn from anything (timer just re-rolls in place, and now: clearing
+  it doesn't despawn it either); untargeted rotatable dungeons get no attempts grace at all - a
+  single loss despawns them immediately, same as it always has.
+
+Compiled (`mvn -pl forge-gui-mobile -am compile`) clean on the first pass for `AdventureQuestController`/
+`DungeonRotation`; the map/template/atlas files are pure data, validated well-formed XML directly.
+**Deployed 2026-08-18** (round 21) - jar spliced, res folder mirrored, spot-checked live (see #81's
+round summary below for the mechanics and verification).
+
+### 80. Full Dungeon-Map De-Duplication From `common/` — `Deployed (2026-08-18), not yet playtested`
+Follow-up to #79's scoped recommendation - the user opted for the full de-duplication instead
+("all 202... it's only 4MB total and this way we ensure no Common override"). Executed via a
+one-off Python migration script (discovery → copy → rewrite → validate), not manual edits - the
+scale made that the only reliable way to do this correctly.
+
+- **Discovery found more than 202.** The 202 figure was only the directly-POI-referenced dungeon
+  templates. Scanning each one's Tiled `teleport` properties (the same mechanism `MapStage.
+  loadMapFile()`/`resetMapRecursive()` already use for portal-linked sub-maps) turned up **287
+  total files** in the real dependency closure - multi-room dungeons (`cave_multilevel*`, 3 sets),
+  the 5 AI-color castles' interior floors, Temple of Liliana's 4 sub-areas, and a miniboss
+  entrance/interior pair all pull in extra sibling `.tmx` files beyond their one POI-listed entry
+  point. Copying only the 202 would have left 85 files - and every dungeon that uses them -
+  still depending on `common/`.
+- **Found and fixed 3 pre-existing broken POI references as a side effect**: `points_of_interest.
+  json` had `"../common/maps/map/naktamun.tmx"`, `"...oasis.tmx"`, and `"...vampirecastle_4.tmx"`
+  - all three missing their actual subfolder (`naktamun/`, `naktamun/`, `vampirecastle/`
+  respectively; confirmed via direct filesystem search, not guessed). These were already dangling
+  before this round - unrelated to the migration itself, just newly visible because the migration
+  script's discovery pass tried to resolve every reference and 3 came back missing. Corrected to
+  their real paths as part of this same pass rather than leaving them broken under a new home.
+- **Every cross-file reference type rewritten correctly, not just copied.** Two kinds exist in
+  these files (confirmed via `MapStage.java` - `<tileset source="...">` and `<property
+  name="teleport" value="...">`; no `template=`/embedded `<image>` refs found anywhere in the
+  scanned set). Both computed via real relative-path math (`os.path.relpath()` against each file's
+  actual old/new location) rather than a hand-derived depth formula, so it's correct regardless of
+  nesting depth: tileset refs still point back at the shared `common/maps/tileset/` (tilesets
+  themselves were NOT copied, staying genuinely shared - only the map layouts moved), while
+  teleport refs that pointed at another `common/`-hosted dungeon now point at that dungeon's new
+  plane-local copy instead, using the same `"../The Forgotten Realms/maps/map/..."` convention the
+  plane's own pre-existing custom dungeons already established.
+- **`points_of_interest.json` updated**: all 259 `"map"` string occurrences (202 unique targets,
+  some referenced by multiple POI instances) repointed from `common/` to the plane's own folder.
+- **`common/` left completely untouched** - confirmed via `git status` showing zero changes
+  anywhere under `forge-gui/res/adventure/common/`. This was a pure additive copy, not a move.
+
+Validation (all before touching anything live): every one of the 287 copied files (plus the
+plane's ~37 pre-existing custom dungeons, 324 total) parses as well-formed XML; every rewritten
+`tileset`/`teleport` reference resolves to a real file on disk (verified by actually opening each
+resolved target path, not just checking the string looks plausible); zero remaining `.tmx`
+references anywhere under the plane's `maps/map/` tree still point at `common/maps/map/`
+(one legitimate false-positive checked and cleared - a shared `autotiles.tsx` tileset that happens
+to physically live in `common/maps/map/` rather than `common/maps/tileset/`, correctly left
+pointing at `common/` since it's a tileset, not a map layout); `points_of_interest.json` re-parses
+as valid JSON with zero remaining `common/maps/map/` map references. No Java code touched, so no
+compile was needed for this entry - purely data/asset changes. **Deployed 2026-08-18** (round 21)
+- res folder mirrored to `E:\GAMES\FORGE`, spot-checked live (see #81's round summary).
+
+**Same-day correction: a real gap in the migration above, caught by the user opening a copied file
+in Tiled and seeing "Some files could not be found."** The original validation only checked for
+`<tileset source="...">` and `teleport` properties - it missed `template="..."` object-template
+references entirely (used pervasively: `enemy.tx`, `gold.tx`, `manashards.tx`, `entry_up.tx`, and
+~15 other generic per-object templates, present in 284 of the 287 copied files, ~7000+ individual
+references). Root cause of the miss: an earlier check for this exact pattern silently reported
+zero matches because it ran as a separate Bash invocation after a `cd` issued in a prior, different
+invocation - this environment does not carry a `cd` across separate tool calls, so the check
+actually ran from an unrelated directory and every file lookup silently failed closed. Same root
+class of mistake as the round-17 `SettingsScene` jar-splice path bug: an unverified assumption
+about shell/tool state persistence. Fixed by rewriting every `template=` reference the same way as
+`tileset source=` (real `os.path.relpath()` recompute against each file's original common/
+location, not a guessed formula). A second, independent gap surfaced during the fix: 3 files
+(`naktamun/naktamun.tmx`, `naktamun/oasis.tmx`, and the `naktamun/gym.tmx` it teleports to) were
+missed by the template fix too, because that fix script re-used the FIRST discovery run's file
+list, which pre-dated the 3-path correction from earlier in this same round - those exact files
+were still indexed under their old, wrong bare-filename keys, so the fix script's own file-lookup
+silently skipped them (again: stale cached state trusted instead of re-verified). A third,
+previously-unknown reference shape was found in the same pass: 3 files (`fort_white_2_humans.tmx`,
+`fort_blue_1_pirate.tmx`, `grove_12_faeriedragon.tmx`) use an *embedded* Tiled tileset (`<image
+source="...">` nested inside a sourceless `<tileset>` element) rather than an external `.tsx`
+reference - a shape the original `<tileset ... source="...">`-anchored regex could not match at
+all. Final fix pass abandoned all three prior discovery lists and instead walked the live
+`maps/map/` tree directly, treating any file with a same-relpath `common/` counterpart as
+migrated, and matched a bare `source="..."` attribute (covering both external-tileset and
+embedded-image cases in one pattern) plus `template="..."`, applied idempotently to all 293 such
+files. Re-validated after: 0 broken `source=`/`template=` resolutions, 0 broken `teleport` targets,
+0 dangling `common/maps/map/` references, 324/324 files still well-formed XML,
+`points_of_interest.json` still valid. **Lesson applied going forward**: for any bulk repo
+migration like this, re-derive the file scope from the live filesystem at each fix stage rather
+than trusting an earlier stage's cached list, and never assume a shell `cd` persists across
+separate tool invocations - verify directly (e.g. `pwd`, or just use absolute paths throughout)
+rather than assuming.
+
+### 81. Capitol Upgrade Reputation Bonus Raised to +2 — `Deployed (2026-08-18), not yet playtested`
+User spec (2026-08-18): "When you build your capitol, let's give +2 reputation to the town vs. the
+current +1." The +1 itself was a 2026-08-17 addition (see #13's history) - `TownRestoration.
+upgradeToCapitol()` carries the pre-upgrade town's accumulated reputation total across the
+Capitol-transform id-remap, then adds a flat bonus on top; that flat bonus is now +2
+(`newChanges.addMapReputation(oldChanges.getMapReputation() + 2)`, was `+ 1`). One-line change,
+same call site, no other logic touched.
+
+**Round 21 deploy summary** (this entry, plus #79 and #80, all landed live together):
+- Compiled clean (`mvn -pl forge-gui-mobile -am compile -DskipTests -o -q`), touching
+  `TownRestoration.java` (this entry), `DungeonRotation.java`, and `AdventureQuestController.java`
+  (#79's dungeon-clear despawn hook, compiled earlier the same day but held back from deploy).
+- Verified no live game process was running first, then spliced all four affected modules'
+  freshly-compiled `target/classes` (`forge-core`, `forge-game`, `forge-gui`, `forge-gui-mobile`)
+  into the installed `forge-gui-mobile-dev-...-jar-with-dependencies.jar` via `jar uf` (one call
+  per module, matching the module boundaries the shaded jar itself merges). Byte-for-byte verified
+  afterward: extracted `TownRestoration.class`/`DungeonRotation.class`/
+  `AdventureQuestController.class` back out of the live jar and `cmp`'d each against the
+  just-compiled copy in `target/classes` - all three identical.
+- Mirrored the plane's res folder (`forge-gui/res/adventure/The Forgotten Realms/` ->
+  `E:\GAMES\FORGE\res\adventure\The Forgotten Realms\`) via `robocopy /E /XO` (additive only - no
+  `/MIR`, so nothing already in the live folder could be deleted by this step). 300 of 1436 files
+  copied (the rest already matched from a prior round's deploy), covering #79's `wood.tx`/
+  `wood_pickup.atlas`/`spawn.tmx` and #80's 287 migrated dungeon `.tmx` files plus the repointed
+  `points_of_interest.json`.
+- Spot-checked the live install directly afterward: `wood.tx`/`wood_pickup.atlas` present,
+  `spawn.tmx` contains the new Wood object reference, `points_of_interest.json` has zero remaining
+  `../common/maps/map/` references, and the plane's live `maps/map/` tree now has all 324 `.tmx`
+  files (202 migrated + 85 transitive + ~37 pre-existing custom), matching the repo-side counts
+  from #80's own validation exactly.
+- **Batch playtest confirmation, same round**: user confirmed a large batch of prior rounds' work
+  as playtested and working - see items #3, #4, #13, #17, #19, #29, #32, #37, #41, #46, #51, #55,
+  #59-#63, and #65-#78, all flipped to `Done (playtest-confirmed 2026-08-18)` above. **#27
+  (Simulate Level 2 Arena Battles) was NOT included** despite being named in the same request - it
+  remains genuinely `Not Started` (real unresolved design questions, no code written), flagged
+  back to the user rather than silently marked done, since marking unbuilt work "done" would be a
+  real documentation error rather than a playtest confirmation.
+
+### 82. Realm of Legends Content Update, Ported — `Deployed (2026-08-18), not yet playtested`
+User spotted a Reddit post about a Realm of Legends (a stock Forge plane) content update and asked
+for a review of what's new, what's not yet in this mod, and to port whatever would work. Full
+diff investigated first (via a background research agent, cross-checked directly against both the
+old install and the freshly-downloaded `E:\GAMES\Forge_2` 2.0.15 snapshot) before touching
+anything - see the round's chat log for the itemized findings report.
+
+**Scope, agreed with the user up front:**
+- **In**: all 6 full dungeons (Ashling's Domain, Eclipsed Elven Court, Planeswalker Dueling Club,
+  Idyllic Beachfront, Peaceful Clearing, An-Havva Inn), the Ancient Opal Cavern mox-opal duel
+  (Nephilim Epochal), the Isolated Hut mini-dungeon (Istvan) - 8 locations, ~39 bosses, 13 items,
+  38 boss decks, 2 new commander precons (Miku, Hobbit "There And Back Again").
+- **Out**: the Otherworldly Market (colorless shop-hub town) and its 14 Universes-Beyond-themed
+  shops - user's call: unclear interaction with #4 (Progressive Set Unlocks) since those shops
+  pull from real sets outside the plane's normal edition-progression pool; needs its own design
+  pass before it's safe to add. The "Otherworldly Return Card" quest item (teleports to the
+  Market) was excluded along with it - dead without a destination.
+- Morcant was kept in (not dropped despite having 2 real bugs in his deck - see below), per direct
+  user confirmation after a genuinely ambiguous answer was clarified.
+
+**Two real upstream bugs found and fixed rather than ported as-is:**
+- `morcant.dck`: a duplicate `Champions of the Perfect|ecl` line (removed), and
+  `1 Tyvar the Bellicose mat` missing its `|` delimiter before the edition code (fixed to
+  `Tyvar the Bellicose|mat`) - this is almost certainly the actual cause of the Reddit-reported
+  "High Perfect Morcant fight is currently bugged," and it's still present in the "afternoon fix"
+  snapshot the user downloaded, not just the original release.
+- `nephilim_epochal.dck`: commander line was missing its `1 ` count prefix (every other deck in
+  the set has it) - added for consistency, not confirmed as a functional bug but deviated from
+  the established convention.
+
+**A name collision caught before it could silently corrupt data**: this plane already has its own
+pre-existing "Autumn Willow" enemy (the Mox Emerald guardian, unrelated to anything in this
+update) using the exact same `enemies.json` name and the exact same `decks/legends/
+autumn_willow.dck` filename as Realm of Legends' new An-Havva Inn boss. The new one was
+disambiguated as `"Autumn Willow (An-Havva)"` with its deck copied to `autumn_willow_anhavva.dck`
+instead - the pre-existing fight is completely untouched. `Plagon` (An-Havva's... no, Idyllic
+Beachfront's - a flying WU legend) was the opposite case: already present in this plane with its
+own, more developed reward list, and reused as-is rather than overwritten; only its new
+`Starfish On Your Foot` item drop was added on top, additively.
+
+**A second real gap found only by exhaustively checking every single card reference, not
+spot-checking:** after porting the 38 new decks + 2 precons, a full pass resolving all ~3,000
+individual card lines against this repo's own `cardsfolder` turned up 64 apparently-missing
+cards - at first glance looking like this repo just hadn't synced recent upstream card additions.
+Cross-checking the SAME names against the just-downloaded snapshot's own bundled
+`cardsfolder.zip` (rather than this repo's copy) resolved all but one: 60 real, valid custom card
+files (mostly the "MBC"/"HOB"/"HOC" custom-set cards this exact update needs - the named boss
+commanders themselves, plus most of the new Hobbit precon's card pool) existed in the *new
+snapshot* but hadn't propagated into this repo yet, so they were extracted from the snapshot's zip
+and added to `forge-gui/res/cardsfolder/` directly (61 new `.txt` files total, including
+`nephilim_epochal.txt` found earlier). One more (`Gláin the Mighty` in the Hobbit precon) turned
+out to be a plain spelling error in the source deck for the real card `Glóin the Mighty` -
+corrected. The one genuine, un-fixable gap: `Mathise, Surge Channeler|slx` doesn't exist anywhere,
+including the new snapshot itself - dropped from `grandmother_goby.dck` (one line out of ~90;
+everything else in that deck is intact). **Without this check, 10 of the 39 new bosses across 5
+of the 8 dungeons would have shipped with commander decks that fail to load entirely** (their own
+namesake commander card wouldn't have resolved) - this wasn't caught by the background research
+agent's spot-check, only by mechanically resolving every single card line afterward.
+
+**Mechanics, mirroring the #79/#80 dungeon-migration precedent exactly:**
+- The 8 `.tmx` files were copied into this plane's own `maps/map/<biome-folder>/` tree (same
+  folder-per-color convention this plane already uses: `barbariancamp`=red, `evilgrove`=black,
+  `grove`=green, `merfolkpool`=blue, `fort`=white, `cave`=colorless). Their `tileset`/`template`
+  references already used the identical `../../../../common/maps/...` depth this plane's own
+  files use (both planes sit at the same folder depth under `res/adventure/`), so almost nothing
+  needed rewriting - the one exception was a single plane-local `../../obj/treasure.tx` template
+  (used by 5 of the 8 files) redirected to the shared `common/maps/obj/treasure.tx` instead (a
+  near-identical template, confirmed by diff - only a minor reward-tier difference).
+- POI entries added to `points_of_interest.json` (this plane's own schema, confirmed identical to
+  Realm of Legends': flat name list per color in `world/biomes/<color>.json`'s own
+  `"pointsOfInterest"` array, which is the actual world-gen wiring mechanism - a plane's `type`
+  field alone doesn't place anything). **Ancient Opal Cavern was retyped `castle`→`dungeon`**:
+  in stock Realm of Legends `type:"castle"` is inert, but in this mod it's load-bearing for
+  Territory Control (`World.isEssentialPoi()` - castles/capitals are Territory Control anchors
+  requiring `TerritoryControl.ensureCapital()` wiring). A single-boss story dungeon has no
+  business being treated as a faction capital; `"dungeon"` + the existing `questTags:["Story"]`
+  tag (which `DungeonRotation.isRotatableData()` already exempts from the rotation pool
+  entirely) gives it the same static, never-despawning behavior with none of the collision risk.
+- Enemy sprites (`sprites/enemy/...`) and boss deck paths (`decks/legends/*.dck`) needed zero
+  path rewriting either - both resolve identically regardless of which plane references them
+  (sprites via the shared `common/` tree, decks via a plane-relative path that's the same shape
+  in both planes) - confirmed directly rather than assumed, since this plane's own #79/#80 rounds
+  already established that assumption-driven porting is exactly how bugs slip through here.
+- Item icon art was NOT available for free the way tilesets/sprites were - `items.atlas`/
+  `items.png` are genuinely plane-local, hand-maintained files (this plane has been adding its own
+  custom items to them all session, e.g. the Torch line). The 13 new 16x16 icon regions were
+  cropped directly out of Realm of Legends' own `items.png` (same 480px-wide sheet convention)
+  and pasted into a newly-appended row at the bottom of this plane's own `items.png`
+  (1056px→1072px tall), with matching new region entries appended to `items.atlas` - real pixel
+  art carried over, not placeholder squares.
+
+**Validation, all before calling this done:** all 8 `.tmx` files re-verified well-formed XML with
+every `source=`/`template=` attribute (walked generically via ElementTree, not a hand-picked
+attribute list) resolving to a real file on disk; all touched/new JSON files (`points_of_interest.
+json`, all 6 `world/biomes/*.json`, `enemies.json`, `items.json`) re-parsed as valid JSON with the
+expected new entries present and zero accidental name duplicates; all 13 new icon regions spot-
+checked to contain real non-transparent pixel data, not blank crops; and - the big one - every
+one of the ~3,000 individual card lines across all 40 deck files (38 legends + 2 precons)
+confirmed to resolve to a real `cardsfolder` entry, with the process documented above for how the
+64 initial misses were run down to zero.
+
+No Java code touched - purely data/asset changes (map, JSON, deck, card-definition, and sprite-
+atlas files only), so no compile was needed or run for this round. **Deployed 2026-08-18**: no jar
+splice needed (no Java changed) - the plane's res folder was mirrored to `E:\GAMES\FORGE` via
+`robocopy /E /XO` (59 of 1484 files copied, the rest already matched), plus the 61 new card
+`.txt` files copied directly into the deployed `res/cardsfolder/` tree alongside the existing
+`cardsfolder.zip` - confirmed via `CardStorageReader`'s own source that it loads loose `.txt`
+files under `cardsfolder/` AND the zip archive additively into the same result set, so no zip
+rebuild was needed. Spot-checked live afterward: new `.tmx` files present, new card `.txt` files
+present, `points_of_interest.json` has the new entries, `items.png` is the new 1072px-tall
+version, both new precons present in the live install's precon folder.
+
+### 83. Stone/Wood Added as Dungeon Loot, Ratio to Gold — `Deployed (2026-08-18), not yet playtested`
+User spec: "go through all the dungeons, not towns, and add some stone or wood resource drops to
+them. Maybe, let's say for each 2 gold drops there is, add one stone or wood. Min 1. (Just those
+that don't already have these)". Also fixed, same round: the 11-POI missing-`Hostile`-tag gap
+found while investigating the `Oasis` despawn report (see #15's update note above).
+
+- **Scope**: every `.tmx` under `maps/map/` except `towns/` - 309 files. 77 already had a
+  `stone.tx`/`wood.tx` object placed (skipped, per "just those that don't already have these") -
+  231 edited, 287 objects added (39 files got wood, 192 got stone).
+- **Count formula**: `max(1, goldCount // 2)` per file - a dungeon with 0-3 gold pickups gets
+  exactly 1 stone/wood, 4-5 gets 2, 6-7 gets 3, etc. 80 of the 231 edited files had zero
+  `gold.tx` objects at all (several are the new Realm of Legends boss dungeons, which reward
+  through boss kills rather than pickups) - these still got their 1 via a fallback anchor
+  (treasure/manashards/scroll/enemy/entry_up position, first one found, in that priority order).
+- **Wood vs. stone assignment, by top-level `maps/map/` folder** (extending the existing
+  `RewardData.shardsSubstituteType()` cave=stone/fort=wood rule, which only covers those two
+  folders, to the other ~30 biome folders this plane actually has):
+  wood = `fort, grove, evilgrove, barbariancamp, nest, hunting_lodge, garruk, catlair, grolnok`;
+  everything else (`cave, aerie, demontower, djinnpalace, emrakul, factory, graveyard_crypt,
+  jacetower, lair, lavaforge, magetower, maze, merfolkpool, minibosses, monastery, nahiri,
+  naktamun, phyrexia, skep, skullcave, snowabbey, tibalt, vampirecastle, zedruu, main_story*,
+  hostiletown`) = stone. These are judgment calls, not from user spec directly - flagged back to
+  the user as adjustable per-folder if any read wrong thematically.
+- **Placement**: each new object reuses an existing anchor object's `(x,y)` (a gold pickup, or the
+  fallback object above) offset by a small `±5` nudge, rather than picking blind coordinates -
+  guarantees the position is in a real, reachable, already-tested part of the map. Object ids
+  assigned from each file's own `nextobjectid`, which is bumped to match afterward.
+- **Template path**: plane-local (`maps/obj/stone.tx`/`wood.tx`, not `common/`, matching how the
+  originals were added in #79), computed per-file from actual folder depth under `maps/map/`
+  (1 level for most, up to 3 for nested cases like `cave/cave_multilevel/` or
+  `main_story/castles/`) - verified against a real known-working precedent (`cave_multilevel/
+  cave_16B.tmx`'s existing `common/` tileset reference depth) before running against the full set.
+- **Same-round correction**: the first full run shipped with the `obj/` path segment missing
+  entirely (`../../wood.tx` instead of `../../obj/wood.tx`) - a mismatch between the hand-tested
+  dry-run script (which had the correct path hardcoded as a parameter) and the production script
+  (which rebuilt the same string from a variable that turned out not to include `obj/`). Caught
+  immediately by a Tiled screenshot arriving mid-turn showing the correct pre-existing wood.tx
+  reference for comparison, then confirmed exactly via `grep` before touching anything twice.
+  Fixed with a second, narrowly-scoped regex pass (matches only `template="(\.\./)+  (stone|
+  wood)\.tx"` - a pattern the 77 already-correct pre-existing references can't match, since theirs
+  always has `obj/` immediately before the filename) across all 231 affected files, then
+  re-verified with a corpus-wide check: 0 XML errors, 0 unresolved `template=` references of any
+  kind across all 332 files in the tree (not just the ones touched), 0 real object-id collisions
+  (an initial "3 files with duplicate ids" alarm turned out to be harmless, pre-existing per-tile
+  collision-shape sub-object ids scoped inside `<tile>` definitions, not the top-level reward/
+  enemy objects that actually matter - confirmed against the original `common/` source file,
+  which has the exact same "duplicates" and always has).
+
+No Java touched - pure map-data changes, no compile needed. **Deployed 2026-08-18** alongside the
+`Hostile`-tag fix - `robocopy /E /XO` of the plane's `maps/map/` tree (231 changed files) plus
+`world/points_of_interest.json`.
+
+### 84. Building Upgrades — `Not Started`
+User wishlist addition (2026-08-18): tiered upgrades for existing economy buildings beyond the
+Armory's own level system (#22) - e.g. Mines producing more per level, a bigger Bank/Exchange
+tier. Needs its own design pass on which buildings, how many tiers, and cost curve.
+
+### 85. New Quests — `Not Started`
+User wishlist addition (2026-08-18): additional quest content beyond the existing story/side-quest
+system (#16's timers, the main story chain). Scope (new story arcs vs. more side-quest variety
+vs. both) not yet defined.
+
+### 86. Additional AI Diplomacy Interaction — `Not Started`
+User wishlist addition (2026-08-18): more player-facing interaction with AI colors beyond the
+existing Reputation/Territory Control levers (#1, #7) - e.g. direct negotiation, alliances,
+trade offers. Needs a design pass on what "diplomacy" concretely means as a player action here.
+
+### 87. More Attacking Options — `Not Started`
+User wishlist addition (2026-08-18): expand the player's offensive options against AI
+towns/castles beyond the current Territory Control capture mechanism (#7). Scope not yet defined -
+could mean new attack types, mercenary/ally forces, siege mechanics, or something else.
+
+### 88. Post-Playtest Polish: Quiet Despawns, Tutorial Additions, Real Resource Sparkle, Two Log-Review Bugs Fixed — `Deployed (2026-08-19), playtest in progress`
+Two user messages in one thread: a request to quiet down routine dungeon-despawn notifications
+and expand the opening tutorial dialogue, followed by a report that the newly-added Stone/Wood
+dungeon pickups don't animate and don't show a preview icon in Tiled, plus a request to check the
+logs from a multi-week play session for issues.
+
+- **Routine despawn notifications removed.** "Has fallen - it fades from your maps" (loss) and
+  "has been cleared out - it fades from your maps" (clear) no longer pop up - `DungeonRotation.
+  onDungeonDefeat()`/`onDungeonClear()` now call `hidePoi(..., null)` for the ordinary,
+  non-quest case. The side-quest "N attempts remaining" warning and "final attempt has failed"
+  message are kept - those carry real information about a quest target being at risk.
+- **Tutorial dialogue extended** (`world/quests.json`, the opening mage conversation) with the
+  user's requested points: build a Capitol ASAP (needs 5 towns), Capitol-only buildings, cheaper
+  cards in your own towns, don't lose your Capitol, and expansions unlock by finding + researching
+  cards from lands that carry them - appended as a continuation of the same NPC's existing line
+  rather than a new branching dialogue node, to avoid touching the surrounding quest-flag logic.
+- **Real root cause found for two separate user-reported issues, both from the same mistake.**
+  When building the original Wood/Stone pickup templates (#79), the "sprite" property was pointed
+  at a single-frame atlas built by reusing an existing static icon, and no `gid`/`<tileset>` was
+  set on the object at all - **without realizing a proper 4-frame animated sheet already existed**
+  (`sprites/wood.atlas`/`stone.atlas`, both reading `resource_drop.png`, user-provided
+  2026-08-13, the same sheet Gold/Shards already use). `CharacterSprite.load()` animates whatever
+  region set shares the name `"Idle"` - one frame animates as a static image, which is why nothing
+  visibly twinkled. Separately, every OTHER reward template (`gold.tx`, `treasure.tx`,
+  `manashards.tx`) declares a `<tileset>` + `gid=` specifically so Tiled has something to render
+  as an editor preview - mine had neither, hence the blank box in Tiled screenshots. **Fixed**:
+  repointed both templates' `sprite` property at the real animated atlases, added a `gid`
+  reference (a rock icon for Stone, a bare tree for Wood, both pulled from the same
+  `common/maps/tileset/buildings.png` sheet Gold/Treasure already use) matching the established
+  house convention, and deleted the now-dead single-frame atlas files. Since all 308 placed
+  instances (77 pre-existing + 231 added in #83) reference these two template files rather than
+  embedding their own copy, this one fix covers every instance in the game at once - nothing else
+  needed touching.
+- **Log review turned up 3 real findings**, not just the twinkle/icon issue - see the
+  twenty-fourth changelog round for the full log-review methodology:
+  - **A real, reproducible crash-adjacent bug on every New Game**: `PointOfInterest`'s
+    constructor (`PointOfInterest.java:77`) divides by an empty sprite array's size with no
+    guard, throwing `ArithmeticException: / by zero` (plus two follow-on NPEs in the minimap/
+    chunk-math code) whenever a POI's sprite lookup comes back empty. Root cause: the "Ashling's
+    Domain" POI added in #82 references the `"Ashling Domain"` region in `Realm of Legends/
+    sprites/buildingsbosses.atlas` - a region that's real (present, unchanged pixel data, in the
+    2.0.15 snapshot this content was ported from) but was missing from this repo's own copy of
+    that atlas file, which had never been resynced with the 2.0.15 update beyond the specific
+    content actually ported. **Fixed** by updating the repo's `buildingsbosses.atlas` to match
+    the 2.0.15 snapshot exactly (confirmed the underlying PNG is byte-identical between versions
+    - this was a pure text-index update, zero risk to existing art). Also checked `buildings.atlas`
+    (used by 3 other new POIs) for the same staleness - it also differs from the snapshot, but the
+    specific regions actually referenced (`Building198`/`41`/`56`) are byte-identical in both
+    versions, so no fix was needed there.
+  - **A real gap in `DungeonRotation.hidePoi()`**: no guard against being called twice for the
+    same POI, which the log showed happening repeatedly - a combat-triggered despawn
+    (`onDungeonDefeat`/`onDungeonClear`) and `processDaysPassed()`'s own natural-expiry check can
+    both fire for the same POI on the same day with no coordination between them, each rolling a
+    fresh random respawn day and silently discarding the other's roll (harmless in practice - just
+    wasted a re-roll, no visible player-facing effect - but a real gap all the same). **Fixed**
+    with an early-return guard: a second call on an already-inactive POI is now a no-op.
+  - **One finding investigated and left open, not confidently a bug**: the Fog-of-War "stage 2"
+    exploration counter (`[TFR-FoW] stage2 check`) sat frozen at exactly 2542/288607 (0.9%) across
+    135 log lines spanning roughly day 18 to day 156+, while Territory Control radius grew
+    normally over the same span. Traced the mechanism: `World.revealPlayerOwnedTiles()` (which
+    would sync territory growth into fog-of-war exploration) is only ever called from
+    `TownRestoration.repairAllTownVisionReveal()`, a load-time repair pass - not from any
+    periodic/daily tick. Suspicious (an exact freeze across many real-time days, not just slow
+    growth), but not confirmed as a bug rather than a real gameplay pattern (the player may
+    simply not have walked into much new territory on foot during that stretch, since fog-of-war
+    exploration and Territory Control ownership are two separate systems). Flagged for the user
+    rather than guessed at with a speculative fix to a system not fully understood in one pass.
+
+No deploy yet - awaiting confirmation, per standing practice.
+

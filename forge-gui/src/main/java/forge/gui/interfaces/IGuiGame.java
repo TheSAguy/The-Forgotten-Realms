@@ -217,6 +217,24 @@ public interface IGuiGame {
 
     <T> void reveal(String message, List<T> items);
 
+    /**
+     * Same content/purpose as reveal(title, items) - specifically for the "these cards were
+     * chosen to ante" moment - but additionally offers a reroll: when invoked, {@code reroll}
+     * re-generates the item list (list shape identical to {@code items}: alternating "-- From
+     * X's deck --" header + the actual card) and the caller is expected to update its display
+     * with the new list, in place, rather than issue a second reveal.
+     * <p>
+     * Default implementation ignores {@code reroll} entirely and behaves exactly like the plain
+     * {@code reveal(title, items)} call it replaces, so every existing IGuiGame implementation
+     * (network play, desktop, any future one) keeps its current ante-reveal behavior unchanged
+     * with zero code changes on its part. Only overridden where an in-dialog reroll UI actually
+     * makes sense (2026-08-16, Adventure mode's Ante Re-roll feature - see MatchController's
+     * override, gated to Adventure-mode matches only).
+     */
+    default void revealAnteCards(String title, List<CardView> items, java.util.function.Supplier<List<CardView>> reroll) {
+        reveal(title, items);
+    }
+
     default <T> List<T> many(final String title, final String topCaption, final int cnt, final List<T> sourceChoices, final CardView c) {
         return many(title, topCaption, cnt, cnt, sourceChoices, c);
     }

@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableList;
 import forge.Forge;
 import forge.Graphics;
 import forge.LobbyPlayer;
+import forge.card.CardRarity;
 import forge.card.CardRenderer;
 import forge.card.CardRenderer.CardStackPosition;
 import forge.card.CardZoom;
@@ -17,10 +18,13 @@ import forge.adventure.player.AdventurePlayer;
 import forge.adventure.stage.GameHUD;
 import forge.adventure.stage.IAfterMatch;
 import forge.adventure.stage.MapStage;
+import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.util.AdventureEventController;
 import forge.adventure.util.ColorReputation;
 import forge.adventure.util.Config;
 import forge.adventure.util.Current;
+import forge.adventure.util.TownRestoration;
+import forge.adventure.world.WorldSave;
 import forge.assets.FBufferedImage;
 import forge.assets.FSkin;
 import forge.card.ColorSet;
@@ -242,8 +246,20 @@ public class DuelScene extends ForgeScene {
         // No-op unless the plane's config enables colorReputationEnabled; colorless enemies
         // no-op inside the call. Deliberately outside the endRunnable below - that only runs
         // once the transition screen finishes, and reputation has no rendering dependency.
-        if (winner && !isArena && eventData == null && enemy != null)
+        if (winner && !isArena && eventData == null && enemy != null) {
             ColorReputation.onPlayerWonDuel(enemy.getData(), enemy.territoryColor != null);
+            // Town Reputation (user spec 2026-08-17): defeating an attacking mage grants +1
+            // reputation with the town it was attacking - only when that target is a player-
+            // owned/restored town, since this mechanic "only affects the player's towns" (an
+            // AI-vs-AI or neutral-town mage fight the player happens to intercept shouldn't
+            // grant player-town standing).
+            if (enemy.territoryColor != null && enemy.territoryTarget != null) {
+                PointOfInterestChanges targetChanges = WorldSave.getCurrentSave()
+                        .getPointOfInterestChanges(enemy.territoryTarget.getID());
+                if (TownRestoration.isTownRestored(targetChanges))
+                    targetChanges.addMapReputation(1);
+            }
+        }
         Forge.advFreezePlayerControls = winner;
         endRunnable = () -> Gdx.app.postRunnable(() -> {
             GameHUD.getInstance().updateBGM();
@@ -295,6 +311,22 @@ public class DuelScene extends ForgeScene {
         showAnteCardPopup(won ? "Card Gained" : "Card Lost", card, won, next);
     }
 
+    // Ante Buy Back price floor by rarity (2026-08-17 user report: 150% of a heavily
+    // sellFactor-scaled Insane-difficulty sell price rounded to "3 gold"). Special/BasicLand/
+    // anything else not called out explicitly falls back to the Common floor - the lowest tier,
+    // never a reason to charge less than a Common would cost.
+    private static int anteBuyBackMinPrice(PaperCard card) {
+        TuningData tuning = Config.instance().getTuningData();
+        CardRarity rarity = card.getRarity();
+        if (rarity == CardRarity.MythicRare)
+            return tuning.anteBuyBackMinMythic;
+        if (rarity == CardRarity.Rare)
+            return tuning.anteBuyBackMinRare;
+        if (rarity == CardRarity.Uncommon)
+            return tuning.anteBuyBackMinUncommon;
+        return tuning.anteBuyBackMinCommon;
+    }
+
     private void showAnteCardPopup(String title, PaperCard card, boolean won, Runnable onDone) {
         CardView cardView = CardView.getCardForUi(card);
 
@@ -325,11 +357,28 @@ public class DuelScene extends ForgeScene {
                 : (ownedCount > 0 ? " (Remaining: " + ownedCount + ")" : "");
         String message = card.getName() + ownedInfo;
         List<String> buttons;
+        // Buy Back (2026-08-16 user request): anteBuyBackMultiplier (TuningData, default 150%) of
+        // the card's normal sell value. Reuses cardSellPrice() as the base - the SAME
+        // difficulty-scaled (sellFactor) calculation the sibling Auto-Sell button above already
+        // uses - rather than introducing a second, separate difficulty multiplier:
+        // EconomyBuildings.scaledCost()/difficultyPriceMultiplier() is documented as deliberately
+        // NOT applied to card values (that's ShopActor's own reputation-tier scaling's job, and
+        // there's no shop/town context here anyway).
+        // Only offered when currently affordable - same "only offer when it makes sense" gate
+        // the Auto-Sell branch already applies via its own sellPrice>0 check, since FOptionPane's
+        // button list has no per-button disabled state to grey one out instead.
+        int buyBackPrice = (!won && eventData == null)
+                ? Math.max(Math.round(Current.player().cardSellPrice(card) * Config.instance().getTuningData().anteBuyBackMultiplier),
+                        anteBuyBackMinPrice(card))
+                : 0;
+        boolean offerBuyBack = buyBackPrice > 0 && Current.player().getGold() >= buyBackPrice;
         if (won && eventData == null) {
             int sellPrice = Current.player().cardSellPrice(card);
             buttons = sellPrice > 0
                     ? ImmutableList.of(Forge.getLocalizer().getMessage("lblOK"), "Auto-Sell (" + sellPrice + " gold)")
                     : ImmutableList.of(Forge.getLocalizer().getMessage("lblOK"));
+        } else if (offerBuyBack) {
+            buttons = ImmutableList.of(Forge.getLocalizer().getMessage("lblOK"), "Buy Back (" + buyBackPrice + " gold)");
         } else {
             buttons = ImmutableList.of(Forge.getLocalizer().getMessage("lblOK"));
         }
@@ -337,6 +386,10 @@ public class DuelScene extends ForgeScene {
         FOptionPane popup = new FOptionPane(message, null, title, null, cardDisplay, buttons, 0, result -> {
             if (won && result == 1) {
                 Current.player().autoSellCards.add(card);
+            }
+            if (offerBuyBack && result == 1) {
+                Current.player().takeGold(buyBackPrice);
+                Current.player().addCard(card);
             }
             if (onDone != null) onDone.run();
         });
@@ -603,7 +656,13 @@ public class DuelScene extends ForgeScene {
         }
         // Arena matches disable ante regardless of the player's global setting (user spec
         // 2026-08-11) - see EnemyData.noAnte, set only on a per-fight clone by ArenaScene.
-        rules.setPlayForAnte(!enemy.getData().noAnte && FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ANTE));
+        // Inn tournament matches disable ante too (user spec 2026-08-17) - every match that is
+        // part of an event (eventData != null) skips ante, both the human's own bracket match
+        // (this line) and AI-vs-AI event pairings (already off unconditionally - see
+        // DeckTesterSimulator's own rules.setPlayForAnte(false) used when "simulate AI matches"
+        // is enabled; the default coin-flip AI-vs-AI resolution in EventScene.startRound() never
+        // constructs a Game/GameRules at all).
+        rules.setPlayForAnte(eventData == null && !enemy.getData().noAnte && FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ANTE));
         rules.setMatchAnteRarity(FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ANTE_MATCH_RARITY));
         rules.setAnteIncludeBasicLands(FModel.getPreferences().getPrefBoolean(ForgePreferences.FPref.UI_ANTE_INCLUDE_BASIC_LANDS));
         rules.setManaBurn(false);

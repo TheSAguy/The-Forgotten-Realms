@@ -30,7 +30,7 @@
                     "Adventurer",
                     "Aether Channeler",
                     "Angelic Page",
-                    "Angelic Overseer",
+                    "Angel Overseer",
                     "Human Looter",
                     "Apprentice White Wizard",
                     "Archer",
@@ -79,7 +79,7 @@
                     "Triceratops",
                     "Warrior",
                     "White Dwarf",
-                    "White Sliver",
+                    "Sliver_White",
                     "Avacynian Preacher",
                     "Gavony Farmhand",
                     "Missionary of Saint Traft",
@@ -505,7 +505,8 @@
                              "KorEncampment",
                              "MageTower White",
                              "UnhallowedAbbey",
-                             "DragonsLairWhite"
+                             "DragonsLairWhite",
+                             "Peaceful Clearing"
                          ],
     "structures":  [
                        {

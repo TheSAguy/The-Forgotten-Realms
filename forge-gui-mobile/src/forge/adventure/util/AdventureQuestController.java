@@ -425,6 +425,17 @@ public class AdventureQuestController implements Serializable {
                     break;
                 }
             }
+            // Dungeon-clear despawn (2026-08-18 user request: "Silly to have an empty dungeon
+            // on the map... we should have it de-spawn, to make room for new dungeons").
+            // Mirrors the existing DungeonRotation.onDungeonDefeat() call on the loss side -
+            // no-op for non-rotatable POIs (story dungeons, bosses, towns) and on planes
+            // without rotation, see that method's own gating. Nested inside this
+            // enemies != null branch specifically (not a bare allEnemiesCleared check) since
+            // that's this method's own "this really was a dungeon-context battle" signal -
+            // the single-enemy overworld-duel overload below passes enemies=null and would
+            // otherwise trip allEnemiesCleared's true-by-default value for every ordinary win.
+            if (allEnemiesCleared)
+                DungeonRotation.onDungeonClear(TileMapScene.instance().rootPoint);
         }
         AdventureQuestEvent event = new AdventureQuestEvent();
         event.type = AdventureQuestEventType.MATCHCOMPLETE;

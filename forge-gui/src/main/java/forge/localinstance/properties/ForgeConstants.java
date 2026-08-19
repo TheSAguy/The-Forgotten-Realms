@@ -160,6 +160,7 @@ public final class ForgeConstants {
     public static final String ADV_MATCH_BG_DAY_FILE        = "adv_bg_match_day.jpg";
     public static final String ADV_MATCH_BG_NIGHT_FILE      = "adv_bg_match_nigh.jpg";
     public static final String ADV_TEXTURE_BG_FILE          = "adv_bg_texture.jpg";
+    public static final String ADV_WORLDGEN_BG_FILE         = "adv_worldgen_bg.png";
     public static final String TEXTURE_BG_FILE              = "bg_texture.jpg";
     public static final String SPACE_BG_FILE                = "bg_space.png";
     public static final String CHAOS_WHEEL_IMG_FILE         = "bg_chaos_wheel.png";

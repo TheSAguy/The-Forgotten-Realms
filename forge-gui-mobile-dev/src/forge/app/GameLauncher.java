@@ -143,6 +143,23 @@ public class GameLauncher {
 
         config.setHdpiMode(HdpiMode.Logical);
 
+        // Real running-window/taskbar icon (user request 2026-08-17: "create a real Icon...
+        // use that for the Icon to launch the game"). Nothing set this before - the window used
+        // whatever LWJGL3/GLFW's OS-level default fell back to. Uses the same assetsDir ("./" for
+        // a deployed install where ./res exists alongside the jar, "../forge-gui/" for a dev
+        // run) already resolved above, built into an absolute path so this works regardless of
+        // FileType.Internal's classpath-vs-working-directory ambiguity in a packaged jar.
+        String iconDir = assetsDir + "res" + java.io.File.separator + "skins" + java.io.File.separator + "default" + java.io.File.separator;
+        String[] iconSizes = {"256", "128", "64", "32", "16"};
+        java.util.List<String> iconPaths = new java.util.ArrayList<>();
+        for (String size : iconSizes) {
+            java.io.File iconFile = new java.io.File(iconDir + "adv_icon_" + size + ".png");
+            if (iconFile.exists())
+                iconPaths.add(iconFile.getAbsolutePath());
+        }
+        if (!iconPaths.isEmpty())
+            config.setWindowIcon(com.badlogic.gdx.Files.FileType.Absolute, iconPaths.toArray(new String[0]));
+
         new Lwjgl3Application(start, config);
     }
 

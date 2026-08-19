@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <template>
- <object name="Stone" type="reward" width="16" height="16">
+ <tileset firstgid="1" source="../../../common/maps/tileset/buildings.tsx"/>
+ <object name="Stone" type="reward" gid="499" width="16" height="16">
   <properties>
    <property name="reward">[
   {
@@ -13,7 +14,7 @@
    <property name="spawn.Hard" type="bool" value="true"/>
    <property name="spawn.Normal" type="bool" value="true"/>
    <property name="spawn.Insane" type="bool" value="true"/>
-   <property name="sprite" value="maps/tileset/stone_pickup.atlas"/>
+   <property name="sprite" value="sprites/stone.atlas"/>
   </properties>
  </object>
 </template>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="123">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="40" height="40" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="127">
  <editorsettings>
   <export target="wastetown..tmx" format="tmx"/>
  </editorsettings>
@@ -289,5 +289,29 @@ LAWMEN STAY OUT.&quot;,
    </properties>
   </object>
   <object id="122" template="../../../../common/maps/obj/collision.tx" x="278.698" y="66.3021" width="46.335" height="29.75"/>
+  <object id="123" template="../../obj/wood.tx" x="494.333" y="137.333">
+   <properties>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;wood&quot;,
+    &quot;count&quot;: 20,
+    &quot;addMaxCount&quot;: 10
+ }
+]</property>
+   </properties>
+  </object>
+  <object id="124" template="../../obj/wood.tx" x="52.6667" y="287.333">
+   <properties>
+    <property name="reward">[
+  {
+    &quot;type&quot;: &quot;wood&quot;,
+    &quot;count&quot;: 20,
+    &quot;addMaxCount&quot;: 10
+ }
+]</property>
+   </properties>
+  </object>
+  <object id="125" template="../../obj/stone.tx" x="129" y="402.333"/>
+  <object id="126" template="../../obj/stone.tx" x="421" y="559.667"/>
  </objectgroup>
 </map>

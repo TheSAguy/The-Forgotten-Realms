@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="33" height="24" tilewidth="16" tileheight="16" infinite="0" nextlayerid="12" nextobjectid="166">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="33" height="24" tilewidth="16" tileheight="16" infinite="0" nextlayerid="12" nextobjectid="167">
  <editorsettings>
   <export target="wastetown..tmx" format="tmx"/>
  </editorsettings>
@@ -49,6 +49,7 @@
 }]</property>
    </properties>
   </object>
+  <object id="166" template="../../obj/wood.tx" x="452.956" y="61.4352"/>
   <object id="55" template="../../../../common/maps/obj/enemy.tx" x="430.769" y="128.183">
    <properties>
     <property name="enemy" value="Euru"/>

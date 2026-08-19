@@ -1,5 +1,5 @@
 items.png
-size: 480,1040
+size: 480,1072
 format: RGBA8888
 filter: Nearest,Nearest
 repeat: none      
@@ -1846,4 +1846,46 @@ RobesOfOmniscience
   size: 16, 16
 MantleofDenial
   xy: 288, 1024
+  size: 16, 16
+GrandTorch
+  xy: 0, 1040
+  size: 16, 16
+Joven'sShoes
+  xy: 0, 1056
+  size: 16, 16
+Chandler'sShoes
+  xy: 16, 1056
+  size: 16, 16
+Murderer'sAxe
+  xy: 32, 1056
+  size: 16, 16
+Morcant'sCrown
+  xy: 48, 1056
+  size: 16, 16
+FaerieCrown
+  xy: 64, 1056
+  size: 16, 16
+EvershrikeAnklet
+  xy: 80, 1056
+  size: 16, 16
+FlamecasterPants
+  xy: 96, 1056
+  size: 16, 16
+TarfireHelm
+  xy: 112, 1056
+  size: 16, 16
+StarfishOnYourFoot
+  xy: 128, 1056
+  size: 16, 16
+TidalAmulet
+  xy: 144, 1056
+  size: 16, 16
+PegasusHelm
+  xy: 160, 1056
+  size: 16, 16
+InterplanarArmor
+  xy: 176, 1056
+  size: 16, 16
+CloudKeeperArmor
+  xy: 192, 1056
   size: 16, 16

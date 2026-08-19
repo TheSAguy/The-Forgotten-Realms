@@ -57,7 +57,7 @@
                     "Gorgon",
                     "Gorgon 2",
                     "Green Beast",
-                    "Green Sliver",
+                    "Sliver_Green",
                     "High Elf",
                     "Hydra",
                     "Ibis",
@@ -515,7 +515,6 @@
                              "Fort8",
                              "Fort9",
                              "GroveBamboo",
-                             "GroveCentaur",
                              "GroveGreenDragon",
                              "CatLairG",
                              "CatLairG1",
@@ -537,7 +536,8 @@
                              "Quest_FrostbittenCavern",
                              "CaveGB",
                              "GroveFaerieDragon",
-                             "DragonsLairGreen"
+                             "DragonsLairGreen",
+                             "An-Havva Inn"
                          ],
     "structures":  [
                        {

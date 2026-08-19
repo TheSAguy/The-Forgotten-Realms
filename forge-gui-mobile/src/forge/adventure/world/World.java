@@ -14,6 +14,7 @@ import com.badlogic.gdx.utils.Json;
 import forge.Forge;
 import forge.adventure.data.*;
 import forge.adventure.pointofintrest.PointOfInterest;
+import forge.adventure.pointofintrest.PointOfInterestChanges;
 import forge.adventure.pointofintrest.PointOfInterestMap;
 import forge.adventure.scene.Scene;
 import forge.adventure.stage.GameHUD;
@@ -76,7 +77,11 @@ public class World implements Disposable, SaveFileContent {
     // 0 = midnight. It only advances via advanceTime(), which WorldStage calls once per frame
     // while the player is on the overworld and not paused/in a dialog - so the clock freezes
     // whenever the player enters a town or dungeon (MapStage) or the game itself is paused.
-    private static final float DAY_LENGTH_SECONDS = 10 * 60f; // ~10 real minutes per in-game day
+    // Moved to the new tuning.json 2026-08-14 (user request) - was a hardcoded static final
+    // (10*60f, ~10 real minutes/day). See TuningData.java.
+    private static float dayLengthSeconds() {
+        return Config.instance().getTuningData().dayLengthSeconds;
+    }
     // Day = 6am-6pm, night = 6pm-6am (user spec 2026-08-12, set when the day/night terrain life
     // modifier became the first real consumer of isNight() - was 20f/6f while nothing used it).
     private static final float NIGHT_START_HOUR = 18f;
@@ -114,6 +119,104 @@ public class World implements Disposable, SaveFileContent {
 
     public void setColorTerritoryRadius(String color, int radiusTiles) {
         colorTerritoryRadius.put(color, radiusTiles);
+    }
+
+    // World Standings line-chart history (2026-08-15 user request: "line-chart, number of cities
+    // by week for the 6 colors... rolling 10 week window"). One snapshot per real week boundary
+    // crossed (see recordStandingsHistoryIfNewWeek(), hooked from WorldStage.onActing() the same
+    // place EconomyBuildings/TerritoryControl's own processDaysPassed() already runs), trimmed to
+    // the newest STANDINGS_HISTORY_WEEKS entries. standingsHistoryWeeks holds the real week number
+    // for each entry (not assumed contiguous - if the player fast-forwards past more than one week
+    // between ticks, only the week actually reached gets a snapshot; skipped weeks are simply
+    // absent rather than backfilled with guessed data) with standingsHistoryCounts's per-row lists
+    // kept parallel to it by index.
+    public static final int STANDINGS_HISTORY_WEEKS = 10;
+    private final java.util.List<Integer> standingsHistoryWeeks = new java.util.ArrayList<>();
+    private final java.util.Map<String, java.util.List<Integer>> standingsHistoryCounts = new java.util.HashMap<>();
+    private int standingsHistoryLastWeek = -1;
+
+    public java.util.List<Integer> getStandingsHistoryWeeks() {
+        return standingsHistoryWeeks;
+    }
+
+    public java.util.Map<String, java.util.List<Integer>> getStandingsHistoryCounts() {
+        return standingsHistoryCounts;
+    }
+
+    /** Called once per real day-advance (see WorldStage.onActing()) - a no-op unless the week
+     *  number has actually gone up since the last recorded entry. */
+    public void recordStandingsHistoryIfNewWeek(java.util.Map<String, Integer> currentCounts) {
+        int week = (dayCount - 1) / 7;
+        if (week == standingsHistoryLastWeek)
+            return;
+        standingsHistoryLastWeek = week;
+        standingsHistoryWeeks.add(week);
+        for (java.util.Map.Entry<String, Integer> entry : currentCounts.entrySet()) {
+            standingsHistoryCounts
+                    .computeIfAbsent(entry.getKey(), k -> new java.util.ArrayList<>())
+                    .add(entry.getValue());
+        }
+        while (standingsHistoryWeeks.size() > STANDINGS_HISTORY_WEEKS) {
+            standingsHistoryWeeks.remove(0);
+            for (java.util.List<Integer> counts : standingsHistoryCounts.values())
+                if (!counts.isEmpty())
+                    counts.remove(0);
+        }
+        System.out.println("[TFR-StandingsHistory] recorded week " + week + " snapshot, "
+                + standingsHistoryWeeks.size() + "/" + STANDINGS_HISTORY_WEEKS + " weeks in window");
+    }
+
+    // Color Defeat (MOD_SCOPE.md #61, user request 2026-08-14): which of the 5 AI colors have had
+    // their castle's boss defeated - TerritoryControl.defeatColor() is the only writer (idempotent,
+    // checks this set before applying any consequence). A HashSet, not a per-color boolean map,
+    // since "absent" and "false" mean the same thing here and there's no third state to track.
+    private final java.util.Set<String> defeatedColors = new java.util.HashSet<>();
+
+    public boolean isColorDefeated(String color) {
+        return defeatedColors.contains(color);
+    }
+
+    public void setColorDefeated(String color) {
+        defeatedColors.add(color);
+    }
+
+    public int getDefeatedColorCount() {
+        return defeatedColors.size();
+    }
+
+    // Color Defeat forced-targeting (user spec 2026-08-14): "the next attack from the two colors
+    // either side of the defeated player will be 100% probability to be a player town." One-shot
+    // per surviving ally, armed by TerritoryControl.defeatColor() and consumed by the next
+    // dispatch() call from that color that finds an actual player-owned target to force (a color
+    // with no player towns to attack yet keeps its flag armed rather than wasting it on a normal
+    // roll - see dispatch()'s own comment).
+    private final java.util.Set<String> forcedPlayerTargetPending = new java.util.HashSet<>();
+
+    public boolean hasForcedPlayerTarget(String color) {
+        return forcedPlayerTargetPending.contains(color);
+    }
+
+    public void armForcedPlayerTarget(String color) {
+        forcedPlayerTargetPending.add(color);
+    }
+
+    public void clearForcedPlayerTarget(String color) {
+        forcedPlayerTargetPending.remove(color);
+    }
+
+    // Color Defeat discoverability (2026-08-15 review finding: the only player-facing signal was
+    // one overwritable HUD toast at the moment of defeat, and World Standings never marked a
+    // defeated color's row any differently from one that simply hasn't expanded yet). Stamped
+    // once, at the same moment setColorDefeated() fires - TerritoryControl.defeatColor() is the
+    // only writer, same as defeatedColors itself.
+    private final java.util.Map<String, Integer> colorDefeatDay = new java.util.HashMap<>();
+
+    public void setColorDefeatDay(String color, int day) {
+        colorDefeatDay.put(color, day);
+    }
+
+    public Integer getColorDefeatDay(String color) {
+        return colorDefeatDay.get(color);
     }
 
     // Progressive Set Unlocks (MOD_SCOPE.md #4, editionProgressionEnabled) - which real editions
@@ -348,6 +451,24 @@ public class World implements Disposable, SaveFileContent {
             colorTerritoryRadius.putAll((java.util.Map<String, Integer>) saveFileData.readObject("colorTerritoryRadius"));
         }
 
+        defeatedColors.clear();
+        if (saveFileData.containsKey("defeatedColors")) {
+            //noinspection unchecked
+            defeatedColors.addAll((java.util.Set<String>) saveFileData.readObject("defeatedColors"));
+        }
+
+        forcedPlayerTargetPending.clear();
+        if (saveFileData.containsKey("forcedPlayerTargetPending")) {
+            //noinspection unchecked
+            forcedPlayerTargetPending.addAll((java.util.Set<String>) saveFileData.readObject("forcedPlayerTargetPending"));
+        }
+
+        colorDefeatDay.clear();
+        if (saveFileData.containsKey("colorDefeatDay")) {
+            //noinspection unchecked
+            colorDefeatDay.putAll((java.util.Map<String, Integer>) saveFileData.readObject("colorDefeatDay"));
+        }
+
         townTerritoryRadius.clear();
         if (saveFileData.containsKey("townTerritoryRadius")) {
             //noinspection unchecked
@@ -364,6 +485,18 @@ public class World implements Disposable, SaveFileContent {
         if (saveFileData.containsKey("colorEditionShards")) {
             //noinspection unchecked
             colorEditionShards.putAll((java.util.Map<String, java.util.List<String>>) saveFileData.readObject("colorEditionShards"));
+        }
+
+        standingsHistoryWeeks.clear();
+        standingsHistoryCounts.clear();
+        standingsHistoryLastWeek = -1;
+        if (saveFileData.containsKey("standingsHistoryWeeks")) {
+            //noinspection unchecked
+            standingsHistoryWeeks.addAll((java.util.List<Integer>) saveFileData.readObject("standingsHistoryWeeks"));
+            //noinspection unchecked
+            standingsHistoryCounts.putAll((java.util.Map<String, java.util.List<Integer>>) saveFileData.readObject("standingsHistoryCounts"));
+            if (!standingsHistoryWeeks.isEmpty())
+                standingsHistoryLastWeek = standingsHistoryWeeks.get(standingsHistoryWeeks.size() - 1);
         }
 
         resourceSpawns.clear();
@@ -426,9 +559,14 @@ public class World implements Disposable, SaveFileContent {
         data.store("dayCount", dayCount);
         data.store("fogOfWarStage2Revealed", fogOfWarStage2Revealed);
         data.storeObject("colorTerritoryRadius", colorTerritoryRadius);
+        data.storeObject("defeatedColors", defeatedColors);
+        data.storeObject("forcedPlayerTargetPending", forcedPlayerTargetPending);
+        data.storeObject("colorDefeatDay", colorDefeatDay);
         data.storeObject("townTerritoryRadius", townTerritoryRadius);
         data.storeObject("townLastGrowthDay", townLastGrowthDay);
         data.storeObject("colorEditionShards", colorEditionShards);
+        data.storeObject("standingsHistoryWeeks", new ArrayList<>(standingsHistoryWeeks));
+        data.storeObject("standingsHistoryCounts", standingsHistoryCounts);
         data.storeObject("resourceSpawns", new ArrayList<>(resourceSpawns));
         data.store("resourceSpawnsSeeded", resourceSpawnsSeeded ? 1 : 0);
         data.storeObject("poiDespawnDay", poiDespawnDay);
@@ -676,9 +814,15 @@ public class World implements Disposable, SaveFileContent {
             dayCount = 1;
             colorNextAttackDay.clear();
             colorTerritoryRadius.clear();
+            defeatedColors.clear();
+            forcedPlayerTargetPending.clear();
+            colorDefeatDay.clear();
             townTerritoryRadius.clear();
             townLastGrowthDay.clear();
             colorEditionShards.clear(); // fresh world re-shards editions in generateNew(), not a stale split
+            standingsHistoryWeeks.clear();
+            standingsHistoryCounts.clear();
+            standingsHistoryLastWeek = -1; // fresh world has no history yet, same reasoning as above
             playerTownVisionAreas.clear(); // fresh world, no owned towns yet
             resourceSpawns.clear();
             resourceSpawnsSeeded = false; // fresh world reseeds its 20 on the first tick
@@ -1466,19 +1610,60 @@ public class World implements Disposable, SaveFileContent {
                 biomeImage.drawPixmap(capPixmap, capSprite.getRegionX(), capSprite.getRegionY(),
                         capSprite.getRegionWidth(), capSprite.getRegionHeight(), cx, cy, dstSize, dstSize);
                 capPixmap.dispose();
+                refreshFogForMarkerRect(cx, cy, dstSize, dstSize);
                 continue;
             }
             TextureAtlas.AtlasRegion marker = mapMarker.findRegion(mapMarkerKey(poi.getData()));
             if (marker == null)
                 continue;
+            // Ruined/neutral towns draw ~15% larger (2026-08-15 user request: "they look small
+            // next to the fixed/repaired towns") - same atlas region, just a scaled destination
+            // rect (the 9-arg drawPixmap scales). Restored towns and every other POI type keep
+            // native size. No ghosting risk on restore: repaintBiomeAroundTown() repaints the
+            // whole RECOLOR_RADIUS ground disc before markers get redrawn at normal size.
+            PointOfInterestChanges markerChanges = WorldSave.getCurrentSave().peekPointOfInterestChanges(poi.getID());
+            boolean ruinedTown = "town".equals(poi.getData().type)
+                    && TownRestoration.isWastelandTown(poi.getData())
+                    && (markerChanges == null || !TownRestoration.isTownRestored(markerChanges));
+            int dstW = ruinedTown ? Math.round(marker.getRegionWidth() * 1.15f) : marker.getRegionWidth();
+            int dstH = ruinedTown ? Math.round(marker.getRegionHeight() * 1.15f) : marker.getRegionHeight();
             int xInPixels = (int) ((poi.getPosition().x / data.tileSize) * mm);
             int yInPixels = (int) ((height - (poi.getPosition().y / data.tileSize)) * mm);
-            xInPixels -= marker.getRegionWidth() / 2;
-            yInPixels -= marker.getRegionHeight() / 2;
+            xInPixels -= dstW / 2;
+            yInPixels -= dstH / 2;
             biomeImage.drawPixmap(mapMarkerPixmap, marker.getRegionX(), marker.getRegionY(),
-                    marker.getRegionWidth(), marker.getRegionHeight(), xInPixels, yInPixels, marker.getRegionWidth(), marker.getRegionHeight());
+                    marker.getRegionWidth(), marker.getRegionHeight(), xInPixels, yInPixels, dstW, dstH);
+            refreshFogForMarkerRect(xInPixels, yInPixels, dstW, dstH);
         }
         mapMarkerPixmap.dispose();
+    }
+
+    /** Fog-of-war companion to the marker draws above (2026-08-15 bug fix: "town icon missing" /
+     *  "icons cut off by terrain growth") - redrawAllPoiMarkers() only ever painted markers onto
+     *  biomeImage, never onto fogOfWarPixmap, which World.getBiomeImage() actually returns (and
+     *  every on-screen minimap reads from) whenever fog of war is enabled - the exact same
+     *  "fog overlay holds tile COPIES, not a live view of biomeImage" mechanism already root-
+     *  caused and fixed once for refreshWorldMapMarkers() (see that method's own
+     *  rebuildFogOfWarPixmap() call), but never carried over to this method's own two call sites
+     *  (repaintBiomeAroundTown() at town capture, claimWastelandRing() on daily growth) - a player's
+     *  own town marker could go missing (fog copied the marker-less tile moments before this method
+     *  finally drew it) or a nearby town's marker could look "cut off" (only the tiles inside that
+     *  day's newly-claimed ring got re-copied into the fog pixmap, stranding the rest of a marker
+     *  that spans multiple tiles). Converts the just-drawn marker's PIXEL rect back to tile indices
+     *  and re-syncs just those cells - cheap (a handful of tiles per marker) and safe unconditionally:
+     *  updateFogOfWarPixmap() itself no-ops without a live fogOfWarPixmap/biomeImage, and correctly
+     *  re-paints solid black rather than the marker for any tile not yet in explored[][]. */
+    private void refreshFogForMarkerRect(int pixelX, int pixelY, int pixelW, int pixelH) {
+        if (fogOfWarPixmap == null || data == null)
+            return;
+        int mm = data.miniMapTileSize;
+        int tx0 = Math.max(0, pixelX / mm);
+        int ty0 = Math.max(0, pixelY / mm);
+        int tx1 = Math.min(width - 1, (pixelX + pixelW - 1) / mm);
+        int ty1 = Math.min(height - 1, (pixelY + pixelH - 1) / mm);
+        for (int tx = tx0; tx <= tx1; tx++)
+            for (int ty = ty0; ty <= ty1; ty++)
+                updateFogOfWarPixmap(tx, ty);
     }
 
     // Territory Control (MOD_SCOPE.md #7) only - see generateNew()'s call site, right after
@@ -2376,7 +2561,14 @@ public class World implements Disposable, SaveFileContent {
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
         for (int wx = 0; wx < width; wx++) {
             for (int wy = 0; wy < height; wy++) {
-                if (highestBiome(getBiome(wx, wy)) != colorIndex)
+                // Road-bit mask (2026-08-15 review finding): getBiome() is unmasked, and the road
+                // pseudo-bit sits above every real biome index, so highestBiome() on a road tile
+                // this color owns would return the road index, never colorIndex - the tile would
+                // never qualify for reassignment below and would keep this color's ownership bit
+                // forever. Same bug class already fixed in claimWastelandRing(); mask for
+                // CLASSIFICATION only, same as there - the write below already preserves the road
+                // bit itself via existingRoadBit.
+                if (highestBiome(getBiome(wx, wy) & ~roadBit) != colorIndex)
                     continue;
                 int dx = wx - centerTileX;
                 int dy = wy - centerTileY;
@@ -2559,7 +2751,19 @@ public class World implements Disposable, SaveFileContent {
                 int distSq = dx * dx + dy * dy;
                 if (distSq > outerRadiusSq || distSq < innerRadiusSq)
                     continue;
-                int ownerIndex = highestBiome(getBiome(wx, wy));
+                // Road bit masked OFF for ownership classification (2026-08-15 FoW fix): a road
+                // tile's highestBiome() is the road pseudo-index (one above every real biome), so
+                // roads always fell through the "non-faction biome - untouchable" gate below and
+                // were NEVER claimed - meaning they never received the player bit, so
+                // isPersistentlyRevealed() kept them at FoW stage 2 (hazed) forever inside
+                // otherwise fully-revealed player territory (user report: hazed road strips and
+                // hazed rings around neutral towns' own world-gen 3x3 road stamps). Masking lets
+                // the tile contest by its UNDERLYING owner; the road bit itself is preserved on
+                // the claim write (isRoadTile branch below), so rendering and the road-vs-offroad
+                // speed logic still see a road.
+                long rawBiomeBits = getBiome(wx, wy);
+                boolean isRoadTile = (rawBiomeBits & roadBit) != 0;
+                int ownerIndex = highestBiome(rawBiomeBits & ~roadBit);
                 if (ownerIndex == colorIndex)
                     continue; // already mine
                 boolean isWasteland = ownerIndex == colorlessIndex;
@@ -2604,6 +2808,22 @@ public class World implements Disposable, SaveFileContent {
 
                 int rawY = height - wy - 1;
                 long existingRoadBit = biomeMap[wx][rawY] & roadBit; // preserve roads, same as repaintBiomeAroundTown()
+                if (isRoadTile) {
+                    // Ownership-bits-only claim for road tiles (2026-08-15 FoW fix, see the
+                    // classification comment above): flip the owner bits so the player bit (and
+                    // AI colors' own bits, same code path) actually lands on roads, but leave
+                    // EVERYTHING else about a road tile alone - terrainMap stays 0 (the invariant
+                    // the road-drawing passes set and rely on), no structure/doodad generation
+                    // (skipped via not joining claimedTiles), and no redrawMinimapTile (the
+                    // minimap's road pixel must stay a road pixel). updateFogOfWarPixmap still
+                    // runs so the tile's fog stage updates immediately.
+                    biomeMap[wx][rawY] = existingRoadBit | (1L << colorlessIndex) | (1L << colorIndex);
+                    tilesClaimed++;
+                    updateFogOfWarPixmap(wx, rawY);
+                    minX = Math.min(minX, wx); maxX = Math.max(maxX, wx);
+                    minY = Math.min(minY, wy); maxY = Math.max(maxY, wy);
+                    continue;
+                }
                 // The colorless bit is KEPT underneath the color's own bit (unlike repaintBiome-
                 // AroundTown()'s single-bit overwrite) - this is the actual fix for the long-
                 // standing "blue border" artifact at expansion boundaries and along roads.
@@ -3100,7 +3320,7 @@ public class World implements Disposable, SaveFileContent {
     public void advanceTime(float delta) {
         if (!isDayNightCycleEnabled())
             return;
-        dayProgress += delta / DAY_LENGTH_SECONDS;
+        dayProgress += delta / dayLengthSeconds();
         while (dayProgress >= 1f) {
             dayProgress -= 1f;
             dayCount++;

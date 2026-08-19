@@ -8,6 +8,7 @@ import forge.adventure.util.AdventureQuestController;
 import forge.adventure.util.AdventureQuestEvent;
 import forge.adventure.util.AdventureQuestEventType;
 import forge.adventure.util.Current;
+import forge.adventure.util.DungeonRotation;
 import forge.util.Aggregates;
 
 import java.io.Serializable;
@@ -109,11 +110,25 @@ public class AdventureQuestStage implements Serializable {
             setTargetPOI(AdventureQuestController.instance().mostRecentPOI);
             return;
         }
-        if (!allowInactivePOI) {
-            validPOIs.removeIf(q -> !q.getActive()); //inactive POIs do not appear on map until conditions are met to activate them
-        }
+        // Tag-filter FIRST, then the active-filter (2026-08-16 reorder - see below): both filters
+        // still apply on the normal path, but the tag-matched-yet-inactive pool must survive as a
+        // fallback rather than being discarded before tags are even checked.
         for (String tag : POITags) {
             validPOIs.removeIf(q -> Arrays.stream(q.getData().questTags).noneMatch(tag::equals));
+        }
+        if (!allowInactivePOI) {
+            List<PointOfInterest> activeMatched = new ArrayList<>(validPOIs);
+            activeMatched.removeIf(q -> !q.getActive()); //inactive POIs do not appear on map until conditions are met to activate them
+            if (!activeMatched.isEmpty() || anyPOI) {
+                validPOIs = activeMatched;
+            }
+            // else: every tag-matching POI is currently an inactive dungeon-rotation reserve slot
+            // (only DungeonRotation ever deactivates a POI). Keep the inactive pool - the pick
+            // below will bind one and DungeonRotation.onQuestTargetBound() force-spawns it, so
+            // the quest ALWAYS points at a real, enterable location (2026-08-16 user spec:
+            // "confirm the dungeon actually exists... if not, we need to spawn that into
+            // existence"). The old behavior silently left targetPOI null here - the stage could
+            // never complete and the offer text showed a raw "$(poi_1)" token.
         }
         if (!anyPOI) {
             if (validPOIs.isEmpty()) {
@@ -134,6 +149,12 @@ public class AdventureQuestStage implements Serializable {
                 }
                 setTargetPOI(Aggregates.random(validPOIs));
             }
+            // Existence guarantee + timer runway (2026-08-16 user spec): force-spawn the target
+            // if it was picked from the inactive reserve, and either way push a rotatable
+            // target's despawn day out 30 days so a freshly-given quest can't have its dungeon
+            // rotate away mid-quest. No-op for towns/story dungeons/non-rotation planes.
+            if (targetPOI != null)
+                DungeonRotation.onQuestTargetBound(targetPOI);
         }
         //"else" any POI matching all the POITags is valid, evaluate as needed
     }

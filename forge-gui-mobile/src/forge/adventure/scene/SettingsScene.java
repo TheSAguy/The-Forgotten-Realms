@@ -297,6 +297,15 @@ public class SettingsScene extends UIScene {
                 Config.instance().saveSettings();
             }
         });
+        // Inn tournament AI-vs-AI simulation (2026-08-17 user spec, default off - see
+        // SettingData's own field comment for why).
+        addSettingField(Forge.getLocalizer().getMessage("lblSimulateInnTournamentAIMatches"), Config.instance().getSettingData().simulateInnTournamentAIMatches, new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                Config.instance().getSettingData().simulateInnTournamentAIMatches = ((CheckBox) actor).isChecked();
+                Config.instance().saveSettings();
+            }
+        });
         CheckBox cbAnte = addCheckBox(Forge.getLocalizer().getMessage("cbAnte"), ForgePreferences.FPref.UI_ANTE);
         CheckBox cbAnteMatchRarity = addCheckBox(Forge.getLocalizer().getMessage("cbAnteMatchRarity"), ForgePreferences.FPref.UI_ANTE_MATCH_RARITY);
         CheckBox cbAnteIncludeBasicLands = addCheckBox(Forge.getLocalizer().getMessage("cbAnteIncludeBasicLands"), ForgePreferences.FPref.UI_ANTE_INCLUDE_BASIC_LANDS);

@@ -35,8 +35,15 @@ public class AdventureQuestData implements Serializable {
     public String synopsis =""; //Intended for Dev Mode only at most
     public transient boolean completed = false;
     public transient boolean failed = false;
-    private transient boolean prologueDisplayed = false;
-    private transient boolean epilogueDisplayed = false;
+    // NOT transient (2026-08-15 bug fix) - these two specifically must survive save/load. Being
+    // transient meant every load reset them to false, so a still-active quest's prologue dialog
+    // (here, quest 28's one-time "Skip tutorial" item grant - a teleport rune + starting
+    // Challenge Coins) kept re-triggering on the next showQuestDialogs() call after every
+    // save/reload, letting the player collect its one-time grant more than once (user report:
+    // "received twice the starting coins / teleporter item"). completed/failed stay transient -
+    // untouched here, that's a separate question not confirmed to have the same bug.
+    private boolean prologueDisplayed = false;
+    private boolean epilogueDisplayed = false;
 
     public DialogData offerDialog;
     public DialogData prologue;
@@ -154,6 +161,25 @@ public class AdventureQuestData implements Serializable {
         }
 
         return targetPoI;
+    }
+
+    /**
+     * Every stage target this quest still NEEDS - active stages AND not-yet-activated later
+     * stages alike (2026-08-16 review finding: initialize() binds every stage's target up
+     * front, but DungeonRotation's despawn protection consulted only getTargetPOI(), which
+     * filters to ACTIVE stages - so a Clear stage sitting behind an unmet prerequisite had no
+     * protection and its dungeon could rotate away before the player ever reached that stage).
+     * Completed stages are excluded - their target is done with and free to despawn normally.
+     */
+    public List<PointOfInterest> getAllPendingTargetPOIs() {
+        List<PointOfInterest> ret = new ArrayList<>();
+        for (AdventureQuestStage stage : stages) {
+            if (stage.getStatus() == COMPLETE)
+                continue;
+            if (stage.getTargetPOI() != null)
+                ret.add(stage.getTargetPOI());
+        }
+        return ret;
     }
 
     public EnemySprite getTargetEnemySprite(){

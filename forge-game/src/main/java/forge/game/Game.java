@@ -1127,6 +1127,31 @@ public class Game {
         return anteed;
     }
 
+    /**
+     * Re-rolls the ante selection chooseCardsForAnte() already made at match start (2026-08-16,
+     * an in-game "Ante Re-roll" option) - returns every currently-anted card to its owner's
+     * Library, then re-runs chooseCardsForAnte() under this game's OWN rules (same
+     * matchRarity/includeBasicLands the original roll used, read from getRules() rather than
+     * passed in, so a reroll can never accidentally apply different selection rules than the
+     * roll it's replacing), moving the freshly-picked card(s) to Ante exactly as the original
+     * selection did. UI-agnostic by design - fires no event and shows no dialog itself, so a
+     * caller already holding its own reveal/confirm dialog open can just re-read the returned
+     * Multimap and update its display in place, rather than a second GameEventAnteCardsSelected
+     * triggering a duplicate generic reveal.
+     */
+    public Multimap<Player, Card> rerollAnte() {
+        for (final Player player : getPlayers()) {
+            for (final Card c : new CardCollection(player.getCardsIn(ZoneType.Ante))) {
+                getAction().moveTo(ZoneType.Library, c, null, AbilityKey.newMap());
+            }
+        }
+        Multimap<Player, Card> anteed = chooseCardsForAnte(rules.getMatchAnteRarity(), rules.getAnteIncludeBasicLands());
+        for (final Map.Entry<Player, Card> kv : anteed.entries()) {
+            getAction().moveTo(ZoneType.Ante, kv.getValue(), null, AbilityKey.newMap());
+        }
+        return anteed;
+    }
+
     private void chooseRandomCardsForAnte(final Player player, final Multimap<Player, Card> anteed, final boolean includeBasicLands) {
         final CardCollectionView lib = player.getCardsIn(ZoneType.Library);
         if (includeBasicLands) {

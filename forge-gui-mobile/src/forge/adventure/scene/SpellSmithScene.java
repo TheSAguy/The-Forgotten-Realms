@@ -188,6 +188,28 @@ public class SpellSmithScene extends UIScene {
         }).sorted(Comparator.comparing(CardEdition::getName)).collect(Collectors.toList());
     }
 
+    // Which edition-restriction set applies to the CURRENT town (2026-08-14, adversarial-review
+    // finding: this was previously inlined separately inside filterResults() and visibleEditions()
+    // never got the same branch when the AI-color-town fix was added, so the dropdown kept showing
+    // the player's own unlockedEditions everywhere while the underlying card pool was already
+    // correctly restricted - a real bug, confirmed via playtest report). Single source of truth
+    // now - both callers below use this, so they can't drift apart again the same way. Player-
+    // owned towns/Capitol use the player's own unlockedEditions; everywhere else uses the current
+    // town's color's own shard (falling back to neutral if no color match). Returns null when
+    // Progressive Set Unlocks is off entirely (no restriction).
+    private Collection<String> currentEditionRestriction() {
+        if (!Current.world().isEditionProgressionEnabled())
+            return null;
+        forge.adventure.pointofintrest.PointOfInterest rootPoint = TileMapScene.instance().rootPoint;
+        forge.adventure.pointofintrest.PointOfInterestChanges townChanges = rootPoint != null
+                ? forge.adventure.world.WorldSave.getCurrentSave().peekPointOfInterestChanges(rootPoint.getID()) : null;
+        if (TownRestoration.isCurrentTownCapitol() || TownRestoration.isTownRestored(townChanges))
+            return Current.player().getUnlockedEditions();
+        String townColor = rootPoint != null ? ColorReputation.colorOfTown(rootPoint.getData()) : null;
+        return EditionProgression.getEditionsForColor(Current.world(),
+                townColor != null ? townColor : EditionProgression.NEUTRAL);
+    }
+
     // Progressive Set Unlocks QC (user request 2026-08-12): hide locked editions from the dropdown
     // entirely, so an edition showing up here at all is itself a quick visual confirmation the
     // player has legitimate access to it - independent of the shop-restriction code path this is
@@ -195,9 +217,11 @@ public class SpellSmithScene extends UIScene {
     // itself cached) so newly-researched editions appear immediately, without needing to rebuild
     // the base list.
     private List<CardEdition> visibleEditions() {
-        if (!Current.world().isEditionProgressionEnabled())
+        Collection<String> restriction = currentEditionRestriction();
+        if (restriction == null)
             return editions;
-        return editions.stream().filter(ed -> Current.player().hasUnlockedEdition(ed.getCode()))
+        Set<String> restrictionSet = new HashSet<>(restriction);
+        return editions.stream().filter(ed -> restrictionSet.contains(ed.getCode()))
                 .collect(Collectors.toList());
     }
 
@@ -392,23 +416,8 @@ public class SpellSmithScene extends UIScene {
         // town's color's own shard, falling back to the neutral shard if no color match.
         // MapStage's own "spellsmith" collision case already bars entry entirely below Happy
         // reputation with that color, so reaching this point at all implies access is allowed.
-        final Set<String> unlockedOnly;
-        if (Current.world().isEditionProgressionEnabled()) {
-            forge.adventure.pointofintrest.PointOfInterest rootPoint = TileMapScene.instance().rootPoint;
-            forge.adventure.pointofintrest.PointOfInterestChanges townChanges = rootPoint != null
-                    ? forge.adventure.world.WorldSave.getCurrentSave().peekPointOfInterestChanges(rootPoint.getID()) : null;
-            Collection<String> restriction;
-            if (TownRestoration.isCurrentTownCapitol() || TownRestoration.isTownRestored(townChanges)) {
-                restriction = Current.player().getUnlockedEditions();
-            } else {
-                String townColor = rootPoint != null ? ColorReputation.colorOfTown(rootPoint.getData()) : null;
-                restriction = EditionProgression.getEditionsForColor(Current.world(),
-                        townColor != null ? townColor : EditionProgression.NEUTRAL);
-            }
-            unlockedOnly = new HashSet<>(restriction);
-        } else {
-            unlockedOnly = null;
-        }
+        Collection<String> restriction = currentEditionRestriction();
+        final Set<String> unlockedOnly = restriction != null ? new HashSet<>(restriction) : null;
         P = StreamUtil.stream(P).filter(input -> {
             //L|Basic Land, C|Common, U|Uncommon, R|Rare, M|Mythic Rare, S|Special, N|None
             if (input == null) return false;
@@ -473,14 +482,25 @@ public class SpellSmithScene extends UIScene {
         lockedPrice = currentPrice;
         PaperCard P = cardPool.get(MyRandom.getRandom().nextInt(cardPool.size())); //Don't use the standard RNG.
         currentReward = null;
+        // Printing restriction (2026-08-15, printing-leak audit): the variant re-rolls below can
+        // return a printing from ANY edition (getCardByName() ignores this scene's own edition
+        // restriction entirely), silently undoing the pool restriction for the DISPLAYED/granted
+        // card. Snap the final pick back to a restricted-list printing whenever one exists - a
+        // no-op when no restriction applies (null/empty list) or the pick is already in-list.
+        java.util.Collection<String> restriction = currentEditionRestriction();
+        String[] restrictionArray = restriction == null ? null : restriction.toArray(new String[0]);
         if (Config.instance().getSettingData().useAllCardVariants) {
+            PaperCard variant;
             if (!edition.isEmpty()) {
-                currentReward = new Reward(CardUtil.getCardByNameAndEdition(P.getCardName(), edition));
+                variant = CardUtil.getCardByNameAndEdition(P.getCardName(), edition);
             } else {
-                currentReward = new Reward(CardUtil.getCardByName(P.getCardName())); // grab any random variant if no set preference is specified
+                variant = CardUtil.getCardByName(P.getCardName()); // grab any random variant if no set preference is specified
             }
+            if (variant == null)
+                variant = P;
+            currentReward = new Reward(CardUtil.remapToEditionList(variant, restrictionArray, MyRandom.getRandom()));
         } else {
-            currentReward = new Reward(P);
+            currentReward = new Reward(CardUtil.remapToEditionList(P, restrictionArray, MyRandom.getRandom()));
         }
         if (rewardActor != null) rewardActor.remove();
         rewardActor = new RewardActor(currentReward, true, null, true);

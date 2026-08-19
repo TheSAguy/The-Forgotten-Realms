@@ -1,0 +1,37 @@
+{
+    "dayLengthSeconds": 400.0,
+
+    "capitolExpansionTilesPerDay": 1,
+    "townExpansionDaysPerTile": 7,
+    "aiCastleExpansionTilesPerDay": 1,
+
+    "maxTerritoryRadius": 450,
+    "townMaxTerritoryRadius": 20,
+
+    "speedUpMultiplier": 50.0,
+
+    "playerTerritorySpeedBonus": 0.15,
+    "aiTerritoryHappySpeedBonus": 0.05,
+    "aiTerritoryPartnerSpeedBonus": 0.10,
+    "aiTerritoryUnhappySpeedPenalty": 0.05,
+    "aiTerritoryWarSpeedPenalty": 0.10,
+
+    "mineWeeklyGoldPayout": 50,
+    "mineWeeklyWoodPayout": 25,
+    "mineWeeklyStonePayout": 25,
+    "mineWeeklyShardPayout": 20,
+
+    "anteRerollBaseShardCost": 50,
+    "anteRerollEscalationRate": 1.5,
+    "anteBuyBackMultiplier": 1.5,
+
+    "anteBuyBackMinCommon": 50,
+    "anteBuyBackMinUncommon": 100,
+    "anteBuyBackMinRare": 300,
+    "anteBuyBackMinMythic": 500,
+
+    "maxResourceSpawns": 30,
+
+    "aiShopPriceMultiplier": 1.25,
+    "playerShopPriceMultiplier": 0.75
+}

@@ -219,10 +219,13 @@ public class ResearchScene extends UIScene {
             boolean eligible = owned >= threshold;
             boolean canAfford = player.getShards() >= cost;
 
-            // "Name (owned/needed) - N cards" (user spec 2026-08-12: show the expansion's total
-            // card count alongside what's needed to start researching).
-            TypingLabel nameLabel = Controls.newTypingLabel(ed.getName() + " (" + owned + "/" + threshold
-                    + ") - " + String.format("%,d", total) + " cards");
+            // "Name (CODE) (owned/needed) - N cards" (user spec 2026-08-12: show the expansion's
+            // total card count alongside what's needed to start researching; the "(CODE)" suffix
+            // added 2026-08-15 to match SpellSmith's own edition-name format, which gets it for
+            // free from CardEdition's own toString() - this list builds its own label text
+            // instead, so the code has to be added explicitly here).
+            TypingLabel nameLabel = Controls.newTypingLabel(ed.getName() + " (" + ed.getCode() + ") ("
+                    + owned + "/" + threshold + ") - " + String.format("%,d", total) + " cards");
             nameLabel.skipToTheEnd();
             nameLabel.setWrap(true);
             nameLabel.setColor(researched ? Color.DARK_GRAY : (eligible ? Color.BLACK : Color.GRAY));
@@ -264,6 +267,6 @@ public class ResearchScene extends UIScene {
         // non-booster editions (the whole Jumpstart starter family), so a scan showed the raw
         // code ("Researching: J25") for exactly the editions most likely to appear here.
         CardEdition ed = FModel.getMagicDb().getEditions().get(code);
-        return ed != null ? ed.getName() : code;
+        return ed != null ? ed.getName() + " (" + ed.getCode() + ")" : code;
     }
 }
