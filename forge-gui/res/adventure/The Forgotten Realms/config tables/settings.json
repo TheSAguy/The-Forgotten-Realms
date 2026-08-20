@@ -1,37 +1,67 @@
 {
+    // ============================================================================
+    // The Forgotten Realms - game balance settings. Edit values, restart the game.
+    // Comments (// lines) are supported by the game's JSON reader - leave them in.
+    // Deleting this file resets everything to the built-in defaults.
+    // ============================================================================
+
+    // Real-world seconds per in-game day (at normal 1x speed).
     "dayLengthSeconds": 400.0,
 
+    // Territory growth: how fast the player's Capitol claims land (tiles per day).
     "capitolExpansionTilesPerDay": 1,
+    // Player towns earn 1 territory tile per this many days (higher = slower towns).
     "townExpansionDaysPerTile": 7,
+    // How fast each AI color's castle claims land (tiles per day).
     "aiCastleExpansionTilesPerDay": 1,
 
+    // Maximum territory radius (in tiles) a Capitol or AI castle can ever reach.
     "maxTerritoryRadius": 450,
+    // Maximum territory radius for ordinary towns.
     "townMaxTerritoryRadius": 20,
 
+    // Game speed when the HUD "Speed-Up" toggle is on (multiplier over normal time).
     "speedUpMultiplier": 50.0,
 
+    // Overworld walking-speed modifiers by whose land you are on (0.15 = 15%).
+    // Your own land is a bonus; AI land depends on your reputation with that color.
     "playerTerritorySpeedBonus": 0.15,
     "aiTerritoryHappySpeedBonus": 0.05,
     "aiTerritoryPartnerSpeedBonus": 0.10,
     "aiTerritoryUnhappySpeedPenalty": 0.05,
     "aiTerritoryWarSpeedPenalty": 0.10,
 
+    // What each built Mine pays out on payday (weekly, on days 7/14/21/28).
     "mineWeeklyGoldPayout": 50,
     "mineWeeklyWoodPayout": 25,
     "mineWeeklyStonePayout": 25,
     "mineWeeklyShardPayout": 20,
 
+    // Ante re-roll: Shard cost of the first re-roll in a duel, and how much each
+    // additional re-roll in the same duel multiplies the cost (1.5 = +50%).
     "anteRerollBaseShardCost": 50,
     "anteRerollEscalationRate": 1.5,
+    // Ante buy-back price = this multiplier x the card's normal sell value...
     "anteBuyBackMultiplier": 1.5,
-
+    // ...but never below these floors, by card rarity.
     "anteBuyBackMinCommon": 50,
     "anteBuyBackMinUncommon": 100,
     "anteBuyBackMinRare": 300,
     "anteBuyBackMinMythic": 500,
 
+    // Maximum resource pickups (Gold/Wood/Stone/Shards) on the world map at once.
     "maxResourceSpawns": 30,
 
+    // Card price multipliers: cards cost more in AI-owned towns, less in yours
+    // (applied before reputation discounts/markups).
     "aiShopPriceMultiplier": 1.25,
-    "playerShopPriceMultiplier": 0.75
+    "playerShopPriceMultiplier": 0.75,
+
+    // Days before a side quest fails after accepting it (story quests never expire).
+    "sideQuestDays": 20,
+
+    // How many attacking mages each AI color can field at once on Normal difficulty.
+    // Easy uses one fewer, Hard one more, Insane two more. Town-count and Color
+    // Defeat bonuses stack on top of this base.
+    "baseAttackingMagesPerColor": 3
 }

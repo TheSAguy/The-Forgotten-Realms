@@ -58,6 +58,30 @@ travel speed. Push a color's reputation low enough and a Capitol duel becomes wi
 color's castle for good and the consequences ripple outward: their remaining towns react, their
 threat to you changes, and the balance of the whole map shifts.
 
+### Time, Day & Night
+
+The Forgotten Realms runs on a living clock. Every in-game day the world ticks forward: territory
+spreads, mages march, shops restock on their weekly cycle, mines pay out on paydays (days 7, 14,
+21, 28), guards draw their wages, quest timers count down (side quests fail after 20 days -
+story quests never expire), and dungeons age toward their rotation. A HUD clock shows the time of
+day and a Day/Week tracker keeps the calendar visible; a **Speed-Up** toggle fast-forwards time
+when you're waiting on the world rather than exploring it.
+
+Day and night change the fights themselves. Between **6am and 6pm**, enemies you battle on the
+overworld get a life bonus or penalty based on the terrain you fight them on - and the effect
+flips at night:
+
+| Terrain fought on | Day (6am-6pm) | Night |
+| --- | --- | --- |
+| White (plains)    | +10% life | -10% life |
+| Green (forest)    | +5% life  | -5% life  |
+| Black (swamp)     | -10% life | +10% life |
+| Red (mountain)    | -5% life  | +5% life  |
+| Blue / neutral / your land | no change | no change |
+
+In practice: raid the swamps at high noon and the plains after dark. The modifier applies only to
+roaming overworld fights - dungeons, towns, Arenas, and Inn tournaments are unaffected.
+
 ### The Capitol
 
 Once you personally own five towns, one of them can be upgraded into your Capitol - "Orazca." It's

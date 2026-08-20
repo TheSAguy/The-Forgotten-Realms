@@ -22,7 +22,11 @@ import java.util.ArrayList;
  * Shandalar and every other stock plane.
  */
 public class QuestExpiry {
-    public static final int SIDE_QUEST_DAYS = 30;
+    // Tunable since 2026-08-20 (TuningData.sideQuestDays, plane settings.json sets 20); the old
+    // hardcoded 30 remains the built-in default when no settings.json exists.
+    private static int sideQuestDays() {
+        return Config.instance().getTuningData().sideQuestDays;
+    }
 
     private QuestExpiry() {}
 
@@ -46,7 +50,7 @@ public class QuestExpiry {
                 world.getQuestAcceptedDay().put(key, newDayCount);
                 continue;
             }
-            if (newDayCount - accepted < SIDE_QUEST_DAYS)
+            if (newDayCount - accepted < sideQuestDays())
                 continue;
             // Out of time. fail() marks and untracks it; removing it from the log ourselves keeps
             // the outcome deterministic instead of waiting for the controller's next dialog sweep
@@ -75,7 +79,7 @@ public class QuestExpiry {
         Integer accepted = world.getQuestAcceptedDay().get(String.valueOf(quest.getID()));
         if (accepted == null)
             return null;
-        return Math.max(0, SIDE_QUEST_DAYS - (world.getCurrentDay() - accepted));
+        return Math.max(0, sideQuestDays() - (world.getCurrentDay() - accepted));
     }
 
     /** Quest-log display suffix, e.g. " (12 days left)" - empty when no timer applies. */

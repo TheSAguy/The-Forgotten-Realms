@@ -705,8 +705,12 @@ public class MatchController extends NetworkGuiGame {
             // the option just never appearing with no explanation.
             System.out.println("[TFR-AnteReroll] offering reroll " + (rerollCount + 1) + " - cost=" + cost
                     + " shards, player has " + player.getShards());
-            boolean wantsReroll = showConfirmDialog(
-                    "Re-roll this ante for " + cost + " Shards?", "Re-roll Ante", "Re-roll", "Keep", false);
+            // Buttons deliberately ordered Keep (left) / Re-roll (right) - user request
+            // 2026-08-20 ("put the Re-roll button on the right and Keep on the left");
+            // default selection stays on Keep, same as the old defaultYes=false.
+            boolean wantsReroll = SOptionPane.showOptionDialog(
+                    "Re-roll this ante for " + cost + " Shards?", "Re-roll Ante", null,
+                    java.util.Arrays.asList("Keep", "Re-roll")) == 1;
             if (!wantsReroll)
                 break;
             if (player.getShards() < cost) {

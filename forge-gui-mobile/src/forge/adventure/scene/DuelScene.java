@@ -390,6 +390,12 @@ public class DuelScene extends ForgeScene {
             if (offerBuyBack && result == 1) {
                 Current.player().takeGold(buyBackPrice);
                 Current.player().addCard(card);
+                // 2026-08-20 user report: "When you buy back your ante card you lose, it should
+                // go to the current active deck. Currently going to inventory." The card was part
+                // of this deck when it was ante'd away, so buying it back restores it in place
+                // (addCard above only returns it to the collection).
+                if (Current.player().getSelectedDeck() != null)
+                    Current.player().getSelectedDeck().getMain().add(card);
             }
             if (onDone != null) onDone.run();
         });

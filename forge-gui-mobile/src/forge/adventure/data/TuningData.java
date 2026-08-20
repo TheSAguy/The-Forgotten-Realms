@@ -103,4 +103,15 @@ public class TuningData {
     // see ShopActor.ownershipBaseModifier().
     public float aiShopPriceMultiplier = 1.25f;
     public float playerShopPriceMultiplier = 0.75f;
+
+    // Side-quest expiry window in in-game days (2026-08-20 user request: make QuestExpiry's
+    // hardcoded 30 tunable; the plane's settings.json sets 20). Story quests never expire.
+    public int sideQuestDays = 30;
+
+    // Attacking mages each AI color can field at once, NORMAL-difficulty base (2026-08-20 user
+    // spec: "base number of attacking mages per color... for normal, and easy is -1, hard +1,
+    // insane +2"). TerritoryControl.maxActiveMagesPerColor() applies those fixed per-difficulty
+    // offsets plus the town-count and Color Defeat bonuses on top. Default 3 reproduces the old
+    // hardcoded 2+index ladder (2/3/4/5) exactly.
+    public int baseAttackingMagesPerColor = 3;
 }

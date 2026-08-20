@@ -11669,3 +11669,44 @@ was never committed - it self-regenerates all-included (no exclusions were ever 
 flag if it bothers. dayLengthSeconds=400 confirmed as the deliberate round-6 tune. LRW staying in
 the NEUTRAL shard while race-reserved sets strip from AI color shards matches the round-12 design
 (neutral pool is shared with the player).
+
+## Twenty-eighth round: v1.00 final playtest fixes (2026-08-20, MOD_SCOPE.md #89, REPO-ONLY until repackaged)
+
+User's last pre-release round ("Last round! We can still keep everything as version 1"), from
+their standalone-build playtest:
+
+- **Welcome popup collision fixed**: the popup fired on spawn-map entry and the tutorial intro
+  dialog immediately replaced it. Per the user's suggestion, the intro menu itself now carries a
+  "Welcome - read me first!" option (new dialog branch in world/quests.json with the same
+  thanks/Discord/recommended-settings text); the code popup (TileMapScene) now SKIPS the Spawn
+  POI and still greets pre-existing saves once on their next map entry anywhere else.
+- **GUIDE.md**: new "Time, Day & Night" section - the living clock (weekly restocks/paydays,
+  quest timers, rotation aging, Speed-Up toggle) and the full day/night terrain life-modifier
+  table (White +10%/Green +5%/Black -10%/Red -5% by day, flipped at night, overworld only).
+- **Promo page**: new full-width "Day, Night & the March of Time" feature card added to the
+  systems grid (same artifact URL, war-room style preserved).
+- **Eldrazi Prison map icon**: was the generic 'Cave' region (user: "looks like a cave dungeon.
+  We had this bug before") - now the 2.0.15 'Universe Portal' region from the plane's own
+  buildingsbosses.atlas. Distinct and suitably otherworldly.
+- **Ante re-roll buttons swapped**: Keep now left, Re-roll right (MatchController switched from
+  showConfirmDialog to SOptionPane.showOptionDialog(["Keep","Re-roll"]); default stays Keep).
+- **Ante buy-back restores the card to the ACTIVE DECK**: it was part of the deck when ante'd
+  away, but Buy Back only returned it to the collection (DuelScene now also adds it back to
+  getSelectedDeck().getMain()).
+- **AI capitols no longer contain resource pickups**: round 23's dungeon-loot pass had put one
+  stone pickup in each of the 5 *_capital.tmx maps (main_story/ wasn't excluded like towns/
+  was) - all 5 removed. spawn.tmx's user-placed Wood pickup and dungeon pickups untouched.
+- **Oasis dungeon reined in**: removed from the colorless (neutral-start) biome, wired into
+  blue, count 10 -> 2 (75% fewer). Its icon variety came from 'MerfolkPool' having 3 same-named
+  atlas regions - unchanged, fits its new blue home. The good-looking oasis-style dungeons
+  (merfolkpool maps) untouched.
+- **Teleport runes 100 -> 1600 gold base** (all 7: five color runes, Ghost, Colorless) - displays
+  ~2,000 at AI capitols with their 1.25x ownership markup, per the user's "2,000 gold" spec.
+- **Mithril Armor 1500 -> 6000 base** (4x, user: "+8 life... way too cheap").
+- **settings.json overhauled**: every entry now carries a // description comment (the game's
+  libgdx JsonReader accepts them - verified by parsing the shipped file with the real
+  Json.fromJson(TuningData.class,...) via jshell against the built jar: all values load, incl.
+  both new ones). Two new tunables: `sideQuestDays` (QuestExpiry's hardcoded 30 ->
+  TuningData; plane sets 20) and `baseAttackingMagesPerColor` (TerritoryControl's hardcoded
+  2+index ladder -> Normal base 3 with fixed offsets Easy -1/Hard +1/Insane +2 per user spec -
+  default reproduces the old 2/3/4/5 exactly; [TFR-MageCap] log line now prints base+offset).

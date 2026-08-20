@@ -1063,11 +1063,17 @@ public class TerritoryControl {
         // already do. Defeated colors never call dispatch() at all (see processDaysPassed()'s own
         // skip), so this term is simply moot for them.
         int defeatBonus = world != null ? world.getDefeatedColorCount() : 0;
-        int cap = 2 + index + townBonus + defeatBonus;
+        // Difficulty base made tunable 2026-08-20 (TuningData.baseAttackingMagesPerColor, Normal
+        // base; fixed offsets Easy -1 / Hard +1 / Insane +2 per user spec). With the default base
+        // of 3 this reproduces the old hardcoded 2+index ladder (2/3/4/5) exactly.
+        int difficultyOffset = index == 0 ? -1 : index - 1;
+        int base = Config.instance().getTuningData().baseAttackingMagesPerColor;
+        int cap = base + difficultyOffset + townBonus + defeatBonus;
         // Diagnostic logging standard (user request 2026-08-13) - the town-count scaling term is
         // otherwise invisible: the caller only ever sees the final cap, with no way to tell how
         // much of it came from the flat difficulty base vs. this rubber-band bonus.
-        System.out.println("[TFR-MageCap] difficultyIndex=" + index + " playerTowns=" + playerTowns
+        System.out.println("[TFR-MageCap] base=" + base + " difficultyOffset=" + difficultyOffset
+                + " playerTowns=" + playerTowns
                 + " divisor=" + (11 - index) + " townBonus=" + townBonus + " defeatBonus=" + defeatBonus + " -> cap=" + cap);
         return cap;
     }

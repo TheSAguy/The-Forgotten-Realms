@@ -143,11 +143,15 @@ public class TileMapScene extends HudScene {
     }
 
     private void initializeDialogs() {
-        // Standalone welcome popup (MOD_SCOPE.md #89): once per save, on the first map entry -
-        // a new game starts inside the spawn dungeon, so new players are greeted there. Driven
-        // by the plane's config.json welcomePopupText; stock planes (unset) never show it.
+        // Standalone welcome popup (MOD_SCOPE.md #89): once per save, on the first map entry.
+        // Driven by the plane's config.json welcomePopupText; stock planes (unset) never show
+        // it. NOT shown in the tutorial Spawn dungeon (2026-08-20 user report: the intro quest
+        // dialog immediately replaced it there) - the intro dialog's own "Welcome - read me
+        // first!" option covers new games; this popup still greets pre-existing saves on their
+        // next map entry anywhere else.
         String welcome = Config.instance().getConfigData().welcomePopupText;
-        if (welcome != null && !welcome.isEmpty() && !Current.player().checkQuestFlag("TFR_WelcomeShown")) {
+        if (welcome != null && !welcome.isEmpty() && !"Spawn".equals(rootPoint.getData().name)
+                && !Current.player().checkQuestFlag("TFR_WelcomeShown")) {
             Current.player().setQuestFlag("TFR_WelcomeShown", 1);
             MapStage.getInstance().showWelcomePopup(welcome);
         }

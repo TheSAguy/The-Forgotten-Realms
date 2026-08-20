@@ -519,7 +519,7 @@
         "iconName":  "ColorlessRune",
         "questItem":  true,
         "shardsNeeded":  1,
-        "cost":  100,
+        "cost": 1600,
         "rarity":  "Common"
     },
     {
@@ -545,7 +545,7 @@
         "iconName":  "WhiteRune",
         "questItem":  true,
         "shardsNeeded":  1,
-        "cost":  100,
+        "cost":  1600,
         "rarity":  "Common"
     },
     {
@@ -560,7 +560,7 @@
         "iconName":  "BlackRune",
         "questItem":  true,
         "shardsNeeded":  1,
-        "cost":  100,
+        "cost":  1600,
         "rarity":  "Common"
     },
     {
@@ -575,7 +575,7 @@
         "iconName":  "BlueRune",
         "questItem":  true,
         "shardsNeeded":  1,
-        "cost":  100,
+        "cost":  1600,
         "rarity":  "Common"
     },
     {
@@ -590,7 +590,7 @@
         "iconName":  "RedRune",
         "questItem":  true,
         "shardsNeeded":  1,
-        "cost":  100,
+        "cost":  1600,
         "rarity":  "Common"
     },
     {
@@ -605,7 +605,7 @@
         "iconName":  "GreenRune",
         "questItem":  true,
         "shardsNeeded":  1,
-        "cost":  100,
+        "cost":  1600,
         "rarity":  "Common"
     },
     {
@@ -620,7 +620,7 @@
         "iconName":  "GhostRune",
         "questItem":  true,
         "shardsNeeded":  1,
-        "cost":  100,
+        "cost":  1600,
         "rarity":  "Common"
     },
     {
@@ -4133,7 +4133,7 @@
         "description":  "Solid life boost",
         "equipmentSlot":  "Body",
         "iconName":  "MithrilArmor",
-        "cost":  1500,
+        "cost": 6000,
         "effect":  {
                        "lifeModifier":  8
                    },

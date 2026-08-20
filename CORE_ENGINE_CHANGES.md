@@ -1375,3 +1375,20 @@ plane folder alongside LICENSE.txt).
   OK dialog).
 - **`scene/TileMapScene.java`** — `initializeDialogs()` shows the welcome popup once per save
   (questFlag `TFR_WelcomeShown`) before quest dialogs.
+
+## v1.00 final playtest round (2026-08-20, MOD_SCOPE.md #89, twenty-eighth round)
+
+- **`data/TuningData.java`** — two new tunables: `sideQuestDays` (default 30) and
+  `baseAttackingMagesPerColor` (default 3, Normal-difficulty base).
+- **`util/QuestExpiry.java`** — hardcoded `SIDE_QUEST_DAYS = 30` replaced by a
+  `TuningData.sideQuestDays` read (no external references existed).
+- **`util/TerritoryControl.java`** — `maxActiveMagesPerColor()` difficulty base now
+  `TuningData.baseAttackingMagesPerColor` + fixed offsets (Easy -1/Normal 0/Hard +1/Insane +2);
+  default reproduces the old `2 + index` ladder exactly. Log line extended.
+- **`forge-gui-mobile/src/forge/screens/match/MatchController.java`** — ante re-roll confirm now
+  `SOptionPane.showOptionDialog(["Keep","Re-roll"])` so Keep sits left / Re-roll right (user
+  request); default selection unchanged (Keep).
+- **`scene/DuelScene.java`** — ante Buy Back also re-adds the card to
+  `getSelectedDeck().getMain()` (was collection-only).
+- **`scene/TileMapScene.java`** — welcome popup skips the "Spawn" POI (tutorial intro dialog
+  replaced it there; the intro menu's new Welcome option covers new games).
