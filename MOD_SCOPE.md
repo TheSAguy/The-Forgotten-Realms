@@ -4265,5 +4265,39 @@ logs from a multi-week play session for issues.
     exploration and Territory Control ownership are two separate systems). Flagged for the user
     rather than guessed at with a speculative fix to a system not fully understood in one pass.
 
-No deploy yet - awaiting confirmation, per standing practice.
+Deployed 2026-08-19 on the user's go-ahead; playtest in progress.
+
+### 89. Update to Forge 2.0.15 + Standalone Game Packaging — `In Progress (2026-08-19): upstream merge DONE (repo-only), packaging underway`
+
+User request (2026-08-19): "We build our mod from an older Forge update. We're on 2.0.14-08.02 and
+the latest build is 2.0.15-08.19. ... We need to update all our files to the new version ... and
+keep our edits. Next we need to package everything up as a stand-alone game. (Let's not consider
+this a MOD anymore, but it's own game.)" Plus: credit the Forge dev team and the Realm of Legends
+and Shandalar Old Border mod teams; all needed licensing in the game folder. Do NOT touch the live
+install at `E:\GAMES\FORGE` (still being playtested on the 2.0.14 build) — repo only.
+
+**Part 1 — upstream merge: DONE 2026-08-19 (repo-only, deliberately not deployed).** All prior
+work committed first as `d6b5caea863` and tagged `tfr-v0.9-base-2.0.14`; then upstream `master`
+@ `06019e99eed6` (the exact commit of the user's 2.0.15-08.19 snapshot install at
+`E:\GAMES\Forge_2`) merged in. Two textual conflicts, both hand-resolved; full compile clean;
+12-agent verification pass confirmed every mod edit survived. Details in `MOD_CHANGELOG.md`
+(twenty-fifth round) and `CORE_ENGINE_CHANGES.md` ("Upstream merge log").
+
+**Part 2 — standalone packaging: decisions locked with the user 2026-08-19:**
+- Own complete game folder, pinned to this build; players unzip anywhere and run. Stock Forge
+  installs stay completely separate.
+- Slim: delete other adventure planes so TFR is the only world; KEEP `common/` and the full card
+  database/editions. Requires an asset-closure audit first — TFR references
+  `Realm of Legends/sprites/buildingsbosses.atlas` + `buildings.atlas` at runtime (4 POIs each),
+  so those must be migrated into the TFR folder (or kept) before RoL can be deleted.
+- Data isolation via `forge.profile.properties`: OWN `userDir` (settings/saves/prefs) so nothing
+  collides with stock Forge, but SHARED card-art cache (`cardPicsDir` pointed at stock Forge's
+  pics folder) — the user explicitly doesn't want players re-downloading gigabytes of card art.
+- Rebrand as its own game (window title, launcher, icon identity); Forge credited per GPL.
+- Strip/disable the update checker so nobody half-updates a pinned install.
+- README + CREDITS (Forge dev team, Realm of Legends team, Shandalar Old Border team) + GPLv3
+  LICENSE in the package; public GitHub fork push at release time satisfies the GPL source
+  obligation (GitHub untouched until the user says so).
+- Each public release = git tag + zip, always rebuildable.
+
 

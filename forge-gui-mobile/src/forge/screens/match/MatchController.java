@@ -454,7 +454,7 @@ public class MatchController extends NetworkGuiGame {
             PlayerView player = update.getPlayer();
 
             ZoneType zone = null;
-            for(ZoneType type : update.getZones()) {
+            for (ZoneType type : update.getZones()) {
                 zone = type;
                 break;
             }

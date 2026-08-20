@@ -112,21 +112,22 @@ public abstract class SpellAbilityAi {
         if (!checkConditions(ai, sa)) {
             SpellAbility sub = sa.getSubAbility();
             if (sub == null || !checkConditions(ai, sub)) {
-                return new AiAbilityDecision(0, AiPlayDecision.NeedsToPlayCriteriaNotMet);
+                return new AiAbilityDecision(0, AiPlayDecision.ConditionsNotMet);
             }
         }
         return decision;
     }
 
     protected boolean checkConditions(final Player ai, final SpellAbility sa) {
-        // copy it to disable some checks that the AI need to check extra
-        SpellAbilityCondition con = (SpellAbilityCondition) sa.getConditions().copy();
+        SpellAbilityCondition con = sa.getConditions();
 
         // if manaspent, check if AI can pay the colored mana as cost
         if (!con.getManaSpent().isEmpty()) {
             // need to use ManaCostBeingPaid check, can't use Cost#canPay
             ManaCostBeingPaid paid = new ManaCostBeingPaid(new ManaCost(con.getManaSpent()));
             if (ComputerUtilMana.canPayManaCost(paid, sa, ai, sa.isTrigger())) {
+                // copy it to disable some checks that the AI need to check extra
+                con = (SpellAbilityCondition) con.copy();
                 con.setManaSpent("");
             }
         }

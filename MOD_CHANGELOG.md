@@ -11465,3 +11465,73 @@ the live install.
   control, the Orazca Capitol, Wood/Stone economy, buildings, progressive set unlocks, dungeon
   rotation, tournaments, shops) plus early/mid/late-game advice and a per-color dungeon guide. Ships
   inside the plane folder so it travels with the mod. Keep it current when systems change.
+
+## Twenty-fifth round: upstream Forge 2.0.15 merged, all mod edits verified intact (2026-08-19, MOD_SCOPE.md #89, REPO-ONLY - NOT DEPLOYED)
+
+User request: "We build our mod from an older Forge update. We're on 2.0.14-08.02 and the latest
+build is 2.0.15-08.19. ... we need to update, and keep our edits. ... Don't update the actual game
+here: E:\GAMES\FORGE I'm still testing that currently. Just update the Repo."
+
+- **Base commit first**: the entire uncommitted 6-day body of work (rounds 2-24 of this session
+  series, MOD_SCOPE.md #61-#88 — 107 modified + 413 new files) was committed as `d6b5caea863` and
+  tagged **`tfr-v0.9-base-2.0.14`** before merging anything. The three `.round16bak` deploy-time
+  backups were excluded via a new `.gitignore` rule rather than committed.
+- **Merge target pinned to the user's reference install**: upstream publishes no `forge-2.0.15`
+  tag yet (2.0.15 is the rolling SNAPSHOT); `E:\GAMES\Forge_2\CHANGES.txt`'s newest commit is
+  `06019e99eed6` (2026-08-19), which was exactly `upstream/master` HEAD at merge time — so the
+  repo now matches the user's known-good 2.0.15-08.19 snapshot install commit-for-commit.
+  Scale: 200 commits, 732 files, +38,225/-10,388 since merge-base `8c52e257e999`.
+- **Only two textual conflicts** (everything else auto-merged):
+  - `forge-gui-mobile-dev/src/forge/app/GameLauncher.java` — upstream's "Clean up" consolidated
+    `config.setHdpiMode()` to a single earlier call site; our round-16 window-icon block sat next
+    to the old (removed) one. Resolved: upstream's single `setHdpiMode` kept, our icon block kept,
+    duplicate dropped. Verified exactly one of each in the merged file.
+  - `forge-gui-mobile/src/forge/adventure/scene/QuestLogScene.java` — upstream added quest
+    TRACKING (gradient bullet for the tracked quest, rendered via a `[BLACK]` markup header on
+    the same name-label line where our #16 side-quest TIMER appends its countdown). Resolved by
+    combining: `headerCode + quest.getName() + QuestExpiry.questLogSuffix(quest)`. Our suffix
+    carries only a `[%75]` scale tag (no color tag), so it inherits the correct black in both
+    tracked/untracked branches.
+- **Byte-level luck on the round-22 content**: our 61 hand-extracted card `.txt` files and the
+  resynced `Realm of Legends/sprites/buildingsbosses.atlas` turned out byte-identical to upstream
+  2.0.15's canonical copies (upstream's atlas change was purely-additive text we'd already
+  mirrored), so they auto-resolved with empty diffs. The 4 deliberately-divergent legend decks
+  survived as ours: `morcant.dck` (upstream's copy is STILL malformed — missing `|` on "Tyvar the
+  Bellicose mat"), `nephilim_epochal.dck` (missing count prefix), `grandmother_goby.dck` (dropped
+  nonexistent `Mathise, Surge Channeler|slx`), `nymris.dck` (piko printing).
+- **Compile clean**: `mvn -pl forge-gui-mobile-dev,forge-gui-desktop -am compile -DskipTests`
+  exits 0 across every shipped module against the merged source (now versioned 2.0.15-SNAPSHOT).
+- **12-agent verification pass, zero issues**: deep semantic review of all 8 files BOTH sides
+  modified (World, WorldStage, adventure Config, PointOfInterest, SettingsScene, QuestLogScene,
+  Game, MatchController — each checked that our documented edits still exist AND are still
+  invoked, and that upstream's hunks landed sanely); bulk survival checks of the other ~50
+  ledger-listed files (upstream touched NONE of them — merged tree byte-identical to our versions);
+  an audit of the 4 upstream-modified adventure files the mod depends on but didn't edit; and a
+  broad interaction scan of all 200 upstream commits. Full results in the session transcript;
+  highlights recorded in `CORE_ENGINE_CHANGES.md`'s new "Upstream merge log" section.
+- **Notable upstream changes we now carry** (no action needed, worth knowing):
+  - **libGDX bumped to 1.14.2**: `TemplateTmxMapLoader` lost its `loadTileSet` override (the new
+    stock base class handles it — verified via javap against the new gdx jar that our wood/stone
+    `.tx` template pipeline, 448 placed instances across 308 TFR maps, still resolves gids,
+    tilesets, and textures identically). `PointOfInterestMapRenderer` was re-parented off
+    `OrthogonalTiledMapRendererBleeding` (now dead code) — the 0.01px UV anti-seam inset is gone,
+    so IF hairline seams appear between dungeon tiles in the 2.0.15 build, that's the cause.
+  - **Save format untouched**: upstream's diff is empty for WorldSave/AdventurePlayer/SettingData/
+    ConfigData/SaveFileData/SaveFileContent — existing `%APPDATA%\Forge\adventure` saves carry over.
+  - Quest tracking (tracked-quest bullet + checkbox stage glyphs + a listener-leak fix in the
+    quest log), a desktop-only pause-music-on-focus-loss setting, `GuiBase.isMobile()` replacing
+    `isAndroid()` checks in adventure code (use `isMobile()` in future mod platform checks),
+    RoL's new "Otherworldly Market" (type `capital` — if ever imported to TFR, re-type it first;
+    inert where it is since RoL doesn't enable Territory Control).
+- **Ledger housekeeping in the same round**: `CORE_ENGINE_CHANGES.md` gained a retroactive-entries
+  section for 10 mod-edited engine files the verification found missing from the ledger
+  (Game.java, MatchController.java, EventScene, NewGameScene, IGuiGame, FControlGameEventHandler,
+  ForgeConstants, TransitionScreen, FSkinTexture, GameLauncher + the InfoTextScene/TuningData
+  new-file inventory lines), plus the new "Upstream merge log" section. Stale "NOT DEPLOYED"
+  headings on rounds 22/24 corrected (both deployed 2026-08-18/19), and round 24's deploy + the
+  previously-undocumented `GUIDE.md` player manual recorded.
+
+**Deliberately NOT deployed**: `E:\GAMES\FORGE` stays on the 2.0.14 build the user is actively
+playtesting (user instruction). The merged 2.0.15 build's first real run will be the standalone
+package prototype (MOD_SCOPE.md #89 part 2). Note the jar names change to `2.0.15-SNAPSHOT` from
+here on — the old splice-into-2.0.14-jar deploy loop does not apply to this and future rounds.

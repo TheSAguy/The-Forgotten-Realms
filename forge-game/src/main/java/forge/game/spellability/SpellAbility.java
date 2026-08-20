@@ -707,6 +707,9 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
         return isAlternativeCost(AlternativeCost.Spectacle);
     }
 
+    public boolean isBeamMeUp() {
+        return this.isAlternativeCost(AlternativeCost.BeamMeUp);
+    }
     public boolean isFlashback() {
         return this.isAlternativeCost(AlternativeCost.Flashback);
     }
@@ -2601,7 +2604,7 @@ public abstract class SpellAbility extends CardTraitBase implements ISpellAbilit
         if (getRestrictions().isInstantSpeed()) {
             return true;
         }
-        if ((isSpell() || this.isLandAbility()) && (isCastFromPlayEffect() || host.isInstant() || host.hasKeyword(Keyword.FLASH))) {
+        if ((isSpell() || isLandAbility()) && (isCastFromPlayEffect() || host.isInstant() || host.hasKeyword(Keyword.FLASH))) {
             return true;
         }
 

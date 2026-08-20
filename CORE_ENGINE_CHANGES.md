@@ -1258,3 +1258,62 @@ its own layout lives at `The Forgotten Realms/ui/research.json`/`research_portra
 Every file under `forge-gui/res/adventure/The Forgotten Realms/` is mod-owned content (JSON
 overrides, custom art, maps) - upstream Forge has no path collisions with that folder at all, so
 none of it needs tracking here. See `MOD_SCOPE.md`/`MOD_CHANGELOG.md` for what's in it and why.
+
+## Retroactive entries — ledger-gap audit, 2026-08-19 (found during the 2.0.15 upstream merge)
+
+A file-by-file verification pass while merging upstream `forge-2.0.15` (commit `06019e99eed6`)
+found these stock-engine edits that never got their entries when their rounds shipped (full
+reasoning for each lives in `MOD_CHANGELOG.md`, rounds 10-17):
+
+- **`forge-game/src/main/java/forge/game/Game.java`** (MOD_SCOPE.md #73) — new `rerollAnte()`
+  method: returns every player's current ante to their library and re-picks via the existing
+  `chooseCardsForAnte()`, honoring the match's ante-rarity/basic-land rules. Only invoked through
+  the ante-reveal dialog's re-roll supplier; no stock code path calls it.
+- **`forge-gui/src/main/java/forge/gui/interfaces/IGuiGame.java`** (#73) — new `revealAnteCards()`
+  DEFAULT method delegating to plain `reveal()`, so every stock client behaves exactly as before;
+  exists purely as an override point for the Adventure ante-re-roll UI.
+- **`forge-gui/src/main/java/forge/gui/control/FControlGameEventHandler.java`** (#73) —
+  `visit(GameEventAnteCardsSelected)` now routes through `getGui().revealAnteCards(...)`, passing a
+  `Game.rerollAnte()` supplier.
+- **`forge-gui-mobile/src/forge/screens/match/MatchController.java`** (#73-#75) —
+  `revealAnteCards()` override: Adventure-plane-gated re-roll confirm dialog with escalating shard
+  cost (`TuningData.anteRerollBaseShardCost`/`anteRerollEscalationRate` via
+  `EconomyBuildings.scaledCost()`), post-choice affordability check, `[TFR-AnteReroll]` logging.
+- **`forge-gui-mobile/src/forge/adventure/scene/EventScene.java`** (#75/#76) — Inn tournaments:
+  Ante removed from all tournament matches; opt-in "simulate AI matches" checkbox (off by default,
+  placed above the entry-fee button) runs real `Match`/`Game` AI-vs-AI resolution instead of the
+  stock coin flip, `[TFR-InnAISim]` logging.
+- **`forge-gui-mobile/src/forge/adventure/scene/NewGameScene.java`** (#70) — race-selection "?"
+  help button: dialog listing each race's four starting expansions and how difficulty affects the
+  number granted.
+- **`forge-gui/src/main/java/forge/localinstance/properties/ForgeConstants.java`** (#76) — new
+  `ADV_WORLDGEN_BG_FILE` constant (world-generation background image path).
+- **`forge-gui-mobile/src/forge/assets/FSkinTexture.java`** (#76) — new `ADV_WORLDGEN_BG` entry
+  backing the world-gen background.
+- **`forge-gui-mobile/src/forge/screens/TransitionScreen.java`** (#76) — world-generation screen
+  uses the user's `Main_Image.png` background; loading screens use the `Icon.png`-derived art.
+- **`forge-gui-mobile-dev/src/forge/app/GameLauncher.java`** (#76) — running-window/taskbar icon:
+  loads `res/skins/default/adv_icon_{256,128,64,32,16}.png` as absolute paths and calls
+  `config.setWindowIcon()`; nothing set a window icon before.
+
+New-files inventory additions (same reasoning as the "New files" section above):
+`forge-gui-mobile/src/forge/adventure/scene/InfoTextScene.java` (#63, scrollable info-text scene
+replacing broken oversized Dialogs; layouts live in the plane's `ui/info_text*.json`) and
+`forge-gui-mobile/src/forge/adventure/data/TuningData.java` (#63/#74, numeric balance knobs loaded
+from the plane's `config tables/settings.json`).
+
+## Upstream merge log
+
+- **2026-08-19 — merged upstream `master` @ `06019e99eed6` (Forge 2.0.15-SNAPSHOT, 2.0.15-08.19
+  daily build; 200 commits, 732 files since merge-base `8c52e257e999`).** Only two textual
+  conflicts: `GameLauncher.java` (upstream consolidated `setHdpiMode` while we added the
+  window-icon block next to it - kept both, one `setHdpiMode`) and `QuestLogScene.java` (upstream
+  added quest tracking with a `[BLACK]`/gradient header on the same line as our `QuestExpiry`
+  countdown suffix - combined: `headerCode + name + suffix`). Everything else auto-merged; a
+  12-agent verification pass confirmed every documented mod edit above survived and is still
+  invoked. Upstream's only overlaps with mod-edited files were benign: `isAndroid()`→`isMobile()`
+  swaps (World.java, adventure Config.java), an additive `PointOfInterest.getCenter()` +
+  nav-arrow accuracy fix (WorldStage.java), a desktop-only pause-music checkbox
+  (SettingsScene.java), mindslave/counter-cleanup refactors in untouched regions of `Game.java`,
+  and a whitespace fix in `MatchController.java`. Our 61 hand-extracted round-22 card files and
+  the resynced `buildingsbosses.atlas` were byte-identical to upstream's canonical copies.

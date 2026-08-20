@@ -105,11 +105,11 @@ public class QuestLogScene extends UIScene {
         scrollContainer.clear();
 
         for (AdventureQuestData quest : Current.player().getQuests()) {
+            String headerCode = quest.isTracked ? "{GRADIENT=CYAN;BLUE;1;1}•{ENDGRADIENT}[BLACK]" : "[BLACK]";
             // Side-quest timer countdown (QuestExpiry, opt-in) - empty suffix when no timer applies.
-            TypingLabel nameLabel = Controls.newTypingLabel(quest.getName() + QuestExpiry.questLogSuffix(quest));
+            TypingLabel nameLabel = Controls.newTypingLabel(headerCode + quest.getName() + QuestExpiry.questLogSuffix(quest));
             nameLabel.skipToTheEnd();
             nameLabel.setWrap(true);
-            nameLabel.setColor(Color.BLACK);
             scrollContainer.add(nameLabel).align(Align.left).expandX();
             Button details = Controls.newTextButton(Forge.getLocalizer().getMessage("lblDetails"));
             details.addListener(new ClickListener() {
@@ -141,7 +141,7 @@ public class QuestLogScene extends UIScene {
         detailRoot.setVisible(true);
         detailScrollContainer.clear();
         detailScrollContainer.row();
-        trackButton.setText(quest.isTracked?Forge.getLocalizer().getMessage("lblUntrackQuest"):Forge.getLocalizer().getMessage("lblTrackQuest"));
+        trackButton.clearListeners();
         trackButton.addListener(new ClickListener() {
             public void clicked(InputEvent event, float x, float y) {
                 toggleTracked(quest);
@@ -149,6 +149,7 @@ public class QuestLogScene extends UIScene {
         });
 
         abandonQuestButton.setColor(Color.RED);
+        abandonQuestButton.clearListeners();
         abandonQuestButton.addListener(new ClickListener() {
             public void clicked(InputEvent event, float x, float y) {
                 Dialog confirm = createGenericDialog("", Forge.getLocalizer().getMessage("lblAbandonQuestConfirm"),Forge.getLocalizer().getMessage("lblYes"),Forge.getLocalizer().getMessage("lblNo"), () -> abandonQuest(quest), null);
@@ -176,16 +177,17 @@ public class QuestLogScene extends UIScene {
         detailScrollContainer.add(dDescriptionLabel).align(Align.left).padLeft(25).width(detailRoot.getWidth() -25);
 
         for (AdventureQuestStage stage : quest.getCompletedStages()) {
-            TypingLabel completeLabel = Controls.newTypingLabel("*  " + stage.name);
+            // Completed Stages will have Checkbox unicode
+            TypingLabel completeLabel = Controls.newTypingLabel("{GRADIENT=OLIVE;LIME;1;1}\u2611 " + stage.name + "{ENDGRADIENT}[BLACK]");
             completeLabel.skipToTheEnd();
-            completeLabel.setColor(Color.GREEN);
             completeLabel.setWrap(true);
             detailScrollContainer.row();
             detailScrollContainer.add(completeLabel).align(Align.left).padLeft(25);
         }
 
         for (AdventureQuestStage stage : quest.getActiveStages()) {
-            TypingLabel activeLabel = Controls.newTypingLabel("*  " + stage.name);
+            // Active Stages will have Blank box unicode
+            TypingLabel activeLabel = Controls.newTypingLabel("\u2610  " + stage.name);
             activeLabel.skipToTheEnd();
             activeLabel.setColor(Color.BLACK);
             activeLabel.setWrap(true);
@@ -201,15 +203,22 @@ public class QuestLogScene extends UIScene {
             detailScrollContainer.add(activeDescriptionLabel).padLeft(35).width(detailRoot.getWidth() - 50);
             detailScrollContainer.row();
         }
+        updateTrackButton(quest.isTracked);
     }
 
     private void toggleTracked(AdventureQuestData quest) {
-        if (quest.isTracked){
-            quest.isTracked = false;
-            trackButton.setText(Forge.getLocalizer().getMessage("lblTrackQuest"));
-        } else {
+        quest.isTracked = !quest.isTracked;
+        if (quest.isTracked) {
             AdventureQuestController.trackQuest(quest);
+        }
+        updateTrackButton(quest.isTracked);
+    }
+
+    private void updateTrackButton(boolean isTracked) {
+        if (isTracked) {
             trackButton.setText(Forge.getLocalizer().getMessage("lblUntrackQuest"));
+        } else {
+            trackButton.setText(Forge.getLocalizer().getMessage("lblTrackQuest"));
         }
     }
 
