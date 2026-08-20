@@ -8,6 +8,7 @@ import forge.adventure.data.BiomeData;
 import forge.adventure.pointofintrest.PointOfInterest;
 import forge.adventure.stage.MapStage;
 import forge.adventure.stage.WorldStage;
+import forge.adventure.util.Config;
 import forge.adventure.util.Current;
 import forge.adventure.world.World;
 import forge.util.TextUtil;
@@ -55,6 +56,16 @@ public class GameScene extends HudScene {
         Forge.clearTransitionScreen();
         Forge.clearCurrentScreen();
         super.enter();
+        // Standalone welcome popup (MOD_SCOPE.md #89): once per save, on first world-map entry
+        // - a new game lands here right after the tutorial teleport, and no auto quest dialog
+        // competes on the world map (the spawn-dungeon attempts both collided with the intro
+        // dialog, see TileMapScene.initializeDialogs()). Config-driven; stock planes never set
+        // welcomePopupText, so nothing changes for them.
+        String welcome = Config.instance().getConfigData().welcomePopupText;
+        if (welcome != null && !welcome.isEmpty() && !Current.player().checkQuestFlag("TFR_WelcomeShown")) {
+            Current.player().setQuestFlag("TFR_WelcomeShown", 1);
+            WorldStage.getInstance().showWelcomeDialog(welcome);
+        }
         // This causes the inifine load of POI if the two collision point is too close.
         // IIRC This is used before and the player will start inside the POI.
         // but we don't allow saving inside the POI anymore.

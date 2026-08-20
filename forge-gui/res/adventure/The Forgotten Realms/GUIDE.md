@@ -237,3 +237,10 @@ deck tier before assuming it's just you.
 
 *This guide covers the state of The Forgotten Realms as of 2026-08-18. See `MOD_CHANGELOG.md` in
 the repository for the full history of how the mod got here, if you're curious.*
+
+## Support & Community
+
+The Forgotten Realms is free and open source. If you're enjoying it:
+
+- **Join the Discord** for feedback, bug reports, and balance talk: https://discord.gg/TTRPKc9HYJ
+- **Support development on Ko-fi**: https://ko-fi.com/thesaguy

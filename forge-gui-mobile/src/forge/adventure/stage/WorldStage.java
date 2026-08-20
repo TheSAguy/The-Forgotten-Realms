@@ -623,6 +623,26 @@ public class WorldStage extends GameStage implements SaveFileContent {
         showDialog();
     }
 
+    // Standalone welcome popup (MOD_SCOPE.md #89, relocated here 2026-08-20): plain OK-dialog
+    // with the plane's config.json welcomePopupText, shown by GameScene.enter() once per save
+    // on the first WORLD-MAP entry - the spawn-dungeon placements collided with the tutorial
+    // intro dialog (see TileMapScene.initializeDialogs()).
+    public void showWelcomeDialog(String text) {
+        Dialog dialog = getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+
+        TypingLabel label = Controls.newTypingLabel(text);
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+
+        dialog.getButtonTable().add(Controls.newTextButton("OK", this::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog();
+    }
+
     // Side-quest timer expiry (user request 2026-08-08): a real blocking dialog, same pattern as
     // the war-entry dialog above - the old corner toast was easy to miss entirely, especially at
     // 100x fast-forward. One dialog lists every quest that failed on the same day tick.

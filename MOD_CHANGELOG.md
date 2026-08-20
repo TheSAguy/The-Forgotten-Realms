@@ -11710,3 +11710,29 @@ their standalone-build playtest:
   TuningData; plane sets 20) and `baseAttackingMagesPerColor` (TerritoryControl's hardcoded
   2+index ladder -> Normal base 3 with fixed offsets Easy -1/Hard +1/Insane +2 per user spec -
   default reproduces the old 2/3/4/5 exactly; [TFR-MageCap] log line now prints base+offset).
+
+## Twenty-ninth round: welcome-popup soft-lock fix, Commander Precon removed, Ko-fi links (2026-08-20, MOD_SCOPE.md #89)
+
+User's playtest of the round-28 build found a REAL TUTORIAL SOFT-LOCK: clicking the new
+"Welcome - read me first!" intro-dialog option did nothing, and the player was then stuck in the
+spawn dungeon with an inactive portal. Root cause: the grafted option had a text node but no
+follow-up options, stranding the dialog before Intro/Skip could run their actions (the portal
+gates on mainQuest, set only by those two branches).
+
+- **Fix - the welcome message now lives on the WORLD MAP, not in any dialog**: the quests.json
+  option is removed (intro dialog back to its stock three choices), the TileMapScene hook is
+  gone, and GameScene.enter() shows a new WorldStage.showWelcomeDialog() (the
+  showQuestsFailedDialog idiom) once per save on first world-map entry - a new game lands there
+  right after the tutorial teleport, and the world map has no competing auto-dialogs. Same
+  config-driven text (welcomePopupText), same TFR_WelcomeShown quest flag. A save stuck by the
+  round-28 build needs a fresh game (the flow itself is fixed going forward).
+- **Commander Precon removed from character creation**: the mode only appears when the plane
+  ships commanderprecon decks (NewGameScene gates on Config.hasCommanderPreconDecks(), and
+  common/ has none) - the two RoL-ported precons (HOB There And Back Again, SLD Hatsune Miku)
+  deleted from decks/starter/commanderprecon/. Data-only, consistent with the earlier
+  Commander-mode removal: this plane doesn't support Commander play.
+- **Ko-fi support link (https://ko-fi.com/thesaguy)** added to GUIDE.md (new "Support &
+  Community" section with the Discord link), the package README's Feedback section, and the
+  promo page footer (Discord + Ko-fi, same artifact URL).
+- Deployed via the fast path: rebuilt fat jar copied into the existing package, res deltas
+  synced, commanderprecon deleted from the package, zip rebuilt from the folder.

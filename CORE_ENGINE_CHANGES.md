@@ -1392,3 +1392,14 @@ plane folder alongside LICENSE.txt).
   `getSelectedDeck().getMain()` (was collection-only).
 - **`scene/TileMapScene.java`** — welcome popup skips the "Spawn" POI (tutorial intro dialog
   replaced it there; the intro menu's new Welcome option covers new games).
+
+## Welcome-popup relocation (2026-08-20, MOD_SCOPE.md #89, twenty-ninth round)
+
+- **`scene/TileMapScene.java`** — welcome-popup hook removed entirely (both spawn-dungeon
+  placements collided with the tutorial intro dialog; a quests.json option variant soft-locked
+  the tutorial).
+- **`stage/WorldStage.java`** — new `showWelcomeDialog(String)` (showQuestsFailedDialog idiom).
+- **`scene/GameScene.java`** — `enter()` shows the welcome dialog once per save
+  (TFR_WelcomeShown) on first world-map entry; Config import added.
+- (`stage/MapStage.java`'s `showWelcomePopup()` from round 27 is now uncalled - left in place
+  as a harmless utility rather than churning the diff again this close to release.)

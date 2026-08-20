@@ -143,18 +143,13 @@ public class TileMapScene extends HudScene {
     }
 
     private void initializeDialogs() {
-        // Standalone welcome popup (MOD_SCOPE.md #89): once per save, on the first map entry.
-        // Driven by the plane's config.json welcomePopupText; stock planes (unset) never show
-        // it. NOT shown in the tutorial Spawn dungeon (2026-08-20 user report: the intro quest
-        // dialog immediately replaced it there) - the intro dialog's own "Welcome - read me
-        // first!" option covers new games; this popup still greets pre-existing saves on their
-        // next map entry anywhere else.
-        String welcome = Config.instance().getConfigData().welcomePopupText;
-        if (welcome != null && !welcome.isEmpty() && !"Spawn".equals(rootPoint.getData().name)
-                && !Current.player().checkQuestFlag("TFR_WelcomeShown")) {
-            Current.player().setQuestFlag("TFR_WelcomeShown", 1);
-            MapStage.getInstance().showWelcomePopup(welcome);
-        }
+        // The standalone welcome popup used to hook in here (first POI entry) - relocated to
+        // GameScene.enter()/WorldStage.showWelcomeDialog() 2026-08-20 after two collisions:
+        // shown here it was immediately replaced by the tutorial intro dialog, and a
+        // "Welcome" option grafted into that quest dialog soft-locked the tutorial (an
+        // option with no follow-up node strands the dialog before Intro/Skip can set
+        // mainQuest, leaving the spawn portal inactive). The world map has no competing
+        // auto-dialogs, and every new game reaches it right after the tutorial teleport.
         AdventureQuestController.instance().updateEnteredPOI(rootPoint);
         AdventureQuestController.instance().showQuestDialogs(stage);
     }
