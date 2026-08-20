@@ -38,6 +38,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -95,7 +96,16 @@ def main():
     if os.path.exists(game_dir):
         print(f"removing previous package at {game_dir}")
         shutil.rmtree(game_dir)
-    os.makedirs(game_dir)
+    # Windows: rmtree returns before the directory handle is fully released, so an
+    # immediate makedirs can get WinError 5 - retry briefly.
+    for attempt in range(30):
+        try:
+            os.makedirs(game_dir)
+            break
+        except (PermissionError, FileExistsError):
+            if attempt == 29:
+                raise
+            time.sleep(1)
 
     # 2. root files + launchers
     for f in ROOT_INCLUDE:
