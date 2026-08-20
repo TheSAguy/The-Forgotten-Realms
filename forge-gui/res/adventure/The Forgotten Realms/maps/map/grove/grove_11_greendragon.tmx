@@ -106,7 +106,7 @@
    <properties>
     <property name="enemy" value="Centaur"/>
     <property name="threatRange" type="int" value="50"/>
-    <property name="waypoints" value="101,100,101,103,104"/>
+    <property name="waypoints" value="101,100,101,103"/>
    </properties>
   </object>
   <object id="109" template="../../../../common/maps/obj/collision.tx" x="0.276147" y="-15.9632" width="640.483" height="16"/>

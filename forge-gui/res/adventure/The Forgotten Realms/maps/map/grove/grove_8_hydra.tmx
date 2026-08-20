@@ -125,7 +125,6 @@
    <properties>
     <property name="enemy" value="Hydra"/>
     <property name="threatRange" type="int" value="50"/>
-    <property name="waypoints" value="78,99,78,98,93,98,78"/>
    </properties>
   </object>
   <object id="114" template="../../../../common/maps/obj/waypoint.tx" x="356.5" y="274.5"/>

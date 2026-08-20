@@ -58,28 +58,28 @@
   </object>
   <object id="59" template="../../../../common/maps/obj/enemy.tx" x="189.665" y="101.698">
    <properties>
-    <property name="enemy" value="Goblin "/>
+    <property name="enemy" value="Goblin"/>
     <property name="threatRange" type="int" value="30"/>
     <property name="waypoints" value="67,68,67,76,73,76"/>
    </properties>
   </object>
   <object id="62" template="../../../../common/maps/obj/enemy.tx" x="331.577" y="161.127">
    <properties>
-    <property name="enemy" value="Goblin "/>
+    <property name="enemy" value="Goblin"/>
     <property name="threatRange" type="int" value="30"/>
     <property name="waypoints" value="70,71"/>
    </properties>
   </object>
   <object id="63" template="../../../../common/maps/obj/enemy.tx" x="252.705" y="162.45">
    <properties>
-    <property name="enemy" value="Goblin "/>
+    <property name="enemy" value="Goblin"/>
     <property name="threatRange" type="int" value="30"/>
     <property name="waypoints" value="68,77,68,69"/>
    </properties>
   </object>
   <object id="64" template="../../../../common/maps/obj/enemy.tx" x="111.633" y="145.511">
    <properties>
-    <property name="enemy" value="Goblin "/>
+    <property name="enemy" value="Goblin"/>
     <property name="threatRange" type="int" value="30"/>
     <property name="waypoints" value="74,73,75"/>
    </properties>

@@ -77,7 +77,6 @@
 ]</property>
     <property name="enemy" value="Selvala"/>
     <property name="threatRange" type="int" value="20"/>
-    <property name="waypoints" value="0"/>
    </properties>
   </object>
   <object id="55" template="../../../../common/maps/obj/enemy.tx" x="271.413" y="114.192">
@@ -92,7 +91,6 @@
 ]</property>
     <property name="enemy" value="Muzzio"/>
     <property name="threatRange" type="int" value="20"/>
-    <property name="waypoints" value="0"/>
    </properties>
   </object>
   <object id="57" template="../../../../common/maps/obj/enemy.tx" x="169.985" y="225.858">
@@ -131,7 +129,6 @@
 ]
 </property>
     <property name="threatRange" type="int" value="0"/>
-    <property name="waypoints" value="0"/>
    </properties>
   </object>
   <object id="79" template="../../../../common/maps/obj/dialog.tx" x="212.25" y="197.25" width="74" height="15.5" visible="1">
@@ -315,7 +312,6 @@
 ]</property>
     <property name="enemy" value="Adriana"/>
     <property name="threatRange" type="int" value="0"/>
-    <property name="waypoints" value="0"/>
    </properties>
   </object>
   <object id="120" template="../../../../common/maps/obj/scroll.tx" x="192" y="257.333">

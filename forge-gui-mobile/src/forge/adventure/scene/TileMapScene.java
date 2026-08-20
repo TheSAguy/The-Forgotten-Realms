@@ -143,6 +143,14 @@ public class TileMapScene extends HudScene {
     }
 
     private void initializeDialogs() {
+        // Standalone welcome popup (MOD_SCOPE.md #89): once per save, on the first map entry -
+        // a new game starts inside the spawn dungeon, so new players are greeted there. Driven
+        // by the plane's config.json welcomePopupText; stock planes (unset) never show it.
+        String welcome = Config.instance().getConfigData().welcomePopupText;
+        if (welcome != null && !welcome.isEmpty() && !Current.player().checkQuestFlag("TFR_WelcomeShown")) {
+            Current.player().setQuestFlag("TFR_WelcomeShown", 1);
+            MapStage.getInstance().showWelcomePopup(welcome);
+        }
         AdventureQuestController.instance().updateEnteredPOI(rootPoint);
         AdventureQuestController.instance().showQuestDialogs(stage);
     }

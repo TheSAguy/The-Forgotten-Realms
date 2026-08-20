@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <template>
- <tileset firstgid="1" source="../../../common/maps/tileset/buildings.tsx"/>
- <object name="Wood" type="reward" gid="509" width="16" height="16">
+ <tileset firstgid="1" source="../tileset/resource_drop.tsx"/>
+ <object name="Wood" type="reward" gid="5" width="16" height="16">
   <properties>
    <property name="reward">[
   {

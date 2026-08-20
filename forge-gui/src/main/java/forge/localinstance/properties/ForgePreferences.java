@@ -208,8 +208,10 @@ public class ForgePreferences extends AbstractPreferences<ForgePreferences.FPref
         FILTERED_HANDS ("false"),
         MULLIGAN_RULE(MulliganDefs.getDefaultRule().name()),
 
-        UI_ANTE ("false"),
-        UI_ANTE_MATCH_RARITY ("false"),
+        // The Forgotten Realms standalone (MOD_SCOPE.md #89): ante on by default - the game is
+        // balanced around playing for ante (user decision 2026-08-19). Upstream defaults: false.
+        UI_ANTE ("true"),
+        UI_ANTE_MATCH_RARITY ("true"),
         UI_ANTE_INCLUDE_BASIC_LANDS ("false"),
 
         LEGACY_MANABURN("false"),

@@ -160,8 +160,14 @@ public class FSkin {
             }
         }
 
-        //ensure skins directory exists
+        //ensure skins directory exists - the comment always promised this but the code never
+        //created it: on a fresh cache dir the missing folder short-circuited EVERY launch to
+        //the jar's fallback_skin before res/skins/default was even considered (found on the
+        //standalone build's first runs, where the rebranded cache dir starts empty).
         final FileHandle dir = Assets.getFileHandle(ForgeConstants.CACHE_SKINS_DIR);
+        if (!GuiBase.isIOS() && (!dir.exists() || !dir.isDirectory())) {
+            dir.mkdirs();
+        }
         if(preferredDir == null)
         {
             if (!dir.exists() || !dir.isDirectory()) {

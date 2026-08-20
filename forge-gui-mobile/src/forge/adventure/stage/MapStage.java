@@ -1262,6 +1262,22 @@ public class MapStage extends GameStage {
         }
     }
 
+    // Standalone welcome popup (MOD_SCOPE.md #89): plain OK-dialog with the plane's
+    // config.json welcomePopupText; TileMapScene shows it once per save on first map entry.
+    public void showWelcomePopup(String text) {
+        dialog.getButtonTable().clear();
+        dialog.getContentTable().clear();
+        dialog.clearListeners();
+        TextraButton okButton = Controls.newTextButton("OK", this::hideDialog);
+        TypingLabel label = Controls.newTypingLabel(text);
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getButtonTable().add(okButton).width(240f);
+        dialog.getContentTable().add(label).width(250f);
+        dialog.setKeepWithinStage(true);
+        showDialog();
+    }
+
     private void dungeonFailedDialog(boolean exit, boolean defeatedByBoss) {
         dialog.getButtonTable().clear();
         dialog.getContentTable().clear();

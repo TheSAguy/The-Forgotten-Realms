@@ -65,5 +65,11 @@ public class ConfigData {
     // an entry here, it replaces the flat starterEditions first-N seeding; races without an
     // entry (and planes without this array) fall back to starterEditions.
     public RaceEditionData[] raceEditions;
+    // Standalone-game identity (MOD_SCOPE.md #89): the plane's own version string, appended to
+    // the engine version on the start menu when set; and a one-time welcome popup shown on the
+    // first map entry of a save (a new game starts inside the spawn dungeon, so new players see
+    // it there). Both null/absent on stock planes - no behavior change for them.
+    public String modVersion;
+    public String welcomePopupText;
 
 }

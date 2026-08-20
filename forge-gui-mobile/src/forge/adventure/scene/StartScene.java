@@ -52,6 +52,14 @@ public class StartScene extends UIScene {
 
         saveButton.setVisible(false);
         resumeButton.setVisible(false);
+        // Standalone-game version tag (MOD_SCOPE.md #89): planes that set modVersion in their
+        // config.json get it appended to the engine version on the start menu.
+        String modVersion = Config.instance().getConfigData() == null ? null
+                : Config.instance().getConfigData().modVersion;
+        if (modVersion != null && !modVersion.isEmpty()) {
+            version.setText("{GRADIENT}[%80]v." + Forge.getDeviceAdapter().getVersionString()
+                    + "  |  TFR - v" + modVersion + "{ENDGRADIENT}");
+        }
         version.setHeight(5);
         version.skipToTheEnd();
         ui.addActor(version);

@@ -66,7 +66,7 @@
    <properties>
     <property name="enemy" value="Goblin Chief"/>
     <property name="threatRange" type="int" value="30"/>
-    <property name="waypoints" value="74,73,72,63,72,73"/>
+    <property name="waypoints" value="74,72,63,72"/>
    </properties>
   </object>
   <object id="57" template="../../../../common/maps/obj/enemy.tx" x="319.833" y="193.334">

@@ -1349,3 +1349,29 @@ New non-engine files (repo root `standalone-packaging/`, no upstream collision):
 res/adventure [common + plane only] + git-derived res overlay + docs; self-verifying),
 `README.md` + `CREDITS.md` (player-facing, shipped in the package root and mirrored into the
 plane folder alongside LICENSE.txt).
+
+## Release-gate round (2026-08-19, MOD_SCOPE.md #89, twenty-seventh round)
+
+- **`forge-gui/src/main/java/forge/localinstance/properties/AbstractPreferences.java`** — bug
+  fix: `save()` now mkdirs the parent before writing; on a fresh data dir the preferences/
+  folder didn't exist and FileWriter threw FileNotFoundException, silently losing the first
+  save on every fresh install's first launch. Upstream-relevant fix (stock Forge has the same
+  latent bug on a truly clean machine).
+- **`forge-gui-mobile/src/forge/assets/FSkin.java`** — bug fix: `loadLight()` now creates
+  `CACHE_SKINS_DIR` when missing (its own comment always said "ensure skins directory exists"
+  but nothing did); a fresh cache dir short-circuited every launch to the jar's fallback_skin
+  before `res/skins/default` was considered. iOS excluded (read-only bundle). Upstream-relevant.
+- **`forge-gui/src/main/java/forge/localinstance/properties/ForgePreferences.java`** — fork
+  default: `UI_ANTE` and `UI_ANTE_MATCH_RARITY` default "true" (upstream: "false"); the game is
+  balanced around ante (user decision 2026-08-19). Watch on upstream merges: enum default
+  strings.
+- **`data/SettingData.java`** — `fogOfWarEnabled` initializes true (fork default; the per-plane
+  fogOfWar config flag still gates the feature so stock planes unaffected).
+- **`data/ConfigData.java`** — two new per-plane fields, both null on stock planes:
+  `modVersion` (start-menu version tag) and `welcomePopupText` (one-time welcome dialog).
+- **`scene/StartScene.java`** — appends " | TFR - v<modVersion>" to the version label when the
+  selected plane sets modVersion.
+- **`stage/MapStage.java`** — new `showWelcomePopup(String)` (dungeonFailedDialog idiom, plain
+  OK dialog).
+- **`scene/TileMapScene.java`** — `initializeDialogs()` shows the welcome popup once per save
+  (questFlag `TFR_WelcomeShown`) before quest dialogs.

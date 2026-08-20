@@ -39,6 +39,11 @@ unaffected by this game, and vice versa.
 `%APPDATA%\Forge\adventure\The Forgotten Realms` into
 `%APPDATA%\ForgottenRealms\adventure\`.
 
+## Feedback & Community
+
+This is an early release — feedback on balance and bugs is very welcome!
+Join us on Discord: **https://discord.gg/TTRPKc9HYJ**
+
 ## Updates
 
 This is a **pinned build** — it never auto-updates, and the stock Forge updater

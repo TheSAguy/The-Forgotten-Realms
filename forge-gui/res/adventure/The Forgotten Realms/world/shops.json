@@ -5072,17 +5072,7 @@
    }
   ]
  },
- {
-  "name": "ToDo",
-  "description": "To Do",
-  "spriteAtlas": "maps/tileset/buildings.atlas",
-  "sprite": "ToDoShop",
-  "rewards": [
-   {
-    "count": 8
-   }
-  ]
- },
+ 
  {
   "name": "Equip",
   "description": "Arms & Armor",
@@ -7760,7 +7750,7 @@
     "type": "Union",
     "cardUnion": [
      {
-      "sourceDeck": "decks/shop/ubwarhammer40K.dck"
+      "sourceDeck": "decks/shop/ub_warhammer40k.dck"
      },
      {
       "count": 1

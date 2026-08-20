@@ -18,6 +18,7 @@
 package forge.localinstance.properties;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.EnumMap;
@@ -71,6 +72,13 @@ public abstract class AbstractPreferences<T extends Enum<T> & IPreferences.IPref
 
     @Override
     public void save() {
+        // On a completely fresh data dir the preferences/ folder does not exist yet and
+        // FileWriter throws FileNotFoundException, silently losing the first save (hit on
+        // every fresh install's first launch). Create the parent chain first.
+        final File parentDir = new File(filename).getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
         BufferedWriter writer = null;
         try {
             writer = new BufferedWriter(new FileWriter(filename));

@@ -334,12 +334,7 @@
         "iconName":  "LandscapeSketchbook",
         "rarity":  "Common"
     },
-    {
-        "name":  "Landscape Sketchbook - Tempest",
-        "description":  "Gives access to Tempest land arts in the add basic lands menu of the deckbuilder\u0027s upper right corner.",
-        "iconName":  "LandscapeSketchbook",
-        "rarity":  "Common"
-    },
+    
     {
         "name":  "Landscape Sketchbook - Portal",
         "description":  "Gives access to Portal land arts in the add basic lands menu of the deckbuilder\u0027s upper right corner.",

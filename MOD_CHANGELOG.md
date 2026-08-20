@@ -11585,3 +11585,87 @@ Post-build checklist for the user's first smoke test: launch from the package fo
 the window title, confirm a NEW game generates (exercises the merged 2.0.15 engine + the
 Ashling's Domain atlas fix), confirm saves land in `%APPDATA%\ForgottenRealms`, confirm card art
 appears without mass re-downloading (shared cache), and confirm no update prompt appears.
+
+## Twenty-seventh round: release-gate fixes - polish features, two engine bugs, and a full-content integrity sweep (2026-08-19, MOD_SCOPE.md #89, REPO-ONLY until repackaged)
+
+User's release-prep round: fix the Tiled wood icon, review all logs, add a version number to the
+start menu, default-on Fog of War / Play for Ante / Match Ante Rarity plus a welcome popup with
+the Discord link (discord.gg/TTRPKc9HYJ), use the TFR icon on the .exe, and "one more deep dive
+into the entire mod... This is basically the final test before release, so check everything."
+
+**Features:**
+- **Tiled resource-pickup preview fixed for real**: new `maps/tileset/resource_drop.tsx` (4x16px
+  columns over `sprites/resource_drop.png`); `wood.tx` gid=5 and `stone.tx` gid=9 now preview with
+  the ACTUAL in-game sprites (round 24's buildings.png stand-ins looked wrong in Tiled). The
+  user's spawn.tmx edit (stone pickup removed, wood count 25) - made in the built package - was
+  synced back into the repo.
+- **Start-menu version tag**: new `ConfigData.modVersion` (per-plane, null on stock planes);
+  StartScene appends " | TFR - v<modVersion>" to the engine version label. Set to "1.00" in the
+  plane's config.json.
+- **Welcome popup**: new `ConfigData.welcomePopupText` + `MapStage.showWelcomePopup()` (the
+  dungeonFailedDialog idiom) + a hook in `TileMapScene.initializeDialogs()` - shows ONCE per save
+  (questFlag `TFR_WelcomeShown`) on first map entry, i.e. the intro/spawn dungeon on a new game.
+  Text (config-editable): thanks + early-release feedback ask + Discord link + recommended
+  settings. Stock planes (field unset) never see it.
+- **Defaults ON for fresh installs**: `FPref.UI_ANTE` and `UI_ANTE_MATCH_RARITY` default "true"
+  (ForgePreferences), `SettingData.fogOfWarEnabled` initializes true (per-plane fogOfWar config
+  flag still gates the feature). NOTE: the user's existing standalone profile already persisted
+  fogOfWarEnabled=false - toggle it once in Settings (or delete the settings file).
+- **EXE icon**: no new art needed - the repo ico was already the TFR icon and launch4j already
+  embeds it into `target/forge-adventure.exe` at package time; `build_standalone.py` now ships
+  THAT exe instead of the stock one (plus `core.quotepath=off` on its git-derived overlay so the
+  two non-ASCII deck filenames stop confusing it). Discord link added to the package README.
+
+**Two real engine bugs found by the standalone build's own first-run logs:**
+- **`AbstractPreferences.save()`** threw FileNotFoundException on every fresh install's first
+  launch (preferences/ dir not created before FileWriter) - silently losing the first save.
+  Parent-dir mkdirs added.
+- **`FSkin.loadLight()` never created `CACHE_SKINS_DIR`** despite its own "ensure skins directory
+  exists" comment - on a fresh cache dir (every new standalone install) the missing folder
+  short-circuited EVERY launch to the jar's fallback_skin before `res/skins/default` was even
+  considered. mkdirs added (desktop/Android; iOS excluded - read-only bundle semantics).
+
+**Full-content integrity sweep (12-agent release gate: 3 log reviewers over ~2.1MB of session
+logs incl. an 800-day soak, 9 content validators over every enemy/deck/item/POI/map/quest/config).
+Verdicts: maps corpus, items/shops, RoL port, and Java sanity CLEAN. Confirmed the round-24
+hidePoi() guard addresses the soak log's dungeon double-roll signature. Real issues found & fixed:**
+- **118 enemies' reward pools were silently random**: enemies.json references
+  `decks/rewards/tier-{A,B,C,D,E,S}.dck` (~1,868 references, the ported Shandalar Old Border
+  roster) but the files only existed in the Old Border plane - CardUtil.getDeck falls back to a
+  random generated deck. All six copied into the plane's `decks/rewards/`.
+- **"ToDo" placeholder shop** (shops.json) spawned in live towns with a missing `ToDoShop` sprite
+  (soak log: "Can not create Texture") and unthemed inventory - removed.
+- **Warhammer 40K shop** stocked random cards: shops.json path `decks/shop/ubwarhammer40K.dck`
+  vs the real `common/decks/shop/ub_warhammer40k.dck` - path corrected.
+- **Named encounters silently replaced by random enemies**: 6 tmx enemy-name typos fixed
+  ('Vulcano Dragon' - the map's own namesake boss - plus leading/trailing-space 'Zombie',
+  'Armored Knight' x2 maps, 'Goblin' x2 maps); 4 enemies referenced by ported maps but absent
+  from the plane's enemies.json (Adriana, Ashiok, Gwafa Hazid, Vadmir - RoL "mystery" NPCs,
+  spawnRate 0/life 1) ported from RoL; their sprites resolve via common/, their
+  mystery_list.dck already shipped.
+- **Reward typos silently dropping boss drops**: 'Jalira, Master Polymorphistr' and
+  'NNorin, Swift Survivalist' in enemies.json fixed.
+- **Camel Cave miniboss was unreachable** (the only unwired sideboss of 18) - wired into
+  white.json; its copy-pasted 'SlimeCave' questTag corrected to 'CamelCave' so slime-cave quests
+  can't mistarget it (sprite region, which is legitimately SlimeCave art, untouched).
+- **Duplicate "Landscape Sketchbook - Tempest"** in items.json (byte-identical) removed +
+  items.csv row deduped.
+- **21 duplicate nonbasic lines in 20 legends decks** (the morcant defect class, shipped by
+  upstream RoL) deduplicated; duplicate BASIC-land lines deliberately left (summed counts look
+  intended). 4 `[Commander]` lines missing count prefixes (garth/kenrith/rakdos/rothga) fixed.
+- **9 maps with dangling patrol waypoints** (soak log: "Navigation error for object ID72...")
+  - dangling/self/zero tokens dropped, empty lists removed; enemies patrol valid paths or roam.
+- **3 vanilla quest-text token bugs** (inherited from stock Shandalar, user-visible): quest 12
+  '$(poi_2)' -> '$(poi_1)' (stage 2 never binds a POI), quest 3 'Return to $(poi_1)' -> 'Return
+  to the shop.', quest 45 'Defeat the $(enemy_2)' -> 'Defeat the mine captain' (mixedEnemies
+  stages generate no enemy token). Quest 13's $(poi_2) verified legitimate and left alone.
+
+**Known/accepted, deliberately not changed**: 11 RoL legend cards load into UNKNOWN set until
+their 'Mystery Booster Commander Edition' (MBC) releases 2026-11-09 (upstream future-dated the
+edition; decks still load the cards by name - cosmetic warnings, self-resolves in November).
+'Naktamun' 6th-capital POI is unwired cut content (never spawns, harmless, kept). expansions.csv
+was never committed - it self-regenerates all-included (no exclusions were ever configured).
+[DungeonRotation] logging is ~46% of a long soak log - verbosity left as-is for release feedback,
+flag if it bothers. dayLengthSeconds=400 confirmed as the deliberate round-6 tune. LRW staying in
+the NEUTRAL shard while race-reserved sets strip from AI color shards matches the round-12 design
+(neutral pool is shared with the player).

@@ -100,8 +100,12 @@ def main():
     # 2. root files + launchers
     for f in ROOT_INCLUDE:
         shutil.copy2(os.path.join(BASE_INSTALL, f), game_dir)
-    shutil.copy2(os.path.join(BASE_INSTALL, "forge-adventure.exe"),
-                 os.path.join(game_dir, f"{GAME_NAME}.exe"))
+    # the exe comes from OUR build (launch4j in forge-gui-mobile-dev's package phase) - it
+    # carries the TFR icon from src/main/config/forge-adventure.ico, unlike the stock exe
+    repo_exe = os.path.join(built_jar_dir, "forge-adventure.exe")
+    if not os.path.exists(repo_exe):
+        fail("forge-adventure.exe missing from target/ - run the package (not just compile) goal")
+    shutil.copy2(repo_exe, os.path.join(game_dir, f"{GAME_NAME}.exe"))
     cmd = open(os.path.join(BASE_INSTALL, "forge-adventure.cmd"), encoding="utf-8",
                errors="ignore").read()
     open(os.path.join(game_dir, f"{GAME_NAME}.cmd"), "w", encoding="utf-8",

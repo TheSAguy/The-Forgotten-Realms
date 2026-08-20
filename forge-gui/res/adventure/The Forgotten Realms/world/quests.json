@@ -673,7 +673,7 @@
 		{
 			"id": 3,
 			"name": "Travel",
-			"description": "Return to $(poi_1)",
+			"description": "Return to the shop.",
 			"mapFlag": "",
 			"mapFlagValue": 1,
 			"here": true,
@@ -3077,7 +3077,7 @@
 	"id": 12,
 	"isTemplate": true,
 	"name": "A Freshly Plowed Field",
-	"description": "Clear out all enemies in the $(poi_2) and report back.",
+	"description": "Clear out all enemies in the $(poi_1) and report back.",
 	"offerDialog": {
 		"text": "\"We need a new field to increase our harvest.\" A weathered but intimidating man in simple farmer's garb addresses you directly. \"This town is growing faster than my grain.\"",
 		"options": [
@@ -9544,7 +9544,7 @@
 		},
 		{
 			"id": 2,
-			"name": "Defeat the $(enemy_2)",
+			"name": "Defeat the mine captain",
 			"description": "Find and defeat the leader of the pirates in the $(poi_1).",
 			"mapFlag": "",
 			"mapFlagValue": 1,

@@ -4267,7 +4267,7 @@ logs from a multi-week play session for issues.
 
 Deployed 2026-08-19 on the user's go-ahead; playtest in progress.
 
-### 89. Update to Forge 2.0.15 + Standalone Game Packaging — `Built (2026-08-19): merge done, first package built at F:\FORGE\TFR-Standalone - not yet smoke-tested`
+### 89. Update to Forge 2.0.15 + Standalone Game Packaging — `Done (2026-08-19): merge + package smoke-tested by user; release-gate sweep fixed 20+ content/engine issues; v1.00 pushed to GitHub + zipped`
 
 User request (2026-08-19): "We build our mod from an older Forge update. We're on 2.0.14-08.02 and
 the latest build is 2.0.15-08.19. ... We need to update all our files to the new version ... and
