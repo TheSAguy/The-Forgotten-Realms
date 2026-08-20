@@ -70,7 +70,11 @@ public class ForgeProfileProperties {
         final Pair<String, String> defaults = getDefaultDirs();
         userDir     = getDir(props, USER_DIR_KEY,      defaults.getLeft());
         cacheDir    = getDir(props, CACHE_DIR_KEY,     defaults.getRight());
-        cardPicsDir = getDir(props, CARD_PICS_DIR_KEY, cacheDir + "pics" + File.separator + "cards" + File.separator);
+        // The Forgotten Realms standalone: card art defaults to STOCK Forge's pics folder so
+        // players with an existing Forge install reuse gigabytes of already-downloaded art
+        // (and a fresh machine just creates it). Everything else stays in this game's own dirs.
+        // A cardPicsDir entry in forge.profile.properties still overrides this.
+        cardPicsDir = getDir(props, CARD_PICS_DIR_KEY, getStockForgeCacheDir() + "pics" + File.separator + "cards" + File.separator);
         cardPicsSubDirs = getMap(props, CARD_PICS_SUB_DIRS_KEY);
         decksDir    = getDir(props, DECKS_DIR_KEY, userDir + "decks" + File.separator);
         decksConstructedDir = getDir(props, DECKS_CONSTRUCTED_DIR_KEY, decksDir + "constructed" + File.separator);
@@ -176,7 +180,10 @@ public class ForgeProfileProperties {
             throw new RuntimeException("cannot determine OS and user home directory");
         }
 
-        final String fallbackDataDir = TextUtil.concatNoSpace(homeDir, "/.forge");
+        // The Forgotten Realms standalone: this fork stores its data under its own app
+        // folder so a stock Forge install (any version) on the same machine is never touched.
+        // Card art is the deliberate exception - see load()'s cardPicsDir default.
+        final String fallbackDataDir = TextUtil.concatNoSpace(homeDir, "/.forgottenrealms");
 
         if (StringUtils.containsIgnoreCase(osName, "windows")) {
             // the split between appdata and localappdata on windows is relatively recent.  If
@@ -190,17 +197,38 @@ public class ForgeProfileProperties {
             if (StringUtils.isEmpty(cacheRoot)) {
                 cacheRoot = appRoot;
             }
-            // the cache dir is Forge/Cache instead of just Forge since appRoot and cacheRoot might be the
+            // the cache dir is <name>/Cache instead of just <name> since appRoot and cacheRoot might be the
             // same directory on windows and we need to distinguish them.
-            return Pair.of(appRoot + File.separator + "Forge", cacheRoot + File.separator + "Forge" + File.separator + "Cache");
+            return Pair.of(appRoot + File.separator + "ForgottenRealms", cacheRoot + File.separator + "ForgottenRealms" + File.separator + "Cache");
         }
         else if (StringUtils.containsIgnoreCase(osName, "mac os x")) {
-            return Pair.of(TextUtil.concatNoSpace(homeDir, "/Library/Application Support/Forge"),
-                    TextUtil.concatNoSpace(homeDir, "/Library/Caches/Forge"));
+            return Pair.of(TextUtil.concatNoSpace(homeDir, "/Library/Application Support/ForgottenRealms"),
+                    TextUtil.concatNoSpace(homeDir, "/Library/Caches/ForgottenRealms"));
         }
 
         // Linux and everything else
-        return Pair.of(fallbackDataDir, TextUtil.concatNoSpace(homeDir, "/.cache/forge"));
+        return Pair.of(fallbackDataDir, TextUtil.concatNoSpace(homeDir, "/.cache/forgottenrealms"));
+    }
+
+    // Stock Forge's cache dir (the upstream getDefaultDirs() cache-side logic, unrebranded) -
+    // used only as the default parent for the shared card-art folder.
+    private static String getStockForgeCacheDir() {
+        final String osName = System.getProperty("os.name");
+        final String homeDir = System.getProperty("user.home");
+        if (StringUtils.containsIgnoreCase(osName, "windows")) {
+            String cacheRoot = System.getenv().get("LOCALAPPDATA");
+            if (StringUtils.isEmpty(cacheRoot)) {
+                cacheRoot = System.getenv().get("APPDATA");
+            }
+            if (StringUtils.isEmpty(cacheRoot)) {
+                cacheRoot = TextUtil.concatNoSpace(homeDir, "/.forge");
+            }
+            return cacheRoot + File.separator + "Forge" + File.separator + "Cache" + File.separator;
+        }
+        else if (StringUtils.containsIgnoreCase(osName, "mac os x")) {
+            return TextUtil.concatNoSpace(homeDir, "/Library/Caches/Forge/");
+        }
+        return TextUtil.concatNoSpace(homeDir, "/.cache/forge/");
     }
 
     private static void save() {
@@ -208,7 +236,8 @@ public class ForgeProfileProperties {
         final String defaultUserDir = defaults.getLeft() + File.separator;
         final String defaultDecksDir = defaultUserDir + "decks" + File.separator;
         final String defaultCacheDir = defaults.getRight() + File.separator;
-        final String defaultCardPicsDir = defaultCacheDir + "pics" + File.separator + "cards" + File.separator;
+        // matches load()'s shared-card-art default (stock Forge's pics folder)
+        final String defaultCardPicsDir = getStockForgeCacheDir() + "pics" + File.separator + "cards" + File.separator;
 
         //only append values that aren't equal to defaults
         final StringBuilder sb = new StringBuilder();

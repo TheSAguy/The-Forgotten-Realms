@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.10.1" orientation="orthogonal" renderorder="right-down" width="16" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="20" nextobjectid="54">
  <tileset firstgid="1" name="autotiles" tilewidth="16" tileheight="16" tilecount="432" columns="12">
-  <image source="../../../../Amonkhet/world/tilesets/autotiles.png" width="192" height="576"/>
+  <image source="../../tileset/autotiles.png" width="192" height="576"/>
  </tileset>
  <tileset firstgid="433" name="large_buildings" tilewidth="16" tileheight="16" tilecount="36" columns="6">
   <image source="../../../../common/maps/tileset/large_buildings.png" width="96" height="96"/>

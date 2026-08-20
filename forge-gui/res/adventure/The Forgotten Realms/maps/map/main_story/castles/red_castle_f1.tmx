@@ -9,7 +9,7 @@
  </properties>
  <tileset firstgid="1" source="../../../../../common/maps/tileset/main.tsx"/>
  <tileset firstgid="10113" source="../../../../../common/maps/tileset/buildings.tsx"/>
- <tileset firstgid="11905" source="../../../../../Innistrad/maps/tileset/INN_dungen_crawler_tileset.tsx"/>
+ <tileset firstgid="11905" source="../../../tileset/INN_dungen_crawler_tileset.tsx"/>
  <layer id="1" name="Background" width="30" height="30">
   <data encoding="base64" compression="zlib">
    eJw7bc3AcHoUY2B8YCDsHLV36McvLruJ1UNtu2ntz1E8ikfxKB7Fo3gUj+JRPPgxAPu6ajI=

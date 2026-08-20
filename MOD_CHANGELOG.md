@@ -11535,3 +11535,53 @@ here: E:\GAMES\FORGE I'm still testing that currently. Just update the Repo."
 playtesting (user instruction). The merged 2.0.15 build's first real run will be the standalone
 package prototype (MOD_SCOPE.md #89 part 2). Note the jar names change to `2.0.15-SNAPSHOT` from
 here on — the old splice-into-2.0.14-jar deploy loop does not apply to this and future rounds.
+
+## Twenty-sixth round: standalone game identity, self-containment, and the first package build (2026-08-19, MOD_SCOPE.md #89 part 2, REPO-ONLY - E:\GAMES\FORGE untouched)
+
+User decisions this round: own data folder BUT shared card art ("the card-art is HUGE. Gigabytes
+of data, so I don't want the user to have to re-download that"); full rebrand ("Let's not consider
+this a MOD anymore, but it's own game"); credits to the Forge dev team and the Realm of Legends
+and Shandalar Old Border teams; all licensing in the mod folder too.
+
+- **Plane self-containment (prerequisite for deleting other planes from the package).** An
+  asset-closure audit found every reference the plane makes outside its own folder and `common/`:
+  8 `spriteAtlas` entries in `world/points_of_interest.json` pointing at `../Realm of Legends/
+  sprites/buildings(bosses).atlas`, 12 Innistrad tileset refs in the 8 AI-castle interior maps
+  (`main_story/castles/*.tmx` → `INN_dungen_crawler_tileset.tsx`/`Inn_Dungeon.tsx`/`inn_main.tsx`/
+  `inn_dungeon_floor.tsx`), and 2 Amonkhet refs (`naktamun/naktamun.tmx` + `oasis.tmx` →
+  `autotiles.png`). Everything else that greps like a plane name is lore text or name lists.
+  Fixes: the plane's own STALE `sprites/buildingsbosses.atlas` (missing 2.0.15's `Ashling Domain`
+  + `Universe Portal` regions - the round-24 crash fix had gone to the RoL copy because the POIs
+  referenced the RoL path) replaced with the canonical copy, diff confirmed purely-additive;
+  the 8 POI refs repointed to `../The Forgotten Realms/sprites/...` (the plane's established
+  form); the 4 Innistrad `.tsx` + their 4 `.png`s copied to the plane's `maps/tileset/`
+  (preserving the `INN_tiles/` subpath) and `autotiles.png` alongside, with all 14 map refs
+  depth-corrected. Validated mechanically: JSON parses, all 12 changed `.tmx` parse with every
+  `source=`/`template=` resolving on disk, copied `.tsx` image refs resolve, and a whole-plane
+  scan shows ZERO remaining cross-plane path refs. (One pre-existing oddity left alone: a single
+  POI's `"spriteAtlas": "maps/tileset/buildings.atlas"` resolves through Forge's common/ fallback.)
+- **Fork identity in code (all three in CORE_ENGINE_CHANGES.md's standalone round):**
+  `ForgeProfileProperties` defaults to `ForgottenRealms` data/cache dirs with `cardPicsDir`
+  defaulting to STOCK Forge's `pics/cards` (shared art; profile file still overrides);
+  `AssetsDownloader.checkForUpdates()` desktop early-out kills the stock-Forge updater (a pinned
+  fork would otherwise nag "New Version Available" near-daily, and accepting would install plain
+  Forge over the game); `GameLauncher` window title → "The Forgotten Realms (Forge <version>)".
+- **Packaging kit** (`standalone-packaging/`): player-facing `README.md` (run instructions, data
+  locations, save migration, no-auto-update policy, GPL source link) and `CREDITS.md` (Forge dev
+  team, Realm of Legends team, Shandalar Old Border team, Shandalar/Innistrad/Amonkhet plane
+  teams, WotC fan-content notice), plus `build_standalone.py` - one command assembles the game
+  folder from the stock 2.0.15 base install (launcher shells, installer-shaped res/) + the
+  repo-built jar + a slimmed `res/adventure` (exactly `common` + the plane) + a GIT-DERIVED
+  overlay of every non-adventure res edit (so future rounds' res changes ship automatically;
+  `core.quotepath=off` so non-ASCII deck filenames don't confuse it) + docs, then self-verifies
+  (title marker + dir-rebrand marker present inside the shipped jar's classes, adventure folder
+  exactly 2 entries). `--zip` flag produces the release zip.
+- **First package BUILT and verified**: `F:\FORGE\TFR-Standalone\The Forgotten Realms\` (307 MB)
+  - `The Forgotten Realms.exe`/`.cmd` launchers, 2.0.15 jar with all mod code, TFR as the only
+  world, LICENSE/CREDITS/GUIDE both at root and inside the plane folder. Ready for the user's
+  side-by-side smoke test - the live 2.0.14 install at `E:\GAMES\FORGE` was not touched.
+
+Post-build checklist for the user's first smoke test: launch from the package folder, confirm
+the window title, confirm a NEW game generates (exercises the merged 2.0.15 engine + the
+Ashling's Domain atlas fix), confirm saves land in `%APPDATA%\ForgottenRealms`, confirm card art
+appears without mass re-downloading (shared cache), and confirm no update prompt appears.

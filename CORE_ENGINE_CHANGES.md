@@ -1317,3 +1317,35 @@ from the plane's `config tables/settings.json`).
   (SettingsScene.java), mindslave/counter-cleanup refactors in untouched regions of `Game.java`,
   and a whitespace fix in `MatchController.java`. Our 61 hand-extracted round-22 card files and
   the resynced `buildingsbosses.atlas` were byte-identical to upstream's canonical copies.
+
+## Standalone-game identity round (2026-08-19, MOD_SCOPE.md #89 part 2)
+
+- **`forge-gui/src/main/java/forge/localinstance/properties/ForgeProfileProperties.java`** —
+  the fork's data-dir identity: `getDefaultDirs()` now defaults to `ForgottenRealms` app folders
+  (`%APPDATA%\ForgottenRealms` / `%LOCALAPPDATA%\ForgottenRealms\Cache` on Windows, equivalent
+  renames on mac/linux) so a stock Forge install on the same machine is never touched; new private
+  `getStockForgeCacheDir()` reproduces upstream's unrebranded cache logic, and `load()`'s
+  `cardPicsDir` DEFAULT now points at stock Forge's `pics/cards` (user decision 2026-08-19: card
+  art is gigabytes and must be shared with an existing Forge install rather than re-downloaded);
+  `save()`'s default-comparison updated to match. A `forge.profile.properties` file still
+  overrides all of it. NOTE for dev machines: 2.0.15+ builds of this fork read/write
+  `%APPDATA%\ForgottenRealms` — existing test saves under `%APPDATA%\Forge\adventure\The
+  Forgotten Realms` must be copied over once (the old 2.0.14 install at `E:\GAMES\FORGE` is
+  unaffected, its jars predate this change).
+- **`forge-gui-mobile/src/forge/assets/AssetsDownloader.java`** — `checkForUpdates()` gets a
+  desktop-only early-out (`if (!GuiBase.isAndroid()) { run(runnable); return; }`) killing the
+  stock-Forge updater: on a pinned fork the "New Version Available" prompt would fire on nearly
+  every launch (upstream ships daily snapshots) and accepting it downloads PLAIN Forge over the
+  game. Every desktop path in the stock method ends in `run(runnable)` anyway — the entire
+  remainder of the method is Android asset plumbing — so nothing else changes; Android (not
+  shipped) keeps stock behavior. Upstream-merge watch: if upstream ever moves desktop update
+  logic out of this method, re-apply the kill there.
+- **`forge-gui-mobile-dev/src/forge/app/GameLauncher.java`** — window title `"Forge - <version>"`
+  → `"The Forgotten Realms (Forge <version>)"` (rebrand decision 2026-08-19; engine version kept
+  visible for bug reports).
+
+New non-engine files (repo root `standalone-packaging/`, no upstream collision):
+`build_standalone.py` (one-command package assembly: base install shells + repo jar + slimmed
+res/adventure [common + plane only] + git-derived res overlay + docs; self-verifying),
+`README.md` + `CREDITS.md` (player-facing, shipped in the package root and mirrored into the
+plane folder alongside LICENSE.txt).

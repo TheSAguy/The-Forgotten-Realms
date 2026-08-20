@@ -38,6 +38,15 @@ public class AssetsDownloader {
     public static void checkForUpdates(boolean exited, Runnable runnable) {
         if (exited)
             return;
+        // The Forgotten Realms standalone: this fork is a pinned build of its own game, so the
+        // stock-Forge updater must never run - accepting its prompt would download plain Forge
+        // over the game and leave a broken half-updated install. Desktop-only shortcut: every
+        // non-Android path below ends in run(runnable) anyway, so nothing else is skipped.
+        // (Android builds, which we don't ship, keep the stock asset pipeline below.)
+        if (!GuiBase.isAndroid()) {
+            run(runnable);
+            return;
+        }
         final String versionString = Forge.getDeviceAdapter().getVersionString();
         Forge.getSplashScreen().getProgressBar().setDescription("Checking for updates...");
         if (versionString.contains("GIT")) {

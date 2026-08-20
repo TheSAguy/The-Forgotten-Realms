@@ -10,8 +10,8 @@
  <tileset firstgid="1" source="../../../../../common/maps/tileset/main.tsx"/>
  <tileset firstgid="10113" source="../../../../../common/maps/tileset/buildings.tsx"/>
  <tileset firstgid="11905" source="../../../../../common/maps/tileset/dungeon/dungeon_bis.tsx"/>
- <tileset firstgid="28289" source="../../../../../Innistrad/maps/tileset/Inn_Dungeon.tsx"/>
- <tileset firstgid="32769" source="../../../../../Innistrad/maps/tileset/INN_dungen_crawler_tileset.tsx"/>
+ <tileset firstgid="28289" source="../../../tileset/Inn_Dungeon.tsx"/>
+ <tileset firstgid="32769" source="../../../tileset/INN_dungen_crawler_tileset.tsx"/>
  <layer id="1" name="Background" width="30" height="30">
   <data encoding="base64" compression="zlib">
    eJx7VM7A8GgI4WmcEEwve7DhUXtH7aW2/fSwE91eetlJD6xUMfBuGMWjeBSP4lE8ikGY1DpptA6jHk5TZGBIB+IMxVF7ScEA1IuTkw==
