@@ -183,8 +183,18 @@ def main():
     print(f"\nPackage OK: {game_dir}  ({total / 1024 / 1024:.0f} MB)")
 
     if args.zip:
-        m = re.search(r"(\d+\.\d+\.\d+)", jar_name)
-        zpath = os.path.join(OUT_DIR, f"{GAME_NAME} {m.group(1) if m else 'dev'}.zip")
+        # Name the release zip by the GAME's version (config.json modVersion), not the Forge
+        # engine version - players downloading "v1.00" were confused by a "2.0.15" filename.
+        version = "dev"
+        try:
+            cfg = open(os.path.join(REPO, "forge-gui", "res", "adventure", PLANE, "config.json"),
+                       encoding="utf-8").read()
+            mv = re.search(r'"modVersion"\s*:\s*"([^"]+)"', cfg)
+            if mv:
+                version = "v" + mv.group(1)
+        except OSError:
+            pass
+        zpath = os.path.join(OUT_DIR, f"{GAME_NAME.replace(' ', '-')}-{version}.zip")
         print(f"zipping to {zpath} ...")
         with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
             for r, _, fs in os.walk(game_dir):
