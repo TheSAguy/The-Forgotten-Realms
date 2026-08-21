@@ -1,104 +1,75 @@
-# ⚔️  Forge: The Magic: The Gathering Rules Engine
+# The Forgotten Realms
 
-Join the **Forge community** on [Discord](https://discord.gg/HcPJNyD66a)!
+**A free, standalone single-player adventure card game — five colors, one map, no neutral ground.**
 
-[![Test build](https://github.com/Card-Forge/forge/actions/workflows/test-build.yaml/badge.svg)](https://github.com/Card-Forge/forge/actions/workflows/test-build.yaml)
+The Forgotten Realms turns a Magic: The Gathering world map into a living campaign. Five rival
+colors each rule a castle and carve up the land between them: towns take sides, borders creep
+while you sleep, and the color you cross today decides whether its Capitol opens its gates to
+you — or charges you a toll to survive the visit. Underneath it all runs a full MTG rules engine,
+so every fight is a real game of Magic.
 
----
-
-## ✨ Introduction
-**Forge** is a dynamic and open-source **Rules Engine** tailored for **Magic: The Gathering** enthusiasts. Developed by a community of passionate programmers, Forge allows players to explore the rich universe of MTG through a flexible, engaging platform. 
-
-**Note:** Forge operates independently and is not affiliated with Wizards of the Coast.
-
----
-
-## 🌟 Key Features
-- **🌐 Cross-Platform Support:** Play on **Windows, Mac, Linux,** and **Android**.
-- **🔧 Extensible Architecture:** Built in **Java**, Forge encourages developers to contribute by adding features and cards.
-- **🎮 Versatile Gameplay:** Dive into single-player modes or challenge opponents online!
+**[⬇ Download the latest release](https://github.com/TheSAguy/The-Forgotten-Realms/releases/latest)** · **[💬 Join the Discord](https://discord.gg/TTRPKc9HYJ)** · **[☕ Support on Ko-fi](https://ko-fi.com/thesaguy)**
 
 ---
 
-## 🛠️ Installation Steps
+## What makes it different
 
-### 📥 Desktop
-1. **Latest Releases:** Download the latest version [here](https://github.com/Card-Forge/forge/releases/latest).
-2. **Snapshot Build:** For the latest development version, grab the `forge-gui-desktop` tarball from our [Snapshot Build](https://github.com/Card-Forge/forge/releases/tag/daily-snapshots).
-   - **Tip:** Extract to a new folder to prevent version conflicts.
-3. **User Data Management:** Previous players’ data is preserved during upgrades.
-4. **Java Requirement:** Ensure you have **Java 17 or later** installed.
+- **Reputation, with teeth** — five reputation tracks, one per color, from Partner (30% shop
+  discount) down to War (barred from their towns outright).
+- **Territory that moves** — castles and Capitols expand and contract their borders daily; own
+  the ground and you travel it faster.
+- **Build a Capitol** — own five towns and one becomes *Orazca*, a true seat of power with
+  buildings no ordinary town offers: Bank, Exchange, Archaeologist.
+- **Day, night & the march of time** — enemies fight harder on white plains at noon and in black
+  swamps at midnight; shops restock weekly, mines pay on payday, quests burn down in real days.
+- **Dungeons that live and die** — every dungeon has a lifespan; cleared or failed ones fade from
+  the map and fresh ones appear, drawn from a reserve five times larger than what's visible.
+- **Wood & Stone economy** — two new resources feed construction, guards' wages, and the Capitol
+  upgrade itself.
+- **Sets unlock as you go** — editions unlock as you find their cards in the world and research
+  what you've found; different lands hold different expansions.
 
-### 📱 Android
-- _(Note: **Android 11** is the minimum requirement with at least **6GB RAM** to run smoothly. You need to enable **"Install unknown apps"** for Forge to initialize and update itself)_
-- Download the **APK** from the [Snapshot Build](https://github.com/Card-Forge/forge/releases/tag/daily-snapshots). On the first launch, Forge will automatically download all necessary assets.
+**By the numbers:** 1,500+ enemies · 330+ dungeons · 33,000+ cards to find · 640+ items.
 
-### 📱 iOS (early stage)
-- Build the **IPA** according to Wiki
-- No jailbreak needed, only developer mode and iOS 16-26
-- Connect your device to a PC to self-sign and upload the app file, multiple tools exist e.g. [Sideloadly](https://sideloadly.io)
+A full player guide ships with the game (`GAME_GUIDE.md`).
 
----
+## Install & play
 
-## 🎮 Modes of Play
-Forge offers various exciting gameplay options:
+1. Install **Java 17 or newer** (64-bit) — https://adoptium.net
+2. Download the latest release zip and unzip it anywhere.
+3. Run **`The Forgotten Realms.exe`** (or `The Forgotten Realms.cmd`).
 
-### 🌍 Adventure Mode
-Embark on a thrilling single-player journey where you can:
-- Explore an overworld map.
-- Challenge diverse AI opponents.
-- Collect cards and items to boost your abilities.
+Saves and settings live in `%APPDATA%\ForgottenRealms`. The card-art cache is shared with a
+stock Forge install if you have one, so you never re-download images you already own. A stock
+Forge installation on the same machine is otherwise completely unaffected.
 
-<img width="1282" height="752" alt="Shandalar World" src="https://github.com/user-attachments/assets/9af31471-d688-442f-9418-9807d8635b72" />
+## Feedback
 
-### 🔍 Quest Mode
-Engage in focused gameplay without the overworld exploration—perfect for quick sessions!
+This is an early release — balance feedback and bug reports are very welcome on the
+**[Discord server](https://discord.gg/TTRPKc9HYJ)**.
 
-<img width="1282" height="752" alt="Quest Duels" src="https://github.com/user-attachments/assets/b9613b1c-e8c3-4320-8044-6922c519aad4" />
+## Building from source
 
-### 🤖 AI Formats
-Test your skills against AI in multiple formats:
-- **Sealed**
-- **Draft**
-- **Commander**
-- **Cube**
+This repository is a fork of [Card-Forge/forge](https://github.com/Card-Forge/forge) carrying
+the game's engine changes and the world itself
+(`forge-gui/res/adventure/The Forgotten Realms/`). To build:
 
-For comprehensive gameplay instructions, visit our [User Guide](https://github.com/Card-Forge/forge/wiki/User-Guide).
+```
+mvn -pl forge-gui-mobile-dev -am package -DskipTests
+python standalone-packaging/build_standalone.py --zip
+```
 
-<img width="1282" height="752" alt="Sealed" src="https://github.com/user-attachments/assets/ae603dbd-4421-4753-a333-87cb0a28d772" />
+Development notes live in `MOD_SCOPE.md` (feature list), `MOD_CHANGELOG.md` (engineering log),
+and `CORE_ENGINE_CHANGES.md` (every engine file the game modifies).
 
----
+## Credits & license
 
-## 💬 Support & Community
-Need help? Join our vibrant Discord community! 
-- 📜 Read the **#rules** and explore the **FAQ**.
-- ❓ Ask your questions in the **#help** channel for assistance.
+Built on **[Forge](https://github.com/Card-Forge/forge)** — the open-source MTG rules engine by
+the Card-Forge team and its many contributors. Portions of the world's content are adapted from
+the **Realm of Legends** and **Shandalar Old Border** adventure planes, and the world itself
+began as a clone of **Shandalar**. See `standalone-packaging/CREDITS.md` for details.
 
----
+Licensed under the **GNU General Public License v3** (see `LICENSE`).
 
-## 🤝 Contributing to Forge
-We love community contributions! Interested in helping? Check out our [Contributing Guidelines](CONTRIBUTING.md) for details on how to get started.
-
----
-
-## ℹ️ About Forge
-Forge aims to deliver an immersive and customizable Magic: The Gathering experience for fans around the world. 
-
-### 📊 Repository Statistics
-
-| Metric         | Count                                                       |
-|----------------|-------------------------------------------------------------|
-| **⭐ Stars:**   | [![GitHub stars](https://img.shields.io/github/stars/Card-Forge/forge?style=flat-square)](https://github.com/Card-Forge/forge/stargazers) |
-| **🍴 Forks:**   | [![GitHub forks](https://img.shields.io/github/forks/Card-Forge/forge?style=flat-square)](https://github.com/Card-Forge/forge/network) |
-| **👥 Contributors:** | [![GitHub contributors](https://img.shields.io/github/contributors/Card-Forge/forge?style=flat-square)](https://github.com/Card-Forge/forge/graphs/contributors) |
-
----
-
-**📄 License:** [GPL-3.0](LICENSE)
-<div align="center" style="display: flex; align-items: center; justify-content: center;">
-    <div style="margin-left: auto;">
-        <a href="#top">
-            <img src="https://img.shields.io/badge/Back%20to%20Top-000000?style=for-the-badge&logo=github&logoColor=white" alt="Back to Top">
-        </a>
-    </div>
-</div>
+*The Forgotten Realms is unofficial Fan Content permitted under the Wizards of the Coast Fan
+Content Policy. Magic: The Gathering and all card names and images are © Wizards of the Coast, LLC.*

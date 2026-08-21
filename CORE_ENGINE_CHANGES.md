@@ -1403,3 +1403,11 @@ plane folder alongside LICENSE.txt).
   (TFR_WelcomeShown) on first world-map entry; Config import added.
 - (`stage/MapStage.java`'s `showWelcomePopup()` from round 27 is now uncalled - left in place
   as a harmless utility rather than churning the diff again this close to release.)
+
+## Public-repo identity (2026-08-20, thirtieth round)
+
+- **`README.md`** (repo root) — upstream Forge's readme REPLACED with The Forgotten Realms' own
+  page (pitch, features, install, Discord/Ko-fi, build-from-source, Forge credit + GPL). Upstream
+  merges will conflict here every time upstream touches their readme - always resolve to OURS.
+- Repo renamed/made public: `TheSAguy/mtg-forge-mod` → **`TheSAguy/The-Forgotten-Realms`**
+  (old URLs redirect; origin remote + all doc references updated).

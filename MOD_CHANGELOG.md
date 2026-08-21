@@ -11736,3 +11736,13 @@ gates on mainQuest, set only by those two branches).
   promo page footer (Discord + Ko-fi, same artifact URL).
 - Deployed via the fast path: rebuilt fat jar copied into the existing package, res deltas
   synced, commanderprecon deleted from the package, zip rebuilt from the folder.
+
+## Thirtieth round: public GitHub identity + v1.00 Release (2026-08-20)
+
+User made the fork public and renamed it: **github.com/TheSAguy/The-Forgotten-Realms**.
+Root README.md rewritten as the game's own page (drawn from the promo/guide; Forge credited and
+linked at the end per user: "everyone who sees the mod knows it's Forge"; Discord + Ko-fi
+included). Old mtg-forge-mod URLs updated in the packaging docs; origin remote repointed.
+`tfr-v1.00` tag moved to the actual shipping commit; GitHub Release v1.00 created with the
+release zip attached (via freshly-installed gh CLI). Repo description + topics set. Promo page
+footer gained the GitHub link. Package README/CREDITS re-synced + zip refreshed.
