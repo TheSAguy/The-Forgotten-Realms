@@ -4,7 +4,7 @@ The Forgotten Realms is built on the work of many people. Thank you.
 
 ## The Forge development team
 
-The entire game engine — the complete Magic: The Gathering rules implementation,
+The entire game engine — the complete trading-card rules implementation,
 the card database and scripting for tens of thousands of cards, the Adventure
 mode framework, the AI, the UI — is **[Forge](https://github.com/Card-Forge/forge)**,
 by the Card-Forge team and its many contributors over nearly two decades

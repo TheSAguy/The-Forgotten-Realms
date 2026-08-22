@@ -11746,3 +11746,49 @@ included). Old mtg-forge-mod URLs updated in the packaging docs; origin remote r
 `tfr-v1.00` tag moved to the actual shipping commit; GitHub Release v1.00 created with the
 release zip attached (via freshly-installed gh CLI). Repo description + topics set. Promo page
 footer gained the GitHub link. Package README/CREDITS re-synced + zip refreshed.
+
+## Thirty-first round: v1.00 feedback response, part 1 - balance, UX, and de-branding (2026-08-21, REPO-ONLY, not packaged/deployed)
+
+First external feedback (from the Realm of Legends / Old Border developer, taken as constructive
+criticism) drove this round, plus the user's own follow-ups. Repo-only by request.
+
+- **Eldrazi Prison icon ROOT-CAUSED after 4 reports**: the world map and minimap use entirely
+  separate art - the minimap draws from common/sprites/map_marker.atlas keyed by
+  World.mapMarkerKey(), which remaps Story-tagged castles to the generic grey "dungeon" glyph, so
+  NO POI-sprite change could ever fix the minimap side. Fixed both layers, chosen by actually
+  extracting and LOOKING at the candidate art: overworld sprite -> "Edge of Eternities" (swirling
+  void rift, unmistakable, lore-appropriate; "Universe Portal" read as a friendly teleporter);
+  minimap -> new name-based case in mapMarkerKey() returning "sidebosshard" (red triple-skull).
+- **Ante re-roll intelligence** (Game.rerollAnte): remembers ante card names seen this duel
+  (5-roll window, both sides, seeded with the card being rejected) and re-draws up to 10
+  candidates preferring (a) no repeats and (b) all cards Uncommon+; falls back gracefully
+  (no-repeat-only, then any) so tiny libraries can never loop or fail. Selection via
+  chooseCardsForAnte() is side-effect-free, so re-drawing is safe.
+- **Deck cap 20 -> 50** (config.json maxNumberOfDecks; the loader's own clamp allows up to 99).
+- **Starting Wood/Stone DOUBLED**: Easy 200/200, Normal 100/100 (Hard/Insane were 0 and stay 0 -
+  doubling zero; flag if they should get a seed amount instead). Gold/life unchanged.
+- **Wood/Stone building costs HALVED across the board** (gold/shard components untouched):
+  mines 150->75 stone, Exchange 150/150->75/75, Outlook 250->125 wood, Archaeologist 350->175
+  stone, plain shop 10->5 wood, Armory repair 250->125 wood, Booster repair 10->5 stone, land
+  shops 5->3 wood, Armory/Arena upgrades 300->150, town restore 10->5 wood, CAPITOL
+  200/200 -> 100/100 wood/stone. One shared cost core drives label/affordability/deduction, so
+  all UI updates automatically.
+- **Heavy Armor + Blessed Armor (+15 life) Uncommon -> Mythic** (feedback: RoL-scale items on a
+  12-life curve; he predicted "+15 life item" sight-unseen and we shipped two at Uncommon).
+- **Player speed 32 -> 40** (config.json; RoL maps are authored for 60 - this splits the
+  difference pending playtest of the base-game maps at higher speed).
+- **Docs de-branded and updated** (guide, both READMEs, credits, promo - the WotC Fan Content
+  disclaimer line is deliberately KEPT as legal attribution): "very HARD, intentionally" notice
+  added everywhere player-facing; "tested on Windows PC only" noted; the guide's stale
+  "Ante & Inn Tournaments" section rewritten (Inn tournaments are ante-FREE; duel ante with
+  Re-roll/Buy Back documented accurately; standing-driven land hostility + the Capitol's
+  advanced Arena called out per user wording). Guide re-stamped 2026-08-21.
+
+- **Ante buy-back missing after DUNGEON losses (user report, same day)**: works on the overworld,
+  reportedly never offered when losing inside a dungeon. Static analysis found no
+  location-specific gate in the popup chain (GameEnd -> showAnteResults -> buy-back button), the
+  data has zero noAnte enemies, and both GameEnd call sites honor callbackExit - so per standing
+  practice the mechanic is now instrumented instead of guess-fixed: new `[TFR-AnteResult]` line
+  on every duel end (winner/won/lost counts, inMap, event, bossLoss) and `[TFR-AnteBuyBack]` on
+  every lost-card popup (card, price, gold, offered?) - the next dungeon loss pinpoints the
+  broken link. The live session's log was byte-range-locked by the running game and unreadable.

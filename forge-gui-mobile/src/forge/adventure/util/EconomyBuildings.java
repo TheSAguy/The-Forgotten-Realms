@@ -199,9 +199,11 @@ public class EconomyBuildings {
     // Placeholder cost per user spec 2026-08-11 ("some 100g for now") - shared by every building
     // upgrade (Arena today; Armory once its level 1 art and Guard-hiring mechanic land, Task #13).
     // 2026-08-12 user cost table: the two building upgrades cost resources, not gold.
-    public static final int ARMORY_UPGRADE_STONE = 300;
-    public static final int ARENA_UPGRADE_STONE = 300;
-    public static final int ARENA_UPGRADE_WOOD = 300;
+    // Wood/Stone components halved 2026-08-21 (v1.00 feedback: "the wood/stone numbers seem way
+    // too high... upgrading even one town is a pain") - gold/shard components untouched.
+    public static final int ARMORY_UPGRADE_STONE = 150;
+    public static final int ARENA_UPGRADE_STONE = 150;
+    public static final int ARENA_UPGRADE_WOOD = 150;
 
     // Armory manual "Re-roll" button (2026-08-11, round 7 - user spec: "cost 100 shards base"),
     // independent of both the automatic weekly refresh and the ordinary (Armory-blocked, since
@@ -1085,19 +1087,20 @@ public class EconomyBuildings {
     // Exchange dialogs' addButtonRow(). "Already have one of this type" is still a hard hide via
     // condition though, since that's a structural exclusion, not an affordability one.
     /** Per-type BASE build costs {gold, wood, stone, shards} - 2026-08-12 user cost table.
-     *  NONE = rebuilding the slot as a plain shop. */
+     *  NONE = rebuilding the slot as a plain shop. Wood/Stone components halved 2026-08-21
+     *  (v1.00 feedback round) - gold/shard components untouched. */
     private static int[] buildCostFor(int type) {
         switch (type) {
             case SHARD_MINE:
             case GOLD_MINE:
             case LUMBER_MILL:
-            case STONE_MINE:    return new int[]{250, 0, 150, 0};
+            case STONE_MINE:    return new int[]{250, 0, 75, 0};
             case BANK:          return new int[]{500, 0, 0, 0};
-            case EXCHANGE:      return new int[]{150, 150, 150, 0};
-            case OUTLOOK:       return new int[]{0, 250, 0, 0};
+            case EXCHANGE:      return new int[]{150, 75, 75, 0};
+            case OUTLOOK:       return new int[]{0, 125, 0, 0};
             case TELEPORTER:    return new int[]{0, 0, 0, 200};
-            case ARCHAEOLOGIST: return new int[]{0, 0, 350, 0};
-            default:            return new int[]{100, 10, 0, 0}; // NONE / plain shop
+            case ARCHAEOLOGIST: return new int[]{0, 0, 175, 0};
+            default:            return new int[]{100, 5, 0, 0}; // NONE / plain shop
         }
     }
 
@@ -1303,17 +1306,18 @@ public class EconomyBuildings {
             what = "Repair Shop";
 
         DialogData repair = new DialogData();
-        // Per-shop-type repair costs (2026-08-12 user cost table): Armory 250g+250 wood,
-        // Booster 200g+10 stone, the 6 land shops 50g+5 wood, everything else plain-shop cost.
+        // Per-shop-type repair costs (2026-08-12 user cost table): Armory 250g+125 wood,
+        // Booster 200g+5 stone, the 6 land shops 50g+3 wood, everything else plain-shop cost.
+        // Wood/Stone components halved (rounding up) 2026-08-21 - gold untouched.
         int[] c;
         if (isArmoryShop(data))
-            c = new int[]{250, 250, 0, 0};
+            c = new int[]{250, 125, 0, 0};
         else if (isBoosterShop(data))
-            c = new int[]{200, 0, 10, 0};
+            c = new int[]{200, 0, 5, 0};
         else if (landShop != null)
-            c = new int[]{50, 5, 0, 0};
+            c = new int[]{50, 3, 0, 0};
         else
-            c = new int[]{100, 10, 0, 0};
+            c = new int[]{100, 5, 0, 0};
         repair.name = what + " (" + costLabel(c[0], c[1], c[2], c[3]) + ")";
         repair.isDisabled = !canAffordCost(c[0], c[1], c[2], c[3]);
         DialogData.ActionData refreshShops = new DialogData.ActionData();

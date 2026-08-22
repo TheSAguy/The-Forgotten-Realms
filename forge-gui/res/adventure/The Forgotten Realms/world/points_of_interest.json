@@ -4471,7 +4471,7 @@
 		"type": "castle",
 		"count": 1,
 		"spriteAtlas": "../The Forgotten Realms/sprites/buildingsbosses.atlas",
-		"sprite": "Universe Portal",
+		"sprite": "Edge of Eternities",
 		"map": "../The Forgotten Realms/maps/map/cave/Eldrazi_Prison_0.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [

@@ -1,18 +1,18 @@
 # The Forgotten Realms
 
 A standalone single-player adventure card game built on the open-source
-[Forge](https://github.com/Card-Forge/forge) Magic: The Gathering engine.
+[Forge](https://github.com/Card-Forge/forge) card-game rules engine.
 
 Explore a living overworld where five mage colors wage a slow war for territory:
 capture and rebuild towns, raise your Capitol, manage Wood/Stone/Gold/Shard
 economies, build reputations with each color, research new card expansions,
-and fight through hundreds of rotating dungeons — all with a full MTG rules
-engine underneath. See `GAME_GUIDE.md` for a complete player guide.
+and fight through hundreds of rotating dungeons — all with Forge's full
+rules engine underneath. Fair warning: it's HARD, and that's intentional. See `GAME_GUIDE.md` for a complete player guide.
 
 ## Requirements
 
 - **Java 17 or newer** (64-bit). Get it from https://adoptium.net if you don't have it.
-- Windows (a `.cmd` launcher is included; the game itself is cross-platform Java).
+- Windows (tested on PC only; the engine is cross-platform Java, but other platforms are untested).
 - ~2 GB free disk space (more as card art downloads).
 
 ## Install & Run

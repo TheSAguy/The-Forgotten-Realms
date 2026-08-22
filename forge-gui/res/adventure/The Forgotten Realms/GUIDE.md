@@ -27,7 +27,13 @@ The Forgotten Realms is built on top of stock Forge Adventure mode, but changes 
 itself behaves: towns take sides, dungeons come and go, your reputation with each color actually
 means something, and there's a real path from "wandering duelist" to "ruler of your own Capitol."
 None of it requires you to play differently deck-wise — it's a layer on top of the normal
-Magic-duel loop, not a replacement for it.
+duel loop, not a replacement for it.
+
+**Fair warning: this is a HARD game, and that's intentional.** You start with little, the world
+doesn't wait for you, and losses have teeth. Digging yourself out is the fun — but go in knowing
+the early game is meant to be a fight.
+
+*The game is currently tested on Windows PC only.*
 
 ## Starting Out
 
@@ -121,13 +127,21 @@ Side-quest-linked dungeons get extra grace: three failed attempts before they're
 and their lifespan extends automatically while a quest still points at them. Story-critical
 locations never disappear.
 
-### Ante & Inn Tournaments
+### Ante, Tournaments & Hostile Lands
 
-Innkeepers run weekly tournaments with real ante stakes - risk a card from your collection for a
-shot at winning others. If you lose an ante card you value, a **Buy Back** option lets you
-repurchase it (priced by rarity), and an escalating-cost **Re-roll** lets you swap out an ante
-you don't want to risk. Tournaments also offer an opt-in "simulate the AI rounds" mode if you'd
-rather not watch every match play out.
+Ordinary duels are played for ante (on by default): each side stakes a card, winner takes it. If
+you lose a card you value, a **Buy Back** option lets you repurchase it on the spot (priced by
+rarity), and an escalating-cost **Re-roll** lets you swap out an ante you don't want to risk
+before the duel starts — re-rolls won't repeat a card you just rejected.
+
+Innkeepers run weekly **tournaments** (Draft, Sealed, Jumpstart) — these are entry-fee events
+with prize support, **no ante at stake**. They also offer an opt-in "simulate the AI rounds" mode
+if you'd rather not watch every AI match play out.
+
+Beyond the tavern, remember the world itself takes sides: depending on your standing with each
+color, their lands are more hostile or more friendly — travel speed, shop prices, town access,
+and who their mages hunt all follow your reputation. And once you've built your Capitol, it hosts
+an **advanced Arena** with a challenge tier (and champion fights) no ordinary town offers.
 
 ### Item Economy & Shops
 
@@ -235,7 +249,7 @@ deck tier before assuming it's just you.
 
 ---
 
-*This guide covers the state of The Forgotten Realms as of 2026-08-18. See `MOD_CHANGELOG.md` in
+*This guide covers the state of The Forgotten Realms as of 2026-08-21. See `MOD_CHANGELOG.md` in
 the repository for the full history of how the mod got here, if you're curious.*
 
 ## Support & Community

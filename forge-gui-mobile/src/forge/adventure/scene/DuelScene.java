@@ -195,6 +195,14 @@ public class DuelScene extends ForgeScene {
         boolean finalWinner = winner;
         boolean isBossLoss = (chaosBattle || showMessages) && !finalWinner;
         boolean hasAnteResults = !anteWonCards.isEmpty() || !anteLostCards.isEmpty();
+        // Diagnostic (2026-08-21 user report: "lost in a dungeon and got kicked out without the
+        // opportunity to buy back my ante" while the same flow worked on the overworld) - one
+        // line per duel end with everything the popup decision depends on, so the next
+        // occurrence pinpoints which link skipped: no ante result at all (exception above /
+        // noAnte fight), empty lostCards, or popups queued but never shown.
+        System.out.println("[TFR-AnteResult] winner=" + finalWinner + " won=" + anteWonCards.size()
+                + " lost=" + anteLostCards.size() + " inMap=" + MapStage.getInstance().isInMap()
+                + " event=" + (eventData != null) + " bossLoss=" + isBossLoss);
 
         // No popups needed, preserve original behavior
         if (!hasAnteResults && !isBossLoss) {
@@ -372,6 +380,11 @@ public class DuelScene extends ForgeScene {
                         anteBuyBackMinPrice(card))
                 : 0;
         boolean offerBuyBack = buyBackPrice > 0 && Current.player().getGold() >= buyBackPrice;
+        // Diagnostic companion to [TFR-AnteResult] - proves the lost-card popup was actually
+        // built, and with which buttons.
+        if (!won)
+            System.out.println("[TFR-AnteBuyBack] card=" + card.getName() + " price=" + buyBackPrice
+                    + " gold=" + Current.player().getGold() + " offering=" + offerBuyBack);
         if (won && eventData == null) {
             int sellPrice = Current.player().cardSellPrice(card);
             buttons = sellPrice > 0

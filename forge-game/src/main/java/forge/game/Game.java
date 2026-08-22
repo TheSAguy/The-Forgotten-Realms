@@ -1143,13 +1143,83 @@ public class Game {
      * Multimap and update its display in place, rather than a second GameEventAnteCardsSelected
      * triggering a duplicate generic reveal.
      */
+    // Ante re-roll memory (2026-08-21 user spec: "keep a tally of 5 rolls guaranteed not to be
+    // the same") - card names seen in this game's ante rolls, so consecutive re-rolls in one
+    // duel can't hand back a card the player just rejected. Per-Game instance = resets naturally
+    // every duel; sized for both players' cards across the 5-roll window.
+    private final java.util.ArrayDeque<String> recentAnteNames = new java.util.ArrayDeque<>();
+    private static final int ANTE_MEMORY_ROLLS = 5;
+
+    private static boolean isUncommonPlus(final Card c) {
+        switch (c.getRarity()) {
+            case Common:
+            case BasicLand:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    private void rememberAnteRoll(final Multimap<Player, Card> anteed) {
+        for (final Card c : anteed.values()) {
+            recentAnteNames.addLast(c.getName());
+        }
+        // 2 players x 5 rolls of memory; oldest names age out.
+        while (recentAnteNames.size() > ANTE_MEMORY_ROLLS * 2) {
+            recentAnteNames.removeFirst();
+        }
+    }
+
     public Multimap<Player, Card> rerollAnte() {
         for (final Player player : getPlayers()) {
             for (final Card c : new CardCollection(player.getCardsIn(ZoneType.Ante))) {
+                // Remember what the player is rejecting, so the re-roll can't return it.
+                if (!recentAnteNames.contains(c.getName())) {
+                    recentAnteNames.addLast(c.getName());
+                }
                 getAction().moveTo(ZoneType.Library, c, null, AbilityKey.newMap());
             }
         }
-        Multimap<Player, Card> anteed = chooseCardsForAnte(rules.getMatchAnteRarity(), rules.getAnteIncludeBasicLands());
+        // 2026-08-21 user spec: a re-roll should (a) never repeat a recently-seen ante and
+        // (b) prefer Uncommon-or-better. chooseCardsForAnte() only SELECTS (the moveTo below is
+        // what commits it), so re-drawing candidates is side-effect-free: take the first draw
+        // that satisfies both criteria, else the first that at least avoids repeats, else the
+        // final draw as-is (tiny libraries can make both unsatisfiable - never loop forever).
+        Multimap<Player, Card> anteed = null;
+        Multimap<Player, Card> noRepeatFallback = null;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            final Multimap<Player, Card> candidate = chooseCardsForAnte(rules.getMatchAnteRarity(), rules.getAnteIncludeBasicLands());
+            boolean repeats = false;
+            boolean allUncommonPlus = true;
+            for (final Card c : candidate.values()) {
+                if (recentAnteNames.contains(c.getName())) {
+                    repeats = true;
+                }
+                if (!isUncommonPlus(c)) {
+                    allUncommonPlus = false;
+                }
+            }
+            anteed = candidate;
+            if (!repeats && noRepeatFallback == null) {
+                noRepeatFallback = candidate;
+            }
+            if (!repeats && allUncommonPlus) {
+                break;
+            }
+        }
+        if (anteed != null && noRepeatFallback != null && anteed != noRepeatFallback) {
+            boolean finalHasRepeats = false;
+            for (final Card c : anteed.values()) {
+                if (recentAnteNames.contains(c.getName())) {
+                    finalHasRepeats = true;
+                    break;
+                }
+            }
+            if (finalHasRepeats) {
+                anteed = noRepeatFallback;
+            }
+        }
+        rememberAnteRoll(anteed);
         for (final Map.Entry<Player, Card> kv : anteed.entries()) {
             getAction().moveTo(ZoneType.Ante, kv.getValue(), null, AbilityKey.newMap());
         }

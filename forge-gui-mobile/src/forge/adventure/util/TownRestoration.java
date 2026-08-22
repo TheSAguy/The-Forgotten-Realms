@@ -24,8 +24,9 @@ import forge.adventure.world.WorldSave;
 public class TownRestoration {
     public static final String TOWN_RESTORED_FLAG = "townRestored";
     // 2026-08-12 user cost table (multi-resource; see EconomyBuildings' cost helpers).
+    // Wood component halved 2026-08-21 (v1.00 feedback round) - gold untouched.
     private static final int RESTORE_COST_GOLD = 200;
-    private static final int RESTORE_COST_WOOD = 10;
+    private static final int RESTORE_COST_WOOD = 5;
 
     // Biome json ("colorless.json") whose name pool (town_names_waste.txt) names wasteland towns.
     private static final String WASTE_BIOME_NAME = "waste";
@@ -430,10 +431,11 @@ public class TownRestoration {
     // (The earlier Rename-town option was dropped the same day per user - names showing in
     // messages/map made it unnecessary.)
     public static final String CAPITOL_POI_NAME = "Player Capitol";
-    // 2026-08-12 user cost table: 1000 gold + 200 stone + 200 wood + 50 shards.
+    // 2026-08-12 user cost table: 1000 gold + 100 stone + 100 wood + 50 shards.
+    // Wood/Stone components halved 2026-08-21 (v1.00 feedback round) - gold/shards untouched.
     private static final int CAPITOL_COST_GOLD = 1000;
-    private static final int CAPITOL_COST_WOOD = 200;
-    private static final int CAPITOL_COST_STONE = 200;
+    private static final int CAPITOL_COST_WOOD = 100;
+    private static final int CAPITOL_COST_STONE = 100;
     private static final int CAPITOL_COST_SHARDS = 50;
     private static final int CAPITOL_TOWNS_REQUIRED = 5;
 

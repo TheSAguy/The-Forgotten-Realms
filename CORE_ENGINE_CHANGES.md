@@ -1411,3 +1411,15 @@ plane folder alongside LICENSE.txt).
   merges will conflict here every time upstream touches their readme - always resolve to OURS.
 - Repo renamed/made public: `TheSAguy/mtg-forge-mod` → **`TheSAguy/The-Forgotten-Realms`**
   (old URLs redirect; origin remote + all doc references updated).
+
+## v1.00 feedback round (2026-08-21, thirty-first round)
+
+- **`forge-game/src/main/java/forge/game/Game.java`** — `rerollAnte()` gained a per-Game
+  recent-ante memory (ArrayDeque, 5-roll window) and a bounded re-draw loop preferring
+  no-repeats + Uncommon-or-better; new private helpers `isUncommonPlus`/`rememberAnteRoll`.
+  Only reachable via the adventure ante-re-roll UI - stock clients never call rerollAnte().
+- **`world/World.java`** — `mapMarkerKey()`: name-based case for "Eldrazi Prison" ->
+  "sidebosshard" minimap glyph (the Story-castle remap sent it to the generic dungeon glyph;
+  minimap markers never read POI sprites, which is why four sprite fixes changed nothing there).
+- **`util/EconomyBuildings.java` / `util/TownRestoration.java`** — all Wood/Stone cost
+  components halved (build table, repair table, upgrade constants, town restore, Capitol).

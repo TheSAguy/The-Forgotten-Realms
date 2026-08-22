@@ -2,11 +2,11 @@
 
 **A free, standalone single-player adventure card game — five colors, one map, no neutral ground.**
 
-The Forgotten Realms turns a Magic: The Gathering world map into a living campaign. Five rival
+The Forgotten Realms turns a trading-card world map into a living campaign. Five rival
 colors each rule a castle and carve up the land between them: towns take sides, borders creep
 while you sleep, and the color you cross today decides whether its Capitol opens its gates to
-you — or charges you a toll to survive the visit. Underneath it all runs a full MTG rules engine,
-so every fight is a real game of Magic.
+you — or charges you a toll to survive the visit. Underneath it all runs the full Forge rules engine,
+so every fight is a real card duel with real decks.
 
 **[⬇ Download the latest release](https://github.com/TheSAguy/The-Forgotten-Realms/releases/latest)** · **[💬 Join the Discord](https://discord.gg/TTRPKc9HYJ)** · **[☕ Support on Ko-fi](https://ko-fi.com/thesaguy)**
 
@@ -33,11 +33,17 @@ so every fight is a real game of Magic.
 
 A full player guide ships with the game (`GAME_GUIDE.md`).
 
+> **Fair warning: this game is HARD — on purpose.** Expect to lose duels, lose territory,
+> and claw your way back. That's the design.
+
 ## Install & play
 
 1. Install **Java 17 or newer** (64-bit) — https://adoptium.net
 2. Download the latest release zip and unzip it anywhere.
 3. Run **`The Forgotten Realms.exe`** (or `The Forgotten Realms.cmd`).
+
+Currently **tested on Windows PC only**. The engine itself is cross-platform Java, but other
+platforms are untested territory for now.
 
 Saves and settings live in `%APPDATA%\ForgottenRealms`. The card-art cache is shared with a
 stock Forge install if you have one, so you never re-download images you already own. A stock
@@ -64,7 +70,7 @@ and `CORE_ENGINE_CHANGES.md` (every engine file the game modifies).
 
 ## Credits & license
 
-Built on **[Forge](https://github.com/Card-Forge/forge)** — the open-source MTG rules engine by
+Built on **[Forge](https://github.com/Card-Forge/forge)** — the open-source card-game rules engine by
 the Card-Forge team and its many contributors. Portions of the world's content are adapted from
 the **Realm of Legends** and **Shandalar Old Border** adventure planes, and the world itself
 began as a clone of **Shandalar**. See `standalone-packaging/CREDITS.md` for details.
