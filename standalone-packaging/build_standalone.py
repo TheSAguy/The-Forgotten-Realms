@@ -93,6 +93,13 @@ def main():
              "the launcher shells target the base install's jar name exactly")
 
     game_dir = os.path.join(OUT_DIR, GAME_NAME)
+    # PACKAGE_OK.txt is the playability contract (2026-08-21 incident: the user launched the
+    # game from this folder while a rebuild's slow rmtree was mid-deletion - stock splash, then
+    # a hang as files vanished underneath it). Removed FIRST, written LAST: the folder is only
+    # safe to run when the marker exists.
+    ok_marker = os.path.join(game_dir, "PACKAGE_OK.txt")
+    if os.path.exists(ok_marker):
+        os.remove(ok_marker)
     if os.path.exists(game_dir):
         print(f"removing previous package at {game_dir}")
         shutil.rmtree(game_dir)
@@ -180,6 +187,8 @@ def main():
 
     total = sum(os.path.getsize(os.path.join(r, f))
                 for r, _, fs in os.walk(game_dir) for f in fs)
+    with open(ok_marker, "w", encoding="utf-8") as mk:
+        mk.write("Package verified complete. Safe to play from this folder.\n")
     print(f"\nPackage OK: {game_dir}  ({total / 1024 / 1024:.0f} MB)")
 
     if args.zip:
