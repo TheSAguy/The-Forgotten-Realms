@@ -230,6 +230,16 @@ seven-boss gauntlet (plus a joke encounter worth finding), and the **Ancient Opa
 single, brutally difficult best-of-three duel against Nephilim Epochal for the Mox Opal. Bring
 your best deck.
 
+### Legendary Dungeons
+
+Nine locations stand apart from everything else on the map: the eight dungeons ported from the
+Realm of Legends (Ashling's Domain, Eclipsed Elven Court, Planeswalker Dueling Club, Idyllic
+Beachfront, Peaceful Clearing, An-Havva Inn, Ancient Opal Cavern, Isolated Hut) and the Eldrazi
+Prison. These are **true endgame content** - their bosses and decks were built to a far higher
+power level than the surrounding world, and they are deliberately not scaled down. You'll know
+them by the **red triple-skull marker** on the minimap and a warning at the door. Treat them as
+your character's final exams, not a mid-game detour.
+
 ## Item Guide
 
 Items are a real part of building your character, not an afterthought - between shop purchases,

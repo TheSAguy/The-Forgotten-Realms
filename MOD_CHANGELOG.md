@@ -11792,3 +11792,31 @@ criticism) drove this round, plus the user's own follow-ups. Repo-only by reques
   on every duel end (winner/won/lost counts, inMap, event, bossLoss) and `[TFR-AnteBuyBack]` on
   every lost-card popup (card, price, gold, offered?) - the next dungeon loss pinpoints the
   broken link. The live session's log was byte-range-locked by the running game and unreadable.
+
+## Thirty-second round: v1.01 - Legendary dungeons, life bumps, ante probe (2026-08-21)
+
+- **Tier 1 of the enemy-balance-curve reconciliation** (user approved the proposal): the 8 Realm
+  of Legends-ported dungeons + the Eldrazi Prison now carry a "Legendary" questTag driving three
+  things: (1) the red triple-skull minimap glyph (mapMarkerKey generalized from the Eldrazi
+  name-check to the tag), (2) a NEW entry-warning dialog on the world map (WorldStage - the
+  showCapitalTollDialog idiom; Enter replicates the exact normal entry sequence, Turn Back
+  cancels; walk-off-and-retry via collidingPoint like the barred/toll gates), and (3) a
+  "Legendary Dungeons" section in the guide. Their content is deliberately NOT scaled down -
+  the marking makes the difficulty a promise instead of an ambush. (Tier 2 - scripted life/item
+  rescale of ported content - remains open.)
+- **Starting life raised on all difficulties** (user spec: +5/+4/+3/+2): Easy 21, Normal 16,
+  Hard 11, Insane 9.
+- **Hard/Insane starting Wood & Stone seeded** (were 0): Hard 50/50, Insane 25/25.
+- **Second dungeon ante-loss log analyzed** (user reproduced on v1.00): identical clean-skip
+  signature - ante chosen ("Rarity chosen for ante: Rare"), re-roll offered, loss, despawn, NO
+  ante processing, NO exception. Match.getAnteResult() can never return null (fresh accumulator)
+  - so the skip means EMPTY results, leaving exactly two suspects: RegisteredPlayer identity
+  mismatch in the outcome map, or the engine not flagging the human as loser. The
+  [TFR-AnteResult] probe now prints raw counts + hasLost/anteZone/humanNotFound to discriminate
+  on the next occurrence (this build carries it).
+- **modVersion 1.01**; release notes drafted; v1.01 packaged, zipped, pushed, and released on
+  GitHub with the repo tag tfr-v1.01.
+- **Android**: requested; scoped as its own milestone (needs Android SDK toolchain + an asset-
+  delivery answer - Android Forge downloads stock assets at first run, ours must be bundled or
+  self-hosted, plus the AssetsDownloader Android path currently points at stock Forge's asset
+  server). Not attempted inside this round.

@@ -1558,13 +1558,17 @@ public class World implements Disposable, SaveFileContent {
     private static String mapMarkerKey(PointOfInterestData data) {
         if (data == null)
             return null;
-        // Eldrazi Prison (2026-08-21, 4th user report): the story-castle remap below sent it to
-        // the generic grey "dungeon" glyph, which reads as just another cave on the minimap no
-        // matter what its overworld sprite is - the two views use entirely separate art (marker
-        // atlas vs POI sprite). Give this unique endgame POI the red triple-skull instead so it
-        // finally stands out on BOTH maps (overworld sprite is "Edge of Eternities" void rift).
-        if ("Eldrazi Prison".equals(data.name))
-            return "sidebosshard";
+        // Legendary endgame POIs (2026-08-21, v1.00 feedback "Tier 1" - generalized same day
+        // from the original Eldrazi Prison name-check, 4th user report on its icon): everything
+        // tagged "Legendary" (the 8 Realm of Legends-ported dungeons + Eldrazi Prison) gets the
+        // red triple-skull minimap glyph. The minimap and world map use entirely separate art
+        // (marker atlas vs POI sprite), which is why sprite changes alone never fixed this.
+        if (data.questTags != null) {
+            for (String tag : data.questTags) {
+                if ("Legendary".equals(tag))
+                    return "sidebosshard";
+            }
+        }
         if ("castle".equals(data.type) && data.questTags != null) {
             boolean isStory = false;
             boolean isBoss = false;

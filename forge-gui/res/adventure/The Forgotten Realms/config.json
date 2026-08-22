@@ -103,7 +103,7 @@
   "difficulties": [
     {
       "name": "Easy",
-      "startingLife": 16,
+      "startingLife": 21,
       "startingShards": 5,
       "startingMoney": 500,
       "startingWood": 200,
@@ -142,7 +142,7 @@
       ]
     },{
       "name": "Normal",
-      "startingLife": 12,
+      "startingLife": 16,
       "startingShards": 2,
       "startingMoney": 250,
       "startingWood": 100,
@@ -181,7 +181,9 @@
       ]
     },{
       "name": "Hard",
-      "startingLife": 8,
+      "startingLife": 11,
+      "startingWood": 50,
+      "startingStone": 50,
       "startingShards": 0,
       "startingMoney": 125,
       "enemyLifeFactor": 1.5,
@@ -214,7 +216,9 @@
       }
     },{
       "name": "Insane",
-      "startingLife": 7,
+      "startingLife": 9,
+      "startingWood": 25,
+      "startingStone": 25,
       "startingShards": 0,
       "startingMoney": 0,
       "enemyLifeFactor": 2.5,
@@ -286,7 +290,7 @@
     "arenaUpgradesEnabled": true,
     "contentFilterTablesEnabled": true,
     "showEnemyTierInName": true,
-    "modVersion": "1.00",
+    "modVersion": "1.01",
     "welcomePopupText": "Thanks for trying out The Forgotten Realms!\n\nThis is an early release - your feedback on balance, bugs, and anything else is very much appreciated. Join us on Discord: discord.gg/TTRPKc9HYJ\n\nRecommended settings (already ON by default): Fog of War, Play for Ante, and Match Ante Rarity - visit Settings if you'd like to change them.\n\nGood luck out there, planeswalker!",
     "raceEditions": [
         { "race": "Devil",        "editions": ["RNA", "TOR", "SOI", "VOW"] },

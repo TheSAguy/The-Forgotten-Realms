@@ -494,6 +494,17 @@ public class WorldStage extends GameStage implements SaveFileContent {
                         }
                         continue;
                     }
+                    // Legendary endgame content (2026-08-21, v1.00 feedback "Tier 1"): the
+                    // Realm of Legends-ported dungeons (questTag "Legendary") are balanced far
+                    // above the surrounding world - warn at the door instead of ambushing.
+                    // Same walk-off-and-retry mechanism as the barred/toll dialogs above;
+                    // "Enter" replicates the normal entry sequence exactly, like the toll's
+                    // pay button does.
+                    if (isLegendaryPoi(point.getPointOfInterest())) {
+                        collidingPoint = point;
+                        showLegendaryWarningDialog(point.getPointOfInterest(), point);
+                        continue;
+                    }
                     WorldSave.getCurrentSave().autoSave();
                     loadPOI(point.getPointOfInterest());
                     point.getMapSprite().checkOut();
@@ -694,6 +705,44 @@ public class WorldStage extends GameStage implements SaveFileContent {
         payButton.setDisabled(Current.player().getGold() < ColorReputation.CAPITAL_ENTRY_TOLL);
         dialog.getButtonTable().add(payButton).width(240f).row();
         dialog.getButtonTable().add(Controls.newTextButton("Leave", this::hideDialog)).width(240f).row();
+        dialog.setKeepWithinStage(true);
+        showDialog();
+    }
+
+    private static boolean isLegendaryPoi(PointOfInterest poi) {
+        if (poi == null || poi.getData() == null || poi.getData().questTags == null)
+            return false;
+        for (String tag : poi.getData().questTags) {
+            if ("Legendary".equals(tag))
+                return true;
+        }
+        return false;
+    }
+
+    // Legendary-dungeon entry warning (2026-08-21, v1.00 feedback "Tier 1"): plain Enter/Turn
+    // Back gate, styled after showCapitalTollDialog above - Enter replicates the exact normal
+    // entry sequence (autoSave -> loadPOI -> checkOut -> visit).
+    private void showLegendaryWarningDialog(PointOfInterest poi, PointOfInterestMapSprite point) {
+        Dialog dialog = getDialog();
+        dialog.getContentTable().clear();
+        dialog.getButtonTable().clear();
+        dialog.clearListeners();
+
+        TypingLabel label = Controls.newTypingLabel("[RED]" + poi.getDisplayName() + "[] radiates "
+                + "power far beyond the surrounding lands. The legends within were never scaled "
+                + "to this world's dangers - turn back unless you are truly ready.");
+        label.setWrap(true);
+        label.skipToTheEnd();
+        dialog.getContentTable().add(label).width(250f).row();
+
+        dialog.getButtonTable().add(Controls.newTextButton("Enter", () -> {
+            hideDialog();
+            WorldSave.getCurrentSave().autoSave();
+            loadPOI(poi);
+            point.getMapSprite().checkOut();
+            WorldSave.getCurrentSave().getPointOfInterestChanges(poi.getID()).visit();
+        })).width(240f).row();
+        dialog.getButtonTable().add(Controls.newTextButton("Turn Back", this::hideDialog)).width(240f).row();
         dialog.setKeepWithinStage(true);
         showDialog();
     }

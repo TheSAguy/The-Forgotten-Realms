@@ -4475,7 +4475,8 @@
 		"map": "../The Forgotten Realms/maps/map/cave/Eldrazi_Prison_0.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"]
+			"Story",
+			"Legendary"]
 	},
 	{
 		"name": "inn_Cave_river",
@@ -4662,8 +4663,8 @@
 		"map": "../The Forgotten Realms/maps/map/evilgrove/Isolated_Hut.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"
-		]
+			"Story",
+			"Legendary"]
 	},
 	{
 		"name": "An-Havva Inn",
@@ -4675,8 +4676,8 @@
 		"map": "../The Forgotten Realms/maps/map/grove/An-Havva_Inn.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"
-		]
+			"Story",
+			"Legendary"]
 	},
 	{
 		"name": "Ancient Opal Cavern",
@@ -4688,8 +4689,8 @@
 		"map": "../The Forgotten Realms/maps/map/cave/Ancient_Opal_Cavern.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"
-		]
+			"Story",
+			"Legendary"]
 	},
 	{
 		"name": "Eclipsed Elven Court",
@@ -4701,8 +4702,8 @@
 		"map": "../The Forgotten Realms/maps/map/evilgrove/Eclipsed_Elven_Court.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"
-		]
+			"Story",
+			"Legendary"]
 	},
 	{
 		"name": "Ashling's Domain",
@@ -4714,8 +4715,8 @@
 		"map": "../The Forgotten Realms/maps/map/barbariancamp/Ashlings_Domain.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"
-		]
+			"Story",
+			"Legendary"]
 	},
 	{
 		"name": "Idyllic Beachfront",
@@ -4727,8 +4728,8 @@
 		"map": "../The Forgotten Realms/maps/map/merfolkpool/Idyllic_Beachfront.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"
-		]
+			"Story",
+			"Legendary"]
 	},
 	{
 		"name": "Peaceful Clearing",
@@ -4740,8 +4741,8 @@
 		"map": "../The Forgotten Realms/maps/map/fort/Peaceful_Clearing.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"
-		]
+			"Story",
+			"Legendary"]
 	},
 	{
 		"name": "Planeswalker Dueling Club",
@@ -4753,7 +4754,7 @@
 		"map": "../The Forgotten Realms/maps/map/cave/Planeswalker_Dueling_Club.tmx",
 		"radiusFactor": 0.8,
 		"questTags": [
-			"Story"
-		]
+			"Story",
+			"Legendary"]
 	}
 ]

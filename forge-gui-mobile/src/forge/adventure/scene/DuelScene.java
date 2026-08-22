@@ -156,6 +156,29 @@ public class DuelScene extends ForgeScene {
 
             // Mostly for ante handling, but also blacker lotus
             GameOutcome.AnteResult anteResult = hostedMatch.getAnteResult(humanPlayer);
+            // Diagnostic (2026-08-21 dungeon buy-back report): two clean session logs showed
+            // GameEnd running with NO ante processing after ante fights lost in dungeons.
+            // Match.getAnteResult() can never return null (it aggregates into a fresh
+            // accumulator), so the skip means EMPTY results - which leaves exactly two
+            // suspects this line discriminates: the outcome map not containing our
+            // humanPlayer key (identity mismatch -> "humanNotFound"), or the engine not
+            // flagging the human as the loser (hasLost=false on a lost duel).
+            String matchProbe = "game=null";
+            if (hostedMatch.getGame() != null) {
+                forge.game.player.Player humanGamePlayer = null;
+                for (forge.game.player.Player p : hostedMatch.getGame().getPlayers()) {
+                    if (p.getRegisteredPlayer() == humanPlayer) {
+                        humanGamePlayer = p;
+                        break;
+                    }
+                }
+                matchProbe = humanGamePlayer == null ? "humanNotFound"
+                        : "hasLost=" + humanGamePlayer.hasLost()
+                        + " anteZone=" + humanGamePlayer.getCardsIn(forge.game.zone.ZoneType.Ante).size();
+            }
+            System.out.println("[TFR-AnteResult] raw=" + (anteResult == null ? "null"
+                    : "won=" + anteResult.wonCards.size() + " lost=" + anteResult.lostCards.size())
+                    + " " + matchProbe);
             if (anteResult != null) {
                 if (eventData != null) {
                     //In an event. Apply the ante result to the current event deck.

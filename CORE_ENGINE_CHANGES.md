@@ -1423,3 +1423,14 @@ plane folder alongside LICENSE.txt).
   minimap markers never read POI sprites, which is why four sprite fixes changed nothing there).
 - **`util/EconomyBuildings.java` / `util/TownRestoration.java`** — all Wood/Stone cost
   components halved (build table, repair table, upgrade constants, town restore, Capitol).
+
+## v1.01 round (2026-08-21, thirty-second round)
+
+- **`stage/WorldStage.java`** — new `isLegendaryPoi()` + `showLegendaryWarningDialog()` and a
+  Legendary gate in `handlePointsOfInterestCollision()` (after the reputation bars, before
+  normal entry; Enter replicates the standard autoSave->loadPOI->checkOut->visit sequence).
+- **`world/World.java`** — `mapMarkerKey()` Eldrazi name-check generalized to the "Legendary"
+  questTag (9 POIs).
+- **`scene/DuelScene.java`** — [TFR-AnteResult] probe extended: raw won/lost counts plus
+  hasLost/anteZone/humanNotFound from the live Game, discriminating the two remaining suspects
+  for the dungeon buy-back skip.
